@@ -1,10 +1,11 @@
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render
 from django.utils import timezone
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
 from collections import defaultdict
 from .models import Exercise
-from tracker.models import ChallengeInstance, WeeklyPlan
+from tracker.models import WeeklyPlan
+from challenges.models import ChallengeInstance
 from tracker.views import sunday_of_current_week
 
 @login_required
@@ -20,7 +21,15 @@ def dashboard(request):
     current_week_plan = WeeklyPlan.objects.filter(
         user=request.user,
         week_start=current_week_start
-    ).first()
+    ).select_related('challenge_instance__challenge').first()
+    
+    # Calculate week number if current plan is part of a challenge
+    if current_week_plan and current_week_plan.challenge_instance:
+        all_ci_plans = current_week_plan.challenge_instance.weekly_plans.all().order_by("week_start")
+        for idx, p in enumerate(all_ci_plans, start=1):
+            if p.id == current_week_plan.id:
+                current_week_plan.week_number = idx
+                break
     
     # Get completed challenges count (all weeks completed)
     all_challenge_instances = ChallengeInstance.objects.filter(
@@ -66,7 +75,9 @@ def dashboard(request):
         ).order_by('week_start')[:2]
         
         # Only show recent plans if user has challenge involvement
-        show_recent_plans = recent_plans.exists()
+        show_recent_plans = len(recent_plans) > 0
+        # Calculate average completion rate
+        avg_completion_rate = (total_weeks_completed / total_weeks * 100) if total_weeks > 0 else 0
     else:
         # No challenge involvement - set defaults
         all_plans = WeeklyPlan.objects.none()
@@ -76,6 +87,7 @@ def dashboard(request):
         recent_plans = WeeklyPlan.objects.none()
         upcoming_plans = WeeklyPlan.objects.none()
         show_recent_plans = False
+        avg_completion_rate = 0
     
     context = {
         'active_challenge_instance': active_challenge_instance,
@@ -83,6 +95,7 @@ def dashboard(request):
         'total_points': total_points,
         'total_weeks_completed': total_weeks_completed,
         'total_weeks': total_weeks,
+        'avg_completion_rate': avg_completion_rate,
         'recent_plans': recent_plans if show_recent_plans else [],
         'upcoming_plans': upcoming_plans,
         'completed_challenges_count': completed_challenges_count,
@@ -106,7 +119,7 @@ def guide(request):
 @login_required
 def metrics(request):
     from collections import defaultdict
-    from accounts.models import WeightEntry
+    from accounts.models import WeightEntry, FTPEntry, PaceEntry
     
     # Get all challenge instances for this user
     all_challenge_instances = ChallengeInstance.objects.filter(
@@ -145,6 +158,114 @@ def metrics(request):
     all_plans = WeeklyPlan.objects.filter(user=request.user)
     total_points = sum(plan.total_points for plan in all_plans)
     
+    # Get FTP entries for progression chart (all entries, ordered by date)
+    ftp_entries = FTPEntry.objects.filter(user=request.user).order_by('recorded_date')
+    
+    # Get Pace entries for progression chart (all entries, ordered by date)
+    # Separate by activity type for the chart
+    running_pace_entries = PaceEntry.objects.filter(user=request.user, activity_type='running').order_by('recorded_date')
+    walking_pace_entries = PaceEntry.objects.filter(user=request.user, activity_type='walking').order_by('recorded_date')
+    
+    # Calculate Power-to-Weight ratios
+    # Get current FTP
+    current_ftp = ftp_entries.filter(is_active=True).order_by('-recorded_date').first()
+    if not current_ftp:
+        current_ftp = ftp_entries.order_by('-recorded_date').first()
+    
+    # Calculate current power-to-weight ratios
+    current_cycling_pw = None
+    current_tread_pw = None
+    
+    if current_weight and current_ftp:
+        # Convert weight from lbs to kg (1 lb = 0.453592 kg)
+        weight_kg = float(current_weight.weight) * 0.453592
+        if weight_kg > 0:
+            current_cycling_pw = round(float(current_ftp.ftp_value) / weight_kg, 2)
+            # Tread P/W will be None until we have tread-specific FTP data
+            current_tread_pw = None
+    
+    # Build historical power-to-weight data
+    # Combine FTP and weight entries by date (month/year)
+    pw_history = []
+    
+    # Create a dictionary of weight by month/year (keep most recent entry per month)
+    weight_by_month = {}
+    for weight_entry in weight_entries.order_by('recorded_date'):
+        # Use first day of month as key for grouping
+        month_start = weight_entry.recorded_date.replace(day=1)
+        month_key = month_start.strftime('%b %Y')
+        # Keep the most recent weight for each month
+        if month_key not in weight_by_month:
+            weight_by_month[month_key] = {
+                'weight': weight_entry.weight,
+                'date': month_start
+            }
+        else:
+            # Update if this entry is more recent
+            if weight_entry.recorded_date > weight_by_month[month_key]['date']:
+                weight_by_month[month_key] = {
+                    'weight': weight_entry.weight,
+                    'date': month_start
+                }
+    
+    # Create a dictionary of FTP by month/year (keep most recent entry per month)
+    ftp_by_month = {}
+    for ftp_entry in ftp_entries.order_by('recorded_date'):
+        # Use first day of month as key for grouping
+        month_start = ftp_entry.recorded_date.replace(day=1)
+        month_key = month_start.strftime('%b %Y')
+        # Keep the most recent FTP for each month
+        if month_key not in ftp_by_month:
+            ftp_by_month[month_key] = {
+                'ftp': ftp_entry.ftp_value,
+                'date': month_start
+            }
+        else:
+            # Update if this entry is more recent
+            if ftp_entry.recorded_date > ftp_by_month[month_key]['date']:
+                ftp_by_month[month_key] = {
+                    'ftp': ftp_entry.ftp_value,
+                    'date': month_start
+                }
+    
+    # Combine all unique months
+    all_months = set(list(weight_by_month.keys()) + list(ftp_by_month.keys()))
+    
+    # Build history entries for cycling
+    cycling_history_entries = []
+    
+    for month_key in all_months:
+        weight_data = weight_by_month.get(month_key, {})
+        ftp_data = ftp_by_month.get(month_key, {})
+        
+        weight = weight_data.get('weight') if weight_data else None
+        ftp = ftp_data.get('ftp') if ftp_data else None
+        
+        # Use the date from either weight or ftp entry for sorting
+        sort_date = weight_data.get('date') if weight_data else ftp_data.get('date')
+        
+        # Cycling P/W calculation
+        cycling_pw_ratio = None
+        if weight and ftp:
+            weight_kg = float(weight) * 0.453592
+            if weight_kg > 0:
+                cycling_pw_ratio = round(float(ftp) / weight_kg, 2)
+        
+        cycling_history_entries.append({
+            'date': month_key,
+            'ftp': ftp,
+            'weight': weight,
+            'pw_ratio': cycling_pw_ratio,
+            'sort_date': sort_date
+        })
+    
+    # Sort by date descending (most recent first)
+    pw_history_cycling = sorted(cycling_history_entries, key=lambda x: x['sort_date'] if x['sort_date'] else datetime(1900, 1, 1), reverse=True)
+    
+    # Tread history - empty until we have tread-specific FTP data
+    # For now, we don't have tread FTP entries, so tread history will be empty
+    pw_history_tread = []
+    
     # Calculate monthly stats (placeholder - will be replaced with Peloton data)
     current_month = timezone.now().month
     current_year = timezone.now().year
@@ -157,6 +278,14 @@ def metrics(request):
         'total_points': total_points,
         'current_month': current_month,
         'current_year': current_year,
+        'ftp_entries': ftp_entries,
+        'running_pace_entries': running_pace_entries,
+        'walking_pace_entries': walking_pace_entries,
+        'current_ftp': current_ftp,
+        'current_cycling_pw': current_cycling_pw,
+        'current_tread_pw': current_tread_pw,
+        'pw_history_cycling': pw_history_cycling,
+        'pw_history_tread': pw_history_tread,
     }
     
     return render(request, "plans/metrics.html", context)

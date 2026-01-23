@@ -1,0 +1,704 @@
+{% extends "base.html" %}
+{% load dict_filters %}
+{% block title %}Admin - {% if form_action == 'create' %}Create{% else %}Edit{% endif %} Challenge{% endblock %}
+
+{% block content %}
+<div class="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+  <div>
+    <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+      {% if form_action == 'create' %}Create Challenge{% else %}Edit Challenge{% endif %}
+    </h1>
+    <p class="text-gray-600 dark:text-gray-400">
+      {% if form_action == 'create' %}
+        Create a new challenge step by step
+      {% else %}
+        Update challenge details and configuration
+      {% endif %}
+    </p>
+  </div>
+  <a href="{% url 'challenges:admin_challenges_list' %}" class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+    ← Back to Challenges
+  </a>
+</div>
+
+{% if form_action == 'create' %}
+<!-- Wizard for Create -->
+<div class="max-w-4xl mx-auto">
+  <!-- Progress Steps -->
+  <div class="mb-8">
+    <div class="flex items-center justify-between mb-4">
+      <div class="flex items-center gap-2 flex-1">
+        <div class="wizard-step {% if wizard_step == 1 or not wizard_step %}active{% elif wizard_step > 1 %}completed{% endif %}" data-step="1">
+          <div class="wizard-step-circle">1</div>
+          <div class="wizard-step-label">Basic Info</div>
+        </div>
+        <div class="wizard-connector {% if wizard_step > 1 %}completed{% endif %}"></div>
+        <div class="wizard-step {% if wizard_step == 2 %}active{% elif wizard_step > 2 %}completed{% endif %}" data-step="2">
+          <div class="wizard-step-circle">2</div>
+          <div class="wizard-step-label">Time Period</div>
+        </div>
+        <div class="wizard-connector {% if wizard_step > 2 %}completed{% endif %}"></div>
+        <div class="wizard-step {% if wizard_step == 3 %}active{% elif wizard_step > 3 %}completed{% endif %}" data-step="3">
+          <div class="wizard-step-circle">3</div>
+          <div class="wizard-step-label">Templates</div>
+        </div>
+        <div class="wizard-connector {% if wizard_step > 3 %}completed{% endif %}"></div>
+        <div class="wizard-step {% if wizard_step == 4 %}active{% elif wizard_step > 4 %}completed{% endif %}" data-step="4">
+          <div class="wizard-step-circle">4</div>
+          <div class="wizard-step-label">Settings</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <form method="post" enctype="multipart/form-data" id="challenge-wizard-form" class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+    {% csrf_token %}
+    <input type="hidden" name="wizard_step" id="wizard_step" value="1">
+    
+    <!-- Step 1: Basic Information -->
+    <div class="wizard-panel" id="step-1">
+      <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4">Basic Information</h2>
+      <p class="text-sm text-gray-600 dark:text-gray-400 mb-6">Start by giving your challenge a name and description.</p>
+      
+      <div class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Challenge Name <span class="text-red-500">*</span>
+          </label>
+          <input type="text" name="name" id="name" required
+                 class="w-full px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                 placeholder="e.g., Foundation Builder Challenge">
+        </div>
+        
+        <div>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Description</label>
+          <textarea name="description" id="description" rows="4"
+                    class="w-full px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                    placeholder="Describe the challenge goals and structure..."></textarea>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Challenge Type</label>
+            <select name="challenge_type" id="challenge_type"
+                    class="w-full px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+              <option value="mini">Mini Challenge</option>
+              <option value="team">Team Challenge</option>
+              <option value="individual">Individual Challenge</option>
+            </select>
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Categories</label>
+            <input type="text" name="categories" id="categories"
+                   class="w-full px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                   placeholder="cycling, running, strength, yoga">
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-500">Comma-separated categories</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Step 2: Time Period -->
+    <div class="wizard-panel hidden" id="step-2">
+      <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4">Time Period</h2>
+      <p class="text-sm text-gray-600 dark:text-gray-400 mb-6">Set the challenge dates and signup windows.</p>
+      
+      <div class="space-y-4">
+        <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+          <p class="text-sm text-blue-800 dark:text-blue-200">
+            <strong>Note:</strong> Signup deadline must be before start date. Overlapping challenges are allowed - users can sign up for multiple future challenges but can only actively participate in one at a time.
+          </p>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Start Date <span class="text-red-500">*</span>
+            </label>
+            <input type="date" name="start_date" id="start_date" required
+                   class="w-full px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              End Date <span class="text-red-500">*</span>
+            </label>
+            <input type="date" name="end_date" id="end_date" required
+                   class="w-full px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+          </div>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Signup Opens Date</label>
+            <input type="date" name="signup_opens_date" id="signup_opens_date"
+                   class="w-full px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-500">Defaults to start date if not set</p>
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Signup Deadline</label>
+            <input type="date" name="signup_deadline" id="signup_deadline"
+                   class="w-full px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-500">Last date users can sign up</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Step 3: Plan Templates -->
+    <div class="wizard-panel hidden" id="step-3">
+      <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4">Plan Templates</h2>
+      <p class="text-sm text-gray-600 dark:text-gray-400 mb-6">Select which plan templates are available for this challenge.</p>
+      
+      <div class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+            Available Templates <span class="text-red-500">*</span>
+          </label>
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-96 overflow-y-auto p-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-200 dark:border-gray-700">
+            {% for template in templates %}
+            <label class="flex items-center gap-3 p-3 cursor-pointer border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 hover:border-primary transition-colors {% if challenge and template in challenge.available_templates.all %}bg-primary/10 border-primary{% else %}bg-white dark:bg-gray-800{% endif %}">
+              <input type="checkbox" name="available_templates" value="{{ template.id }}"
+                     class="w-5 h-5 text-primary border-gray-300 rounded focus:ring-primary"
+                     {% if challenge and template in challenge.available_templates.all %}checked{% endif %}>
+              <span class="text-sm font-medium text-gray-900 dark:text-white">{{ template.name }}</span>
+            </label>
+            {% endfor %}
+          </div>
+        </div>
+        
+        <div>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Default Template (Recommended)</label>
+          <select name="default_template" id="default_template"
+                  class="w-full px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+            <option value="">None</option>
+            {% for template in templates %}
+            <option value="{{ template.id }}" {% if challenge and challenge.default_template == template %}selected{% endif %}>{{ template.name }}</option>
+            {% endfor %}
+          </select>
+          <p class="mt-1 text-xs text-gray-500 dark:text-gray-500">This template will be marked as "RECOMMENDED" when users join</p>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Step 4: Settings & Image -->
+    <div class="wizard-panel hidden" id="step-4">
+      <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4">Settings & Image</h2>
+      <p class="text-sm text-gray-600 dark:text-gray-400 mb-6">Configure visibility and upload a challenge image.</p>
+      
+      <div class="space-y-6">
+        <div class="space-y-4">
+          <div class="flex items-start gap-3 p-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-900/50">
+            <input type="checkbox" name="is_active" id="is_active" 
+                   class="mt-1 w-5 h-5 text-primary border-gray-300 rounded focus:ring-primary"
+                   {% if not challenge or challenge.is_active %}checked{% endif %}>
+            <div>
+              <label for="is_active" class="block text-sm font-medium text-gray-900 dark:text-white cursor-pointer">Active</label>
+              <p class="text-xs text-gray-600 dark:text-gray-400 mt-1">Active challenges are included in overlap validation and can be joined by users.</p>
+            </div>
+          </div>
+          
+          <div class="flex items-start gap-3 p-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-900/50">
+            <input type="checkbox" name="is_visible" id="is_visible"
+                   class="mt-1 w-5 h-5 text-primary border-gray-300 rounded focus:ring-primary"
+                   {% if not challenge or challenge.is_visible %}checked{% endif %}>
+            <div>
+              <label for="is_visible" class="block text-sm font-medium text-gray-900 dark:text-white cursor-pointer">Visible</label>
+              <p class="text-xs text-gray-600 dark:text-gray-400 mt-1">Visible challenges appear in the challenges list for users to join.</p>
+            </div>
+          </div>
+        </div>
+        
+        <div>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Challenge Image</label>
+          {% if challenge and challenge.image %}
+          <div class="mb-4">
+            <p class="text-xs text-gray-600 dark:text-gray-400 mb-2">Current Image:</p>
+            <img src="{{ challenge.image.url }}" alt="{{ challenge.name }}" class="max-w-xs max-h-48 rounded-lg border border-gray-200 dark:border-gray-700">
+          </div>
+          {% endif %}
+          <input type="file" name="image" id="image" accept="image/*"
+                 class="w-full px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+          <p class="mt-1 text-xs text-gray-500 dark:text-gray-500">Upload a challenge logo or image (optional)</p>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Navigation Buttons -->
+    <div class="flex justify-between items-center mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
+      <button type="button" id="prev-btn" class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors hidden">
+        ← Previous
+      </button>
+      <div class="flex gap-3 ml-auto">
+        <a href="{% url 'challenges:admin_challenges_list' %}" class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+          Cancel
+        </a>
+        <button type="button" id="next-btn" class="px-6 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors">
+          Next →
+        </button>
+        <button type="submit" id="submit-btn" class="px-6 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors hidden">
+          Create Challenge
+        </button>
+      </div>
+    </div>
+  </form>
+</div>
+
+{% else %}
+<!-- Regular Form for Edit -->
+<div class="w-full">
+  <form method="post" enctype="multipart/form-data" class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+    {% csrf_token %}
+    
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-0">
+      <!-- Main Content -->
+      <div class="lg:col-span-2 p-6 lg:p-8 space-y-8">
+        <!-- Basic Information -->
+        <div class="border-b border-gray-200 dark:border-gray-700 pb-6">
+          <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-1">Basic Information</h2>
+          <p class="text-sm text-gray-600 dark:text-gray-400 mb-6">Core challenge details and description</p>
+          
+          <div class="space-y-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Challenge Name <span class="text-red-500">*</span>
+              </label>
+              <input type="text" name="name" value="{% if challenge %}{{ challenge.name }}{% endif %}" required
+                     class="w-full px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+            </div>
+            
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Description</label>
+              <textarea name="description" rows="4"
+                        class="w-full px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-y">{% if challenge %}{{ challenge.description }}{% endif %}</textarea>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Challenge Type</label>
+                <select name="challenge_type"
+                        class="w-full px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                  <option value="mini" {% if challenge and challenge.challenge_type == 'mini' %}selected{% endif %}>Mini Challenge</option>
+                  <option value="team" {% if challenge and challenge.challenge_type == 'team' %}selected{% endif %}>Team Challenge</option>
+                  <option value="individual" {% if challenge and challenge.challenge_type == 'individual' %}selected{% endif %}>Individual Challenge</option>
+                </select>
+              </div>
+              
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Categories</label>
+                <input type="text" name="categories" value="{% if challenge %}{{ challenge.categories }}{% endif %}"
+                       class="w-full px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                       placeholder="cycling, running, strength, yoga">
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-500">Comma-separated categories</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Time Period -->
+        <div class="border-b border-gray-200 dark:border-gray-700 pb-6">
+          <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-1">Time Period</h2>
+          <p class="text-sm text-gray-600 dark:text-gray-400 mb-6">Set challenge dates and signup windows</p>
+          
+          <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-4">
+            <p class="text-sm text-blue-800 dark:text-blue-200">
+              <strong>Note:</strong> Signup deadline must be before start date. Overlapping challenges are allowed - users can sign up for multiple future challenges but can only actively participate in one at a time.
+            </p>
+          </div>
+          
+          <div class="space-y-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Start Date <span class="text-red-500">*</span>
+                </label>
+                <input type="date" name="start_date" value="{% if challenge %}{{ challenge.start_date|date:'Y-m-d' }}{% endif %}" required
+                       class="w-full px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+              </div>
+              
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  End Date <span class="text-red-500">*</span>
+                </label>
+                <input type="date" name="end_date" value="{% if challenge %}{{ challenge.end_date|date:'Y-m-d' }}{% endif %}" required
+                       class="w-full px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+              </div>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Signup Opens Date</label>
+                <input type="date" name="signup_opens_date" value="{% if challenge and challenge.signup_opens_date %}{{ challenge.signup_opens_date|date:'Y-m-d' }}{% endif %}"
+                       class="w-full px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-500">Defaults to start date if not set</p>
+              </div>
+              
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Signup Deadline</label>
+                <input type="date" name="signup_deadline" value="{% if challenge and challenge.signup_deadline %}{{ challenge.signup_deadline|date:'Y-m-d' }}{% endif %}"
+                       class="w-full px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-500">Last date users can sign up</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Plan Templates -->
+        <div class="border-b border-gray-200 dark:border-gray-700 pb-6">
+          <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-1">Plan Templates</h2>
+          <p class="text-sm text-gray-600 dark:text-gray-400 mb-6">Select which plan templates are available for this challenge</p>
+          
+          <div class="space-y-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                Available Templates <span class="text-red-500">*</span>
+              </label>
+              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-96 overflow-y-auto p-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-200 dark:border-gray-700">
+                {% for template in templates %}
+                <label class="flex items-center gap-3 p-3 cursor-pointer border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 hover:border-primary transition-all {% if challenge and template in challenge.available_templates.all %}bg-primary/10 border-primary{% else %}bg-white dark:bg-gray-800{% endif %}">
+                  <input type="checkbox" name="available_templates" value="{{ template.id }}"
+                         class="w-5 h-5 text-primary border-gray-300 rounded focus:ring-primary"
+                         {% if challenge and template in challenge.available_templates.all %}checked{% endif %}>
+                  <span class="text-sm font-medium text-gray-900 dark:text-white">{{ template.name }}</span>
+                </label>
+                {% endfor %}
+              </div>
+            </div>
+            
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Default Template (Recommended)</label>
+              <select name="default_template"
+                      class="w-full px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                <option value="">None</option>
+                {% for template in templates %}
+                <option value="{{ template.id }}" {% if challenge and challenge.default_template == template %}selected{% endif %}>{{ template.name }}</option>
+                {% endfor %}
+              </select>
+              <p class="mt-1 text-xs text-gray-500 dark:text-gray-500">This template will be marked as "RECOMMENDED" when users join</p>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Week Unlock Control -->
+        {% if challenge %}
+        <div>
+          <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-1">Week Unlock Control</h2>
+          <p class="text-sm text-gray-600 dark:text-gray-400 mb-6">Control which weeks are live/unlocked for users</p>
+          
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {% for week_num in challenge.week_range %}
+            {% with unlock=week_unlocks|get_item:week_num %}
+            <div class="p-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-900/50 hover:border-primary transition-colors">
+              <div class="flex items-center justify-between mb-3">
+                <label class="flex items-center gap-2 cursor-pointer flex-1">
+                  <input type="checkbox" name="week_unlocked_{{ week_num }}" value="1" 
+                         class="w-5 h-5 text-primary border-gray-300 rounded focus:ring-primary week-unlock-checkbox"
+                         {% if unlock and unlock.is_unlocked %}checked{% endif %}>
+                  <span class="font-medium text-gray-900 dark:text-white">Week {{ week_num }}</span>
+                </label>
+                <span class="px-2 py-1 text-xs font-semibold rounded week-status-badge {% if unlock and unlock.is_unlocked %}bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200{% else %}bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200{% endif %}">
+                  {% if unlock and unlock.is_unlocked %}Unlocked{% else %}Locked{% endif %}
+                </span>
+              </div>
+              <div>
+                <label class="block text-xs text-gray-600 dark:text-gray-400 mb-1">Auto-unlock Date <span class="text-gray-500">(optional)</span></label>
+                <input type="date" name="week_unlock_date_{{ week_num }}"
+                       value="{% if unlock and unlock.unlock_date %}{{ unlock.unlock_date|date:'Y-m-d' }}{% endif %}"
+                       class="w-full px-3 py-1.5 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+              </div>
+            </div>
+            {% endwith %}
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
+      </div>
+      
+      <!-- Sidebar -->
+      <div class="lg:border-l border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 p-6 lg:p-8 space-y-6">
+        <!-- Status & Visibility -->
+        <div>
+          <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Status & Visibility</h2>
+          <div class="space-y-4">
+            <div class="flex items-start gap-3 p-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800">
+              <input type="checkbox" name="is_active" id="is_active"
+                     class="mt-1 w-5 h-5 text-primary border-gray-300 rounded focus:ring-primary"
+                     {% if not challenge or challenge.is_active %}checked{% endif %}>
+              <div>
+                <label for="is_active" class="block text-sm font-medium text-gray-900 dark:text-white cursor-pointer">Active</label>
+                <p class="text-xs text-gray-600 dark:text-gray-400 mt-1">Active challenges can be joined by users.</p>
+              </div>
+            </div>
+            
+            <div class="flex items-start gap-3 p-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800">
+              <input type="checkbox" name="is_visible" id="is_visible"
+                     class="mt-1 w-5 h-5 text-primary border-gray-300 rounded focus:ring-primary"
+                     {% if not challenge or challenge.is_visible %}checked{% endif %}>
+              <div>
+                <label for="is_visible" class="block text-sm font-medium text-gray-900 dark:text-white cursor-pointer">Visible</label>
+                <p class="text-xs text-gray-600 dark:text-gray-400 mt-1">Visible challenges appear in the challenges list.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Challenge Image -->
+        <div>
+          <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Challenge Image</h2>
+          {% if challenge and challenge.image %}
+          <div class="mb-4">
+            <p class="text-xs text-gray-600 dark:text-gray-400 mb-2">Current Image:</p>
+            <img src="{{ challenge.image.url }}" alt="{{ challenge.name }}" class="w-full rounded-lg border border-gray-200 dark:border-gray-700">
+          </div>
+          {% endif %}
+          <input type="file" name="image" accept="image/*"
+                 class="w-full px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+          <p class="mt-2 text-xs text-gray-500 dark:text-gray-500">Upload a challenge logo or image (optional)</p>
+        </div>
+        
+        <!-- Actions -->
+        <div class="pt-6 border-t border-gray-200 dark:border-gray-700">
+          <div class="flex flex-col gap-3">
+            {% if challenge.available_templates.exists %}
+            <a href="{% url 'challenges:admin_assign_workouts' challenge.id %}" class="px-4 py-2 text-sm font-medium text-center text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors">
+              🚴 Assign Workouts
+            </a>
+            {% endif %}
+            <button type="submit" class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors">
+              Update Challenge
+            </button>
+            <a href="{% url 'challenges:admin_challenges_list' %}" class="px-4 py-2 text-sm font-medium text-center text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+              Cancel
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </form>
+</div>
+{% endif %}
+
+<style>
+{% if form_action == 'create' %}
+/* Wizard Styles */
+.wizard-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+  position: relative;
+}
+
+.wizard-step-circle {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.875rem;
+  transition: all 0.3s;
+  border: 2px solid;
+}
+
+.wizard-step.active .wizard-step-circle {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: white;
+}
+
+.wizard-step.completed .wizard-step-circle {
+  background: #10b981;
+  border-color: #10b981;
+  color: white;
+}
+
+.wizard-step:not(.active):not(.completed) .wizard-step-circle {
+  background: transparent;
+  border-color: #d1d5db;
+  color: #6b7280;
+}
+
+.wizard-step-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+.wizard-step.active .wizard-step-label {
+  color: var(--primary);
+}
+
+.wizard-step.completed .wizard-step-label {
+  color: #10b981;
+}
+
+.wizard-step:not(.active):not(.completed) .wizard-step-label {
+  color: #6b7280;
+}
+
+.wizard-connector {
+  flex: 1;
+  height: 2px;
+  background: #d1d5db;
+  margin: 0 1rem;
+  margin-top: -20px;
+  transition: background 0.3s;
+}
+
+.wizard-connector.completed {
+  background: #10b981;
+}
+
+.wizard-panel {
+  min-height: 400px;
+}
+{% endif %}
+</style>
+
+<script>
+{% if form_action == 'create' %}
+document.addEventListener('DOMContentLoaded', function() {
+  let currentStep = 1;
+  const totalSteps = 4;
+  const form = document.getElementById('challenge-wizard-form');
+  const stepInput = document.getElementById('wizard_step');
+  const prevBtn = document.getElementById('prev-btn');
+  const nextBtn = document.getElementById('next-btn');
+  const submitBtn = document.getElementById('submit-btn');
+  
+  function showStep(step) {
+    // Hide all panels
+    document.querySelectorAll('.wizard-panel').forEach(panel => {
+      panel.classList.add('hidden');
+    });
+    
+    // Show current panel
+    const currentPanel = document.getElementById(`step-${step}`);
+    if (currentPanel) {
+      currentPanel.classList.remove('hidden');
+    }
+    
+    // Update step input
+    stepInput.value = step;
+    
+    // Update buttons
+    if (step === 1) {
+      prevBtn.classList.add('hidden');
+    } else {
+      prevBtn.classList.remove('hidden');
+    }
+    
+    if (step === totalSteps) {
+      nextBtn.classList.add('hidden');
+      submitBtn.classList.remove('hidden');
+    } else {
+      nextBtn.classList.remove('hidden');
+      submitBtn.classList.add('hidden');
+    }
+    
+    // Update wizard steps visual
+    updateWizardSteps(step);
+  }
+  
+  function updateWizardSteps(activeStep) {
+    document.querySelectorAll('.wizard-step').forEach((stepEl, index) => {
+      const stepNum = index + 1;
+      stepEl.classList.remove('active', 'completed');
+      
+      if (stepNum === activeStep) {
+        stepEl.classList.add('active');
+      } else if (stepNum < activeStep) {
+        stepEl.classList.add('completed');
+      }
+    });
+    
+    document.querySelectorAll('.wizard-connector').forEach((connector, index) => {
+      const stepNum = index + 1;
+      connector.classList.remove('completed');
+      if (stepNum < activeStep) {
+        connector.classList.add('completed');
+      }
+    });
+  }
+  
+  function validateStep(step) {
+    if (step === 1) {
+      const name = document.getElementById('name').value.trim();
+      if (!name) {
+        alert('Please enter a challenge name.');
+        return false;
+      }
+    } else if (step === 2) {
+      const startDate = document.getElementById('start_date').value;
+      const endDate = document.getElementById('end_date').value;
+      if (!startDate || !endDate) {
+        alert('Please enter both start and end dates.');
+        return false;
+      }
+      if (new Date(startDate) >= new Date(endDate)) {
+        alert('End date must be after start date.');
+        return false;
+      }
+    } else if (step === 3) {
+      const templates = document.querySelectorAll('input[name="available_templates"]:checked');
+      if (templates.length === 0) {
+        alert('Please select at least one template.');
+        return false;
+      }
+    }
+    return true;
+  }
+  
+  nextBtn.addEventListener('click', function() {
+    if (validateStep(currentStep)) {
+      currentStep++;
+      showStep(currentStep);
+    }
+  });
+  
+  prevBtn.addEventListener('click', function() {
+    currentStep--;
+    showStep(currentStep);
+  });
+  
+  // Allow clicking on wizard steps to navigate (if previous steps are completed)
+  document.querySelectorAll('.wizard-step').forEach((stepEl, index) => {
+    stepEl.addEventListener('click', function() {
+      const targetStep = index + 1;
+      if (targetStep <= currentStep) {
+        currentStep = targetStep;
+        showStep(currentStep);
+      }
+    });
+  });
+  
+  // Initialize
+  showStep(1);
+});
+{% else %}
+// Update status badge when checkbox changes (for edit mode)
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('.week-unlock-checkbox').forEach(function(checkbox) {
+    checkbox.addEventListener('change', function() {
+      const card = this.closest('.p-4');
+      const badge = card.querySelector('.week-status-badge');
+      if (badge) {
+        if (this.checked) {
+          badge.textContent = 'Unlocked';
+          badge.className = 'px-2 py-1 text-xs font-semibold rounded week-status-badge bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200';
+        } else {
+          badge.textContent = 'Locked';
+          badge.className = 'px-2 py-1 text-xs font-semibold rounded week-status-badge bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200';
+        }
+      }
+    });
+  });
+});
+{% endif %}
+</script>
+{% endblock %}

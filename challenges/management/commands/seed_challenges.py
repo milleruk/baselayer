@@ -1,7 +1,7 @@
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 from datetime import timedelta, date
-from tracker.models import Challenge, ChallengeWorkoutAssignment, ChallengeBonusWorkout
+from challenges.models import Challenge, ChallengeWorkoutAssignment, ChallengeBonusWorkout
 from plans.models import PlanTemplate, PlanTemplateDay
 from django.core.files.base import ContentFile
 from PIL import Image, ImageDraw, ImageFont
@@ -33,18 +33,6 @@ CHALLENGES = [
         "image_url": "https://via.placeholder.com/400x300/FF6B6B/FFFFFF?text=POWER+BASE",
     },
     {
-        "name": "Flex Flow",
-        "description": "Find your flow and flexibility. Three runs a week combined with yoga for the ultimate mind-body connection.",
-        "challenge_type": "mini",
-        "categories": "running,yoga",
-        "start_date": date.today() - timedelta(days=42),  # Started 6 weeks ago (past challenge)
-        "end_date": date.today() - timedelta(days=14),  # Ended 2 weeks ago
-        "signup_opens_date": date.today() - timedelta(days=56),  # Signup opened 8 weeks ago
-        "signup_deadline": date.today() - timedelta(days=44),  # Signup closed 2 days before start
-        "is_active": True,
-        "image_url": "https://via.placeholder.com/400x300/9370DB/FFFFFF?text=FLEX+FLOW",
-    },
-    {
         "name": "Dual Zone Challenge",
         "description": "The ultimate multi-sport challenge. Cycling and running combined for maximum intensity and performance.",
         "challenge_type": "team",
@@ -55,6 +43,31 @@ CHALLENGES = [
         "signup_deadline": date.today() + timedelta(days=75),  # Signup closes 2 days before start
         "is_active": True,
         "image_url": "https://via.placeholder.com/400x300/FF8C00/000000?text=DUAL+ZONE",
+    },
+    {
+        "name": "Balanced Base",
+        "description": "Balanced training with two runs and two rides per week. Perfect for multi-sport athletes who do it all.",
+        "challenge_type": "mini",
+        "categories": "running,cycling",
+        "start_date": date.today() + timedelta(days=112),  # Starts in 16 weeks (after Dual Zone Challenge ends)
+        "end_date": date.today() + timedelta(days=140),  # Ends in 20 weeks
+        "signup_opens_date": date.today() + timedelta(days=98),  # Signup opens 2 weeks before start
+        "signup_deadline": date.today() + timedelta(days=110),  # Signup closes 2 days before start
+        "is_active": True,
+        "image_url": "https://via.placeholder.com/400x300/FFD700/000000?text=BALANCED+BASE",
+    },
+    # Past Challenges (backdated)
+    {
+        "name": "Flex Flow",
+        "description": "Find your flow and flexibility. Three runs a week combined with yoga for the ultimate mind-body connection.",
+        "challenge_type": "mini",
+        "categories": "running,yoga",
+        "start_date": date.today() - timedelta(days=42),  # Started 6 weeks ago (past challenge)
+        "end_date": date.today() - timedelta(days=14),  # Ended 2 weeks ago
+        "signup_opens_date": date.today() - timedelta(days=56),  # Signup opened 8 weeks ago
+        "signup_deadline": date.today() - timedelta(days=44),  # Signup closed 2 days before start
+        "is_active": True,
+        "image_url": "https://via.placeholder.com/400x300/9370DB/FFFFFF?text=FLEX+FLOW",
     },
     {
         "name": "Strength Foundation",
@@ -93,16 +106,76 @@ CHALLENGES = [
         "image_url": "https://via.placeholder.com/400x300/FF4500/FFFFFF?text=COMPLETE+BASE",
     },
     {
-        "name": "Balanced Base",
-        "description": "Balanced training with two runs and two rides per week. Perfect for multi-sport athletes who do it all.",
+        "name": "Aerobic Base",
+        "description": "Build your aerobic foundation with consistent cycling. Perfect for beginners and those returning to training.",
         "challenge_type": "mini",
-        "categories": "running,cycling",
-        "start_date": date.today() + timedelta(days=112),  # Starts in 16 weeks (after Dual Zone Challenge ends)
-        "end_date": date.today() + timedelta(days=140),  # Ends in 20 weeks
-        "signup_opens_date": date.today() + timedelta(days=98),  # Signup opens 2 weeks before start
-        "signup_deadline": date.today() + timedelta(days=110),  # Signup closes 2 days before start
+        "categories": "cycling",
+        "start_date": date.today() - timedelta(days=154),  # Started 22 weeks ago
+        "end_date": date.today() - timedelta(days=133),  # Ended 19 weeks ago
+        "signup_opens_date": date.today() - timedelta(days=168),  # Signup opened 24 weeks ago
+        "signup_deadline": date.today() - timedelta(days=156),  # Signup closed 2 days before start
         "is_active": True,
-        "image_url": "https://via.placeholder.com/400x300/FFD700/000000?text=BALANCED+BASE",
+        "image_url": "https://via.placeholder.com/400x300/2E86AB/FFFFFF?text=AEROBIC+BASE",
+    },
+    {
+        "name": "Speed Builder",
+        "description": "Develop speed and power with high-intensity rides. For athletes looking to push their limits.",
+        "challenge_type": "mini",
+        "categories": "cycling",
+        "start_date": date.today() - timedelta(days=182),  # Started 26 weeks ago
+        "end_date": date.today() - timedelta(days=161),  # Ended 23 weeks ago
+        "signup_opens_date": date.today() - timedelta(days=196),  # Signup opened 28 weeks ago
+        "signup_deadline": date.today() - timedelta(days=184),  # Signup closed 2 days before start
+        "is_active": True,
+        "image_url": "https://via.placeholder.com/400x300/E63946/FFFFFF?text=SPEED+BUILDER",
+    },
+    {
+        "name": "Endurance Challenge",
+        "description": "Test your endurance with longer rides and runs. Build mental and physical stamina.",
+        "challenge_type": "team",
+        "categories": "cycling,running",
+        "start_date": date.today() - timedelta(days=210),  # Started 30 weeks ago
+        "end_date": date.today() - timedelta(days=189),  # Ended 27 weeks ago
+        "signup_opens_date": date.today() - timedelta(days=224),  # Signup opened 32 weeks ago
+        "signup_deadline": date.today() - timedelta(days=212),  # Signup closed 2 days before start
+        "is_active": True,
+        "image_url": "https://via.placeholder.com/400x300/F77F00/FFFFFF?text=ENDURANCE",
+    },
+    {
+        "name": "Core Strength",
+        "description": "Build core strength and stability. Strength training focused on the foundation of all movement.",
+        "challenge_type": "mini",
+        "categories": "strength",
+        "start_date": date.today() - timedelta(days=238),  # Started 34 weeks ago
+        "end_date": date.today() - timedelta(days=217),  # Ended 31 weeks ago
+        "signup_opens_date": date.today() - timedelta(days=252),  # Signup opened 36 weeks ago
+        "signup_deadline": date.today() - timedelta(days=240),  # Signup closed 2 days before start
+        "is_active": True,
+        "image_url": "https://via.placeholder.com/400x300/7209B7/FFFFFF?text=CORE+STRENGTH",
+    },
+    {
+        "name": "Flexibility Flow",
+        "description": "Improve flexibility and mobility through yoga. Perfect for recovery and injury prevention.",
+        "challenge_type": "mini",
+        "categories": "yoga",
+        "start_date": date.today() - timedelta(days=266),  # Started 38 weeks ago
+        "end_date": date.today() - timedelta(days=245),  # Ended 35 weeks ago
+        "signup_opens_date": date.today() - timedelta(days=280),  # Signup opened 40 weeks ago
+        "signup_deadline": date.today() - timedelta(days=268),  # Signup closed 2 days before start
+        "is_active": True,
+        "image_url": "https://via.placeholder.com/400x300/06A77D/FFFFFF?text=FLEXIBILITY",
+    },
+    {
+        "name": "Winter Warrior",
+        "description": "Stay strong through the winter months. A comprehensive challenge for all activity types.",
+        "challenge_type": "team",
+        "categories": "cycling,running,strength,yoga",
+        "start_date": date.today() - timedelta(days=294),  # Started 42 weeks ago
+        "end_date": date.today() - timedelta(days=273),  # Ended 39 weeks ago
+        "signup_opens_date": date.today() - timedelta(days=308),  # Signup opened 44 weeks ago
+        "signup_deadline": date.today() - timedelta(days=296),  # Signup closed 2 days before start
+        "is_active": True,
+        "image_url": "https://via.placeholder.com/400x300/1B4332/FFFFFF?text=WINTER+WARRIOR",
     },
 ]
 
@@ -318,14 +391,26 @@ class Command(BaseCommand):
         for challenge_data in CHALLENGES:
             # Try to get template by name match, otherwise use default
             template_name_map = {
-                "Foundation Builder": "3 Rides a Week",
-                "Power Base": "4 Rides a Week",
-                "Flex Flow": "3 Runs a Week",
-                "Dual Zone": "2 Runs 2 Rides",
-                "Strength Foundation": "Kegels and Strength",
-                "Mindful Movement": "Kegels and Yoga",
-                "Complete Base": "Complete Pelvic Health Challenge",  # This might not exist, will use default
-                "Balanced Base": "2 Runs 2 Rides",
+                # Cycling challenges
+                "Foundation Builder": "3 Rides a Week",  # cycling
+                "Power Base": "4 Rides a Week",  # cycling,strength
+                "Aerobic Base": "3 Rides a Week",  # cycling
+                "Speed Builder": "4 Rides a Week",  # cycling
+                # Running challenges
+                "Flex Flow": "3 Runs a Week",  # running,yoga
+                # Multi-sport challenges
+                "Dual Zone": "2 Runs 2 Rides",  # cycling,running
+                "Balanced Base": "2 Runs 2 Rides",  # running,cycling
+                "Endurance Challenge": "2 Runs 2 Rides",  # cycling,running
+                # Strength challenges
+                "Strength Foundation": "Kegels and Strength",  # strength
+                "Core Strength": "Kegels and Strength",  # strength
+                # Yoga challenges
+                "Mindful Movement": "Kegels and Yoga",  # yoga
+                "Flexibility Flow": "Kegels and Yoga",  # yoga
+                # Comprehensive challenges (cycling + running + strength + yoga)
+                "Complete Base": "2 Runs 2 Rides",  # cycling,running,strength,yoga - use multi-sport template
+                "Winter Warrior": "2 Runs 2 Rides",  # cycling,running,strength,yoga - use multi-sport template
             }
             
             template = None
@@ -354,6 +439,7 @@ class Command(BaseCommand):
             )
             
             # Set available templates - add all templates as available for seeded challenges
+            # This gives users flexibility to choose any template, while default_template matches the challenge categories
             if created or not challenge.available_templates.exists():
                 all_templates = PlanTemplate.objects.all()
                 challenge.available_templates.set(all_templates)
@@ -381,6 +467,14 @@ class Command(BaseCommand):
                         "Mindful Movement": ("4ECDC4", "FFFFFF"),
                         "Complete Base": ("FF4500", "FFFFFF"),
                         "Balanced Base": ("FFD700", "000000"),
+                        "Aerobic Base": ("2E86AB", "FFFFFF"),
+                        "Speed Builder": ("E63946", "FFFFFF"),
+                        "Endurance Challenge": ("F77F00", "FFFFFF"),
+                        "Endurance": ("F77F00", "FFFFFF"),
+                        "Core Strength": ("7209B7", "FFFFFF"),
+                        "Flexibility Flow": ("06A77D", "FFFFFF"),
+                        "Flexibility": ("06A77D", "FFFFFF"),
+                        "Winter Warrior": ("1B4332", "FFFFFF"),
                     }
                     
                     # Find matching color

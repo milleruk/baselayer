@@ -1,16 +1,34 @@
 {% extends "base.html" %}
-{% block title %}Home - Base Layer{% endblock %}
+{% load static %}
+{% block title %}Home - Chase The Zones{% endblock %}
 
 {% block content %}
 <!-- Hero Section -->
-<section class="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 text-white py-20 lg:py-32">
-  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+<section class="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 text-white py-20 lg:py-32 relative overflow-hidden">
+  <!-- Background glow effect for logo -->
+  <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+    <div class="w-full max-w-4xl h-96 bg-primary/10 rounded-full blur-3xl opacity-40"></div>
+  </div>
+  
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
     <div class="text-center">
+      <div class="flex justify-center mb-8 md:mb-12">
+        <div class="relative inline-block">
+          <!-- Subtle glow ring around logo -->
+          <div class="absolute inset-0 -m-8 bg-primary/20 rounded-full blur-3xl opacity-60 animate-pulse"></div>
+          <img 
+            src="{% static 'img/logo.png' %}" 
+            alt="Chase The Zones" 
+            class="relative h-32 md:h-48 lg:h-64 xl:h-80 w-auto transform transition-all duration-500 hover:scale-110 hover:drop-shadow-[0_0_40px_rgba(70,95,255,0.5)]"
+            style="filter: drop-shadow(0 0 40px rgba(70, 95, 255, 0.4)) drop-shadow(0 0 80px rgba(70, 95, 255, 0.2));"
+          >
+        </div>
+      </div>
       <h1 class="text-4xl md:text-5xl lg:text-6xl font-extrabold mb-6">
-        Fitness Helps Me Think Better,<br class="hidden md:block">Feel Better, And Move Better.
+        Unleash the power of your training data
       </h1>
       <p class="text-xl md:text-2xl text-gray-300 dark:text-gray-400 max-w-3xl mx-auto mb-8">
-        Physical fitness is not only one of the most important keys to a healthy body, it is the basis of dynamic and creative intellectual activity.
+        Say goodbye to basic workout tracking. Every athlete, regardless of background, can now optimise their training with pelvic floor exercises integrated into their Power Zone and running programmes. Simple. Intuitive. And never boring.
       </p>
       <div class="flex flex-col sm:flex-row gap-4 justify-center">
         {% if user.is_authenticated %}
@@ -33,38 +51,51 @@
   </div>
 </section>
 
-<!-- Features Grid Section -->
+<!-- Everything You Need Section -->
 <section class="py-16 lg:py-24 bg-white dark:bg-gray-900">
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="text-center mb-12">
+      <h2 class="text-3xl md:text-4xl font-extrabold text-gray-900 dark:text-white mb-4">
+        Everything you need.<br>Nothing you don't.
+      </h2>
+      <p class="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
+        Training plans and pelvic floor exercises in one place. Experience a powerful toolkit that makes every workout feel meaningful.
+      </p>
+    </div>
+    
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
       <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm hover:shadow-md transition-shadow">
-        <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-3">Keep Your Body Always Fit</h3>
-        <p class="text-gray-600 dark:text-gray-400 mb-4">For me, fitness is part of my everyday life. Fitness doesn't mean having big muscles—it means being active, quick and flexible.</p>
+        <div class="text-3xl mb-4">📊</div>
+        <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-3">Insights at your fingertips</h3>
+        <p class="text-gray-600 dark:text-gray-400 mb-4">All your training data and progress metrics in one place to provide quick answers and make decisions instantly.</p>
         {% if user.is_authenticated %}
-          <a href="{% url 'tracker:generate' %}" class="text-primary hover:text-primary-dark font-medium text-sm">Learn More →</a>
+          <a href="{% url 'tracker:weekly_plans' %}" class="text-primary hover:text-primary-dark font-medium text-sm">View Dashboard →</a>
         {% endif %}
       </div>
       
       <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm hover:shadow-md transition-shadow">
-        <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-3">Healthy Life, Healthy Future</h3>
-        <p class="text-gray-600 dark:text-gray-400 mb-4">Flexibility is crucial to my fitness. Incorporating a good warm-up and cool-down into every session decreases my chances of injury.</p>
+        <div class="text-3xl mb-4">🎯</div>
+        <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-3">Kegel Exercise Library</h3>
+        <p class="text-gray-600 dark:text-gray-400 mb-4">Browse and analyse pelvic floor exercises with detailed descriptions, video demonstrations, and proper form cues.</p>
+        <a href="{% url 'plans:exercise_list' %}" class="text-primary hover:text-primary-dark font-medium text-sm">Browse Exercises →</a>
+      </div>
+      
+      <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm hover:shadow-md transition-shadow">
+        <div class="text-3xl mb-4">⚡</div>
+        <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-3">Automated Weekly Plans</h3>
+        <p class="text-gray-600 dark:text-gray-400 mb-4">Generate Power Zone-aligned weekly plans with pelvic floor exercises seamlessly integrated into your training schedule.</p>
         {% if user.is_authenticated %}
-          <a href="{% url 'tracker:weekly_plans' %}" class="text-primary hover:text-primary-dark font-medium text-sm">Learn More →</a>
+          <a href="{% url 'tracker:generate' %}" class="text-primary hover:text-primary-dark font-medium text-sm">Generate Plan →</a>
         {% endif %}
       </div>
       
       <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm hover:shadow-md transition-shadow">
-        <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-3">Give A Shape Of Your Body</h3>
-        <p class="text-gray-600 dark:text-gray-400 mb-4">Crucial to my fitness. Incorporating good warm-up and cool-down into every session decreases my chances of injury. I use both.</p>
+        <div class="text-3xl mb-4">🏆</div>
+        <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-3">Custom Challenges</h3>
+        <p class="text-gray-600 dark:text-gray-400 mb-4">Join structured challenges that guide you through multi-week programmes designed to progressively strengthen your pelvic floor muscles.</p>
         {% if user.is_authenticated %}
-          <a href="{% url 'tracker:challenges_list' %}" class="text-primary hover:text-primary-dark font-medium text-sm">Learn More →</a>
+          <a href="{% url 'challenges:challenges_list' %}" class="text-primary hover:text-primary-dark font-medium text-sm">Join Challenge →</a>
         {% endif %}
-      </div>
-      
-      <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm hover:shadow-md transition-shadow">
-        <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-3">Your Health Is Wealth For You</h3>
-        <p class="text-gray-600 dark:text-gray-400 mb-4">Dynamic and static stretches in my training. I've started doing a few yoga sessions which incorporate muscle strength and flexibility.</p>
-        <a href="{% url 'plans:exercise_list' %}" class="text-primary hover:text-primary-dark font-medium text-sm">Learn More →</a>
       </div>
     </div>
   </div>
@@ -74,22 +105,22 @@
 <section class="py-16 lg:py-24 bg-gray-50 dark:bg-gray-800">
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
     <div class="max-w-3xl">
-      <span class="text-sm font-semibold text-primary uppercase tracking-wider">We Are Base Layer</span>
+      <span class="text-sm font-semibold text-primary uppercase tracking-wider">About Chase The Zones</span>
       <h2 class="mt-4 text-3xl md:text-4xl font-extrabold text-gray-900 dark:text-white">
-        Our Programs Are Better Than Others!
+        The first training platform you'll love. And the last one you'll ever need.
       </h2>
       <div class="mt-6 space-y-4 text-lg text-gray-600 dark:text-gray-400">
         <p>
-          Training is such a vital part of preparation for a game, you really do train to play. It tops up your ability, like sharpening a carving knife. You can get away with not doing it for a while, as long as you have.
+          Chase The Zones helps you strengthen your pelvic floor muscles through structured exercise programmes that complement your Power Zone training. Whether you're recovering from prostate surgery, managing urinary control, or looking to improve your overall fitness, this platform provides the tools you need.
         </p>
         <p>
-          Base Layer helps you strengthen your pelvic floor muscles through structured exercise programs that complement your Power Zone training. Whether you're recovering from prostate surgery, managing urinary control, or looking to improve your overall fitness, this platform provides the tools you need.
+          What makes us different? We're the only platform that seamlessly integrates kegel exercises and pelvic floor training into your existing Power Zone and running programmes. No separate apps, no complicated scheduling—just intelligent plans that work with your training, not against it.
         </p>
       </div>
       {% if not user.is_authenticated %}
         <div class="mt-8">
           <a href="{% url 'register' %}" class="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-lg text-white bg-primary hover:bg-primary-dark transition-colors">
-            Get In Touch
+            Get Started
           </a>
         </div>
       {% endif %}
@@ -97,11 +128,11 @@
   </div>
 </section>
 
-<!-- Services Section -->
+<!-- Features Section -->
 <section class="py-16 lg:py-24 bg-white dark:bg-gray-900">
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
     <div class="text-center mb-12">
-      <span class="text-sm font-semibold text-primary uppercase tracking-wider">Our Services</span>
+      <span class="text-sm font-semibold text-primary uppercase tracking-wider">Features</span>
       <h2 class="mt-4 text-3xl md:text-4xl font-extrabold text-gray-900 dark:text-white">
         What You Can Do
       </h2>
@@ -112,44 +143,44 @@
     
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm hover:shadow-md transition-shadow">
-        <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-3">Generate Weekly Plans</h3>
-        <p class="text-gray-600 dark:text-gray-400 mb-4">Automatically create Power Zone-aligned weekly exercise blocks with pelvic floor exercises tailored to your training schedule.</p>
+        <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-3">Weekly Plan Generation</h3>
+        <p class="text-gray-600 dark:text-gray-400 mb-4">Automatically create Power Zone-aligned weekly exercise blocks with pelvic floor exercises tailored to your training schedule. Includes kegel exercises strategically placed around your rides and runs.</p>
         {% if user.is_authenticated %}
           <a href="{% url 'tracker:generate' %}" class="text-primary hover:text-primary-dark font-medium text-sm">Get Started →</a>
         {% endif %}
       </div>
       
       <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm hover:shadow-md transition-shadow">
-        <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-3">Track Your Progress</h3>
-        <p class="text-gray-600 dark:text-gray-400 mb-4">Mark exercises as complete, add personal notes, and monitor your progression over time with detailed completion tracking.</p>
+        <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-3">Progress Tracking</h3>
+        <p class="text-gray-600 dark:text-gray-400 mb-4">Mark exercises as complete, add personal notes, and monitor your progression over time with detailed completion tracking. See your kegel exercise consistency and improvement.</p>
         {% if user.is_authenticated %}
           <a href="{% url 'tracker:weekly_plans' %}" class="text-primary hover:text-primary-dark font-medium text-sm">View Plans →</a>
         {% endif %}
       </div>
       
       <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm hover:shadow-md transition-shadow">
-        <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-3">Join Challenges</h3>
-        <p class="text-gray-600 dark:text-gray-400 mb-4">Participate in structured challenges that guide you through multi-week programs designed to progressively strengthen your pelvic floor muscles.</p>
+        <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-3">Structured Challenges</h3>
+        <p class="text-gray-600 dark:text-gray-400 mb-4">Participate in structured challenges that guide you through multi-week programmes designed to progressively strengthen your pelvic floor muscles. Choose to include or exclude kegel exercises based on your needs.</p>
         {% if user.is_authenticated %}
-          <a href="{% url 'tracker:challenges_list' %}" class="text-primary hover:text-primary-dark font-medium text-sm">Browse Challenges →</a>
+          <a href="{% url 'challenges:challenges_list' %}" class="text-primary hover:text-primary-dark font-medium text-sm">Browse Challenges →</a>
         {% endif %}
       </div>
       
       <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm hover:shadow-md transition-shadow">
-        <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-3">Exercise Library</h3>
-        <p class="text-gray-600 dark:text-gray-400 mb-4">Browse our library of pelvic floor exercises with detailed descriptions, video demonstrations, and proper form cues.</p>
+        <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-3">Kegel Exercise Library</h3>
+        <p class="text-gray-600 dark:text-gray-400 mb-4">Browse our comprehensive library of pelvic floor exercises including basic kegels, long-hold kegels, pulse kegels, elevator kegels, and more. Each exercise includes detailed descriptions, video demonstrations, and proper form cues.</p>
         <a href="{% url 'plans:exercise_list' %}" class="text-primary hover:text-primary-dark font-medium text-sm">Browse Exercises →</a>
       </div>
       
       <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm hover:shadow-md transition-shadow">
         <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-3">Video Demonstrations</h3>
-        <p class="text-gray-600 dark:text-gray-400 mb-4">Access form cues and exercise demonstrations with one click. Every exercise includes embedded video links to ensure proper form.</p>
+        <p class="text-gray-600 dark:text-gray-400 mb-4">Access form cues and exercise demonstrations with one click. Every kegel exercise includes embedded video links to ensure proper form and technique.</p>
         <a href="{% url 'plans:exercise_list' %}" class="text-primary hover:text-primary-dark font-medium text-sm">View Videos →</a>
       </div>
       
       <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm hover:shadow-md transition-shadow">
-        <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-3">Progress Analytics</h3>
-        <p class="text-gray-600 dark:text-gray-400 mb-4">View your completion statistics, total points earned, and weeks completed. Track your journey with detailed analytics.</p>
+        <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-3">Detailed Analytics</h3>
+        <p class="text-gray-600 dark:text-gray-400 mb-4">View your completion statistics, total points earned, and weeks completed. Track your journey with detailed analytics showing your kegel exercise consistency and overall progress.</p>
         {% if user.is_authenticated %}
           <a href="{% url 'tracker:weekly_plans' %}" class="text-primary hover:text-primary-dark font-medium text-sm">View Analytics →</a>
         {% endif %}
@@ -200,10 +231,10 @@
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
     <div class="text-center">
       <h2 class="text-3xl md:text-4xl font-extrabold mb-4">
-        We Are Ready To Help You To Get Perfect Fitness!
+        See where integrated training can take your fitness.
       </h2>
       <p class="text-xl text-white/90 max-w-2xl mx-auto mb-8">
-        Exercise is really important to me - it's therapeutic. So if I'm ever feeling tense or stressed or like I'm about to have a meltdown, I'll put on my workout gear and get moving.
+        The first training platform that seamlessly integrates pelvic floor exercises into your Power Zone and running programmes. And the last one you'll ever need.
       </p>
       <div class="flex flex-col sm:flex-row gap-4 justify-center">
         {% if user.is_authenticated %}
@@ -215,7 +246,7 @@
           </a>
         {% else %}
           <a href="{% url 'register' %}" class="inline-flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-lg text-primary bg-white hover:bg-gray-100 transition-colors shadow-lg">
-            Get In Touch
+            Get Started
           </a>
           <a href="{% url 'plans:guide' %}" class="inline-flex items-center justify-center px-8 py-3 border-2 border-white text-base font-medium rounded-lg text-white bg-transparent hover:bg-white/10 transition-colors">
             Learn More

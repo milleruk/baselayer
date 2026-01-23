@@ -177,20 +177,106 @@
       <span class="text-gray-500 dark:text-gray-400 cursor-pointer">ℹ️</span>
     </div>
     <div class="flex gap-2 mb-4">
-      <button class="px-3 py-1.5 text-xs font-medium text-white bg-primary rounded-lg">Cycling</button>
-      <button class="px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">Tread</button>
+      <button class="px-3 py-1.5 text-xs font-medium text-white bg-primary rounded-lg pw-activity-btn active" data-activity="cycling">Cycling</button>
+      <button class="px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors pw-activity-btn" data-activity="tread">Tread</button>
     </div>
-    {% if current_weight %}
-      <div class="mb-4">
+    
+    <!-- Current Values -->
+    {% if current_cycling_pw %}
+      <div id="pw-cycling-current" class="mb-4">
         <div class="text-sm text-gray-600 dark:text-gray-400 mb-2">Current cycling:</div>
         <div class="px-3 py-2 text-green-800 dark:text-green-200 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg font-bold inline-block">
-          {{ current_weight.weight|floatformat:2 }} lbs
+          {{ current_cycling_pw }} W/kg
         </div>
       </div>
     {% endif %}
+    <div id="pw-tread-current" class="mb-4" style="display: none;">
+      {% if current_tread_pw %}
+        <div class="text-sm text-gray-600 dark:text-gray-400 mb-2">Current tread:</div>
+        <div class="px-3 py-2 text-green-800 dark:text-green-200 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg font-bold inline-block">
+          {{ current_tread_pw }} W/kg
+        </div>
+      {% else %}
+        <div class="text-center py-4 text-gray-600 dark:text-gray-400">
+          <div class="text-sm">No tread FTP data available. Add tread FTP entries to see power-to-weight ratio.</div>
+        </div>
+      {% endif %}
+    </div>
+    
+    <!-- History Table -->
     <div class="text-xs text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-2">History</div>
-    <div class="text-xs text-gray-600 dark:text-gray-400">
-      Historical data will appear here once Peloton integration is connected.
+    
+    <!-- Cycling History Table -->
+    <div id="pw-cycling-history" class="overflow-x-auto">
+      {% if pw_history_cycling %}
+        <table class="min-w-full text-xs">
+          <thead>
+            <tr class="border-b border-gray-200 dark:border-gray-700">
+              <th class="text-left py-2 px-2 text-gray-600 dark:text-gray-400 font-semibold">Date</th>
+              <th class="text-left py-2 px-2 text-gray-600 dark:text-gray-400 font-semibold">FTP</th>
+              <th class="text-left py-2 px-2 text-gray-600 dark:text-gray-400 font-semibold">Weight</th>
+              <th class="text-left py-2 px-2 text-gray-600 dark:text-gray-400 font-semibold">P/W</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for entry in pw_history_cycling %}
+              <tr class="border-b border-gray-200 dark:border-gray-700">
+                <td class="py-2 px-2 text-gray-900 dark:text-white">{{ entry.date }}</td>
+                <td class="py-2 px-2 text-gray-900 dark:text-white">
+                  {% if entry.ftp %}{{ entry.ftp }} W{% else %}—{% endif %}
+                </td>
+                <td class="py-2 px-2 text-gray-900 dark:text-white">
+                  {% if entry.weight %}{{ entry.weight|floatformat:1 }} lbs{% else %}—{% endif %}
+                </td>
+                <td class="py-2 px-2 text-gray-900 dark:text-white">
+                  {% if entry.pw_ratio %}{{ entry.pw_ratio }} W/kg{% else %}—{% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <div class="text-xs text-gray-600 dark:text-gray-400">
+          Historical data will appear here once you add FTP and weight entries.
+        </div>
+      {% endif %}
+    </div>
+    
+    <!-- Tread History Table -->
+    <div id="pw-tread-history" class="overflow-x-auto" style="display: none;">
+      {% if pw_history_tread %}
+        <table class="min-w-full text-xs">
+          <thead>
+            <tr class="border-b border-gray-200 dark:border-gray-700">
+              <th class="text-left py-2 px-2 text-gray-600 dark:text-gray-400 font-semibold">Date</th>
+              <th class="text-left py-2 px-2 text-gray-600 dark:text-gray-400 font-semibold">FTP</th>
+              <th class="text-left py-2 px-2 text-gray-600 dark:text-gray-400 font-semibold">Weight</th>
+              <th class="text-left py-2 px-2 text-gray-600 dark:text-gray-400 font-semibold">P/W</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for entry in pw_history_tread %}
+              <tr class="border-b border-gray-200 dark:border-gray-700">
+                <td class="py-2 px-2 text-gray-900 dark:text-white">{{ entry.date }}</td>
+                <td class="py-2 px-2 text-gray-900 dark:text-white">
+                  {% if entry.ftp %}{{ entry.ftp }} W{% else %}—{% endif %}
+                </td>
+                <td class="py-2 px-2 text-gray-900 dark:text-white">
+                  {% if entry.weight %}{{ entry.weight|floatformat:1 }} lbs{% else %}—{% endif %}
+                </td>
+                <td class="py-2 px-2 text-gray-900 dark:text-white">
+                  {% if entry.pw_ratio %}{{ entry.pw_ratio }} W/kg{% else %}—{% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <div class="text-center py-8 text-gray-600 dark:text-gray-400">
+          <div class="text-4xl mb-2">📊</div>
+          <div class="text-sm">No data to show. Add tread FTP entries to see power-to-weight history.</div>
+        </div>
+      {% endif %}
     </div>
   </div>
 
@@ -225,18 +311,57 @@
   </div>
 </div>
 
-<!-- FTP Progression -->
-<div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
-  <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-    <h2 class="text-xl font-bold text-gray-900 dark:text-white">FTP Progression</h2>
-    <div class="flex gap-2">
-      <button class="px-4 py-2 text-sm font-medium text-white bg-primary rounded-lg">Trends</button>
-      <button class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">Zones</button>
+<!-- FTP & Pace Progression - Three Separate Cards -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+  <!-- Cycling FTP Card -->
+  <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
+    <div class="flex justify-between items-center mb-4">
+      <h3 class="text-lg font-bold text-gray-900 dark:text-white">Cycling FTP</h3>
     </div>
+    {% if ftp_entries %}
+      <div class="relative" style="height: 300px;">
+        <canvas id="ftpChart"></canvas>
+      </div>
+    {% else %}
+      <div class="text-center py-12 text-gray-600 dark:text-gray-400">
+        <div class="text-4xl mb-2">📊</div>
+        <p class="text-sm">No FTP data yet. Add FTP entries in your <a href="{% url 'profile' %}#tab-ftp-pace" class="text-primary hover:underline">profile settings</a>.</p>
+      </div>
+    {% endif %}
   </div>
-  <div class="text-center py-12 text-gray-600 dark:text-gray-400">
-    <div class="text-4xl mb-2">📈</div>
-    <p>FTP progression data will appear here once Peloton integration is connected.</p>
+  
+  <!-- Running Pace Targets Card -->
+  <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
+    <div class="flex justify-between items-center mb-4">
+      <h3 class="text-lg font-bold text-gray-900 dark:text-white">Running Pace Targets</h3>
+    </div>
+    {% if running_pace_entries %}
+      <div class="relative" style="height: 300px;">
+        <canvas id="runningPaceChart"></canvas>
+      </div>
+    {% else %}
+      <div class="text-center py-12 text-gray-600 dark:text-gray-400">
+        <div class="text-4xl mb-2">🏃</div>
+        <p class="text-sm">No running pace data yet. Add pace entries in your <a href="{% url 'profile' %}#tab-ftp-pace" class="text-primary hover:underline">profile settings</a>.</p>
+      </div>
+    {% endif %}
+  </div>
+  
+  <!-- Walking Pace Targets Card -->
+  <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
+    <div class="flex justify-between items-center mb-4">
+      <h3 class="text-lg font-bold text-gray-900 dark:text-white">Walking Pace Targets</h3>
+    </div>
+    {% if walking_pace_entries %}
+      <div class="relative" style="height: 300px;">
+        <canvas id="walkingPaceChart"></canvas>
+      </div>
+    {% else %}
+      <div class="text-center py-12 text-gray-600 dark:text-gray-400">
+        <div class="text-4xl mb-2">🚶</div>
+        <p class="text-sm">No walking pace data yet. Add pace entries in your <a href="{% url 'profile' %}#tab-ftp-pace" class="text-primary hover:underline">profile settings</a>.</p>
+      </div>
+    {% endif %}
   </div>
 </div>
 
@@ -272,6 +397,307 @@ document.addEventListener('DOMContentLoaded', function() {
       this.classList.remove('bg-gray-100', 'dark:bg-gray-700', 'text-gray-700', 'dark:text-gray-300');
     });
   });
+  
+  // Power to Weight activity buttons (Cycling/Tread)
+  document.querySelectorAll('.pw-activity-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const activity = this.dataset.activity;
+      
+      // Update button styles
+      this.parentElement.querySelectorAll('.pw-activity-btn').forEach(b => {
+        b.classList.remove('bg-primary', 'text-white', 'active');
+        b.classList.add('bg-gray-100', 'dark:bg-gray-700', 'text-gray-700', 'dark:text-gray-300');
+      });
+      this.classList.add('bg-primary', 'text-white', 'active');
+      this.classList.remove('bg-gray-100', 'dark:bg-gray-700', 'text-gray-700', 'dark:text-gray-300');
+      
+      // Show/hide current values based on activity
+      const cyclingCurrent = document.getElementById('pw-cycling-current');
+      const treadCurrent = document.getElementById('pw-tread-current');
+      const cyclingHistory = document.getElementById('pw-cycling-history');
+      const treadHistory = document.getElementById('pw-tread-history');
+      
+      if (activity === 'cycling') {
+        if (cyclingCurrent) cyclingCurrent.style.display = 'block';
+        if (treadCurrent) treadCurrent.style.display = 'none';
+        if (cyclingHistory) cyclingHistory.style.display = 'block';
+        if (treadHistory) treadHistory.style.display = 'none';
+      } else if (activity === 'tread') {
+        if (cyclingCurrent) cyclingCurrent.style.display = 'none';
+        if (treadCurrent) treadCurrent.style.display = 'block';
+        if (cyclingHistory) cyclingHistory.style.display = 'none';
+        if (treadHistory) treadHistory.style.display = 'block';
+      }
+    });
+  });
+  
+  // Helper function to detect dark mode
+  function isDarkMode() {
+    return document.documentElement.classList.contains('dark');
+  }
+  
+  // Initialize FTP Chart
+  {% if ftp_entries %}
+  const ftpCtx = document.getElementById('ftpChart');
+  if (ftpCtx) {
+    const ftpData = {
+      labels: [
+        {% for entry in ftp_entries %}
+          "{{ entry.recorded_date|date:'m/d/y' }}"{% if not forloop.last %},{% endif %}
+        {% endfor %}
+      ],
+      datasets: [{
+        label: 'FTP (Watts)',
+        data: [
+          {% for entry in ftp_entries %}
+            {{ entry.ftp_value }}{% if not forloop.last %},{% endif %}
+          {% endfor %}
+        ],
+        backgroundColor: 'rgba(70, 95, 255, 0.8)',
+        borderColor: 'rgba(70, 95, 255, 1)',
+        borderWidth: 1
+      }]
+    };
+    
+    const textColor = isDarkMode() ? '#e5e7eb' : '#374151';
+    const gridColor = isDarkMode() ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
+    const tickColor = isDarkMode() ? '#9ca3af' : '#6b7280';
+    
+    new Chart(ftpCtx, {
+      type: 'bar',
+      data: ftpData,
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: false
+          },
+          tooltip: {
+            backgroundColor: isDarkMode() ? 'rgba(31, 41, 55, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+            titleColor: textColor,
+            bodyColor: textColor,
+            borderColor: isDarkMode() ? 'rgba(75, 85, 99, 1)' : 'rgba(229, 231, 235, 1)',
+            borderWidth: 1,
+            callbacks: {
+              label: function(context) {
+                return context.parsed.x + ' W';
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            beginAtZero: true,
+            title: {
+              display: true,
+              text: 'FTP (Watts)',
+              color: textColor
+            },
+            grid: {
+              color: gridColor
+            },
+            ticks: {
+              color: tickColor
+            }
+          },
+          y: {
+            title: {
+              display: false
+            },
+            grid: {
+              display: false
+            },
+            ticks: {
+              color: tickColor
+            }
+          }
+        }
+      }
+    });
+  }
+  {% endif %}
+  
+  // Initialize Running Pace Chart
+  {% if running_pace_entries %}
+  const runningPaceCtx = document.getElementById('runningPaceChart');
+  if (runningPaceCtx) {
+    const runningPaceEntries = [];
+    
+    {% for entry in running_pace_entries %}
+      runningPaceEntries.push({
+        dateStr: "{{ entry.recorded_date|date:'m/d/y' }}",
+        dateSort: "{{ entry.recorded_date|date:'Y-m-d' }}",
+        level: {{ entry.level }}
+      });
+    {% endfor %}
+    
+    // Sort by date
+    runningPaceEntries.sort((a, b) => a.dateSort.localeCompare(b.dateSort));
+    
+    const runningPaceData = {
+      labels: runningPaceEntries.map(e => e.dateStr),
+      datasets: [{
+        label: 'Pace Level',
+        data: runningPaceEntries.map(e => e.level),
+        backgroundColor: 'rgba(34, 197, 94, 0.8)',
+        borderColor: 'rgba(34, 197, 94, 1)',
+        borderWidth: 1
+      }]
+    };
+    
+    const textColor = isDarkMode() ? '#e5e7eb' : '#374151';
+    const gridColor = isDarkMode() ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
+    const tickColor = isDarkMode() ? '#9ca3af' : '#6b7280';
+    
+    new Chart(runningPaceCtx, {
+      type: 'bar',
+      data: runningPaceData,
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: false
+          },
+          tooltip: {
+            backgroundColor: isDarkMode() ? 'rgba(31, 41, 55, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+            titleColor: textColor,
+            bodyColor: textColor,
+            borderColor: isDarkMode() ? 'rgba(75, 85, 99, 1)' : 'rgba(229, 231, 235, 1)',
+            borderWidth: 1,
+            callbacks: {
+              label: function(context) {
+                return 'Level ' + context.parsed.x;
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            beginAtZero: true,
+            max: 10,
+            title: {
+              display: true,
+              text: 'Pace Level',
+              color: textColor
+            },
+            grid: {
+              color: gridColor
+            },
+            ticks: {
+              color: tickColor,
+              stepSize: 1
+            }
+          },
+          y: {
+            title: {
+              display: false
+            },
+            grid: {
+              display: false
+            },
+            ticks: {
+              color: tickColor
+            }
+          }
+        }
+      }
+    });
+  }
+  {% endif %}
+  
+  // Initialize Walking Pace Chart
+  {% if walking_pace_entries %}
+  const walkingPaceCtx = document.getElementById('walkingPaceChart');
+  if (walkingPaceCtx) {
+    const walkingPaceEntries = [];
+    
+    {% for entry in walking_pace_entries %}
+      walkingPaceEntries.push({
+        dateStr: "{{ entry.recorded_date|date:'m/d/y' }}",
+        dateSort: "{{ entry.recorded_date|date:'Y-m-d' }}",
+        level: {{ entry.level }}
+      });
+    {% endfor %}
+    
+    // Sort by date
+    walkingPaceEntries.sort((a, b) => a.dateSort.localeCompare(b.dateSort));
+    
+    const walkingPaceData = {
+      labels: walkingPaceEntries.map(e => e.dateStr),
+      datasets: [{
+        label: 'Pace Level',
+        data: walkingPaceEntries.map(e => e.level),
+        backgroundColor: 'rgba(34, 197, 94, 0.8)',
+        borderColor: 'rgba(34, 197, 94, 1)',
+        borderWidth: 1
+      }]
+    };
+    
+    const textColor = isDarkMode() ? '#e5e7eb' : '#374151';
+    const gridColor = isDarkMode() ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
+    const tickColor = isDarkMode() ? '#9ca3af' : '#6b7280';
+    
+    new Chart(walkingPaceCtx, {
+      type: 'bar',
+      data: walkingPaceData,
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: false
+          },
+          tooltip: {
+            backgroundColor: isDarkMode() ? 'rgba(31, 41, 55, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+            titleColor: textColor,
+            bodyColor: textColor,
+            borderColor: isDarkMode() ? 'rgba(75, 85, 99, 1)' : 'rgba(229, 231, 235, 1)',
+            borderWidth: 1,
+            callbacks: {
+              label: function(context) {
+                return 'Level ' + context.parsed.x;
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            beginAtZero: true,
+            max: 10,
+            title: {
+              display: true,
+              text: 'Pace Level',
+              color: textColor
+            },
+            grid: {
+              color: gridColor
+            },
+            ticks: {
+              color: tickColor,
+              stepSize: 1
+            }
+          },
+          y: {
+            title: {
+              display: false
+            },
+            grid: {
+              display: false
+            },
+            ticks: {
+              color: tickColor
+            }
+          }
+        }
+      }
+    });
+  }
+  {% endif %}
 });
 </script>
 {% endblock %}

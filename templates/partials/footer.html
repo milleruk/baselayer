@@ -1,6 +1,117 @@
-<footer class="py-4 mt-5 border-top border-secondary bg-black">
-  <div class="container d-flex flex-column flex-md-row justify-content-between align-items-center gap-2">
-    <div class="small text-muted-2">© {% now "Y" %} Base Layer</div>
-    <div class="small text-muted-2">Built for Power Zone + running + cycling</div>
-  </div>
-</footer>
+{% if request.resolver_match.url_name == 'landing' or request.path == '/' %}
+  <!-- Full Footer for Landing Page -->
+  <footer class="bg-gray-900 dark:bg-gray-900 text-white py-10 px-4 sm:px-6 lg:px-8 mt-auto border-t border-gray-800">
+    <div class="max-w-7xl mx-auto">
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8 lg:gap-6 xl:gap-8">
+        <!-- Logo Section -->
+        <div class="flex flex-col">
+          <a href="{% url 'plans:dashboard' %}" class="flex flex-col items-start mb-0">
+            {% load static %}
+            <img src="{% static 'img/logo.png' %}" alt="Chase The Zones" class="h-10 w-auto mb-3">
+            <span class="text-gray-200 text-sm">ChaseTheZones</span>
+          </a>
+        </div>
+        
+        <!-- Pages Section -->
+        <div>
+          <h3 class="text-white font-bold uppercase text-xs mb-3 tracking-wide">PAGES</h3>
+          <ul class="space-y-2">
+            <li>
+              <a href="{% url 'plans:landing' %}" class="text-gray-400 hover:text-gray-200 transition-colors text-sm block">Home</a>
+            </li>
+            <li>
+              <a href="{% url 'plans:dashboard' %}" class="text-gray-400 hover:text-gray-200 transition-colors text-sm block">Dashboard</a>
+            </li>
+            <li>
+              <a href="{% url 'workouts:history' %}" class="text-gray-400 hover:text-gray-200 transition-colors text-sm block">Workouts</a>
+            </li>
+            <li>
+              <a href="{% url 'plans:exercise_list' %}" class="text-gray-400 hover:text-gray-200 transition-colors text-sm block">Exercise Library</a>
+            </li>
+            <li>
+              <a href="{% url 'plans:metrics' %}" class="text-gray-400 hover:text-gray-200 transition-colors text-sm block">Metrics</a>
+            </li>
+            <li>
+              <a href="{% url 'plans:guide' %}" class="text-gray-400 hover:text-gray-200 transition-colors text-sm block">Guide</a>
+            </li>
+          </ul>
+        </div>
+        
+        <!-- Resources Section -->
+        <div>
+          <h3 class="text-white font-bold uppercase text-xs mb-3 tracking-wide">RESOURCES</h3>
+          <ul class="space-y-2">
+            <li>
+              <a href="#" class="text-gray-400 hover:text-gray-200 transition-colors text-sm block">About</a>
+            </li>
+            <li>
+              <a href="#" class="text-gray-400 hover:text-gray-200 transition-colors text-sm block">Features</a>
+            </li>
+            <li>
+              <a href="#" class="text-gray-400 hover:text-gray-200 transition-colors text-sm block">Help</a>
+            </li>
+            <li>
+              <a href="#" class="text-gray-400 hover:text-gray-200 transition-colors text-sm block">Subscribe</a>
+            </li>
+            <li>
+              <a href="#" class="text-gray-400 hover:text-gray-200 transition-colors text-sm block">Donate</a>
+            </li>
+          </ul>
+        </div>
+        
+        <!-- Legal Disclaimer Section -->
+        <div>
+          <h4 class="text-white font-bold mb-2 text-xs">Legal Disclaimer:</h4>
+          <p class="text-gray-400 leading-relaxed text-xs">
+            ChaseTheZones is not endorsed by, affiliated with, or sponsored by Peloton Interactive, Inc. This is an independent third-party application that relies on data obtained from Peloton's public API. All Peloton trademarks, service marks, trade names, brand names, and logos are the property of Peloton Interactive, Inc. or their respective owners. ChaseTheZones is provided "as is" without warranty of any kind.
+          </p>
+        </div>
+        
+        <!-- Data Usage and Trademark Notice Section -->
+        <div>
+          <div class="space-y-4">
+            <div>
+              <h4 class="text-white font-bold mb-2 text-xs">Data Usage:</h4>
+              <p class="text-gray-400 leading-relaxed text-xs">
+                This application retrieves workout data from Peloton's API and processes it for your use. We are not responsible for the accuracy, completeness, or availability of data provided by Peloton's API. Peloton may modify or discontinue API access at any time.
+              </p>
+            </div>
+            
+            <div>
+              <h4 class="text-white font-bold mb-2 text-xs">Trademark Notice:</h4>
+              <p class="text-gray-400 leading-relaxed text-xs">
+                PELOTON®, PELOTON BIKE®, PELOTON TREAD®, and all other Peloton trademarks, service marks, and trade names are trademarks or registered trademarks of Peloton Interactive, Inc. All rights reserved.
+              </p>
+            </div>
+            
+            <div class="pt-2">
+              <p class="text-gray-400 mb-2 text-xs">© {% now "Y" %} ChaseTheZones. All rights reserved.</p>
+              <p class="text-gray-400 text-xs">
+                <a href="#" class="hover:text-gray-200 transition-colors">Privacy Policy</a>
+                <span class="mx-2">|</span>
+                <a href="#" class="hover:text-gray-200 transition-colors">Terms of Use</a>
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </footer>
+{% else %}
+  <!-- Simple Footer for Other Pages - Nested in Content -->
+  <footer class="bg-gray-900 dark:bg-gray-900 text-white py-4 px-0 -mx-6 -mb-6 mt-6 border-t border-gray-800">
+    <div class="px-4 sm:px-6 lg:px-8">
+      <div class="flex flex-col md:flex-row justify-between items-center gap-4 text-sm">
+        <div class="text-gray-400">
+          © {% now "Y" %} ChaseTheZones. All rights reserved.
+        </div>
+        <div class="flex gap-6 text-gray-400">
+          <a href="{% url 'plans:landing' %}" class="hover:text-gray-200 transition-colors">Home</a>
+          <a href="{% url 'plans:guide' %}" class="hover:text-gray-200 transition-colors">Guide</a>
+          <a href="#" class="hover:text-gray-200 transition-colors">Privacy Policy</a>
+          <a href="#" class="hover:text-gray-200 transition-colors">Terms of Use</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+{% endif %}

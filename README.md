@@ -1,10 +1,10 @@
-# Base Layer - Fitness & Health Tracking Platform
+# Chase The Zones - Fitness & Health Tracking Platform
 
-**Base Layer** is a comprehensive Django-based fitness and health tracking application designed to help users commit to their fitness journey. Built for Power Zone training and running, the platform provides personalized workout plans, challenge tracking, exercise libraries, and progress metrics.
+**Chase The Zones** is a comprehensive Django-based fitness and health tracking application designed to help users commit to their fitness journey. Built for Power Zone training and running, the platform provides personalized workout plans, challenge tracking, exercise libraries, and progress metrics.
 
 ## 🎯 Project Overview
 
-Base Layer is a full-stack web application that enables users to:
+Chase The Zones is a full-stack web application that enables users to:
 - Create and manage personalized weekly workout plans
 - Participate in fitness challenges (cycling, running, strength, yoga)
 - Track exercises including Kegel, Mobility, and Yoga routines
@@ -227,6 +227,6 @@ For issues, questions, or contributions, please [open an issue](link-to-issues) 
 
 ---
 
-**Base Layer** — Commit To Be Fit
+**Chase The Zones** — Commit To Be Fit
 
 Built for Power Zone + Running

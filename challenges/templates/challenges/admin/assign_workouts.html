@@ -1,0 +1,1023 @@
+{% extends "base.html" %}
+{% load dict_filters %}
+{% block title %}Assign Peloton Workouts - {{ challenge.name }}{% endblock %}
+
+{% block content %}
+<div class="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+  <div>
+    <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">Assign Peloton Workouts</h1>
+    <p class="text-gray-600 dark:text-gray-400 mb-4">
+      Assign Peloton workout URLs for each day and activity type. Each day should have a different workout (no duplicates within a week).
+    </p>
+    <div id="workoutStats" class="flex gap-4 flex-wrap">
+      <div class="px-4 py-2 bg-gray-100 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+        <span class="text-sm text-gray-600 dark:text-gray-400">Total Needed:</span>
+        <span class="ml-2 text-lg font-bold text-gray-900 dark:text-white" id="totalNeeded">0</span>
+      </div>
+      <div class="px-4 py-2 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+        <span class="text-sm text-gray-600 dark:text-gray-400">Assigned:</span>
+        <span class="ml-2 text-lg font-bold text-green-700 dark:text-green-300" id="totalAssigned">0</span>
+      </div>
+      <div class="px-4 py-2 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+        <span class="text-sm text-gray-600 dark:text-gray-400">Missing:</span>
+        <span class="ml-2 text-lg font-bold text-red-700 dark:text-red-300" id="totalMissing">0</span>
+      </div>
+    </div>
+  </div>
+  <div>
+    <a href="{% url 'challenges:admin_challenges_list' %}" class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+      ← Back to Challenges
+    </a>
+  </div>
+</div>
+
+<form method="post" id="workout-assignment-form" action="{% url 'challenges:admin_assign_workouts' challenge.id %}">
+  {% csrf_token %}
+  
+  <!-- Template Tabs -->
+  {% if workout_structure|length > 1 %}
+  <div class="mb-6 flex gap-2 border-b border-gray-200 dark:border-gray-700">
+    {% for template_data in workout_structure %}
+    <button type="button" 
+            class="px-4 py-3 text-sm font-medium border-b-2 transition-colors {% if forloop.first %}border-primary text-primary{% else %}border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white{% endif %}"
+            data-template-id="{{ template_data.template.id }}"
+            onclick="switchTemplate({{ template_data.template.id }})">
+      {{ template_data.template.name }}
+    </button>
+    {% endfor %}
+  </div>
+  {% endif %}
+  
+  {% for template_data in workout_structure %}
+  <div class="template-content {% if not forloop.first %}hidden{% endif %}" data-template-id="{{ template_data.template.id }}">
+    <div class="mb-6 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6">
+      <div class="mb-4">
+        <h2 class="text-xl font-bold text-gray-900 dark:text-white">{{ template_data.template.name }}</h2>
+        <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">{{ template_data.template.description|default:"No description" }}</p>
+      </div>
+    
+    {% for week_data in template_data.weeks %}
+    <div class="mb-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 overflow-hidden" data-week="{{ week_data.week_number }}" data-template="{{ template_data.template.id }}">
+      <div class="px-4 py-3 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors" onclick="toggleWeek({{ template_data.template.id }}, {{ week_data.week_number }})">
+        <div class="flex items-center gap-3">
+          <h3 class="text-lg font-semibold text-primary">Week {{ week_data.week_number }}</h3>
+          <span class="text-sm text-gray-600 dark:text-gray-400">
+            <span class="week-stat-assigned font-medium text-green-600 dark:text-green-400" data-week="{{ week_data.week_number }}" data-template="{{ template_data.template.id }}">0</span> / 
+            <span class="week-stat-total" data-week="{{ week_data.week_number }}" data-template="{{ template_data.template.id }}">0</span> assigned
+          </span>
+        </div>
+        <svg class="w-5 h-5 text-gray-500 dark:text-gray-400 week-toggle-icon transition-transform" data-week="{{ week_data.week_number }}" data-template="{{ template_data.template.id }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+        </svg>
+      </div>
+      
+      <div class="week-content hidden p-4" id="week-{{ template_data.template.id }}-{{ week_data.week_number }}-content">
+        {% for day_data in week_data.days %}
+        {% if day_data.peloton_focus %}
+        <div class="mb-4 p-4 rounded-lg border {% if day_data.assignments.ride or day_data.assignments.run or day_data.assignments.yoga or day_data.assignments.strength %}border-green-300 dark:border-green-700 bg-green-50/50 dark:bg-green-900/10{% else %}border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800{% endif %}" 
+             data-day="{{ day_data.day_of_week }}" 
+             data-week="{{ week_data.week_number }}"
+             data-template="{{ template_data.template.id }}">
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-3">
+              <div class="font-bold text-gray-900 dark:text-white">{{ day_data.day_label }}</div>
+              <div class="text-sm text-gray-600 dark:text-gray-400 italic">{{ day_data.peloton_focus }}</div>
+            </div>
+            {% if day_data.assignments.ride or day_data.assignments.run or day_data.assignments.yoga or day_data.assignments.strength %}
+              <span class="px-2 py-1 text-xs font-semibold bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200 rounded" title="Workout assigned">✓</span>
+            {% endif %}
+          </div>
+          
+          {% if day_data.has_ride %}
+          <div class="mb-4 workout-activity-section" data-activity="ride">
+            <label class="flex items-center gap-2 mb-2 text-sm font-semibold text-gray-700 dark:text-gray-300">
+              <span>🚴</span>
+              <span>Ride</span>
+              {% if day_data.allows_alternatives %}
+                <span class="px-2 py-0.5 text-xs font-medium bg-primary/20 text-primary rounded">Allows Alternatives</span>
+              {% elif day_data.assignments.ride|length > 0 %}
+                <span class="px-2 py-0.5 text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200 rounded">Filled</span>
+              {% else %}
+                <span class="px-2 py-0.5 text-xs font-medium bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200 rounded">Required</span>
+              {% endif %}
+            </label>
+            
+            {% for alt in day_data.assignments.ride %}
+            <div class="workout-alternative-row mb-3 {% if not forloop.first %}mt-4 pt-4 border-t border-gray-200 dark:border-gray-700{% endif %}">
+              {% if not forloop.first %}
+              <div class="text-center my-2">
+                <span class="px-3 py-1 text-xs font-bold bg-primary/20 text-primary rounded-full">OR</span>
+              </div>
+              {% endif %}
+              <div class="flex flex-col sm:flex-row gap-2">
+                <div class="flex-1 flex gap-2">
+                  <input 
+                    type="url" 
+                    name="workout_{{ template_data.template.id }}_{{ week_data.week_number }}_{{ day_data.day_of_week }}_ride{% if not forloop.first %}_alt{{ forloop.counter }}{% endif %}"
+                    value="{{ alt.peloton_url }}"
+                    placeholder="https://www.onepeloton.com/..."
+                    class="flex-1 px-3 py-2 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent workout-url-input {% if alt.peloton_url %}border-green-500{% endif %}"
+                    data-template="{{ template_data.template.id }}"
+                    data-week="{{ week_data.week_number }}"
+                    data-activity="ride"
+                    data-day="{{ day_data.day_of_week }}"
+                  >
+                  {% if alt.peloton_url %}
+                    <a href="{{ alt.peloton_url }}" target="_blank" class="px-3 py-2 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors" title="Preview workout">
+                      <svg class="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                      </svg>
+                    </a>
+                  {% endif %}
+                </div>
+                <input 
+                  type="text" 
+                  name="title_{{ template_data.template.id }}_{{ week_data.week_number }}_{{ day_data.day_of_week }}_ride{% if not forloop.first %}_alt{{ forloop.counter }}{% endif %}"
+                  value="{{ alt.workout_title }}"
+                  placeholder="Workout title (optional)"
+                  class="flex-1 px-3 py-2 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent workout-title-input"
+                >
+                <div class="flex items-center gap-2">
+                  <label class="text-xs text-gray-600 dark:text-gray-400 whitespace-nowrap">Points:</label>
+                  <input 
+                    type="number" 
+                    name="points_{{ template_data.template.id }}_{{ week_data.week_number }}_{{ day_data.day_of_week }}_ride{% if not forloop.first %}_alt{{ forloop.counter }}{% endif %}"
+                    value="{{ alt.points|default:50 }}"
+                    min="0"
+                    max="100"
+                    class="w-20 px-3 py-2 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent workout-points-input"
+                    title="Points awarded for completing this workout"
+                  >
+                </div>
+              </div>
+            </div>
+            {% empty %}
+            <div class="workout-alternative-row flex flex-col sm:flex-row gap-2">
+              <div class="flex-1 flex gap-2">
+                <input 
+                  type="url" 
+                  name="workout_{{ template_data.template.id }}_{{ week_data.week_number }}_{{ day_data.day_of_week }}_ride"
+                  value=""
+                  placeholder="https://www.onepeloton.com/..."
+                  class="flex-1 px-3 py-2 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent workout-url-input"
+                  data-template="{{ template_data.template.id }}"
+                  data-week="{{ week_data.week_number }}"
+                  data-activity="ride"
+                  data-day="{{ day_data.day_of_week }}"
+                >
+              </div>
+              <input 
+                type="text" 
+                name="title_{{ template_data.template.id }}_{{ week_data.week_number }}_{{ day_data.day_of_week }}_ride"
+                value=""
+                placeholder="Workout title (optional)"
+                class="flex-1 px-3 py-2 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent workout-title-input"
+              >
+              <div class="flex items-center gap-2">
+                <label class="text-xs text-gray-600 dark:text-gray-400 whitespace-nowrap">Points:</label>
+                <input 
+                  type="number" 
+                  name="points_{{ template_data.template.id }}_{{ week_data.week_number }}_{{ day_data.day_of_week }}_ride"
+                  value="50"
+                  min="0"
+                  max="100"
+                  class="w-20 px-3 py-2 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent workout-points-input"
+                  title="Points awarded for completing this workout"
+                >
+              </div>
+            </div>
+            {% endfor %}
+            
+            {% if day_data.allows_alternatives %}
+            <button type="button" class="mt-2 px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors" 
+                    onclick="addWorkoutAlternative(this, '{{ template_data.template.id }}', '{{ week_data.week_number }}', '{{ day_data.day_of_week }}', 'ride')">
+              + Add Alternative
+            </button>
+            {% endif %}
+          </div>
+          {% endif %}
+          
+          {% if day_data.has_run %}
+          <div class="mb-4 workout-activity-section" data-activity="run">
+            <label class="flex items-center gap-2 mb-2 text-sm font-semibold text-gray-700 dark:text-gray-300">
+              <span>🏃</span>
+              <span>Run</span>
+              {% if day_data.allows_alternatives %}
+                <span class="px-2 py-0.5 text-xs font-medium bg-primary/20 text-primary rounded">Allows Alternatives</span>
+              {% elif day_data.assignments.run|length > 0 %}
+                <span class="px-2 py-0.5 text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200 rounded">Filled</span>
+              {% else %}
+                <span class="px-2 py-0.5 text-xs font-medium bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200 rounded">Required</span>
+              {% endif %}
+            </label>
+            
+            {% for alt in day_data.assignments.run %}
+            <div class="workout-alternative-row mb-3 {% if not forloop.first %}mt-4 pt-4 border-t border-gray-200 dark:border-gray-700{% endif %}">
+              {% if not forloop.first %}
+              <div class="text-center my-2">
+                <span class="px-3 py-1 text-xs font-bold bg-primary/20 text-primary rounded-full">OR</span>
+              </div>
+              {% endif %}
+              <div class="flex flex-col sm:flex-row gap-2">
+                <div class="flex-1 flex gap-2">
+                  <input 
+                    type="url" 
+                    name="workout_{{ template_data.template.id }}_{{ week_data.week_number }}_{{ day_data.day_of_week }}_run{% if not forloop.first %}_alt{{ forloop.counter }}{% endif %}"
+                    value="{{ alt.peloton_url }}"
+                    placeholder="https://www.onepeloton.com/..."
+                    class="flex-1 px-3 py-2 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent workout-url-input {% if alt.peloton_url %}border-green-500{% endif %}"
+                    data-template="{{ template_data.template.id }}"
+                    data-week="{{ week_data.week_number }}"
+                    data-activity="run"
+                    data-day="{{ day_data.day_of_week }}"
+                  >
+                  {% if alt.peloton_url %}
+                    <a href="{{ alt.peloton_url }}" target="_blank" class="px-3 py-2 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors" title="Preview workout">
+                      <svg class="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                      </svg>
+                    </a>
+                  {% endif %}
+                </div>
+                <input 
+                  type="text" 
+                  name="title_{{ template_data.template.id }}_{{ week_data.week_number }}_{{ day_data.day_of_week }}_run{% if not forloop.first %}_alt{{ forloop.counter }}{% endif %}"
+                  value="{{ alt.workout_title }}"
+                  placeholder="Workout title (optional)"
+                  class="flex-1 px-3 py-2 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent workout-title-input"
+                >
+                <div class="flex items-center gap-2">
+                  <label class="text-xs text-gray-600 dark:text-gray-400 whitespace-nowrap">Points:</label>
+                  <input 
+                    type="number" 
+                    name="points_{{ template_data.template.id }}_{{ week_data.week_number }}_{{ day_data.day_of_week }}_run{% if not forloop.first %}_alt{{ forloop.counter }}{% endif %}"
+                    value="{{ alt.points|default:50 }}"
+                    min="0"
+                    max="100"
+                    class="w-20 px-3 py-2 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent workout-points-input"
+                    title="Points awarded for completing this workout"
+                  >
+                </div>
+              </div>
+            </div>
+            {% empty %}
+            <div class="workout-alternative-row flex flex-col sm:flex-row gap-2">
+              <div class="flex-1 flex gap-2">
+                <input 
+                  type="url" 
+                  name="workout_{{ template_data.template.id }}_{{ week_data.week_number }}_{{ day_data.day_of_week }}_run"
+                  value=""
+                  placeholder="https://www.onepeloton.com/..."
+                  class="flex-1 px-3 py-2 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent workout-url-input"
+                  data-template="{{ template_data.template.id }}"
+                  data-week="{{ week_data.week_number }}"
+                  data-activity="run"
+                  data-day="{{ day_data.day_of_week }}"
+                >
+              </div>
+              <input 
+                type="text" 
+                name="title_{{ template_data.template.id }}_{{ week_data.week_number }}_{{ day_data.day_of_week }}_run"
+                value=""
+                placeholder="Workout title (optional)"
+                class="flex-1 px-3 py-2 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent workout-title-input"
+              >
+              <div class="flex items-center gap-2">
+                <label class="text-xs text-gray-600 dark:text-gray-400 whitespace-nowrap">Points:</label>
+                <input 
+                  type="number" 
+                  name="points_{{ template_data.template.id }}_{{ week_data.week_number }}_{{ day_data.day_of_week }}_run"
+                  value="50"
+                  min="0"
+                  max="100"
+                  class="w-20 px-3 py-2 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent workout-points-input"
+                  title="Points awarded for completing this workout"
+                >
+              </div>
+            </div>
+            {% endfor %}
+            
+            {% if day_data.allows_alternatives %}
+            <button type="button" class="mt-2 px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors" 
+                    onclick="addWorkoutAlternative(this, '{{ template_data.template.id }}', '{{ week_data.week_number }}', '{{ day_data.day_of_week }}', 'run')">
+              + Add Alternative
+            </button>
+            {% endif %}
+          </div>
+          {% endif %}
+          
+          {% if day_data.has_yoga %}
+          <div class="mb-4 workout-activity-section" data-activity="yoga">
+            <label class="flex items-center gap-2 mb-2 text-sm font-semibold text-gray-700 dark:text-gray-300">
+              <span>🧘</span>
+              <span>Yoga</span>
+              {% if day_data.allows_alternatives %}
+                <span class="px-2 py-0.5 text-xs font-medium bg-primary/20 text-primary rounded">Allows Alternatives</span>
+              {% elif day_data.assignments.yoga|length > 0 %}
+                <span class="px-2 py-0.5 text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200 rounded">Filled</span>
+              {% else %}
+                <span class="px-2 py-0.5 text-xs font-medium bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200 rounded">Required</span>
+              {% endif %}
+            </label>
+            
+            {% for alt in day_data.assignments.yoga %}
+            <div class="workout-alternative-row mb-3 {% if not forloop.first %}mt-4 pt-4 border-t border-gray-200 dark:border-gray-700{% endif %}">
+              {% if not forloop.first %}
+              <div class="text-center my-2">
+                <span class="px-3 py-1 text-xs font-bold bg-primary/20 text-primary rounded-full">OR</span>
+              </div>
+              {% endif %}
+              <div class="flex flex-col sm:flex-row gap-2">
+                <div class="flex-1 flex gap-2">
+                  <input 
+                    type="url" 
+                    name="workout_{{ template_data.template.id }}_{{ week_data.week_number }}_{{ day_data.day_of_week }}_yoga{% if not forloop.first %}_alt{{ forloop.counter }}{% endif %}"
+                    value="{{ alt.peloton_url }}"
+                    placeholder="https://www.onepeloton.com/..."
+                    class="flex-1 px-3 py-2 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent workout-url-input {% if alt.peloton_url %}border-green-500{% endif %}"
+                    data-template="{{ template_data.template.id }}"
+                    data-week="{{ week_data.week_number }}"
+                    data-activity="yoga"
+                    data-day="{{ day_data.day_of_week }}"
+                  >
+                  {% if alt.peloton_url %}
+                    <a href="{{ alt.peloton_url }}" target="_blank" class="px-3 py-2 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors" title="Preview workout">
+                      <svg class="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                      </svg>
+                    </a>
+                  {% endif %}
+                </div>
+                <input 
+                  type="text" 
+                  name="title_{{ template_data.template.id }}_{{ week_data.week_number }}_{{ day_data.day_of_week }}_yoga{% if not forloop.first %}_alt{{ forloop.counter }}{% endif %}"
+                  value="{{ alt.workout_title }}"
+                  placeholder="Workout title (optional)"
+                  class="flex-1 px-3 py-2 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent workout-title-input"
+                >
+                <div class="flex items-center gap-2">
+                  <label class="text-xs text-gray-600 dark:text-gray-400 whitespace-nowrap">Points:</label>
+                  <input 
+                    type="number" 
+                    name="points_{{ template_data.template.id }}_{{ week_data.week_number }}_{{ day_data.day_of_week }}_yoga{% if not forloop.first %}_alt{{ forloop.counter }}{% endif %}"
+                    value="{{ alt.points|default:50 }}"
+                    min="0"
+                    max="100"
+                    class="w-20 px-3 py-2 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent workout-points-input"
+                    title="Points awarded for completing this workout"
+                  >
+                </div>
+              </div>
+            </div>
+            {% empty %}
+            <div class="workout-alternative-row flex flex-col sm:flex-row gap-2">
+              <div class="flex-1 flex gap-2">
+                <input 
+                  type="url" 
+                  name="workout_{{ template_data.template.id }}_{{ week_data.week_number }}_{{ day_data.day_of_week }}_yoga"
+                  value=""
+                  placeholder="https://www.onepeloton.com/..."
+                  class="flex-1 px-3 py-2 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent workout-url-input"
+                  data-template="{{ template_data.template.id }}"
+                  data-week="{{ week_data.week_number }}"
+                  data-activity="yoga"
+                  data-day="{{ day_data.day_of_week }}"
+                >
+              </div>
+              <input 
+                type="text" 
+                name="title_{{ template_data.template.id }}_{{ week_data.week_number }}_{{ day_data.day_of_week }}_yoga"
+                value=""
+                placeholder="Workout title (optional)"
+                class="flex-1 px-3 py-2 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent workout-title-input"
+              >
+              <div class="flex items-center gap-2">
+                <label class="text-xs text-gray-600 dark:text-gray-400 whitespace-nowrap">Points:</label>
+                <input 
+                  type="number" 
+                  name="points_{{ template_data.template.id }}_{{ week_data.week_number }}_{{ day_data.day_of_week }}_yoga"
+                  value="50"
+                  min="0"
+                  max="100"
+                  class="w-20 px-3 py-2 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent workout-points-input"
+                  title="Points awarded for completing this workout"
+                >
+              </div>
+            </div>
+            {% endfor %}
+            
+            {% if day_data.allows_alternatives %}
+            <button type="button" class="mt-2 px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors" 
+                    onclick="addWorkoutAlternative(this, '{{ template_data.template.id }}', '{{ week_data.week_number }}', '{{ day_data.day_of_week }}', 'yoga')">
+              + Add Alternative
+            </button>
+            {% endif %}
+          </div>
+          {% endif %}
+          
+          {% if day_data.has_strength %}
+          <div class="mb-4 workout-activity-section" data-activity="strength">
+            <label class="flex items-center gap-2 mb-2 text-sm font-semibold text-gray-700 dark:text-gray-300">
+              <span>💪</span>
+              <span>Strength</span>
+              {% if day_data.allows_alternatives %}
+                <span class="px-2 py-0.5 text-xs font-medium bg-primary/20 text-primary rounded">Allows Alternatives</span>
+              {% elif day_data.assignments.strength|length > 0 %}
+                <span class="px-2 py-0.5 text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200 rounded">Filled</span>
+              {% else %}
+                <span class="px-2 py-0.5 text-xs font-medium bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200 rounded">Required</span>
+              {% endif %}
+            </label>
+            
+            {% for alt in day_data.assignments.strength %}
+            <div class="workout-alternative-row mb-3 {% if not forloop.first %}mt-4 pt-4 border-t border-gray-200 dark:border-gray-700{% endif %}">
+              {% if not forloop.first %}
+              <div class="text-center my-2">
+                <span class="px-3 py-1 text-xs font-bold bg-primary/20 text-primary rounded-full">OR</span>
+              </div>
+              {% endif %}
+              <div class="flex flex-col sm:flex-row gap-2">
+                <div class="flex-1 flex gap-2">
+                  <input 
+                    type="url" 
+                    name="workout_{{ template_data.template.id }}_{{ week_data.week_number }}_{{ day_data.day_of_week }}_strength{% if not forloop.first %}_alt{{ forloop.counter }}{% endif %}"
+                    value="{{ alt.peloton_url }}"
+                    placeholder="https://www.onepeloton.com/..."
+                    class="flex-1 px-3 py-2 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent workout-url-input {% if alt.peloton_url %}border-green-500{% endif %}"
+                    data-template="{{ template_data.template.id }}"
+                    data-week="{{ week_data.week_number }}"
+                    data-activity="strength"
+                    data-day="{{ day_data.day_of_week }}"
+                  >
+                  {% if alt.peloton_url %}
+                    <a href="{{ alt.peloton_url }}" target="_blank" class="px-3 py-2 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors" title="Preview workout">
+                      <svg class="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                      </svg>
+                    </a>
+                  {% endif %}
+                </div>
+                <input 
+                  type="text" 
+                  name="title_{{ template_data.template.id }}_{{ week_data.week_number }}_{{ day_data.day_of_week }}_strength{% if not forloop.first %}_alt{{ forloop.counter }}{% endif %}"
+                  value="{{ alt.workout_title }}"
+                  placeholder="Workout title (optional)"
+                  class="flex-1 px-3 py-2 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent workout-title-input"
+                >
+                <div class="flex items-center gap-2">
+                  <label class="text-xs text-gray-600 dark:text-gray-400 whitespace-nowrap">Points:</label>
+                  <input 
+                    type="number" 
+                    name="points_{{ template_data.template.id }}_{{ week_data.week_number }}_{{ day_data.day_of_week }}_strength{% if not forloop.first %}_alt{{ forloop.counter }}{% endif %}"
+                    value="{{ alt.points|default:50 }}"
+                    min="0"
+                    max="100"
+                    class="w-20 px-3 py-2 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent workout-points-input"
+                    title="Points awarded for completing this workout"
+                  >
+                </div>
+              </div>
+            </div>
+            {% empty %}
+            <div class="workout-alternative-row flex flex-col sm:flex-row gap-2">
+              <div class="flex-1 flex gap-2">
+                <input 
+                  type="url" 
+                  name="workout_{{ template_data.template.id }}_{{ week_data.week_number }}_{{ day_data.day_of_week }}_strength"
+                  value=""
+                  placeholder="https://www.onepeloton.com/..."
+                  class="flex-1 px-3 py-2 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent workout-url-input"
+                  data-template="{{ template_data.template.id }}"
+                  data-week="{{ week_data.week_number }}"
+                  data-activity="strength"
+                  data-day="{{ day_data.day_of_week }}"
+                >
+              </div>
+              <input 
+                type="text" 
+                name="title_{{ template_data.template.id }}_{{ week_data.week_number }}_{{ day_data.day_of_week }}_strength"
+                value=""
+                placeholder="Workout title (optional)"
+                class="flex-1 px-3 py-2 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent workout-title-input"
+              >
+              <div class="flex items-center gap-2">
+                <label class="text-xs text-gray-600 dark:text-gray-400 whitespace-nowrap">Points:</label>
+                <input 
+                  type="number" 
+                  name="points_{{ template_data.template.id }}_{{ week_data.week_number }}_{{ day_data.day_of_week }}_strength"
+                  value="50"
+                  min="0"
+                  max="100"
+                  class="w-20 px-3 py-2 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent workout-points-input"
+                  title="Points awarded for completing this workout"
+                >
+              </div>
+            </div>
+            {% endfor %}
+            
+            {% if day_data.allows_alternatives %}
+            <button type="button" class="mt-2 px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors" 
+                    onclick="addWorkoutAlternative(this, '{{ template_data.template.id }}', '{{ week_data.week_number }}', '{{ day_data.day_of_week }}', 'strength')">
+              + Add Alternative
+            </button>
+            {% endif %}
+          </div>
+          {% endif %}
+        </div>
+        {% endif %}
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+  
+  <!-- Bonus Workouts Section -->
+  <div class="mt-8 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6">
+    <div class="mb-4">
+      <h2 class="text-xl font-bold text-gray-900 dark:text-white">Bonus Workouts</h2>
+      <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">Same for all plan options</p>
+    </div>
+    
+    {% for week_num in week_range %}
+    <div class="mb-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 overflow-hidden">
+      <div class="px-4 py-3 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors" onclick="toggleBonusWeek({{ week_num }})">
+        <h3 class="text-lg font-semibold text-primary">Week {{ week_num }} - Bonus Workout</h3>
+        <svg class="w-5 h-5 text-gray-500 dark:text-gray-400 bonus-toggle-icon transition-transform" data-week="{{ week_num }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+        </svg>
+      </div>
+      
+      <div class="bonus-week-content hidden p-4" id="bonus-week-{{ week_num }}-content">
+        {% with week_bonus=bonus_workouts|get_item:week_num %}
+        <div class="mb-4">
+          <label class="flex items-center gap-2 mb-2 text-sm font-semibold text-gray-700 dark:text-gray-300">
+            <span>{% if default_bonus_activity == "run" %}🏃{% else %}🚴{% endif %}</span>
+            <span>{% if default_bonus_activity == "run" %}RUN{% else %}RIDE{% endif %}</span>
+            <span class="px-2 py-0.5 text-xs font-medium {% if week_bonus %}bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200{% else %}bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400{% endif %} rounded">
+              {% if week_bonus %}Filled{% else %}Optional{% endif %}
+            </span>
+          </label>
+          <div class="flex flex-col sm:flex-row gap-2">
+            <input 
+              type="hidden" 
+              name="bonus_activity_{{ week_num }}"
+              value="{{ default_bonus_activity }}"
+            >
+            <input 
+              type="url" 
+              name="bonus_workout_{{ week_num }}"
+              value="{% if week_bonus %}{{ week_bonus.peloton_url }}{% endif %}"
+              placeholder="Peloton workout URL (optional - leave empty for 'Any 30 min+ Peloton Workout')"
+              class="flex-1 px-3 py-2 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+            >
+            <input 
+              type="text" 
+              name="bonus_title_{{ week_num }}"
+              value="{% if week_bonus %}{{ week_bonus.workout_title }}{% endif %}"
+              placeholder="Workout title (optional)"
+              class="flex-1 px-3 py-2 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+            >
+            <div class="flex items-center gap-2">
+              <label class="text-xs text-gray-600 dark:text-gray-400 whitespace-nowrap">Points:</label>
+              <input 
+                type="number" 
+                name="bonus_points_{{ week_num }}"
+                value="{% if week_bonus %}{{ week_bonus.points }}{% else %}10{% endif %}"
+                min="0"
+                class="w-20 px-3 py-2 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+              >
+            </div>
+          </div>
+          <p class="mt-2 text-xs text-gray-500 dark:text-gray-500 italic">
+            Leave URL empty to allow users to choose "Any 30 min+ Peloton Workout"
+          </p>
+        </div>
+        {% endwith %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  
+  <div class="mt-6 flex justify-end gap-3 pt-6 border-t border-gray-200 dark:border-gray-700">
+    <a href="{% url 'challenges:admin_challenges_list' %}" class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+      Skip for Now
+    </a>
+    <button type="button" class="px-6 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors" id="saveButton" onclick="saveWorkouts()">
+      <span>Save Workout Assignments</span>
+      <span class="ml-2 text-xs opacity-80" id="saveButtonStats"></span>
+    </button>
+  </div>
+</form>
+
+<script>
+  // Function to toggle week sections
+  function toggleWeek(templateId, weekNum) {
+    const content = document.getElementById(`week-${templateId}-${weekNum}-content`);
+    const icon = document.querySelector(`.week-toggle-icon[data-template="${templateId}"][data-week="${weekNum}"]`);
+    if (content) {
+      content.classList.toggle('hidden');
+      if (icon) {
+        icon.classList.toggle('rotate-180');
+      }
+    }
+  }
+
+  // Function to toggle bonus week sections
+  function toggleBonusWeek(weekNum) {
+    const content = document.getElementById(`bonus-week-${weekNum}-content`);
+    const icon = document.querySelector(`.bonus-toggle-icon[data-week="${weekNum}"]`);
+    if (content) {
+      content.classList.toggle('hidden');
+      if (icon) {
+        icon.classList.toggle('rotate-180');
+      }
+    }
+  }
+
+  // Function to add workout alternative
+  window.addWorkoutAlternative = function(button, templateId, weekNum, dayNum, activityType) {
+    const activitySection = button.closest('.workout-activity-section');
+    const existingAlternatives = activitySection.querySelectorAll('.workout-alternative-row');
+    const altIndex = existingAlternatives.length;
+    
+    // Create OR separator if not first alternative
+    if (altIndex > 0) {
+      const orDiv = document.createElement('div');
+      orDiv.className = 'text-center my-2';
+      orDiv.innerHTML = '<span class="px-3 py-1 text-xs font-bold bg-primary/20 text-primary rounded-full">OR</span>';
+      activitySection.insertBefore(orDiv, button);
+    }
+    
+    // Create new alternative row
+    const altRow = document.createElement('div');
+    altRow.className = 'workout-alternative-row mb-3 mt-4 pt-4 border-t border-gray-200 dark:border-gray-700';
+    
+    const inputGroup = document.createElement('div');
+    inputGroup.className = 'flex flex-col sm:flex-row gap-2';
+    
+    const urlGroup = document.createElement('div');
+    urlGroup.className = 'flex-1 flex gap-2';
+    
+    const urlInput = document.createElement('input');
+    urlInput.type = 'url';
+    urlInput.name = `workout_${templateId}_${weekNum}_${dayNum}_${activityType}_alt${altIndex}`;
+    urlInput.placeholder = 'https://www.onepeloton.com/...';
+    urlInput.className = 'flex-1 px-3 py-2 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent workout-url-input';
+    urlInput.setAttribute('data-template', templateId);
+    urlInput.setAttribute('data-week', weekNum);
+    urlInput.setAttribute('data-activity', activityType);
+    urlInput.setAttribute('data-day', dayNum);
+    
+    const titleInput = document.createElement('input');
+    titleInput.type = 'text';
+    titleInput.name = `title_${templateId}_${weekNum}_${dayNum}_${activityType}_alt${altIndex}`;
+    titleInput.placeholder = 'Workout title (optional)';
+    titleInput.className = 'flex-1 px-3 py-2 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent workout-title-input';
+    
+    const pointsGroup = document.createElement('div');
+    pointsGroup.className = 'flex items-center gap-2';
+    
+    const pointsLabel = document.createElement('label');
+    pointsLabel.className = 'text-xs text-gray-600 dark:text-gray-400 whitespace-nowrap';
+    pointsLabel.textContent = 'Points:';
+    
+    const pointsInput = document.createElement('input');
+    pointsInput.type = 'number';
+    pointsInput.name = `points_${templateId}_${weekNum}_${dayNum}_${activityType}_alt${altIndex}`;
+    pointsInput.value = '50';
+    pointsInput.min = '0';
+    pointsInput.max = '100';
+    pointsInput.className = 'w-20 px-3 py-2 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent workout-points-input';
+    pointsInput.title = 'Points awarded for completing this workout';
+    
+    pointsGroup.appendChild(pointsLabel);
+    pointsGroup.appendChild(pointsInput);
+    
+    urlGroup.appendChild(urlInput);
+    inputGroup.appendChild(urlGroup);
+    inputGroup.appendChild(titleInput);
+    inputGroup.appendChild(pointsGroup);
+    altRow.appendChild(inputGroup);
+    
+    activitySection.insertBefore(altRow, button);
+    
+    // Add event listener for URL input to show preview link
+    urlInput.addEventListener('input', function() {
+      updateStats();
+      const previewLink = urlGroup.querySelector('a');
+      if (this.value.trim()) {
+        if (previewLink) {
+          previewLink.href = this.value.trim();
+        } else {
+          const link = document.createElement('a');
+          link.href = this.value.trim();
+          link.target = '_blank';
+          link.className = 'px-3 py-2 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors';
+          link.title = 'Preview workout';
+          link.innerHTML = '<svg class="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>';
+          urlGroup.appendChild(link);
+        }
+        this.classList.add('border-green-500');
+      } else {
+        if (previewLink) previewLink.remove();
+        this.classList.remove('border-green-500');
+      }
+    });
+  };
+
+document.addEventListener('DOMContentLoaded', function() {
+  const form = document.getElementById('workout-assignment-form');
+  const urlInputs = form.querySelectorAll('.workout-url-input');
+  
+  // Update stats function
+  function updateStats() {
+    let totalNeeded = 0;
+    let totalAssigned = 0;
+    const weekStats = {};
+    
+    // Get currently visible template
+    const visibleTemplate = document.querySelector('.template-content:not(.hidden)');
+    const visibleTemplateId = visibleTemplate ? visibleTemplate.dataset.templateId : null;
+    
+    urlInputs.forEach(input => {
+      // Only count inputs from visible template if tabs are active
+      if (visibleTemplateId && input.dataset.template !== visibleTemplateId) {
+        return;
+      }
+      
+      const week = input.dataset.week;
+      const template = input.dataset.template;
+      const key = `${template}_${week}`;
+      
+      if (!weekStats[key]) {
+        weekStats[key] = { needed: 0, assigned: 0 };
+      }
+      
+      weekStats[key].needed++;
+      totalNeeded++;
+      
+      if (input.value.trim()) {
+        weekStats[key].assigned++;
+        totalAssigned++;
+        
+        // Update input visual state
+        input.classList.add('border-green-500');
+        const dayCard = input.closest('[data-day]');
+        if (dayCard) {
+          dayCard.classList.add('border-green-300', 'dark:border-green-700', 'bg-green-50/50', 'dark:bg-green-900/10');
+        }
+        
+        // Show preview link if not exists
+        const inputGroup = input.parentElement;
+        if (inputGroup && !inputGroup.querySelector('a[target="_blank"]')) {
+          const link = document.createElement('a');
+          link.href = input.value.trim();
+          link.target = '_blank';
+          link.className = 'px-3 py-2 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors';
+          link.title = 'Preview workout';
+          link.innerHTML = '<svg class="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>';
+          inputGroup.appendChild(link);
+        }
+      } else {
+        input.classList.remove('border-green-500');
+        const dayCard = input.closest('[data-day]');
+        if (dayCard) {
+          // Check if any other inputs in this day have values
+          const hasAnyValue = Array.from(dayCard.querySelectorAll('.workout-url-input')).some(inp => inp.value.trim());
+          if (!hasAnyValue) {
+            dayCard.classList.remove('border-green-300', 'dark:border-green-700', 'bg-green-50/50', 'dark:bg-green-900/10');
+          }
+        }
+        
+        // Remove preview link
+        const inputGroup = input.parentElement;
+        const previewLink = inputGroup?.querySelector('a[target="_blank"]');
+        if (previewLink) {
+          previewLink.remove();
+        }
+      }
+    });
+    
+    // Update global stats
+    document.getElementById('totalNeeded').textContent = totalNeeded;
+    document.getElementById('totalAssigned').textContent = totalAssigned;
+    document.getElementById('totalMissing').textContent = totalNeeded - totalAssigned;
+    
+    // Update week stats
+    Object.keys(weekStats).forEach(key => {
+      const [template, week] = key.split('_');
+      const weekSection = document.querySelector(`[data-week="${week}"][data-template="${template}"]`);
+      if (weekSection) {
+        const assignedEl = weekSection.querySelector(`.week-stat-assigned[data-week="${week}"][data-template="${template}"]`);
+        const totalEl = weekSection.querySelector(`.week-stat-total[data-week="${week}"][data-template="${template}"]`);
+        if (assignedEl) assignedEl.textContent = weekStats[key].assigned;
+        if (totalEl) totalEl.textContent = weekStats[key].needed;
+      }
+    });
+    
+    // Update save button
+    const saveButtonStats = document.getElementById('saveButtonStats');
+    if (saveButtonStats) {
+      if (totalAssigned === totalNeeded) {
+        saveButtonStats.textContent = '(Complete)';
+        saveButtonStats.className = 'ml-2 text-xs text-green-600 dark:text-green-400';
+      } else {
+        saveButtonStats.textContent = `(${totalAssigned}/${totalNeeded})`;
+        saveButtonStats.className = 'ml-2 text-xs text-red-600 dark:text-red-400';
+      }
+    }
+  }
+  
+  // Update preview link when URL changes
+  urlInputs.forEach(input => {
+    input.addEventListener('input', function() {
+      const inputGroup = this.parentElement;
+      const previewLink = inputGroup?.querySelector('a[target="_blank"]');
+      
+      if (this.value.trim()) {
+        if (previewLink) {
+          previewLink.href = this.value.trim();
+        } else {
+          const link = document.createElement('a');
+          link.href = this.value.trim();
+          link.target = '_blank';
+          link.className = 'px-3 py-2 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors';
+          link.title = 'Preview workout';
+          link.innerHTML = '<svg class="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>';
+          inputGroup.appendChild(link);
+        }
+        this.classList.add('border-green-500');
+      } else {
+        if (previewLink) previewLink.remove();
+        this.classList.remove('border-green-500');
+      }
+      
+      updateStats();
+    });
+  });
+  
+  // Template tab switching
+  window.switchTemplate = function(templateId) {
+    // Hide all template contents
+    document.querySelectorAll('.template-content').forEach(content => {
+      content.classList.add('hidden');
+    });
+    
+    // Show selected template
+    const selectedContent = document.querySelector(`.template-content[data-template-id="${templateId}"]`);
+    if (selectedContent) {
+      selectedContent.classList.remove('hidden');
+    }
+    
+    // Update tab states
+    document.querySelectorAll('[data-template-id]').forEach(tab => {
+      if (tab.dataset.templateId == templateId) {
+        tab.classList.add('border-primary', 'text-primary');
+        tab.classList.remove('border-transparent', 'text-gray-600', 'dark:text-gray-400');
+      } else {
+        tab.classList.remove('border-primary', 'text-primary');
+        tab.classList.add('border-transparent', 'text-gray-600', 'dark:text-gray-400');
+      }
+    });
+    
+    // Update stats for visible template
+    updateStats();
+  };
+  
+  // AJAX save function
+  window.saveWorkouts = function() {
+    const form = document.getElementById('workout-assignment-form');
+    const formData = new FormData(form);
+    const saveButton = document.getElementById('saveButton');
+    const originalText = saveButton.innerHTML;
+    
+    // Disable button and show loading state
+    saveButton.disabled = true;
+    saveButton.innerHTML = '<span>Saving...</span>';
+    
+    // Validate duplicates first
+    const urlInputs = form.querySelectorAll('.workout-url-input');
+    const weekGroups = {};
+    
+    urlInputs.forEach(input => {
+      if (input.value.trim()) {
+        const template = input.dataset.template;
+        const week = input.dataset.week;
+        const key = `${template}_${week}`;
+        
+        if (!weekGroups[key]) {
+          weekGroups[key] = [];
+        }
+        
+        weekGroups[key].push({
+          url: input.value.trim().toLowerCase(),
+          activity: input.dataset.activity,
+          day: input.dataset.day,
+          input: input
+        });
+      }
+    });
+    
+    // Check for duplicates
+    let hasDuplicates = false;
+    let duplicateMessage = '';
+    
+    Object.keys(weekGroups).forEach(key => {
+      const urls = weekGroups[key].map(item => item.url);
+      const uniqueUrls = new Set(urls);
+      
+      if (urls.length !== uniqueUrls.size) {
+        hasDuplicates = true;
+        const [template, week] = key.split('_');
+        duplicateMessage += `Week ${week}: Duplicate workout URLs found. Each day should have a different workout.\n`;
+        
+        // Highlight duplicate inputs
+        weekGroups[key].forEach(item => {
+          if (urls.filter(u => u === item.url).length > 1) {
+            item.input.classList.add('border-red-500', 'ring-2', 'ring-red-500');
+          }
+        });
+      }
+    });
+    
+    if (hasDuplicates) {
+      alert(duplicateMessage || 'Duplicate workouts found. Each day should have a different workout.');
+      saveButton.disabled = false;
+      saveButton.innerHTML = originalText;
+      
+      // Remove highlighting after 3 seconds
+      setTimeout(() => {
+        urlInputs.forEach(input => {
+          input.classList.remove('border-red-500', 'ring-2', 'ring-red-500');
+        });
+      }, 3000);
+      
+      return;
+    }
+    
+    // Submit via AJAX
+    fetch(form.action || window.location.href, {
+      method: 'POST',
+      body: formData,
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+      },
+      credentials: 'same-origin'
+    })
+    .then(response => {
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        return response.json();
+      } else {
+        if (response.redirected || response.ok) {
+          return { success: true, redirected: true, url: response.url };
+        }
+        return response.text().then(text => ({ success: false, html: text }));
+      }
+    })
+    .then(data => {
+      if (data.success) {
+        if (data.redirected) {
+          window.location.href = data.url || "{% url 'challenges:admin_challenges_list' %}";
+        } else {
+          const message = data.message || `Workout assignments saved! (${data.created || 0} created, ${data.updated || 0} updated)`;
+          showNotification(message, 'success');
+          updateStats();
+          saveButton.disabled = false;
+          saveButton.innerHTML = originalText;
+        }
+      } else {
+        throw new Error('Save failed');
+      }
+    })
+    .catch(error => {
+      console.error('Error:', error);
+      alert('An error occurred while saving. Please try again.');
+      saveButton.disabled = false;
+      saveButton.innerHTML = originalText;
+    });
+  };
+  
+  // Simple notification function
+  function showNotification(message, type) {
+    const notification = document.createElement('div');
+    notification.className = `fixed top-4 right-4 px-6 py-4 rounded-lg shadow-lg z-50 ${
+      type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+    }`;
+    notification.textContent = message;
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+      notification.style.opacity = '0';
+      notification.style.transition = 'opacity 0.3s';
+      setTimeout(() => notification.remove(), 300);
+    }, 3000);
+  }
+  
+  // Initial stats update
+  updateStats();
+});
+</script>
+{% endblock %}

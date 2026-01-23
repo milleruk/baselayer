@@ -27,7 +27,7 @@
   </div>
   {% endif %}
 
-  <form method="post" action="{% url 'tracker:join_challenge' challenge.id %}" id="join-challenge-form">
+  <form method="post" action="{% url 'challenges:join_challenge' challenge.id %}" id="join-challenge-form">
     {% csrf_token %}
     {% if existing_current_week_plan %}
       <input type="hidden" name="delete_existing_plan" id="delete-existing-plan-input" value="false">
@@ -37,7 +37,7 @@
       {% for template in templates %}
         <div class="relative">
           <input type="radio" name="template_id" value="{{ template.id }}" id="template-{{ template.id }}" 
-                 {% if challenge.default_template.id == template.id %}checked{% endif %} 
+                 {% if challenge.default_template and challenge.default_template.id == template.id %}checked{% endif %} 
                  required class="sr-only">
           <label for="template-{{ template.id }}" 
                  class="block p-4 rounded-lg border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 cursor-pointer transition-all hover:border-primary peer-checked:border-primary peer-checked:bg-primary/5">
@@ -50,7 +50,7 @@
               <div class="flex-1">
                 <div class="font-bold text-gray-900 dark:text-white mb-1">{{ template.name }}</div>
                 <p class="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">{{ template.description }}</p>
-                {% if challenge.default_template.id == template.id %}
+                {% if challenge.default_template and challenge.default_template.id == template.id %}
                   <div class="mt-2">
                     <span class="px-2 py-1 text-xs font-bold text-yellow-800 dark:text-yellow-200 bg-yellow-100 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-800 rounded">RECOMMENDED</span>
                   </div>
@@ -77,7 +77,7 @@
     </div>
     
     <div class="flex gap-3 justify-end">
-      <a href="{% url 'tracker:challenges_list' %}" class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+      <a href="{% url 'challenges:challenges_list' %}" class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
         Cancel
       </a>
       <button type="submit" class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors" {% if existing_current_week_plan %}id="join-challenge-btn"{% endif %}>
@@ -145,47 +145,109 @@
 {% endif %}
 
 <script>
-  // Update radio button visual state
-  document.querySelectorAll('input[name="template_id"]').forEach(radio => {
-    radio.addEventListener('change', function() {
-      // Reset all radio buttons
-      document.querySelectorAll('[id^="radio-"]').forEach(radioEl => {
-        if (radioEl.id.startsWith('radio-') && !radioEl.id.includes('dot')) {
-          radioEl.classList.remove('border-primary');
-          radioEl.classList.add('border-gray-300', 'dark:border-gray-600');
-          const dot = document.getElementById(radioEl.id.replace('radio-', 'radio-dot-'));
-          if (dot) dot.classList.add('opacity-0');
+  // Ensure only one radio button can be selected at a time
+  document.addEventListener('DOMContentLoaded', function() {
+    const radioButtons = document.querySelectorAll('input[name="template_id"]');
+    
+    // Function to update visual state
+    function updateRadioVisuals() {
+      // First, uncheck all radio buttons programmatically (except the one being selected)
+      // This ensures HTML radio button behavior is enforced
+      radioButtons.forEach(radio => {
+        if (!radio.checked) {
+          // Reset visual state for unchecked radios
+          const templateId = radio.id.replace('template-', '');
+          const radioEl = document.getElementById('radio-' + templateId);
+          const dot = document.getElementById('radio-dot-' + templateId);
+          const label = document.querySelector('label[for="' + radio.id + '"]');
+          
+          if (radioEl) {
+            radioEl.classList.remove('border-primary');
+            radioEl.classList.add('border-gray-300', 'dark:border-gray-600');
+          }
+          if (dot) {
+            dot.classList.add('opacity-0');
+            dot.classList.remove('opacity-100');
+          }
+          if (label) {
+            label.classList.remove('border-primary', 'bg-primary/5');
+            label.classList.add('border-gray-200', 'dark:border-gray-700');
+          }
         }
       });
-      document.querySelectorAll('label[for^="template-"]').forEach(label => {
-        label.classList.remove('border-primary', 'bg-primary/5');
-        label.classList.add('border-gray-200', 'dark:border-gray-700');
-      });
       
-      // Highlight selected
-      if (this.checked) {
-        const radioEl = document.getElementById('radio-' + this.id.replace('template-', ''));
-        const dot = document.getElementById('radio-dot-' + this.id.replace('template-', ''));
-        const label = document.querySelector('label[for="' + this.id + '"]');
-        if (radioEl) {
-          radioEl.classList.add('border-primary');
-          radioEl.classList.remove('border-gray-300', 'dark:border-gray-600');
+      // Then, highlight the checked one
+      radioButtons.forEach(radio => {
+        if (radio.checked) {
+          const templateId = radio.id.replace('template-', '');
+          const radioEl = document.getElementById('radio-' + templateId);
+          const dot = document.getElementById('radio-dot-' + templateId);
+          const label = document.querySelector('label[for="' + radio.id + '"]');
+          
+          if (radioEl) {
+            radioEl.classList.add('border-primary');
+            radioEl.classList.remove('border-gray-300', 'dark:border-gray-600');
+          }
           if (dot) {
             dot.classList.remove('opacity-0');
             dot.classList.add('opacity-100');
           }
+          if (label) {
+            label.classList.add('border-primary', 'bg-primary/5');
+            label.classList.remove('border-gray-200', 'dark:border-gray-700');
+          }
         }
-        if (label) {
-          label.classList.add('border-primary', 'bg-primary/5');
-          label.classList.remove('border-gray-200', 'dark:border-gray-700');
+      });
+    }
+    
+    // Add click handler to labels to ensure proper radio selection
+    document.querySelectorAll('label[for^="template-"]').forEach(label => {
+      label.addEventListener('click', function(e) {
+        const radioId = label.getAttribute('for');
+        const radio = document.getElementById(radioId);
+        if (radio) {
+          // Uncheck all other radios first
+          radioButtons.forEach(r => {
+            if (r !== radio) {
+              r.checked = false;
+            }
+          });
+          // Then check this one
+          radio.checked = true;
+          // Update visuals
+          updateRadioVisuals();
         }
-      }
+      });
     });
     
-    // Trigger change on page load for checked radio
-    if (radio.checked) {
-      radio.dispatchEvent(new Event('change'));
-    }
+    // Add change handler to radio buttons
+    radioButtons.forEach(radio => {
+      radio.addEventListener('change', function() {
+        // Ensure only this one is checked
+        radioButtons.forEach(r => {
+          if (r !== this) {
+            r.checked = false;
+          }
+        });
+        this.checked = true;
+        updateRadioVisuals();
+      });
+      
+      // Also handle click directly on radio (though it's hidden)
+      radio.addEventListener('click', function(e) {
+        // Uncheck all others
+        radioButtons.forEach(r => {
+          if (r !== this) {
+            r.checked = false;
+          }
+        });
+        this.checked = true;
+        updateRadioVisuals();
+      });
+    });
+    
+    // Initialize visual state on page load
+    updateRadioVisuals();
   });
 </script>
 {% endblock %}

@@ -1,0 +1,338 @@
+{% extends "base.html" %}
+{% load dict_filters %}
+{% block title %}Challenges{% endblock %}
+{% block page_title %}Challenges{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+  <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">Challenges</h1>
+  <p class="text-gray-600 dark:text-gray-400">Join challenges before they start, or retake completed challenges</p>
+</div>
+
+{% if upcoming_challenges %}
+<div class="mb-12">
+  <div class="text-center mb-6">
+    <span class="text-sm font-semibold text-primary uppercase tracking-wider">Upcoming</span>
+    <h2 class="mt-2 text-2xl font-bold text-gray-900 dark:text-white mb-2">Upcoming Challenges</h2>
+    <p class="text-gray-600 dark:text-gray-400">Join challenges before they start</p>
+  </div>
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+    {% for challenge in upcoming_challenges %}
+      <div class="group rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-md hover:shadow-xl transition-all duration-300 relative transform hover:-translate-y-1">
+        {% if not challenge.can_signup %}
+          <div class="absolute top-3 right-3 px-3 py-1.5 text-xs font-bold text-gray-900 bg-yellow-400 dark:bg-yellow-500 rounded-full shadow-lg z-10 animate-pulse">
+            COMING SOON
+          </div>
+        {% endif %}
+        
+        <!-- Challenge Image/Logo Banner -->
+        <div class="w-full aspect-[4/3] bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800 flex items-center justify-center overflow-hidden rounded-t-xl relative">
+          {% if challenge.image %}
+            <img src="{{ challenge.image.url }}" alt="{{ challenge.name }}" class="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500">
+            <div class="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
+          {% else %}
+            <div class="text-5xl font-extrabold text-gray-400 dark:text-gray-500 uppercase">{{ challenge.name|slice:":1" }}</div>
+          {% endif %}
+        </div>
+        
+        <!-- Challenge Content -->
+        <div class="p-6 overflow-visible">
+          <h3 class="font-bold text-xl text-gray-900 dark:text-white mb-3 group-hover:text-primary transition-colors">{{ challenge.name }}</h3>
+          
+          <!-- Categories -->
+          {% if challenge.get_categories_list %}
+            <div class="flex flex-wrap gap-2 mb-3">
+              {% for cat in challenge.get_categories_list %}
+                <span class="inline-flex items-center justify-center px-3 py-1.5 text-xs font-bold text-white bg-gradient-to-r from-primary to-primary-dark rounded-full shadow-sm min-h-[24px] leading-none">{{ cat }}</span>
+              {% endfor %}
+            </div>
+          {% endif %}
+          
+          <!-- Challenge Type -->
+          <div class="inline-flex items-center justify-center px-3 py-1.5 text-xs font-semibold text-primary dark:text-primary-light bg-primary/10 dark:bg-primary/20 rounded-full mb-3 uppercase tracking-wide min-h-[24px] leading-none">
+            {{ challenge.get_challenge_type_display }}
+          </div>
+          
+          <!-- Date Info -->
+          <div class="text-sm text-gray-600 dark:text-gray-400 space-y-1.5 mb-5 border-t border-gray-200 dark:border-gray-700 pt-3">
+            <div class="flex items-center gap-2">
+              <span class="text-gray-400">📅</span>
+              <span class="font-medium">{{ challenge.start_date|date:"M d" }} - {{ challenge.end_date|date:"M d, Y" }}</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="text-gray-400">⏱️</span>
+              <span>{{ challenge.duration_weeks }} weeks</span>
+            </div>
+            {% if challenge.signup_opens_date %}
+              <div class="flex items-center gap-2 text-primary dark:text-primary-light font-semibold mt-2">
+                <span>🔓</span>
+                <span>Signup opens {{ challenge.signup_opens_date|date:"M d" }}</span>
+              </div>
+            {% endif %}
+            {% if challenge.signup_deadline %}
+              <div class="flex items-center gap-2 text-primary dark:text-primary-light text-xs mt-1">
+                <span>⏰</span>
+                <span>Signup closes {{ challenge.signup_deadline|date:"M d" }}</span>
+              </div>
+            {% endif %}
+          </div>
+          
+          <!-- Action Button -->
+          {% if challenge.can_signup and challenge.id not in user_challenge_ids %}
+            {% if active_challenge_id %}
+              <button class="w-full px-4 py-3 text-sm font-bold text-white bg-gray-400 dark:bg-gray-600 rounded-lg opacity-50 cursor-not-allowed shadow-sm" disabled title="You are already in an active challenge. Leave it first to join another.">
+                Join Challenge
+              </button>
+            {% else %}
+              <a href="{% url 'challenges:select_challenge_template' challenge.id %}" class="block w-full text-center px-4 py-3 text-sm font-bold text-white bg-gradient-to-r from-primary to-primary-dark hover:from-primary-dark hover:to-primary rounded-lg transition-all shadow-md hover:shadow-lg transform hover:scale-[1.02]">
+                Join Challenge →
+              </a>
+            {% endif %}
+          {% elif not challenge.can_signup and challenge.id not in user_challenge_ids %}
+            <button class="w-full px-4 py-3 text-sm font-medium text-center text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 rounded-lg cursor-default border border-gray-200 dark:border-gray-600">
+              {% if challenge.signup_opens_date %}
+                Signup opens {{ challenge.signup_opens_date|date:"M d" }}
+              {% else %}
+                Signup opens {{ challenge.start_date|date:"M d" }}
+              {% endif %}
+            </button>
+          {% elif challenge.id in user_challenge_ids %}
+            {% with ci=user_challenge_instances|get_item:challenge.id %}
+              {% if ci.is_active %}
+                {% if ci.can_leave %}
+                  <a href="{% url 'challenges:leave_challenge' ci.id %}" class="block w-full text-center px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border-2 border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                    Leave Challenge
+                  </a>
+                {% else %}
+                  <span class="block w-full text-center px-4 py-3 text-sm font-medium text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 rounded-lg cursor-not-allowed opacity-50 border border-gray-200 dark:border-gray-600" title="{{ ci.leave_error }}">
+                    Cannot Leave
+                  </span>
+                {% endif %}
+              {% elif ci.completed_at %}
+                <div class="px-4 py-3 text-sm text-center text-green-800 dark:text-green-200 bg-green-50 dark:bg-green-900/30 border-2 border-green-300 dark:border-green-700 rounded-lg font-semibold">
+                  ✓ Completed
+                </div>
+              {% else %}
+                <a href="{% url 'challenges:select_challenge_template' challenge.id %}" class="block w-full text-center px-4 py-3 text-sm font-bold text-white bg-gradient-to-r from-primary to-primary-dark hover:from-primary-dark hover:to-primary rounded-lg transition-all shadow-md hover:shadow-lg transform hover:scale-[1.02] {% if active_challenge_id %}opacity-50 cursor-not-allowed pointer-events-none{% endif %}" {% if active_challenge_id %}title="You are already in an active challenge. Leave it first to join another."{% endif %}>
+                  Take This Challenge →
+                </a>
+              {% endif %}
+            {% endwith %}
+          {% endif %}
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% if running_challenges %}
+<div class="mb-12">
+  <div class="text-center mb-6">
+    <span class="text-sm font-semibold text-primary uppercase tracking-wider">Running</span>
+    <h2 class="mt-2 text-2xl font-bold text-gray-900 dark:text-white mb-2">Currently Running Challenges</h2>
+    <p class="text-gray-600 dark:text-gray-400">Join closed - challenges in progress</p>
+  </div>
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+    {% for challenge in running_challenges %}
+      <div class="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-md relative opacity-90">
+        {% if challenge.is_currently_running %}
+          <div class="absolute top-3 right-3 px-3 py-1.5 text-xs font-bold text-white bg-gradient-to-r from-red-500 to-red-600 rounded-full shadow-lg z-10 animate-pulse">
+            IN PROGRESS
+          </div>
+        {% endif %}
+        
+        <!-- Challenge Image/Logo Banner -->
+        <div class="w-full aspect-[4/3] bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800 flex items-center justify-center overflow-hidden rounded-t-xl opacity-80">
+          {% if challenge.image %}
+            <img src="{{ challenge.image.url }}" alt="{{ challenge.name }}" class="w-full h-full object-contain grayscale">
+            <div class="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent"></div>
+          {% else %}
+            <div class="text-5xl font-extrabold text-gray-400 dark:text-gray-500 uppercase">{{ challenge.name|slice:":1" }}</div>
+          {% endif %}
+        </div>
+        
+        <!-- Challenge Content -->
+        <div class="p-6 overflow-visible">
+          <h3 class="font-bold text-xl text-gray-900 dark:text-white mb-3">{{ challenge.name }}</h3>
+          
+          <!-- Categories -->
+          {% if challenge.get_categories_list %}
+            <div class="flex flex-wrap gap-2 mb-3">
+              {% for cat in challenge.get_categories_list %}
+                <span class="inline-flex items-center justify-center px-3 py-1.5 text-xs font-bold text-gray-600 dark:text-gray-400 bg-gray-200 dark:bg-gray-700 rounded-full min-h-[24px] leading-none">{{ cat }}</span>
+              {% endfor %}
+            </div>
+          {% endif %}
+          
+          <!-- Challenge Type -->
+          <div class="inline-flex items-center justify-center px-3 py-1.5 text-xs font-semibold text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 rounded-full mb-3 uppercase tracking-wide min-h-[24px] leading-none">
+            {{ challenge.get_challenge_type_display }}
+          </div>
+          
+          <!-- Date Info -->
+          <div class="text-sm text-gray-600 dark:text-gray-400 space-y-1.5 mb-5 border-t border-gray-200 dark:border-gray-700 pt-3">
+            <div class="flex items-center gap-2">
+              <span class="text-gray-400">📅</span>
+              <span class="font-medium">{{ challenge.start_date|date:"M d" }} - {{ challenge.end_date|date:"M d, Y" }}</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="text-gray-400">⏱️</span>
+              <span>{{ challenge.duration_weeks }} weeks</span>
+            </div>
+            <div class="flex items-center gap-2 text-red-600 dark:text-red-400 font-semibold mt-2">
+              <span>🔒</span>
+              <span>Started - Join closed</span>
+            </div>
+          </div>
+          
+          <!-- Action Button -->
+          {% if challenge.id in user_challenge_ids %}
+            {% with ci=user_challenge_instances|get_item:challenge.id %}
+              {% if ci.is_active %}
+                {% if ci.can_leave %}
+                  <a href="{% url 'challenges:leave_challenge' ci.id %}" class="block w-full text-center px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border-2 border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                    Leave Challenge
+                  </a>
+                {% else %}
+                  <span class="block w-full text-center px-4 py-3 text-sm font-medium text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 rounded-lg cursor-not-allowed opacity-50 border border-gray-200 dark:border-gray-600" title="{{ ci.leave_error }}">
+                    Cannot Leave
+                  </span>
+                {% endif %}
+              {% elif ci.completed_at %}
+                <div class="px-4 py-3 text-sm text-center text-green-800 dark:text-green-200 bg-green-50 dark:bg-green-900/30 border-2 border-green-300 dark:border-green-700 rounded-lg font-semibold mb-2">
+                  ✓ Completed
+                </div>
+                <a href="{% url 'challenges:retake_challenge' challenge.id %}" class="block w-full text-center px-4 py-3 text-sm font-bold text-white bg-gradient-to-r from-primary to-primary-dark hover:from-primary-dark hover:to-primary rounded-lg transition-all shadow-md hover:shadow-lg transform hover:scale-[1.02]">
+                  🔄 Retake Challenge →
+                </a>
+              {% else %}
+                <div class="px-4 py-3 text-sm text-center text-gray-700 dark:text-gray-300 bg-yellow-50 dark:bg-yellow-900/30 border-2 border-yellow-300 dark:border-yellow-700 rounded-lg font-semibold">
+                  Challenge left - Join unavailable
+                </div>
+              {% endif %}
+            {% endwith %}
+          {% else %}
+            <div class="px-4 py-3 text-sm text-center text-gray-700 dark:text-gray-300 bg-red-50 dark:bg-red-900/30 border-2 border-red-300 dark:border-red-700 rounded-lg font-semibold">
+              Challenge has started - Join unavailable
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% if past_challenges %}
+<div class="mb-12">
+  <div class="text-center mb-6">
+    <span class="text-sm font-semibold text-primary uppercase tracking-wider">Past</span>
+    <h2 class="mt-2 text-2xl font-bold text-gray-900 dark:text-white mb-2">Past Challenges</h2>
+    <p class="text-gray-600 dark:text-gray-400">Retake completed challenges or try ones you missed</p>
+  </div>
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+    {% for challenge in past_challenges %}
+      <div class="group rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-md hover:shadow-xl transition-all duration-300 relative opacity-90 transform hover:-translate-y-1">
+        <!-- Challenge Image/Logo Banner -->
+        <div class="w-full aspect-[4/3] bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800 flex items-center justify-center overflow-hidden rounded-t-xl opacity-80">
+          {% if challenge.image %}
+            <img src="{{ challenge.image.url }}" alt="{{ challenge.name }}" class="w-full h-full object-contain grayscale group-hover:grayscale-0 transition-all duration-500">
+            <div class="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
+          {% else %}
+            <div class="text-5xl font-extrabold text-gray-400 dark:text-gray-500 uppercase">{{ challenge.name|slice:":1" }}</div>
+          {% endif %}
+        </div>
+        
+        <!-- Challenge Content -->
+        <div class="p-6 overflow-visible">
+          <h3 class="font-bold text-xl text-gray-900 dark:text-white mb-3 group-hover:text-primary transition-colors">{{ challenge.name }}</h3>
+          
+          <!-- Categories -->
+          {% if challenge.get_categories_list %}
+            <div class="flex flex-wrap gap-2 mb-3">
+              {% for cat in challenge.get_categories_list %}
+                <span class="inline-flex items-center justify-center px-3 py-1.5 text-xs font-bold text-gray-600 dark:text-gray-400 bg-gray-200 dark:bg-gray-700 rounded-full min-h-[24px] leading-none">{{ cat }}</span>
+              {% endfor %}
+            </div>
+          {% endif %}
+          
+          <!-- Challenge Type -->
+          <div class="inline-flex items-center justify-center px-3 py-1.5 text-xs font-semibold text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 rounded-full mb-3 uppercase tracking-wide min-h-[24px] leading-none">
+            {{ challenge.get_challenge_type_display }}
+          </div>
+          
+          <!-- Date Info -->
+          <div class="text-sm text-gray-600 dark:text-gray-400 space-y-1.5 mb-5 border-t border-gray-200 dark:border-gray-700 pt-3">
+            <div class="flex items-center gap-2">
+              <span class="text-gray-400">📅</span>
+              <span class="font-medium">{{ challenge.start_date|date:"M d" }} - {{ challenge.end_date|date:"M d, Y" }}</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="text-gray-400">⏱️</span>
+              <span>{{ challenge.duration_weeks }} weeks</span>
+            </div>
+            <div class="flex items-center gap-2 text-gray-500 dark:text-gray-500 font-semibold mt-2">
+              <span>🏁</span>
+              <span>Ended</span>
+            </div>
+            {% if challenge.signup_deadline and challenge.signup_deadline < challenge.end_date %}
+              <div class="flex items-center gap-2 text-gray-500 dark:text-gray-500 text-xs mt-1">
+                <span>⏰</span>
+                <span>Signup deadline was {{ challenge.signup_deadline|date:"M d" }}</span>
+              </div>
+            {% endif %}
+          </div>
+          
+          <!-- Action Button -->
+          {% if challenge.id not in user_challenge_ids %}
+            {% if active_challenge_id %}
+              <button class="w-full px-4 py-3 text-sm font-bold text-white bg-gray-400 dark:bg-gray-600 rounded-lg opacity-50 cursor-not-allowed shadow-sm" disabled title="You are already in an active challenge. Leave it first to join another.">
+                Take This Challenge
+              </button>
+            {% else %}
+              <a href="{% url 'challenges:select_challenge_template' challenge.id %}" class="block w-full text-center px-4 py-3 text-sm font-bold text-white bg-gradient-to-r from-primary to-primary-dark hover:from-primary-dark hover:to-primary rounded-lg transition-all shadow-md hover:shadow-lg transform hover:scale-[1.02]">
+                Take This Challenge →
+              </a>
+            {% endif %}
+          {% else %}
+            {% with ci=user_challenge_instances|get_item:challenge.id %}
+              {% if ci.is_active %}
+                {% if ci.can_leave %}
+                  <a href="{% url 'challenges:leave_challenge' ci.id %}" class="block w-full text-center px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border-2 border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                    Leave Challenge
+                  </a>
+                {% else %}
+                  <span class="block w-full text-center px-4 py-3 text-sm font-medium text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 rounded-lg cursor-not-allowed opacity-50 border border-gray-200 dark:border-gray-600" title="{{ ci.leave_error }}">
+                    Cannot Leave
+                  </span>
+                {% endif %}
+              {% elif ci.completed_at %}
+                <div class="px-4 py-3 text-sm text-center text-green-800 dark:text-green-200 bg-green-50 dark:bg-green-900/30 border-2 border-green-300 dark:border-green-700 rounded-lg font-semibold mb-2">
+                  ✓ Completed
+                </div>
+                <a href="{% url 'challenges:retake_challenge' challenge.id %}" class="block w-full text-center px-4 py-3 text-sm font-bold text-white bg-gradient-to-r from-primary to-primary-dark hover:from-primary-dark hover:to-primary rounded-lg transition-all shadow-md hover:shadow-lg transform hover:scale-[1.02]">
+                  🔄 Retake Challenge →
+                </a>
+              {% else %}
+                <a href="{% url 'challenges:select_challenge_template' challenge.id %}" class="block w-full text-center px-4 py-3 text-sm font-bold text-white bg-gradient-to-r from-primary to-primary-dark hover:from-primary-dark hover:to-primary rounded-lg transition-all shadow-md hover:shadow-lg transform hover:scale-[1.02] {% if active_challenge_id %}opacity-50 cursor-not-allowed pointer-events-none{% endif %}" {% if active_challenge_id %}title="You are already in an active challenge. Leave it first to join another."{% endif %}>
+                  Take This Challenge →
+                </a>
+              {% endif %}
+            {% endwith %}
+          {% endif %}
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% if not upcoming_challenges and not running_challenges and not past_challenges %}
+<div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-12 text-center">
+  <div class="text-5xl mb-4">🎯</div>
+  <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">No Challenges Available Yet</h2>
+  <p class="text-gray-600 dark:text-gray-400">Check back later for new challenges!</p>
+</div>
+{% endif %}
+{% endblock %}

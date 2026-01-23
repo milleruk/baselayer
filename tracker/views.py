@@ -6,7 +6,8 @@ from django.utils import timezone
 from django.http import JsonResponse
 from plans.models import PlanTemplate
 from plans.services import generate_weekly_plan
-from .models import WeeklyPlan, DailyPlanItem, Challenge, ChallengeInstance
+from .models import WeeklyPlan, DailyPlanItem
+from challenges.models import ChallengeInstance
 from .forms import DailyPlanItemForm
 
 
@@ -70,6 +71,7 @@ def weekly_plans(request):
         
         # Always include active challenge instances, even if they have no plans yet
         # Include inactive instances only if they have plans AND are completed (not just left)
+        # For past challenges that are completed, still show them but mark as completed
         if ci.is_active or (plans_with_week_numbers and ci.completed_at):
             # Check if user can leave this challenge
             can_leave, leave_error = ci.can_leave_challenge()
@@ -114,6 +116,7 @@ def generate(request):
         # Check if user is joining a challenge
         challenge_instance = None
         if challenge_id:
+            from challenges.models import Challenge
             challenge = get_object_or_404(Challenge, pk=challenge_id)
             # Get the most recent active instance, or most recent instance if none are active
             challenge_instance = ChallengeInstance.objects.filter(
@@ -166,11 +169,8 @@ def generate(request):
             weekly.challenge_instance = challenge_instance
             weekly.save(update_fields=["challenge_instance"])
         messages.success(request, f"Weekly plan '{template.name}' generated successfully!")
-        # Redirect to challenge detail if part of challenge, otherwise plan detail
-        if challenge_instance:
-            return redirect("tracker:challenge_detail", challenge_id=challenge_instance.challenge.id)
-        else:
-            return redirect("tracker:plan_detail", pk=weekly.pk)
+        # Redirect to plan detail
+        return redirect("tracker:plan_detail", pk=weekly.pk)
     
     # GET request - show template selection and available challenges
     # Prevent access if user is in an active challenge
@@ -184,6 +184,7 @@ def generate(request):
         return redirect("tracker:weekly_plans")
     
     templates = PlanTemplate.objects.all().order_by("name")
+    from challenges.models import Challenge
     challenges = Challenge.objects.filter(is_active=True).order_by("-start_date")
     return render(request, "tracker/select_template.html", {
         "templates": templates,
@@ -200,298 +201,6 @@ def delete_plan(request, pk):
         return redirect("tracker:weekly_plans")
     return redirect("tracker:plan_detail", pk=pk)
 
-@login_required
-def complete_challenge(request, challenge_instance_id):
-    """Mark a challenge instance as completed"""
-    challenge_instance = get_object_or_404(ChallengeInstance, pk=challenge_instance_id, user=request.user)
-    if request.method == "POST":
-        challenge_instance.is_active = False
-        challenge_instance.completed_at = timezone.now()
-        challenge_instance.save(update_fields=["is_active", "completed_at"])
-        messages.success(request, f"Challenge completed! Total points: {challenge_instance.total_points}")
-        return redirect("tracker:weekly_plans")
-    return redirect("tracker:weekly_plans")
-
-@login_required
-def leave_challenge(request, challenge_instance_id):
-    """Leave a challenge instance"""
-    challenge_instance = get_object_or_404(ChallengeInstance, pk=challenge_instance_id, user=request.user)
-    
-    # Check if user can leave
-    can_leave, error_msg = challenge_instance.can_leave_challenge()
-    
-    if not can_leave:
-        messages.error(request, error_msg or "You cannot leave this challenge at this time.")
-        return redirect("tracker:challenges_list")
-    
-    if request.method == "POST":
-        challenge_name = challenge_instance.challenge.name
-        # Set as inactive but don't mark as completed (they're leaving, not completing)
-        challenge_instance.is_active = False
-        challenge_instance.completed_at = None
-        challenge_instance.save(update_fields=["is_active", "completed_at"])
-        messages.success(request, f"You have left the challenge '{challenge_name}'. You can join another challenge or generate standalone plans.")
-        return redirect("tracker:challenges_list")
-    
-    # Show confirmation page
-    return render(request, "tracker/leave_challenge.html", {
-        "challenge_instance": challenge_instance,
-        "can_leave": can_leave,
-        "error_msg": error_msg,
-    })
-
-@login_required
-def join_challenge(request, challenge_id):
-    """Join a challenge and auto-generate weekly plans"""
-    challenge = get_object_or_404(Challenge, pk=challenge_id)
-    
-    # Check if user already has an active challenge (can only be in one at a time)
-    active_challenge_instance = ChallengeInstance.objects.filter(user=request.user, is_active=True).first()
-    if active_challenge_instance:
-        if active_challenge_instance.challenge.id != challenge.id:
-            messages.error(request, f"You are already participating in '{active_challenge_instance.challenge.name}'. Please leave or complete that challenge before joining another one.")
-            return redirect("tracker:challenges_list")
-        else:
-            # User is trying to join the same challenge they're already in
-            messages.info(request, f"You're already participating in '{challenge.name}'")
-            return redirect("tracker:weekly_plans")
-    
-    # Check if signup is allowed
-    if not challenge.can_signup:
-        messages.error(request, f"Signup for '{challenge.name}' is no longer available.")
-        return redirect("tracker:challenges_list")
-    
-    # Check if user is already participating (for retaking completed challenges)
-    # Get the most recent instance (prefer active ones)
-    challenge_instance = ChallengeInstance.objects.filter(
-        user=request.user, 
-        challenge=challenge
-    ).order_by('-is_active', '-started_at').first()
-    
-    if challenge_instance:
-        if challenge_instance.is_active:
-            # This shouldn't happen due to check above, but handle it anyway
-            messages.info(request, f"You're already participating in '{challenge.name}'")
-            return redirect("tracker:weekly_plans")
-        else:
-            # Rejoin a completed challenge - allow retaking
-            # Don't redirect to template selection, let them proceed to join flow
-            pass
-    
-    # If POST, create challenge instance with selected template and generate weeks
-    if request.method == "POST":
-        # Double-check if user already has an active challenge (prevent race conditions)
-        active_challenge_instance = ChallengeInstance.objects.filter(user=request.user, is_active=True).first()
-        if active_challenge_instance:
-            if active_challenge_instance.challenge.id != challenge.id:
-                messages.error(request, f"You are already participating in '{active_challenge_instance.challenge.name}'. Please leave or complete that challenge before joining another one.")
-                return redirect("tracker:challenges_list")
-            else:
-                messages.info(request, f"You're already participating in '{challenge.name}'")
-                return redirect("tracker:weekly_plans")
-        
-        template_id = request.POST.get("template_id")
-        delete_existing_plan = request.POST.get("delete_existing_plan") == "true"
-        
-        if not template_id:
-            messages.error(request, "Please select a plan template.")
-            return redirect("tracker:select_challenge_template", challenge_id=challenge_id)
-        
-        # Check if user has a plan for the current week and handle deletion
-        current_week_start = sunday_of_current_week(date.today())
-        existing_current_week_plan = WeeklyPlan.objects.filter(user=request.user, week_start=current_week_start).first()
-        
-        if existing_current_week_plan:
-            if delete_existing_plan:
-                # Delete the existing plan
-                existing_current_week_plan.delete()
-                messages.info(request, "Deleted existing weekly plan for this week.")
-            else:
-                # User didn't confirm deletion, redirect back
-                messages.error(request, "You have an existing plan for this week. Please delete it first or confirm deletion when joining the challenge.")
-                return redirect("tracker:select_challenge_template", challenge_id=challenge_id)
-        
-        template = get_object_or_404(PlanTemplate, pk=template_id)
-        include_kegels = request.POST.get("include_kegels") == "on"
-        
-        # Check if user has an active instance for this challenge
-        active_instance = ChallengeInstance.objects.filter(
-            user=request.user,
-            challenge=challenge,
-            is_active=True
-        ).first()
-        
-        if active_instance:
-            # User already has an active instance - delete old plans and reset
-            active_instance.weekly_plans.all().delete()
-            challenge_instance = active_instance
-            challenge_instance.selected_template = template
-            challenge_instance.is_active = True  # Ensure it stays active
-            challenge_instance.completed_at = None
-            challenge_instance.include_kegels = include_kegels
-            challenge_instance.started_at = timezone.now()  # Update start time for new attempt
-            challenge_instance.save(update_fields=["selected_template", "is_active", "completed_at", "include_kegels", "started_at"])
-        else:
-            # Create new instance (fresh attempt)
-            challenge_instance = ChallengeInstance.objects.create(
-                user=request.user,
-                challenge=challenge,
-                is_active=True,
-                selected_template=template,
-                include_kegels=include_kegels
-            )
-        
-        # Auto-generate weekly plans for the challenge duration
-        today = date.today()
-        challenge_start = challenge.start_date
-        challenge_end = challenge.end_date
-        
-        # For past challenges (retaking), generate all weeks from challenge start
-        # For current/upcoming challenges, generate from current week or challenge start (whichever is later)
-        if challenge.has_ended:
-            # Past challenge - generate all weeks from challenge start
-            start_week = sunday_of_current_week(challenge_start)
-            use_start_from_today = False
-        else:
-            # Current or upcoming challenge - start from current week or challenge start
-            challenge_week_start = sunday_of_current_week(challenge_start)
-            start_week = max(sunday_of_current_week(today), challenge_week_start)
-            use_start_from_today = (start_week == sunday_of_current_week(today))
-        
-        # Generate plans for each week of the challenge
-        current_week_start = start_week
-        week_num = 1
-        weeks_generated = 0
-        
-        while current_week_start <= challenge_end:
-            # Calculate week number based on challenge start
-            if current_week_start >= challenge_start:
-                week_num = ((current_week_start - challenge_start).days // 7) + 1
-            else:
-                week_num = 1
-            
-            # Always generate fresh plans (old ones were deleted above if rejoining)
-            weekly = generate_weekly_plan(
-                user=request.user,
-                week_start=current_week_start,
-                template=template,
-                start_from_today=(use_start_from_today and current_week_start == sunday_of_current_week(today)),
-                challenge_instance=challenge_instance,
-                week_number=week_num
-            )
-            weekly.challenge_instance = challenge_instance
-            weekly.save(update_fields=["challenge_instance"])
-            weeks_generated += 1
-            
-            current_week_start += timedelta(days=7)
-        
-        if weeks_generated > 0:
-            messages.success(request, f"Joined challenge '{challenge.name}'! Generated {weeks_generated} week(s).")
-        else:
-            messages.info(request, f"You're already participating in '{challenge.name}'!")
-        
-        return redirect("tracker:weekly_plans")
-    
-    # GET request - redirect to template selection
-    return redirect("tracker:select_challenge_template", challenge_id=challenge_id)
-
-@login_required
-def select_challenge_template(request, challenge_id):
-    """Select plan template when joining a challenge"""
-    challenge = get_object_or_404(Challenge, pk=challenge_id)
-    
-    # Check if user already has an active challenge (can only be in one at a time)
-    active_challenge_instance = ChallengeInstance.objects.filter(user=request.user, is_active=True).first()
-    if active_challenge_instance:
-        if active_challenge_instance.challenge.id != challenge.id:
-            messages.error(request, f"You are already participating in '{active_challenge_instance.challenge.name}'. Please leave or complete that challenge before joining another one.")
-            return redirect("tracker:challenges_list")
-        else:
-            # User is trying to select template for the same challenge they're already in
-            messages.info(request, f"You're already participating in '{challenge.name}'")
-            return redirect("tracker:weekly_plans")
-    
-    # Check if signup is allowed
-    if not challenge.can_signup:
-        messages.error(request, f"Signup for '{challenge.name}' is no longer available.")
-        return redirect("tracker:challenges_list")
-    
-    # Check if user has a plan for the current week
-    current_week_start = sunday_of_current_week(date.today())
-    existing_current_week_plan = WeeklyPlan.objects.filter(user=request.user, week_start=current_week_start).first()
-    
-    # Get available templates for this challenge
-    if challenge.available_templates.exists():
-        # Only show templates that are available for this challenge
-        templates = challenge.available_templates.all().order_by("name")
-    else:
-        # Fallback: show all templates if none are specified (backward compatibility)
-        templates = PlanTemplate.objects.all().order_by("name")
-    
-    # If challenge has a default template, prioritize it
-    if challenge.default_template:
-        templates = list(templates)
-        if challenge.default_template in templates:
-            templates.remove(challenge.default_template)
-            templates.insert(0, challenge.default_template)
-    
-    return render(request, "tracker/select_challenge_template.html", {
-        "challenge": challenge,
-        "templates": templates,
-        "existing_current_week_plan": existing_current_week_plan,
-    })
-
-@login_required
-def challenges_list(request):
-    """List all available challenges"""
-    today = date.today()
-    # Only show visible challenges that haven't started yet (for signup)
-    upcoming_challenges = Challenge.objects.filter(
-        is_active=True,
-        is_visible=True,
-        start_date__gt=today  # Only show challenges that haven't started
-    ).order_by("start_date")  # Earliest first
-    
-    # Currently running challenges (for users already participating)
-    running_challenges = Challenge.objects.filter(
-        is_active=True,
-        is_visible=True,
-        start_date__lte=today,
-        end_date__gte=today
-    ).order_by("start_date")  # Earliest first
-    
-    # Past challenges (ended) - can be retaken
-    past_challenges = Challenge.objects.filter(
-        is_active=True,
-        is_visible=True,
-        end_date__lt=today
-    ).order_by("start_date")  # Earliest first
-    
-    user_challenges = ChallengeInstance.objects.filter(user=request.user).select_related("challenge")
-    user_challenge_ids = set(user_challenges.values_list("challenge_id", flat=True))
-    
-    # Get active challenge instance for leave button
-    active_challenge_instance = ChallengeInstance.objects.filter(user=request.user, is_active=True).first()
-    active_challenge_id = active_challenge_instance.challenge.id if active_challenge_instance else None
-    
-    # Get user's challenge instances mapped by challenge ID (include all, not just active)
-    # This allows us to distinguish between completed (completed_at is set) and left (completed_at is None)
-    # Also calculate can_leave for each active instance
-    user_challenge_instances = {}
-    for ci in user_challenges:
-        user_challenge_instances[ci.challenge.id] = ci
-        # Add can_leave info for active instances
-        if ci.is_active:
-            ci.can_leave, ci.leave_error = ci.can_leave_challenge()
-    
-    return render(request, "tracker/challenges.html", {
-        "upcoming_challenges": upcoming_challenges,
-        "running_challenges": running_challenges,
-        "past_challenges": past_challenges,
-        "user_challenge_ids": user_challenge_ids,
-        "active_challenge_id": active_challenge_id,
-        "user_challenge_instances": user_challenge_instances,
-    })
 
 @login_required
 def plan_detail(request, pk):
@@ -507,6 +216,7 @@ def plan_detail(request, pk):
     previous_week_completed = True  # Default to True for standalone plans
     
     if plan.challenge_instance:
+        from challenges.models import Challenge
         challenge = plan.challenge_instance.challenge
         all_plans = plan.challenge_instance.weekly_plans.all().order_by("week_start")
         for idx, p in enumerate(all_plans, start=1):
@@ -917,11 +627,37 @@ def plan_detail(request, pk):
             "is_completed": all_activities_done,  # Only Peloton workouts matter for completion
         })
 
-    # Find next week plan for active challenges
+    # Find next week plan and previous week plan for challenges
     next_week_plan = None
-    if plan.challenge_instance and plan.challenge_instance.challenge.is_currently_running:
-        next_week_start = plan.week_start + timedelta(days=7)
-        next_week_plan = plan.challenge_instance.weekly_plans.filter(week_start=next_week_start).first()
+    previous_week_plan = None
+    total_weeks = None
+    challenge = None
+    is_challenge_view = False
+    challenge_structure = None
+    
+    if plan.challenge_instance:
+        challenge = plan.challenge_instance.challenge
+        is_challenge_view = True
+        all_plans = plan.challenge_instance.weekly_plans.all().order_by("week_start")
+        total_weeks = all_plans.count()
+        
+        # Get previous week plan
+        if week_number and week_number > 1:
+            previous_week_start = plan.week_start - timedelta(days=7)
+            previous_week_plan = all_plans.filter(week_start=previous_week_start).first()
+        
+        # Get next week plan
+        if plan.challenge_instance.challenge.is_currently_running or plan.challenge_instance.challenge.has_ended:
+            next_week_start = plan.week_start + timedelta(days=7)
+            next_week_plan = all_plans.filter(week_start=next_week_start).first()
+        
+        # Get challenge structure text
+        if challenge.challenge_type == "individual":
+            challenge_structure = "Individual Challenge"
+        elif challenge.challenge_type == "team":
+            challenge_structure = "Team Challenge"
+        else:
+            challenge_structure = "Challenge"
     
     # Check if user can leave challenge (if this is a challenge plan)
     can_leave = None
@@ -941,6 +677,16 @@ def plan_detail(request, pk):
         else:
             print(f"DEBUG: Item {i} is not a dict, it's {type(wd)}: {wd}")
     
+    # Get user profile for FTP and pace target level
+    from accounts.models import Profile
+    try:
+        user_profile = Profile.objects.get(user=request.user)
+        user_ftp = user_profile.ftp_score
+        user_pace_target = user_profile.pace_target_level
+    except Profile.DoesNotExist:
+        user_ftp = None
+        user_pace_target = None
+    
     context = {
         "plan": plan,
         "days": days,  # Keep for backward compatibility
@@ -950,473 +696,22 @@ def plan_detail(request, pk):
         "can_access_week": can_access_week,
         "previous_week_completed": previous_week_completed,
         "next_week_plan": next_week_plan,
+        "previous_week_plan": previous_week_plan,
+        "total_weeks": total_weeks,
+        "challenge": challenge,
+        "is_challenge_view": is_challenge_view,
+        "challenge_structure": challenge_structure,
         "can_leave": can_leave,
         "leave_error": leave_error,
         "include_kegels": plan.challenge_instance.include_kegels if plan.challenge_instance else True,
         "bonus_workouts": bonus_workouts,
         "bonus_completed": bonus_completed,
+        "user_ftp": user_ftp,
+        "user_pace_target": user_pace_target,
     }
     return render(request, "tracker/plan_detail.html", context)
 
-@login_required
-def challenge_detail(request, challenge_id, week_number=None):
-    """View challenge plan by challenge ID and optional week number"""
-    # Get the challenge
-    challenge = get_object_or_404(Challenge, pk=challenge_id)
-    
-    # Get user's challenge instance for this challenge
-    challenge_instance = ChallengeInstance.objects.filter(
-        user=request.user,
-        challenge=challenge
-    ).first()
-    
-    if not challenge_instance:
-        messages.error(request, "You are not participating in this challenge.")
-        return redirect("tracker:challenges_list")
-    
-    # Get all weekly plans for this challenge instance, ordered by week_start
-    all_plans = challenge_instance.weekly_plans.all().order_by("week_start")
-    total_weeks = all_plans.count()
-    
-    if total_weeks == 0:
-        messages.error(request, "No weekly plans found for this challenge.")
-        return redirect("tracker:challenges_list")
-    
-    # Determine which week to show
-    if week_number is not None:
-        # Get the plan for the specified week number (1-indexed)
-        if week_number < 1 or week_number > total_weeks:
-            messages.error(request, f"Invalid week number. This challenge has {total_weeks} week(s).")
-            return redirect("tracker:challenge_detail", challenge_id=challenge_id)
-        plan = all_plans[week_number - 1]
-    else:
-        # Show current week or first week
-        current_week_start = sunday_of_current_week(date.today())
-        current_plan = all_plans.filter(week_start=current_week_start).first()
-        if current_plan:
-            plan = current_plan
-        else:
-            # Show the first week
-            plan = all_plans.first()
-    
-    # Calculate actual week number for the selected plan
-    actual_week_number = None
-    for idx, p in enumerate(all_plans, start=1):
-        if p.id == plan.id:
-            actual_week_number = idx
-            break
-    
-    # Get previous and next week plans
-    previous_week_plan = None
-    next_week_plan = None
-    if actual_week_number:
-        if actual_week_number > 1:
-            previous_week_plan = all_plans[actual_week_number - 2]
-        if actual_week_number < total_weeks:
-            next_week_plan = all_plans[actual_week_number]
-    
-    # Check access permissions (reuse logic from plan_detail)
-    can_access_week = True
-    previous_week_completed = True
-    
-    if challenge.has_ended:
-        can_access_week = True
-        previous_week_completed = True
-    elif actual_week_number and not challenge.is_week_unlocked(actual_week_number):
-        can_access_week = False
-        previous_week_completed = False
-    elif challenge.is_active and not challenge.has_ended and actual_week_number and actual_week_number > 1:
-        previous_plans = all_plans.filter(week_start__lt=plan.week_start).order_by("week_start")
-        if previous_plans.exists():
-            incomplete_weeks = [p for p in previous_plans if not p.is_completed]
-            can_access_week = len(incomplete_weeks) == 0
-            previous_week_completed = can_access_week
-        else:
-            can_access_week = False
-            previous_week_completed = False
-    
-    # Get challenge structure description (e.g., "2 Ride & 2 Run per week")
-    structure_parts = []
-    if challenge.categories:
-        categories = challenge.get_categories_list()
-        # Count workout types from template or default
-        # For now, use a simple description based on categories
-        if "CYCLING" in categories and "RUNNING" in categories:
-            structure_parts.append("2 Ride & 2 Run")
-        elif "CYCLING" in categories:
-            structure_parts.append("Cycling")
-        elif "RUNNING" in categories:
-            structure_parts.append("Running")
-        else:
-            structure_parts.append("Workouts")
-    else:
-        structure_parts.append("Workouts")
-    
-    challenge_structure = " & ".join(structure_parts) + " per week"
-    
-    # Now reuse the plan_detail logic by calling it with the plan
-    # But we need to add challenge navigation context
-    # Let's get the plan and build context similar to plan_detail
-    
-    # Reuse all the plan_detail logic for building workout days, etc.
-    # We'll call the same logic but add challenge navigation context
-    
-    # Get the plan with all relationships
-    plan = WeeklyPlan.objects.select_related('challenge_instance__challenge').get(pk=plan.id)
-    
-    # Build context similar to plan_detail
-    all_items = plan.items.select_related("exercise").all()
-    
-    from django.db.models import Q
-    bonus_workouts = list(all_items.filter(peloton_focus__icontains="Bonus"))
-    items = all_items.exclude(peloton_focus__icontains="Bonus")
-    
-    bonus_completed = False
-    if bonus_workouts:
-        first_bonus = bonus_workouts[0]
-        bonus_completed = first_bonus.ride_done or first_bonus.run_done or first_bonus.yoga_done or first_bonus.strength_done
-    
-    if plan.challenge_instance and not plan.challenge_instance.include_kegels:
-        items = items.filter(
-            (Q(peloton_ride_url__isnull=False) |
-             Q(peloton_run_url__isnull=False) |
-             Q(peloton_yoga_url__isnull=False) |
-             Q(peloton_strength_url__isnull=False)) &
-            ~Q(exercise__category="kegel")
-        )
-    
-    workout_items = items.filter(
-        (Q(peloton_ride_url__isnull=False) & ~Q(peloton_ride_url='')) |
-        (Q(peloton_run_url__isnull=False) & ~Q(peloton_run_url='')) |
-        (Q(peloton_yoga_url__isnull=False) & ~Q(peloton_yoga_url='')) |
-        (Q(peloton_strength_url__isnull=False) & ~Q(peloton_strength_url=''))
-    ).order_by('day_of_week', 'id')
-    
-    workout_days_dict = {}
-    for item in workout_items:
-        dow = item.day_of_week
-        if dow not in workout_days_dict:
-            workout_days_dict[dow] = {}
-        
-        activity_type = None
-        if item.peloton_ride_url and item.peloton_ride_url.strip():
-            activity_type = 'ride'
-        elif item.peloton_run_url and item.peloton_run_url.strip():
-            activity_type = 'run'
-        elif item.peloton_yoga_url and item.peloton_yoga_url.strip():
-            activity_type = 'yoga'
-        elif item.peloton_strength_url and item.peloton_strength_url.strip():
-            activity_type = 'strength'
-        
-        if activity_type:
-            if activity_type not in workout_days_dict[dow]:
-                workout_days_dict[dow][activity_type] = []
-            workout_days_dict[dow][activity_type].append(item)
-    
-    workout_days_list = sorted(workout_days_dict.items())
-    core_count = plan.core_workout_count
-    
-    workout_days = []
-    for workout_day_num, (dow, activities_dict) in enumerate(workout_days_list, start=1):
-        if core_count == 3:
-            day_points = 50
-        elif core_count == 4:
-            if workout_day_num == 1 or workout_day_num == core_count:
-                day_points = 50
-            else:
-                day_points = 25
-        else:
-            day_points = 50
-        
-        all_alternatives = []
-        day_focus = ""
-        
-        for activity_type in ['ride', 'run', 'yoga', 'strength']:
-            if activity_type in activities_dict:
-                activity_items = activities_dict[activity_type]
-                if activity_items:
-                    if not day_focus:
-                        day_focus = activity_items[0].peloton_focus
-                    
-                    for item in activity_items:
-                        item_done = False
-                        if activity_type == 'ride':
-                            item_done = item.ride_done
-                        elif activity_type == 'run':
-                            item_done = item.run_done
-                        elif activity_type == 'yoga':
-                            item_done = item.yoga_done
-                        elif activity_type == 'strength':
-                            item_done = item.strength_done
-                        
-                        peloton_url = None
-                        if activity_type == 'ride' and item.peloton_ride_url and item.peloton_ride_url.strip():
-                            peloton_url = item.peloton_ride_url
-                        elif activity_type == 'run' and item.peloton_run_url and item.peloton_run_url.strip():
-                            peloton_url = item.peloton_run_url
-                        elif activity_type == 'yoga' and item.peloton_yoga_url and item.peloton_yoga_url.strip():
-                            peloton_url = item.peloton_yoga_url
-                        elif activity_type == 'strength' and item.peloton_strength_url and item.peloton_strength_url.strip():
-                            peloton_url = item.peloton_strength_url
-                        
-                        if peloton_url:
-                            all_alternatives.append({
-                                'item': item,
-                                'peloton_url': peloton_url,
-                                'activity_type': activity_type,
-                                'done': item_done,
-                            })
-        
-        if all_alternatives:
-            day_completed = any(alt['done'] for alt in all_alternatives)
-            workout_days.append({
-                'day_number': workout_day_num,
-                'points': day_points,
-                'completed': day_completed,
-                'alternatives': all_alternatives,
-                'focus': day_focus or "Workout",
-            })
-    
-    # Build days structure (for backward compatibility)
-    day_labels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
-    days = []
-    current_day = None
-    current_focus = ""
-    current_items = []
-    
-    show_only_peloton_items = plan.challenge_instance and not plan.challenge_instance.include_kegels
-    
-    for item in items:
-        if current_day is None:
-            current_day = item.day_of_week
-            current_focus = item.peloton_focus
-            current_items = [item]
-            continue
-        
-        if item.day_of_week == current_day:
-            current_items.append(item)
-        else:
-            first_item = current_items[0] if current_items else None
-            focus_lower = current_focus.lower() if current_focus else ""
-            
-            has_ride = "pze" in focus_lower or "power zone" in focus_lower or "pz" in focus_lower or "ride" in focus_lower
-            has_run = "run" in focus_lower
-            has_yoga = "yoga" in focus_lower
-            has_strength = "strength" in focus_lower
-            
-            if show_only_peloton_items:
-                day_exercise_points = 0
-            else:
-                day_exercise_points = sum(1 for item in current_items if item.is_done) * 10
-            day_activity_points = 0
-            if first_item:
-                if first_item.ride_done:
-                    day_activity_points += 50
-                if first_item.run_done:
-                    day_activity_points += 50
-                if first_item.yoga_done:
-                    day_activity_points += 50
-                if first_item.strength_done:
-                    day_activity_points += 50
-            
-            all_exercises_done = all(item.is_done for item in current_items)
-            all_activities_done = True
-            if has_ride and not first_item.ride_done:
-                all_activities_done = False
-            if has_run and not first_item.run_done:
-                all_activities_done = False
-            if has_yoga and not first_item.yoga_done:
-                all_activities_done = False
-            if has_strength and not first_item.strength_done:
-                all_activities_done = False
-            
-            peloton_url = None
-            peloton_activity_type = None
-            peloton_done = False
-            if first_item:
-                if first_item.peloton_ride_url:
-                    peloton_url = first_item.peloton_ride_url
-                    peloton_activity_type = "ride"
-                    peloton_done = first_item.ride_done
-                elif first_item.peloton_run_url:
-                    peloton_url = first_item.peloton_run_url
-                    peloton_activity_type = "run"
-                    peloton_done = first_item.run_done
-                elif first_item.peloton_yoga_url:
-                    peloton_url = first_item.peloton_yoga_url
-                    peloton_activity_type = "yoga"
-                    peloton_done = first_item.yoga_done
-                elif first_item.peloton_strength_url:
-                    peloton_url = first_item.peloton_strength_url
-                    peloton_activity_type = "strength"
-                    peloton_done = first_item.strength_done
-            
-            if show_only_peloton_items:
-                current_items = [item for item in current_items if (
-                    item.peloton_ride_url or item.peloton_run_url or 
-                    item.peloton_yoga_url or item.peloton_strength_url
-                )]
-                first_item = current_items[0] if current_items else None
-            
-            days.append({
-                "dow": current_day,
-                "label": day_labels[current_day],
-                "focus": current_focus,
-                "items": current_items,
-                "first_item": first_item,
-                "ride_done": first_item.ride_done if first_item else False,
-                "run_done": first_item.run_done if first_item else False,
-                "yoga_done": first_item.yoga_done if first_item else False,
-                "strength_done": first_item.strength_done if first_item else False,
-                "has_ride": has_ride,
-                "has_run": has_run,
-                "has_yoga": has_yoga,
-                "has_strength": has_strength,
-                "peloton_url": peloton_url,
-                "peloton_activity_type": peloton_activity_type,
-                "peloton_done": peloton_done,
-                "day_points": day_activity_points,
-                "is_completed": all_activities_done,
-            })
-            current_day = item.day_of_week
-            current_focus = item.peloton_focus
-            current_items = [item]
-    
-    if current_day is not None:
-        first_item = current_items[0] if current_items else None
-        focus_lower = current_focus.lower() if current_focus else ""
-        
-        has_ride = "pze" in focus_lower or "power zone" in focus_lower or "pz" in focus_lower or "ride" in focus_lower
-        has_run = "run" in focus_lower
-        has_yoga = "yoga" in focus_lower
-        has_strength = "strength" in focus_lower
-        
-        day_exercise_points = 0
-        day_activity_points = 0
-        
-        if first_item:
-            day_items = plan.items.filter(day_of_week=current_day)
-            has_ride = day_items.filter(ride_done=True).exists()
-            has_run = day_items.filter(run_done=True).exists()
-            has_yoga = day_items.filter(yoga_done=True).exists()
-            has_strength = day_items.filter(strength_done=True).exists()
-            
-            core_count = plan.core_workout_count
-            workout_day_numbers = sorted(set(
-                list(plan.items.filter(peloton_ride_url__isnull=False).exclude(peloton_ride_url='').values_list('day_of_week', flat=True)) +
-                list(plan.items.filter(peloton_run_url__isnull=False).exclude(peloton_run_url='').values_list('day_of_week', flat=True)) +
-                list(plan.items.filter(peloton_yoga_url__isnull=False).exclude(peloton_yoga_url='').values_list('day_of_week', flat=True)) +
-                list(plan.items.filter(peloton_strength_url__isnull=False).exclude(peloton_strength_url='').values_list('day_of_week', flat=True))
-            ))
-            
-            if current_day in workout_day_numbers:
-                workout_day_num = workout_day_numbers.index(current_day) + 1
-                
-                if core_count == 3:
-                    if has_ride or has_run or has_yoga or has_strength:
-                        day_activity_points = 50
-                elif core_count == 4:
-                    if has_ride or has_run or has_yoga or has_strength:
-                        if workout_day_num == 1 or workout_day_num == core_count:
-                            day_activity_points = 50
-                        else:
-                            day_activity_points = 25
-                else:
-                    if has_ride or has_run or has_yoga or has_strength:
-                        day_activity_points = 50
-        
-        focus_lower = current_focus.lower() if current_focus else ""
-        expected_ride = "pze" in focus_lower or "power zone" in focus_lower or "pz" in focus_lower or "ride" in focus_lower
-        expected_run = "run" in focus_lower
-        expected_yoga = "yoga" in focus_lower
-        expected_strength = "strength" in focus_lower
-        
-        all_activities_done = True
-        if expected_ride and not has_ride:
-            all_activities_done = False
-        if expected_run and not has_run:
-            all_activities_done = False
-        if expected_yoga and not has_yoga:
-            all_activities_done = False
-        if expected_strength and not has_strength:
-            all_activities_done = False
-        
-        if show_only_peloton_items:
-            current_items = [item for item in current_items if (
-                item.peloton_ride_url or item.peloton_run_url or 
-                item.peloton_yoga_url or item.peloton_strength_url
-            )]
-            first_item = current_items[0] if current_items else None
-        
-        peloton_url = None
-        peloton_activity_type = None
-        peloton_done = False
-        if first_item:
-            if first_item.peloton_ride_url:
-                peloton_url = first_item.peloton_ride_url
-                peloton_activity_type = "ride"
-                peloton_done = first_item.ride_done
-            elif first_item.peloton_run_url:
-                peloton_url = first_item.peloton_run_url
-                peloton_activity_type = "run"
-                peloton_done = first_item.run_done
-            elif first_item.peloton_yoga_url:
-                peloton_url = first_item.peloton_yoga_url
-                peloton_activity_type = "yoga"
-                peloton_done = first_item.yoga_done
-            elif first_item.peloton_strength_url:
-                peloton_url = first_item.peloton_strength_url
-                peloton_activity_type = "strength"
-                peloton_done = first_item.strength_done
-        
-        days.append({
-            "dow": current_day,
-            "label": day_labels[current_day],
-            "focus": current_focus,
-            "items": current_items,
-            "first_item": first_item,
-            "ride_done": first_item.ride_done if first_item else False,
-            "run_done": first_item.run_done if first_item else False,
-            "yoga_done": first_item.yoga_done if first_item else False,
-            "strength_done": first_item.strength_done if first_item else False,
-            "has_ride": has_ride,
-            "has_run": has_run,
-            "has_yoga": has_yoga,
-            "has_strength": has_strength,
-            "peloton_url": peloton_url,
-            "peloton_activity_type": peloton_activity_type,
-            "peloton_done": peloton_done,
-            "day_points": day_activity_points,
-            "is_completed": all_activities_done,
-        })
-    
-    # Check if user can leave challenge
-    can_leave = None
-    leave_error = None
-    if plan.challenge_instance:
-        can_leave, leave_error = plan.challenge_instance.can_leave_challenge()
-    
-    context = {
-        "plan": plan,
-        "days": days,
-        "workout_days": workout_days,
-        "core_count": core_count,
-        "week_number": actual_week_number,
-        "total_weeks": total_weeks,
-        "can_access_week": can_access_week,
-        "previous_week_completed": previous_week_completed,
-        "next_week_plan": next_week_plan,
-        "previous_week_plan": previous_week_plan,
-        "can_leave": can_leave,
-        "leave_error": leave_error,
-        "include_kegels": plan.challenge_instance.include_kegels if plan.challenge_instance else True,
-        "bonus_workouts": bonus_workouts,
-        "bonus_completed": bonus_completed,
-        "challenge": challenge,
-        "challenge_structure": challenge_structure,
-        "is_challenge_view": True,  # Flag to indicate this is challenge-based view
-    }
-    return render(request, "tracker/plan_detail.html", context)
+# challenge_detail moved to challenges app
 
 @login_required
 def toggle_done(request, pk):
@@ -1425,6 +720,7 @@ def toggle_done(request, pk):
     
     # Check if week is locked (for active challenges only, not past challenges)
     if plan.challenge_instance:
+        from challenges.models import Challenge
         challenge = plan.challenge_instance.challenge
         # For past challenges, allow all toggling
         if not challenge.has_ended and challenge.is_active:
@@ -1559,6 +855,7 @@ def toggle_activity(request, pk, activity):
     
     # Check if week is locked (for active challenges only, not past challenges)
     if plan.challenge_instance:
+        from challenges.models import Challenge
         challenge = plan.challenge_instance.challenge
         # For past challenges, allow all toggling
         if not challenge.has_ended and challenge.is_active:
@@ -1615,32 +912,56 @@ def toggle_activity(request, pk, activity):
     # If checking a workout, uncheck all other workout alternatives on the same day
     if new_value:
         plan = item.weekly_plan
-        # Get all other workout items on the same day (excluding bonus workouts)
         from django.db.models import Q
-        other_day_items = plan.items.filter(
-            day_of_week=item.day_of_week
-        ).exclude(
-            id=item.id
-        ).exclude(
-            peloton_focus__icontains="Bonus"
-        ).filter(
-            (Q(peloton_ride_url__isnull=False) & ~Q(peloton_ride_url='')) |
-            (Q(peloton_run_url__isnull=False) & ~Q(peloton_run_url='')) |
-            (Q(peloton_yoga_url__isnull=False) & ~Q(peloton_yoga_url='')) |
-            (Q(peloton_strength_url__isnull=False) & ~Q(peloton_strength_url=''))
-        )
         
-        # Uncheck all activity types for other items on this day
-        for other_item in other_day_items:
-            if other_item.ride_done:
-                other_item.ride_done = False
-            if other_item.run_done:
-                other_item.run_done = False
-            if other_item.yoga_done:
-                other_item.yoga_done = False
-            if other_item.strength_done:
-                other_item.strength_done = False
-            other_item.save(update_fields=['ride_done', 'run_done', 'yoga_done', 'strength_done'])
+        # Check if this is a bonus workout
+        is_bonus = item.peloton_focus and "Bonus" in item.peloton_focus
+        
+        if is_bonus:
+            # For bonus workouts, uncheck all other bonus workouts (only one bonus can be selected)
+            other_bonus_items = plan.items.filter(
+                peloton_focus__icontains="Bonus"
+            ).exclude(
+                id=item.id
+            )
+            
+            # Uncheck all activity types for other bonus items
+            for other_item in other_bonus_items:
+                if other_item.ride_done:
+                    other_item.ride_done = False
+                if other_item.run_done:
+                    other_item.run_done = False
+                if other_item.yoga_done:
+                    other_item.yoga_done = False
+                if other_item.strength_done:
+                    other_item.strength_done = False
+                other_item.save(update_fields=['ride_done', 'run_done', 'yoga_done', 'strength_done'])
+        else:
+            # For regular workouts, uncheck all other workout alternatives on the same day (excluding bonus workouts)
+            other_day_items = plan.items.filter(
+                day_of_week=item.day_of_week
+            ).exclude(
+                id=item.id
+            ).exclude(
+                peloton_focus__icontains="Bonus"
+            ).filter(
+                (Q(peloton_ride_url__isnull=False) & ~Q(peloton_ride_url='')) |
+                (Q(peloton_run_url__isnull=False) & ~Q(peloton_run_url='')) |
+                (Q(peloton_yoga_url__isnull=False) & ~Q(peloton_yoga_url='')) |
+                (Q(peloton_strength_url__isnull=False) & ~Q(peloton_strength_url=''))
+            )
+            
+            # Uncheck all activity types for other items on this day
+            for other_item in other_day_items:
+                if other_item.ride_done:
+                    other_item.ride_done = False
+                if other_item.run_done:
+                    other_item.run_done = False
+                if other_item.yoga_done:
+                    other_item.yoga_done = False
+                if other_item.strength_done:
+                    other_item.strength_done = False
+                other_item.save(update_fields=['ride_done', 'run_done', 'yoga_done', 'strength_done'])
     
     activity_name = activity.capitalize()
     plan = item.weekly_plan

@@ -34,7 +34,7 @@
   <form method="post">
     {% csrf_token %}
     <div class="d-flex gap-2 justify-content-end">
-      <a href="{% url 'tracker:admin_challenges_list' %}" class="btn btn-outline-light">Cancel</a>
+      <a href="{% url 'challenges:admin_challenges_list' %}" class="btn btn-outline-light">Cancel</a>
       <button type="submit" class="btn" style="background: rgba(255, 107, 107, 0.2); border-color: var(--primary); color: var(--primary);">Delete Challenge</button>
     </div>
   </form>

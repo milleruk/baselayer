@@ -112,6 +112,15 @@ def workout_detail(request, pk):
 
 
 @login_required
+def connect(request):
+    """Connect Peloton account"""
+    # This will be implemented when Peloton API integration is added
+    # For now, just a placeholder
+    messages.info(request, "Peloton account connection will be available when Peloton API integration is complete.")
+    return redirect('workouts:history')
+
+
+@login_required
 def sync_workouts(request):
     """Trigger manual sync of workouts from Peloton API"""
     # This will be implemented when Peloton API integration is added

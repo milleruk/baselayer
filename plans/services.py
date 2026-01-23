@@ -1,6 +1,7 @@
 from datetime import date, timedelta
 from plans.models import Exercise, PlanTemplateDay
-from tracker.models import WeeklyPlan, DailyPlanItem, ChallengeWorkoutAssignment, ChallengeBonusWorkout
+from tracker.models import WeeklyPlan, DailyPlanItem
+from challenges.models import ChallengeWorkoutAssignment, ChallengeBonusWorkout
 
 def generate_weekly_plan(*, user, week_start, template, start_from_today=False, challenge_instance=None, week_number=None):
     """

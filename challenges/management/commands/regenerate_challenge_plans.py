@@ -1,7 +1,8 @@
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 from datetime import timedelta, date
-from tracker.models import ChallengeInstance, WeeklyPlan
+from tracker.models import WeeklyPlan
+from challenges.models import ChallengeInstance
 from tracker.views import sunday_of_current_week
 from plans.services import generate_weekly_plan
 

@@ -1,7 +1,9 @@
 <nav class="navbar navbar-expand-lg navbar-dark bg-black border-bottom border-secondary">
   <div class="container">
-    <a class="navbar-brand fw-bold" href="{% url 'plans:dashboard' %}">
-      Base Layer<span class="text-accent">.</span>
+    <a class="navbar-brand fw-bold d-flex align-items-center" href="{% url 'plans:dashboard' %}">
+      {% load static %}
+      <img src="{% static 'img/logo.png' %}" alt="Chase The Zones" class="me-2" style="height: 32px;">
+      Chase The Zones<span class="text-accent">.</span>
     </a>
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navMain">

@@ -48,10 +48,21 @@ INSTALLED_APPS = [
     "accounts",
     "plans",
     "tracker",
+    "challenges",
     "workouts",
 ]
+
+# Custom User Model
+AUTH_USER_MODEL = 'accounts.User'
+
+# Custom Authentication Backend
+AUTHENTICATION_BACKENDS = [
+    'accounts.backends.EmailBackend',
+    'django.contrib.auth.backends.ModelBackend',  # Fallback to default
+]
+
 LOGIN_REDIRECT_URL = "plans:dashboard"
-LOGOUT_REDIRECT_URL = "login"
+LOGOUT_REDIRECT_URL = "plans:landing"
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
