@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+{% block title %}Select Plan Type{% endblock %}
+{% block page_title %}Join Challenge: {{ challenge.name }}{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+  <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">Join Challenge: {{ challenge.name }}</h1>
+  <p class="text-gray-600 dark:text-gray-400">Choose your plan type for this challenge</p>
+  {% if challenge.signup_deadline %}
+    <p class="text-sm text-gray-500 dark:text-gray-500 mt-1">Signup deadline: {{ challenge.signup_deadline|date:"M d, Y" }}</p>
+  {% endif %}
+</div>
+
+{% if challenge.description %}
+<div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm mb-6">
+  <p class="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">{{ challenge.description }}</p>
+</div>
+{% endif %}
+
+<div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
+  <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Select Your Plan Type</h2>
+  
+  {% if existing_current_week_plan %}
+  <div class="mb-6 rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 p-4">
+    <div class="font-semibold text-red-900 dark:text-red-200 mb-1">⚠️ Existing Plan Detected</div>
+    <p class="text-sm text-red-800 dark:text-red-300">You already have a plan for the week of {{ existing_current_week_plan.week_start|date:"F d, Y" }}. Joining this challenge will require deleting your current plan.</p>
+  </div>
+  {% endif %}
+
+  <form method="post" action="{% url 'tracker:join_challenge' challenge.id %}" id="join-challenge-form">
+    {% csrf_token %}
+    {% if existing_current_week_plan %}
+      <input type="hidden" name="delete_existing_plan" id="delete-existing-plan-input" value="false">
+    {% endif %}
+    
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+      {% for template in templates %}
+        <div class="relative">
+          <input type="radio" name="template_id" value="{{ template.id }}" id="template-{{ template.id }}" 
+                 {% if challenge.default_template.id == template.id %}checked{% endif %} 
+                 required class="sr-only">
+          <label for="template-{{ template.id }}" 
+                 class="block p-4 rounded-lg border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 cursor-pointer transition-all hover:border-primary peer-checked:border-primary peer-checked:bg-primary/5">
+            <div class="flex items-start gap-3">
+              <div class="flex-shrink-0 mt-1">
+                <div class="w-5 h-5 rounded-full border-2 border-gray-300 dark:border-gray-600 flex items-center justify-center transition-all" id="radio-{{ template.id }}">
+                  <div class="w-3 h-3 rounded-full bg-primary opacity-0 transition-opacity" id="radio-dot-{{ template.id }}"></div>
+                </div>
+              </div>
+              <div class="flex-1">
+                <div class="font-bold text-gray-900 dark:text-white mb-1">{{ template.name }}</div>
+                <p class="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">{{ template.description }}</p>
+                {% if challenge.default_template.id == template.id %}
+                  <div class="mt-2">
+                    <span class="px-2 py-1 text-xs font-bold text-yellow-800 dark:text-yellow-200 bg-yellow-100 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-800 rounded">RECOMMENDED</span>
+                  </div>
+                {% endif %}
+              </div>
+            </div>
+          </label>
+        </div>
+      {% endfor %}
+    </div>
+    
+    <div class="mb-6">
+      <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50 p-4">
+        <label class="flex items-start gap-3 cursor-pointer">
+          <input type="checkbox" name="include_kegels" checked class="mt-1 w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary">
+          <div>
+            <div class="font-semibold text-gray-900 dark:text-white mb-1">Include Kegel Exercises</div>
+            <p class="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
+              Kegel exercises are optional and don't contribute to points. You can include them in your plan for personal training, or skip them entirely.
+            </p>
+          </div>
+        </label>
+      </div>
+    </div>
+    
+    <div class="flex gap-3 justify-end">
+      <a href="{% url 'tracker:challenges_list' %}" class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+        Cancel
+      </a>
+      <button type="submit" class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors" {% if existing_current_week_plan %}id="join-challenge-btn"{% endif %}>
+        {% if challenge.has_ended %}Take This Challenge{% else %}Join Challenge{% endif %}
+      </button>
+    </div>
+  </form>
+</div>
+
+{% if existing_current_week_plan %}
+<!-- Modal for confirming plan deletion -->
+<div id="delete-plan-modal" class="hidden fixed inset-0 z-50 overflow-y-auto">
+  <div class="flex items-center justify-center min-h-screen px-4">
+    <div class="fixed inset-0 bg-black bg-opacity-50" onclick="document.getElementById('delete-plan-modal').classList.add('hidden')"></div>
+    <div class="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6">
+      <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4">Delete Current Week Plan?</h2>
+      <p class="text-gray-600 dark:text-gray-400 mb-6">
+        You have an existing plan for the week of <strong>{{ existing_current_week_plan.week_start|date:"F d, Y" }}</strong>. 
+        To join this challenge, you'll need to delete your current plan. This action cannot be undone.
+      </p>
+      <div class="flex gap-3 justify-end">
+        <button type="button" id="cancel-delete-btn" class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+          Cancel
+        </button>
+        <button type="button" id="confirm-delete-btn" class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors">
+          Delete Plan & Join Challenge
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('join-challenge-form');
+    const joinBtn = document.getElementById('join-challenge-btn');
+    const modal = document.getElementById('delete-plan-modal');
+    const deleteInput = document.getElementById('delete-existing-plan-input');
+    const cancelBtn = document.getElementById('cancel-delete-btn');
+    const confirmBtn = document.getElementById('confirm-delete-btn');
+    
+    if (joinBtn && modal) {
+      joinBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        modal.classList.remove('hidden');
+      });
+      
+      cancelBtn.addEventListener('click', function() {
+        modal.classList.add('hidden');
+      });
+      
+      confirmBtn.addEventListener('click', function() {
+        deleteInput.value = 'true';
+        form.submit();
+      });
+      
+      modal.addEventListener('click', function(e) {
+        if (e.target === modal.querySelector('.fixed.inset-0')) {
+          modal.classList.add('hidden');
+        }
+      });
+    }
+  });
+</script>
+{% endif %}
+
+<script>
+  // Update radio button visual state
+  document.querySelectorAll('input[name="template_id"]').forEach(radio => {
+    radio.addEventListener('change', function() {
+      // Reset all radio buttons
+      document.querySelectorAll('[id^="radio-"]').forEach(radioEl => {
+        if (radioEl.id.startsWith('radio-') && !radioEl.id.includes('dot')) {
+          radioEl.classList.remove('border-primary');
+          radioEl.classList.add('border-gray-300', 'dark:border-gray-600');
+          const dot = document.getElementById(radioEl.id.replace('radio-', 'radio-dot-'));
+          if (dot) dot.classList.add('opacity-0');
+        }
+      });
+      document.querySelectorAll('label[for^="template-"]').forEach(label => {
+        label.classList.remove('border-primary', 'bg-primary/5');
+        label.classList.add('border-gray-200', 'dark:border-gray-700');
+      });
+      
+      // Highlight selected
+      if (this.checked) {
+        const radioEl = document.getElementById('radio-' + this.id.replace('template-', ''));
+        const dot = document.getElementById('radio-dot-' + this.id.replace('template-', ''));
+        const label = document.querySelector('label[for="' + this.id + '"]');
+        if (radioEl) {
+          radioEl.classList.add('border-primary');
+          radioEl.classList.remove('border-gray-300', 'dark:border-gray-600');
+          if (dot) {
+            dot.classList.remove('opacity-0');
+            dot.classList.add('opacity-100');
+          }
+        }
+        if (label) {
+          label.classList.add('border-primary', 'bg-primary/5');
+          label.classList.remove('border-gray-200', 'dark:border-gray-700');
+        }
+      }
+    });
+    
+    // Trigger change on page load for checked radio
+    if (radio.checked) {
+      radio.dispatchEvent(new Event('change'));
+    }
+  });
+</script>
+{% endblock %}

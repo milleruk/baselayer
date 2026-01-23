@@ -1,0 +1,258 @@
+{% extends "base.html" %}
+{% load medal_tags %}
+{% block title %}My Plans{% endblock %}
+{% block page_title %}My Weekly Plans{% endblock %}
+
+{% block content %}
+<div class="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+  <div>
+    <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">My Weekly Plans</h1>
+    <p class="text-gray-600 dark:text-gray-400">Generated plans by week - track your progress and manage your training schedule</p>
+  </div>
+  <div class="flex gap-2">
+    {% if active_challenge_instance %}
+      <button class="px-4 py-2 text-sm font-medium text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 rounded-lg cursor-not-allowed opacity-50" disabled title="You are in an active challenge. Complete it to generate standalone plans.">
+        Generate Week
+      </button>
+    {% elif existing_current_week_plan %}
+      <button class="px-4 py-2 text-sm font-medium text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 rounded-lg cursor-not-allowed opacity-50" disabled title="You already have a plan for this week. Complete or delete it first.">
+        Generate Week
+      </button>
+    {% else %}
+      <a href="{% url 'tracker:generate' %}" class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors">
+        Generate Week
+      </a>
+    {% endif %}
+    <a href="{% url 'tracker:challenges_list' %}" class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+      View Challenges
+    </a>
+  </div>
+</div>
+
+{% if active_challenge_instance %}
+<div class="mb-6 rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 p-4">
+  <div class="flex items-start gap-4">
+    <div class="text-2xl">🎯</div>
+    <div class="flex-1">
+      <h3 class="font-semibold text-blue-900 dark:text-blue-200 mb-1">Active Challenge: {{ active_challenge_instance.challenge.name }}</h3>
+      <p class="text-sm text-blue-800 dark:text-blue-300">You are currently following a challenge plan. Complete or exit the challenge to generate standalone weekly plans.</p>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% if existing_current_week_plan and not active_challenge_instance %}
+<div class="mb-6 rounded-lg border border-yellow-200 dark:border-yellow-800 bg-yellow-50 dark:bg-yellow-900/20 p-4">
+  <div class="flex items-start gap-4">
+    <div class="text-2xl">⚠️</div>
+    <div class="flex-1">
+      <h3 class="font-semibold text-yellow-900 dark:text-yellow-200 mb-1">Plan Already Exists for This Week</h3>
+      <p class="text-sm text-yellow-800 dark:text-yellow-300">
+        You already have a plan for the week of {{ existing_current_week_plan.week_start|date:"F d, Y" }}. 
+        {% if existing_current_week_plan.challenge_instance %}
+          <a href="{% url 'tracker:challenge_detail' existing_current_week_plan.challenge_instance.challenge.id %}" class="font-medium underline">View your plan</a> or complete/delete it to generate a new one.
+        {% else %}
+          <a href="{% url 'tracker:plan_detail' existing_current_week_plan.id %}" class="font-medium underline">View your plan</a> or complete/delete it to generate a new one.
+        {% endif %}
+      </p>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% if plans_by_challenge %}
+  {% for group in plans_by_challenge %}
+    <div class="mb-8">
+      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+        <div class="flex items-center gap-3">
+          <h2 class="text-xl font-bold text-gray-900 dark:text-white">{{ group.challenge_instance.challenge.name }}</h2>
+          {% if group.challenge_instance.is_active %}
+            <span class="px-2 py-1 text-xs font-semibold text-green-800 dark:text-green-200 bg-green-100 dark:bg-green-900/30 rounded">ACTIVE</span>
+          {% endif %}
+        </div>
+        {% if group.challenge_instance.is_active %}
+          <div class="flex gap-2">
+            {% if group.can_leave %}
+              <a href="{% url 'tracker:leave_challenge' group.challenge_instance.id %}" class="px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                Leave Challenge
+              </a>
+            {% else %}
+              <span class="px-3 py-1.5 text-xs font-medium text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 rounded-lg cursor-not-allowed opacity-50" title="{{ group.leave_error }}">
+                Cannot Leave
+              </span>
+            {% endif %}
+            <a href="{% url 'tracker:complete_challenge' group.challenge_instance.id %}" class="px-3 py-1.5 text-xs font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors">
+              Complete Challenge
+            </a>
+          </div>
+        {% endif %}
+      </div>
+      
+      {% if group.plans %}
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {% for p in group.plans %}
+            <div class="rounded-lg border {% if p.is_current_week %}border-primary dark:border-primary{% elif p.is_completed %}border-green-500 dark:border-green-600{% else %}border-gray-200 dark:border-gray-700{% endif %} bg-white dark:bg-gray-800 shadow-sm hover:shadow-md transition-shadow overflow-hidden">
+              <div class="p-6">
+                <div class="flex justify-between items-start mb-4">
+                  <h3 class="text-lg font-bold text-gray-900 dark:text-white">Week {{ p.week_number }}</h3>
+                  <div class="flex flex-wrap gap-2 justify-end">
+                    {% with medal=p.completion_rate|get_medal %}
+                      {% if medal %}
+                        <span class="px-2 py-1 text-xs font-semibold rounded" style="background: rgba(255, 215, 0, 0.2); border: 1px solid {{ medal.color }}; color: {{ medal.color }};" title="{{ medal.name }} Medal - {{ p.completion_rate|floatformat:0 }}% Complete">
+                          {{ medal.emoji }} {{ medal.name }}
+                        </span>
+                      {% endif %}
+                    {% endwith %}
+                    {% if p.is_completed %}
+                      <span class="px-2 py-1 text-xs font-semibold text-green-800 dark:text-green-200 bg-green-100 dark:bg-green-900/30 rounded">Completed</span>
+                    {% elif p.is_current_week %}
+                      <span class="px-2 py-1 text-xs font-semibold text-primary bg-primary/10 rounded">ACTIVE</span>
+                    {% else %}
+                      <span class="px-2 py-1 text-xs font-semibold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded">Upcoming</span>
+                    {% endif %}
+                  </div>
+                </div>
+                
+                <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">{{ p.template_name }}</p>
+                
+                <div class="mb-4">
+                  <div class="flex justify-between items-center mb-2">
+                    <span class="text-xs font-medium text-gray-600 dark:text-gray-400">Progress</span>
+                    <span class="text-xs font-semibold text-gray-900 dark:text-white">{{ p.completion_rate|floatformat:0 }}%</span>
+                  </div>
+                  <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                    <div class="bg-primary h-2 rounded-full transition-all duration-300" style="width: {{ p.completion_rate }}%"></div>
+                  </div>
+                </div>
+                
+                <div class="flex justify-between items-center pt-4 border-t border-gray-200 dark:border-gray-700">
+                  <div>
+                    <div class="text-xs text-gray-600 dark:text-gray-400">Points</div>
+                    <div class="text-lg font-bold text-gray-900 dark:text-white">{{ p.total_points }}</div>
+                  </div>
+                  {% if p.max_total_points %}
+                  <div class="text-right">
+                    <div class="text-xs text-gray-600 dark:text-gray-400">Max Points</div>
+                    <div class="text-lg font-bold text-gray-500 dark:text-gray-400">{{ p.max_total_points }}</div>
+                  </div>
+                  {% endif %}
+                </div>
+              </div>
+              
+              <div class="px-6 py-4 bg-gray-50 dark:bg-gray-700/50 border-t border-gray-200 dark:border-gray-700">
+                {% if p.can_access_week %}
+                  {% if p.challenge_instance %}
+                    <a href="{% url 'tracker:challenge_detail_week' p.challenge_instance.challenge.id p.week_number %}" class="block w-full text-center px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors">
+                      View Plan
+                    </a>
+                  {% else %}
+                    <a href="{% url 'tracker:plan_detail' p.id %}" class="block w-full text-center px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors">
+                      View Plan
+                    </a>
+                  {% endif %}
+                {% else %}
+                  <span class="block w-full text-center px-4 py-2 text-sm font-medium text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 rounded-lg cursor-not-allowed" title="{{ p.locked_reason }}">
+                    🔒 Locked
+                  </span>
+                {% endif %}
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-8 text-center">
+          <p class="text-gray-600 dark:text-gray-400">No plans generated yet. Plans will be created when you join the challenge.</p>
+        </div>
+      {% endif %}
+    </div>
+  {% endfor %}
+{% endif %}
+
+{% if standalone_plans %}
+<div class="mb-8">
+  <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4">Standalone Plans</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    {% for p in standalone_plans %}
+      <div class="rounded-lg border {% if p.is_current_week %}border-primary dark:border-primary{% elif p.is_completed %}border-green-500 dark:border-green-600{% else %}border-gray-200 dark:border-gray-700{% endif %} bg-white dark:bg-gray-800 shadow-sm hover:shadow-md transition-shadow overflow-hidden">
+        <div class="p-6">
+          <div class="flex justify-between items-start mb-4">
+            <h3 class="text-lg font-bold text-gray-900 dark:text-white">{{ p.week_start|date:"M. d, Y" }}</h3>
+            <div class="flex flex-wrap gap-2 justify-end">
+              {% with medal=p.completion_rate|get_medal %}
+                {% if medal %}
+                  <span class="px-2 py-1 text-xs font-semibold rounded" style="background: rgba(255, 215, 0, 0.2); border: 1px solid {{ medal.color }}; color: {{ medal.color }};" title="{{ medal.name }} Medal - {{ p.completion_rate|floatformat:0 }}% Complete">
+                    {{ medal.emoji }} {{ medal.name }}
+                  </span>
+                {% endif %}
+              {% endwith %}
+              {% if p.is_completed %}
+                <span class="px-2 py-1 text-xs font-semibold text-green-800 dark:text-green-200 bg-green-100 dark:bg-green-900/30 rounded">Completed</span>
+              {% elif p.is_current_week %}
+                <span class="px-2 py-1 text-xs font-semibold text-primary bg-primary/10 rounded">ACTIVE</span>
+              {% else %}
+                <span class="px-2 py-1 text-xs font-semibold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded">Upcoming</span>
+              {% endif %}
+            </div>
+          </div>
+          
+          <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">{{ p.template_name }}</p>
+          
+          <div class="mb-4">
+            <div class="flex justify-between items-center mb-2">
+              <span class="text-xs font-medium text-gray-600 dark:text-gray-400">Progress</span>
+              <span class="text-xs font-semibold text-gray-900 dark:text-white">{{ p.completion_rate|floatformat:0 }}%</span>
+            </div>
+            <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+              <div class="bg-primary h-2 rounded-full transition-all duration-300" style="width: {{ p.completion_rate }}%"></div>
+            </div>
+          </div>
+          
+          <div class="flex justify-between items-center pt-4 border-t border-gray-200 dark:border-gray-700">
+            <div>
+              <div class="text-xs text-gray-600 dark:text-gray-400">Points</div>
+              <div class="text-lg font-bold text-gray-900 dark:text-white">{{ p.total_points }}</div>
+            </div>
+            {% if p.max_total_points %}
+            <div class="text-right">
+              <div class="text-xs text-gray-600 dark:text-gray-400">Max Points</div>
+              <div class="text-lg font-bold text-gray-500 dark:text-gray-400">{{ p.max_total_points }}</div>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+        
+        <div class="px-6 py-4 bg-gray-50 dark:bg-gray-700/50 border-t border-gray-200 dark:border-gray-700">
+          {% if p.challenge_instance %}
+            <a href="{% url 'tracker:challenge_detail_week' p.challenge_instance.challenge.id p.week_number %}" class="block w-full text-center px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors">
+              View Plan
+            </a>
+          {% else %}
+            <a href="{% url 'tracker:plan_detail' p.id %}" class="block w-full text-center px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors">
+              View Plan
+            </a>
+          {% endif %}
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% if not plans_by_challenge and not standalone_plans %}
+<div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-12 text-center">
+  <div class="text-5xl mb-4">📋</div>
+  <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">No plans yet</h3>
+  <p class="text-gray-600 dark:text-gray-400 mb-6">Get started by browsing challenges or generating your first weekly plan.</p>
+  <div class="flex flex-col sm:flex-row gap-3 justify-center">
+    <a href="{% url 'tracker:challenges_list' %}" class="px-6 py-3 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors">
+      Browse Challenges
+    </a>
+    {% if not active_challenge_instance and not existing_current_week_plan %}
+      <a href="{% url 'tracker:generate' %}" class="px-6 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+        Generate Week
+      </a>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+{% endblock %}

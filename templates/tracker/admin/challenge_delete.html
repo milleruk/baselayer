@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Admin - Delete Challenge{% endblock %}
+
+{% block content %}
+<div class="dashboard-header" style="padding-bottom: 1.5rem;">
+  <h1>Delete Challenge</h1>
+</div>
+
+<div class="dashboard-section" style="max-width: 600px;">
+  <div class="dashboard-section-title" style="margin-bottom: 1rem; color: var(--primary);">⚠️ Confirm Deletion</div>
+  
+  <div style="margin-bottom: 1.5rem;">
+    <p style="color: var(--text); margin-bottom: 1rem;">
+      Are you sure you want to delete the challenge <strong>"{{ challenge.name }}"</strong>?
+    </p>
+    
+    <div style="padding: 1rem; background: rgba(255, 107, 107, 0.1); border: 1px solid var(--primary); margin-bottom: 1rem;">
+      <div style="font-weight: 700; color: var(--primary); margin-bottom: 0.5rem;">This action cannot be undone.</div>
+      <div style="font-size: 0.85rem; color: var(--text-muted);">
+        This will delete the challenge and all associated data. Challenge instances and weekly plans linked to this challenge will be affected.
+      </div>
+    </div>
+    
+    <div style="font-size: 0.9rem; color: var(--text);">
+      <div style="margin-bottom: 0.5rem;"><strong>Challenge Details:</strong></div>
+      <div style="margin-left: 1rem; color: var(--text-muted);">
+        <div>Type: {{ challenge.get_challenge_type_display }}</div>
+        <div>Dates: {{ challenge.start_date|date:"M d, Y" }} - {{ challenge.end_date|date:"M d, Y" }}</div>
+        <div>Participants: {{ challenge.instances.count }} user{{ challenge.instances.count|pluralize }}</div>
+      </div>
+    </div>
+  </div>
+  
+  <form method="post">
+    {% csrf_token %}
+    <div class="d-flex gap-2 justify-content-end">
+      <a href="{% url 'tracker:admin_challenges_list' %}" class="btn btn-outline-light">Cancel</a>
+      <button type="submit" class="btn" style="background: rgba(255, 107, 107, 0.2); border-color: var(--primary); color: var(--primary);">Delete Challenge</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

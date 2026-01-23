@@ -1,0 +1,405 @@
+{% extends "base.html" %}
+{% load medal_tags %}
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}Analytics Dashboard{% endblock %}
+
+{% block content %}
+<!-- Metric Cards - Top Row -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+  <!-- Total Points Card -->
+  <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
+    <div class="flex items-center justify-between">
+      <div>
+        <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Total Points</p>
+        <p class="text-2xl font-bold text-gray-900 dark:text-white mt-2">{{ total_points|default:0|floatformat:0 }}</p>
+        <p class="text-xs text-gray-500 dark:text-gray-500 mt-1">All-time points earned</p>
+      </div>
+      <div class="w-12 h-12 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+        <svg class="w-6 h-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+        </svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- Weeks Completed Card -->
+  <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
+    <div class="flex items-center justify-between">
+      <div>
+        <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Weeks Completed</p>
+        <p class="text-2xl font-bold text-gray-900 dark:text-white mt-2">{{ total_weeks_completed|default:0 }}</p>
+        <p class="text-xs text-gray-500 dark:text-gray-500 mt-1">Out of {{ total_weeks|default:0 }} total weeks</p>
+      </div>
+      <div class="w-12 h-12 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+        <svg class="w-6 h-6 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"></path>
+        </svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- Challenges Completed Card -->
+  <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
+    <div class="flex items-center justify-between">
+      <div>
+        <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Challenges Completed</p>
+        <p class="text-2xl font-bold text-gray-900 dark:text-white mt-2">{{ completed_challenges_count|default:0 }}</p>
+        <p class="text-xs text-gray-500 dark:text-gray-500 mt-1">Fully completed challenges</p>
+      </div>
+      <div class="w-12 h-12 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
+        <svg class="w-6 h-6 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"></path>
+        </svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- Current Week Progress Card -->
+  <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
+    <div class="flex items-center justify-between">
+      <div>
+        <p class="text-sm font-medium text-gray-600 dark:text-gray-400">This Week</p>
+        {% if current_week_plan %}
+          <p class="text-2xl font-bold text-gray-900 dark:text-white mt-2">{{ current_week_plan.completion_rate|floatformat:0 }}%</p>
+          <p class="text-xs text-gray-500 dark:text-gray-500 mt-1">{{ current_week_plan.total_points }} / {{ current_week_plan.max_total_points }} points</p>
+        {% else %}
+          <p class="text-2xl font-bold text-gray-900 dark:text-white mt-2">—</p>
+          <p class="text-xs text-gray-500 dark:text-gray-500 mt-1">No active plan</p>
+        {% endif %}
+      </div>
+      <div class="w-12 h-12 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
+        <svg class="w-6 h-6 text-orange-600 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Active Challenge Banner -->
+{% if active_challenge_instance %}
+<div class="rounded-lg border border-green-200 dark:border-green-800 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 p-6 mb-6">
+  <div class="flex items-start justify-between flex-wrap gap-4">
+    <div class="flex-1">
+      <div class="flex items-center gap-4 mb-4">
+        {% if active_challenge_instance.challenge.image %}
+          <img src="{{ active_challenge_instance.challenge.image.url }}" alt="{{ active_challenge_instance.challenge.name }}" class="w-16 h-16 rounded-lg object-cover">
+        {% else %}
+          <div class="w-16 h-16 rounded-lg bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center text-2xl">
+            🏆
+          </div>
+        {% endif %}
+        <div>
+          <h3 class="text-xl font-bold text-gray-900 dark:text-white">{{ active_challenge_instance.challenge.name }}</h3>
+          <p class="text-sm text-gray-600 dark:text-gray-400">{{ active_challenge_instance.challenge.challenge_type|title }} Challenge</p>
+        </div>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <p class="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-2">Progress</p>
+          <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
+            <div class="bg-green-600 h-2.5 rounded-full transition-all duration-300" style="width: {{ active_challenge_instance.completion_rate }}%"></div>
+          </div>
+          <p class="text-sm font-semibold text-gray-900 dark:text-white mt-1">{{ active_challenge_instance.completion_rate|floatformat:0 }}% complete</p>
+        </div>
+        <div>
+          <p class="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-2">Points Earned</p>
+          <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ active_challenge_instance.total_points }}</p>
+        </div>
+      </div>
+    </div>
+    <a href="{% url 'tracker:weekly_plans' %}" class="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors">
+      View Challenge
+    </a>
+  </div>
+</div>
+{% endif %}
+
+<!-- Main Content Grid -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+  <!-- Analytics Chart - Left Column (2/3 width) -->
+  <div class="lg:col-span-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
+    <div class="flex items-center justify-between mb-6">
+      <div>
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Progress Analytics</h3>
+        <p class="text-sm text-gray-600 dark:text-gray-400">Training progress over the last 30 days</p>
+      </div>
+      <div class="flex gap-2">
+        <button class="px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600">12 months</button>
+        <button class="px-3 py-1.5 text-xs font-medium text-white bg-primary rounded-lg">30 days</button>
+        <button class="px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600">7 days</button>
+        <button class="px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600">24 hours</button>
+      </div>
+    </div>
+    <div class="h-64">
+      <canvas id="analyticsChart"></canvas>
+    </div>
+  </div>
+
+  <!-- Active Users / Current Week Plan - Right Column (1/3 width) -->
+  <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
+    <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Current Week Plan</h3>
+    {% if current_week_plan %}
+      <div class="space-y-4">
+        <div>
+          <p class="text-sm font-medium text-gray-900 dark:text-white">{{ current_week_plan.template_name }}</p>
+          <p class="text-xs text-gray-600 dark:text-gray-400 mt-1">Week of {{ current_week_plan.week_start|date:"M d, Y" }}</p>
+        </div>
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-medium text-gray-600 dark:text-gray-400">Progress</span>
+            <span class="text-xs font-semibold text-gray-900 dark:text-white">{{ current_week_plan.completion_rate|floatformat:0 }}%</span>
+          </div>
+          <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+            <div class="bg-primary h-2 rounded-full transition-all duration-300" style="width: {{ current_week_plan.completion_rate }}%"></div>
+          </div>
+        </div>
+        <div class="pt-4 border-t border-gray-200 dark:border-gray-700">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-medium text-gray-600 dark:text-gray-400">Points</span>
+            <span class="text-sm font-bold text-gray-900 dark:text-white">{{ current_week_plan.total_points }} / {{ current_week_plan.max_total_points }}</span>
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-medium text-gray-600 dark:text-gray-400">Status</span>
+            {% if current_week_plan.is_completed %}
+              <span class="px-2 py-1 text-xs font-semibold text-green-800 dark:text-green-200 bg-green-100 dark:bg-green-900/30 rounded">Completed</span>
+            {% elif current_week_plan.is_current_week %}
+              <span class="px-2 py-1 text-xs font-semibold text-orange-800 dark:text-orange-200 bg-orange-100 dark:bg-orange-900/30 rounded">Active</span>
+            {% else %}
+              <span class="px-2 py-1 text-xs font-semibold text-gray-800 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 rounded">Upcoming</span>
+            {% endif %}
+          </div>
+        </div>
+        {% if current_week_plan.challenge_instance %}
+          <a href="{% url 'tracker:challenge_detail' current_week_plan.challenge_instance.challenge.id %}" class="block w-full text-center px-4 py-2 bg-primary hover:bg-primary-dark text-white font-medium rounded-lg transition-colors">
+            View Plan
+          </a>
+        {% else %}
+          <a href="{% url 'tracker:plan_detail' current_week_plan.id %}" class="block w-full text-center px-4 py-2 bg-primary hover:bg-primary-dark text-white font-medium rounded-lg transition-colors">
+            View Plan
+          </a>
+        {% endif %}
+      </div>
+    {% else %}
+      <div class="text-center py-8">
+        <div class="text-4xl mb-3">📋</div>
+        <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">No plan for this week</p>
+        <div class="flex flex-col gap-2">
+          <a href="{% url 'tracker:challenges_list' %}" class="px-4 py-2 bg-primary hover:bg-primary-dark text-white font-medium rounded-lg transition-colors text-sm">
+            Browse Challenges
+          </a>
+          <a href="{% url 'tracker:generate' %}" class="px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 font-medium rounded-lg transition-colors text-sm">
+            Generate Week
+          </a>
+        </div>
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Recent Plans and Top Channels -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+  <!-- Recent Plans -->
+  <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Recent Plans</h3>
+      <a href="{% url 'tracker:weekly_plans' %}" class="text-sm font-medium text-primary hover:text-primary-dark">View More</a>
+    </div>
+    {% if show_recent_plans and recent_plans %}
+      <div class="space-y-3">
+        {% for plan in recent_plans %}
+          <div class="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-medium text-gray-900 dark:text-white truncate">{{ plan.template_name }}</p>
+              <p class="text-xs text-gray-600 dark:text-gray-400 mt-1">Week of {{ plan.week_start|date:"M d, Y" }}</p>
+              <div class="flex items-center gap-2 mt-2">
+                <div class="flex-1 bg-gray-200 dark:bg-gray-600 rounded-full h-1.5">
+                  <div class="bg-primary h-1.5 rounded-full" style="width: {{ plan.completion_rate }}%"></div>
+                </div>
+                <span class="text-xs font-semibold text-gray-900 dark:text-white">{{ plan.completion_rate|floatformat:0 }}%</span>
+                {% with medal=plan.completion_rate|get_medal %}
+                  {% if medal %}
+                    <span class="text-sm" title="{{ medal.name }} Medal">{{ medal.emoji }}</span>
+                  {% endif %}
+                {% endwith %}
+                <span class="text-xs font-semibold text-primary">{{ plan.total_points }} pts</span>
+              </div>
+            </div>
+            {% if plan.challenge_instance %}
+              {% if plan.week_number %}
+                <a href="{% url 'tracker:challenge_detail_week' plan.challenge_instance.challenge.id plan.week_number %}" class="ml-4 px-3 py-1.5 text-xs font-medium text-primary hover:text-primary-dark bg-primary/10 hover:bg-primary/20 rounded-lg transition-colors">
+                  View
+                </a>
+              {% else %}
+                <a href="{% url 'tracker:challenge_detail' plan.challenge_instance.challenge.id %}" class="ml-4 px-3 py-1.5 text-xs font-medium text-primary hover:text-primary-dark bg-primary/10 hover:bg-primary/20 rounded-lg transition-colors">
+                  View
+                </a>
+              {% endif %}
+            {% else %}
+              <a href="{% url 'tracker:plan_detail' plan.id %}" class="ml-4 px-3 py-1.5 text-xs font-medium text-primary hover:text-primary-dark bg-primary/10 hover:bg-primary/20 rounded-lg transition-colors">
+                View
+              </a>
+            {% endif %}
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="text-center py-8">
+        <p class="text-sm text-gray-600 dark:text-gray-400">No recent plans</p>
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- Top Channels / Active Challenges -->
+  <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Active Challenges</h3>
+      <a href="{% url 'tracker:challenges_list' %}" class="text-sm font-medium text-primary hover:text-primary-dark">View All</a>
+    </div>
+    {% if active_challenge_instance %}
+      <div class="space-y-3">
+        <div class="p-3 rounded-lg bg-gray-50 dark:bg-gray-700/50">
+          <div class="flex items-center gap-3 mb-2">
+            {% if active_challenge_instance.challenge.image %}
+              <img src="{{ active_challenge_instance.challenge.image.url }}" alt="{{ active_challenge_instance.challenge.name }}" class="w-10 h-10 rounded-lg object-cover">
+            {% else %}
+              <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center text-lg">
+                🏆
+              </div>
+            {% endif %}
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-medium text-gray-900 dark:text-white truncate">{{ active_challenge_instance.challenge.name }}</p>
+              <p class="text-xs text-gray-600 dark:text-gray-400">{{ active_challenge_instance.challenge.challenge_type|title }} Challenge</p>
+            </div>
+            <span class="px-2 py-1 text-xs font-semibold text-green-800 dark:text-green-200 bg-green-100 dark:bg-green-900/30 rounded">ACTIVE</span>
+          </div>
+          <div class="mt-2">
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-xs text-gray-600 dark:text-gray-400">Progress</span>
+              <span class="text-xs font-semibold text-gray-900 dark:text-white">{{ active_challenge_instance.completion_rate|floatformat:0 }}%</span>
+            </div>
+            <div class="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-1.5">
+              <div class="bg-green-600 h-1.5 rounded-full" style="width: {{ active_challenge_instance.completion_rate }}%"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    {% else %}
+      <div class="text-center py-8">
+        <div class="text-3xl mb-2">🎯</div>
+        <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">No active challenges</p>
+        <a href="{% url 'tracker:challenges_list' %}" class="text-sm font-medium text-primary hover:text-primary-dark">Browse challenges</a>
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Recent Orders / Recent Workouts Table -->
+<div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
+  <div class="flex items-center justify-between mb-4">
+    <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Recent Workouts</h3>
+    <a href="{% url 'workouts:history' %}" class="text-sm font-medium text-primary hover:text-primary-dark">See all</a>
+  </div>
+  <div class="overflow-x-auto">
+    <table class="w-full">
+      <thead>
+        <tr class="border-b border-gray-200 dark:border-gray-700">
+          <th class="text-left py-3 px-4 text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Workout</th>
+          <th class="text-left py-3 px-4 text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Instructor</th>
+          <th class="text-left py-3 px-4 text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Date</th>
+          <th class="text-left py-3 px-4 text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Duration</th>
+          <th class="text-left py-3 px-4 text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Type</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+        <tr>
+          <td class="py-3 px-4 text-sm font-medium text-gray-900 dark:text-white">5 min Cool Down Walk</td>
+          <td class="py-3 px-4 text-sm text-gray-600 dark:text-gray-400">Robin Arzón</td>
+          <td class="py-3 px-4 text-sm text-gray-600 dark:text-gray-400">15/01/2026</td>
+          <td class="py-3 px-4 text-sm text-gray-600 dark:text-gray-400">5 min</td>
+          <td class="py-3 px-4">
+            <span class="px-2 py-1 text-xs font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded">Other</span>
+          </td>
+        </tr>
+        <tr>
+          <td class="py-3 px-4 text-sm font-medium text-gray-900 dark:text-white">30 min Tempo Run</td>
+          <td class="py-3 px-4 text-sm text-gray-600 dark:text-gray-400">Matt Wilpers</td>
+          <td class="py-3 px-4 text-sm text-gray-600 dark:text-gray-400">15/01/2026</td>
+          <td class="py-3 px-4 text-sm text-gray-600 dark:text-gray-400">30 min</td>
+          <td class="py-3 px-4">
+            <span class="px-2 py-1 text-xs font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded">Run</span>
+          </td>
+        </tr>
+        <tr>
+          <td class="py-3 px-4 text-sm font-medium text-gray-900 dark:text-white">30 min Intervals Run</td>
+          <td class="py-3 px-4 text-sm text-gray-600 dark:text-gray-400">Alex Toussaint</td>
+          <td class="py-3 px-4 text-sm text-gray-600 dark:text-gray-400">15/01/2026</td>
+          <td class="py-3 px-4 text-sm text-gray-600 dark:text-gray-400">30 min</td>
+          <td class="py-3 px-4">
+            <span class="px-2 py-1 text-xs font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded">Run</span>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 text-center">
+      <p class="text-xs text-gray-500 dark:text-gray-500">Recent workout data will appear here once Peloton integration is connected.</p>
+    </div>
+  </div>
+</div>
+
+<!-- Chart.js Script -->
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const ctx = document.getElementById('analyticsChart');
+    if (ctx) {
+      new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4', 'Week 5', 'Week 6', 'Week 7', 'Week 8'],
+          datasets: [{
+            label: 'Points Earned',
+            data: [12, 19, 15, 25, 22, 30, 28, 35],
+            borderColor: 'rgb(59, 130, 246)',
+            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+            tension: 0.4,
+            fill: true
+          }, {
+            label: 'Completion Rate',
+            data: [45, 52, 48, 65, 70, 75, 80, 85],
+            borderColor: 'rgb(34, 197, 94)',
+            backgroundColor: 'rgba(34, 197, 94, 0.1)',
+            tension: 0.4,
+            fill: true
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'top',
+            },
+            tooltip: {
+              mode: 'index',
+              intersect: false,
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              grid: {
+                color: 'rgba(0, 0, 0, 0.05)'
+              }
+            },
+            x: {
+              grid: {
+                display: false
+              }
+            }
+          }
+        }
+      });
+    }
+  });
+</script>
+{% endblock %}

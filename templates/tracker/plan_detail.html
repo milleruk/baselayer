@@ -1,0 +1,964 @@
+{% extends "base.html" %}
+{% load medal_tags %}
+{% block title %}Plan{% endblock %}
+{% block page_title %}{% if week_number %}Week {{ week_number }}{% else %}{{ plan.week_start|date:"M. d, Y" }}{% endif %}{% endblock %}
+
+{% block content %}
+<!-- Week Navigation (for challenge views) -->
+{% if is_challenge_view and week_number and total_weeks %}
+<div class="mb-6">
+  <!-- Separator Line -->
+  <div class="border-t border-gray-200 dark:border-gray-700 mb-4"></div>
+  
+  <!-- Challenge Structure Badge -->
+  <div class="text-center mb-3">
+    <span class="inline-block px-4 py-2 text-xs font-bold text-gray-800 dark:text-gray-900 bg-yellow-400 dark:bg-yellow-500 rounded-full">
+      {{ challenge_structure }}
+    </span>
+  </div>
+  
+  <!-- Week Navigation -->
+  <div class="flex items-center justify-center gap-4 mb-2">
+    <!-- Previous Week Arrow -->
+    {% if previous_week_plan and week_number > 1 %}
+      {% with prev_week=week_number|add:"-1" %}
+        <a href="{% url 'tracker:challenge_detail_week' challenge.id prev_week %}" 
+           class="text-gray-400 dark:text-gray-500 hover:text-primary dark:hover:text-primary transition-colors">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+          </svg>
+        </a>
+      {% endwith %}
+    {% else %}
+      <span class="text-gray-300 dark:text-gray-600 cursor-not-allowed">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+        </svg>
+      </span>
+    {% endif %}
+    
+    <!-- Week Number Display -->
+    <div class="text-center">
+      <h2 class="text-2xl font-bold text-white dark:text-white">Week {{ week_number }} of {{ total_weeks }}</h2>
+      <p class="text-sm text-gray-400 dark:text-gray-500 mt-1">Challenge Progress</p>
+    </div>
+    
+    <!-- Next Week Arrow -->
+    {% if next_week_plan and week_number < total_weeks %}
+      {% with next_week=week_number|add:"1" %}
+        <a href="{% url 'tracker:challenge_detail_week' challenge.id next_week %}" 
+           class="text-gray-400 dark:text-gray-500 hover:text-primary dark:hover:text-primary transition-colors">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+          </svg>
+        </a>
+      {% endwith %}
+    {% else %}
+      <span class="text-gray-300 dark:text-gray-600 cursor-not-allowed">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+        </svg>
+      </span>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+<!-- Header Section -->
+<div class="mb-6">
+  <div class="text-center mb-4">
+    <span class="inline-block px-4 py-2 text-xs font-bold text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg uppercase tracking-wide">
+      {{ plan.template_name }}
+    </span>
+  </div>
+  <h1 class="text-3xl font-bold text-gray-900 dark:text-white text-center mb-2">
+    {% if week_number %}Week {{ week_number }}{% else %}{{ plan.week_start|date:"M. d, Y" }}{% endif %}
+  </h1>
+  <p class="text-center text-gray-600 dark:text-gray-400 mb-4" id="progress-text">
+    {{ plan.completion_rate|floatformat:0 }}% done ({{ plan.total_points }} / {{ plan.max_total_points }} points)
+  </p>
+  <div class="max-w-2xl mx-auto mb-4">
+    <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 overflow-hidden">
+      <div id="progress-bar" class="bg-primary h-full rounded-full transition-all duration-300" style="width: {% if plan.completion_rate > 100 %}100{% else %}{{ plan.completion_rate }}{% endif %}%"></div>
+    </div>
+  </div>
+  <!-- Medal Status (updates via AJAX) -->
+  <div class="text-center mb-4" id="medal-status">
+    {% with medal=plan.completion_rate|get_medal %}
+      {% if medal %}
+        <span class="inline-block px-3 py-1 text-xs font-bold rounded medal-badge" style="background: rgba(255, 215, 0, 0.2); border: 1px solid {{ medal.color }}; color: {{ medal.color }};" title="{{ medal.name }} Medal - {{ plan.completion_rate|floatformat:0 }}% Complete">
+          {{ medal.emoji }} {{ medal.name }} Medal
+        </span>
+      {% endif %}
+    {% endwith %}
+  </div>
+  {% if plan.challenge_instance %}
+    <div class="text-center">
+      {% if can_leave %}
+        <a href="{% url 'tracker:leave_challenge' plan.challenge_instance.id %}" class="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+          Leave Challenge
+        </a>
+      {% elif can_leave == False %}
+        <span class="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 rounded-lg cursor-not-allowed opacity-50" title="{{ leave_error }}">
+          Cannot Leave
+        </span>
+      {% endif %}
+    </div>
+  {% endif %}
+</div>
+
+{% if not can_access_week and plan.challenge_instance %}
+<div class="mb-6 rounded-lg border border-yellow-200 dark:border-yellow-800 bg-yellow-50 dark:bg-yellow-900/20 p-4">
+  <div class="flex items-start gap-4">
+    <div class="text-2xl">🔒</div>
+    <div>
+      <h3 class="font-semibold text-yellow-900 dark:text-yellow-200 mb-1">Week Locked</h3>
+      <p class="text-sm text-yellow-800 dark:text-yellow-300">Complete Week {{ week_number|add:"-1" }} to unlock this week.</p>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% if plan.is_completed %}
+<div class="mb-6 rounded-lg border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 p-6">
+  <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div>
+      <div class="flex items-center gap-3 mb-2">
+        <h3 class="text-xl font-bold text-green-900 dark:text-green-200">🎉 Week Completed!</h3>
+        {% with medal=plan.completion_rate|get_medal %}
+          {% if medal %}
+            <span class="px-3 py-1 text-xs font-bold rounded week-completed-medal" style="background: rgba(255, 215, 0, 0.2); border: 1px solid {{ medal.color }}; color: {{ medal.color }};" title="{{ medal.name }} Medal - {{ plan.completion_rate|floatformat:0 }}% Complete">
+              {{ medal.emoji }} {{ medal.name }} Medal
+            </span>
+          {% endif %}
+        {% endwith %}
+      </div>
+      <p class="text-sm text-green-800 dark:text-green-300">You earned {{ plan.total_points }} points this week!</p>
+    </div>
+    {% if plan.challenge_instance and next_week_plan %}
+      {% if is_challenge_view %}
+        {% with next_week=week_number|add:"1" %}
+          <a href="{% url 'tracker:challenge_detail_week' plan.challenge_instance.challenge.id next_week %}" class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors">
+            Start Week {{ next_week }}
+          </a>
+        {% endwith %}
+      {% else %}
+        <a href="{% url 'tracker:plan_detail' next_week_plan.id %}" class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors">
+          Start Week {{ week_number|add:"1" }}
+        </a>
+      {% endif %}
+    {% elif not plan.challenge_instance %}
+      <a href="{% url 'tracker:generate' %}" class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors">
+        Generate Next Week
+      </a>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+<!-- Workout Days -->
+{% if workout_days %}
+<div class="space-y-4">
+  {% for wd in workout_days %}
+  <div class="rounded-lg border-2 {% if wd.completed %}border-green-500 dark:border-green-600{% else %}border-gray-200 dark:border-gray-700{% endif %} bg-white dark:bg-gray-800 shadow-sm workout-day-card {% if wd.completed %}workout-day-collapsed{% endif %}" data-day-number="{{ wd.day_number }}">
+    <!-- Day Header -->
+    <div class="p-6 cursor-pointer workout-day-header workout-day-toggle flex justify-between items-center" data-day-index="{{ forloop.counter0 }}">
+      <div class="flex items-center gap-4">
+        <span class="workout-day-chevron text-xl text-primary transition-transform">
+          {% if wd.completed %}&gt;{% else %}✓{% endif %}
+        </span>
+        <div class="text-xl font-bold text-gray-900 dark:text-white">Day {{ wd.day_number|default:forloop.counter }}</div>
+        <span class="text-sm text-gray-600 dark:text-gray-400">ANY</span>
+        <span class="px-3 py-1 text-sm font-bold text-gray-900 bg-primary/20 rounded-full">
+          {{ wd.points }} pts
+        </span>
+      </div>
+      <div class="flex items-center gap-4">
+        <span class="text-sm font-medium {% if wd.completed %}text-primary{% else %}text-gray-600 dark:text-gray-400{% endif %}">
+          {% if wd.completed %}Completed{% else %}Pending{% endif %}
+        </span>
+        <div class="w-5 h-5 border-2 border-gray-300 dark:border-gray-600 rounded {% if wd.completed %}bg-primary{% else %}bg-transparent{% endif %} flex items-center justify-center">
+          {% if wd.completed %}
+            <span class="text-xs font-bold text-white">✓</span>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    
+    <!-- Day Content -->
+    <div class="workout-day-content {% if wd.completed %}workout-day-content-collapsed hidden{% endif %} border-t border-gray-200 dark:border-gray-700 p-6" data-day-content-index="{{ forloop.counter0 }}">
+      {% if wd.alternatives and wd.alternatives|length > 0 %}
+        {% for alt in wd.alternatives %}
+          {% if not forloop.first %}
+          <div class="text-center my-6">
+            <span class="inline-block px-6 py-2 text-sm font-bold text-gray-900 bg-primary/20 rounded-full">OR</span>
+          </div>
+          {% endif %}
+          
+          <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50 p-6 mb-4 last:mb-0">
+            <div class="flex justify-between items-start mb-4">
+              <div class="flex-1">
+                <h4 class="text-lg font-bold text-gray-900 dark:text-white mb-2">{{ alt.item.peloton_focus|default:"Workout" }}</h4>
+                <div class="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                  {% if alt.item.peloton_ride_url %}Ride{% elif alt.item.peloton_run_url %}Run{% elif alt.item.peloton_yoga_url %}Yoga{% elif alt.item.peloton_strength_url %}Strength{% endif %}
+                </div>
+                <div class="text-xs text-gray-500 dark:text-gray-500 mb-1">Instructor Name</div>
+                <div class="text-xs text-gray-500 dark:text-gray-500 mb-4">{{ plan.week_start|date:"d/m/Y" }}</div>
+                <div class="flex gap-3 mb-4">
+                  {% if alt.peloton_url %}
+                  <a href="{{ alt.peloton_url }}" target="_blank" rel="noopener noreferrer" class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors">
+                    View on Peloton ↗
+                  </a>
+                  {% endif %}
+                  <button type="button" class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors">
+                    Start ▶
+                  </button>
+                </div>
+                <div class="text-xs text-gray-500 dark:text-gray-500 mb-4">TSS: -- IF: --</div>
+              </div>
+              <div class="ml-4">
+                {% if can_access_week %}
+                  <a href="{% url 'tracker:toggle_activity' alt.item.id alt.activity_type %}" 
+                     class="workout-checkbox toggle-activity-ajax block w-6 h-6 border-2 border-gray-300 dark:border-gray-600 rounded {% if alt.done %}bg-primary{% else %}bg-transparent{% endif %} cursor-pointer flex items-center justify-center transition-colors" 
+                     data-item-id="{{ alt.item.id }}"
+                     data-activity="{{ alt.activity_type }}"
+                     data-day-number="{{ wd.day_number }}">
+                    {% if alt.done %}
+                      <span class="text-xs font-bold text-white">✓</span>
+                    {% endif %}
+                  </a>
+                {% else %}
+                  <div class="w-6 h-6 border-2 border-gray-300 dark:border-gray-600 rounded bg-transparent opacity-50"></div>
+                {% endif %}
+              </div>
+            </div>
+            
+            <!-- Intensity Zone Graph -->
+            <div class="bg-gray-100 dark:bg-gray-800 rounded-lg p-4 mb-4">
+              <div class="flex h-48">
+                <!-- Zone Labels -->
+                <div class="flex flex-col justify-between w-28 mr-4">
+                  <div class="bg-red-800 text-white text-xs font-bold py-2 text-center rounded">MAX</div>
+                  <div class="bg-orange-600 text-white text-xs font-bold py-2 text-center rounded">VERY HARD</div>
+                  <div class="bg-yellow-500 text-gray-900 text-xs font-bold py-2 text-center rounded">HARD CHALLENGING</div>
+                  <div class="bg-teal-500 text-white text-xs font-bold py-2 text-center rounded">MODERATE</div>
+                  <div class="bg-blue-600 text-white text-xs font-bold py-2 text-center rounded">EASY</div>
+                  <div class="bg-purple-500 text-white text-xs font-bold py-2 text-center rounded">RECOVERY</div>
+                </div>
+                
+                <!-- Graph Area -->
+                <div class="flex-1 relative bg-gray-900 dark:bg-gray-950 rounded border border-gray-700 overflow-hidden">
+                  <!-- Zone Backgrounds -->
+                  <div class="absolute inset-0 flex flex-col">
+                    <div class="flex-1 bg-red-900/30"></div>
+                    <div class="flex-1 bg-orange-600/30"></div>
+                    <div class="flex-1 bg-yellow-500/30"></div>
+                    <div class="flex-1 bg-teal-500/30"></div>
+                    <div class="flex-1 bg-blue-600/30"></div>
+                    <div class="flex-1 bg-purple-500/30"></div>
+                  </div>
+                  
+                  <!-- Graph Line -->
+                  <svg class="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+                    <polyline points="0,80 10,75 20,70 30,65 40,60 50,55 60,50 70,45 80,40 90,35 100,30" 
+                              fill="none" 
+                              stroke="#87CEEB" 
+                              stroke-width="2"/>
+                  </svg>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Workout Description -->
+            <div class="bg-gray-100 dark:bg-gray-800 rounded-lg p-4">
+              <p class="text-sm text-gray-600 dark:text-gray-400 leading-relaxed mb-2">
+                This is a placeholder description for the workout. When we integrate with the Peloton API, this will be replaced with the actual workout description, class details, and metrics from Peloton.
+              </p>
+              <p class="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
+                The graph above shows the workout intensity profile, which will be populated with real data from Peloton's workout database once the API integration is complete.
+              </p>
+            </div>
+          </div>
+        {% endfor %}
+      {% else %}
+        <div class="text-center py-8 text-gray-600 dark:text-gray-400">
+          <p>No workouts assigned for this day.</p>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<!-- Extra Credit / Bonus Workouts Section -->
+{% if bonus_workouts %}
+{% with first_bonus=bonus_workouts|first %}
+<div class="mt-6 rounded-lg border-2 {% if bonus_completed %}border-green-500 dark:border-green-600{% else %}border-gray-200 dark:border-gray-700{% endif %} bg-white dark:bg-gray-800 shadow-sm extra-credit-card {% if bonus_completed %}extra-credit-collapsed{% endif %}">
+  <!-- Extra Credit Header -->
+  <div class="p-6 cursor-pointer extra-credit-header extra-credit-toggle flex justify-between items-center">
+    <div class="flex items-center gap-4">
+      <span class="extra-credit-chevron text-xl text-primary transition-transform">
+        {% if bonus_completed %}&gt;{% else %}✓{% endif %}
+      </span>
+      <span class="text-2xl">⚡</span>
+      <div class="text-xl font-bold text-gray-900 dark:text-white">Extra Credit</div>
+      <span class="text-sm text-gray-600 dark:text-gray-400">ANY</span>
+      <span class="px-3 py-1 text-sm font-bold text-gray-900 bg-primary/20 rounded-full">
+        +10 bonus pts
+      </span>
+    </div>
+    <div class="flex items-center gap-4">
+      <span class="text-sm font-medium {% if bonus_completed %}text-primary{% else %}text-gray-600 dark:text-gray-400{% endif %}">
+        {% if bonus_completed %}Completed{% else %}Pending{% endif %}
+      </span>
+      <div class="w-5 h-5 border-2 border-gray-300 dark:border-gray-600 rounded {% if bonus_completed %}bg-primary{% else %}bg-transparent{% endif %} flex items-center justify-center">
+        {% if bonus_completed %}
+          <span class="text-xs font-bold text-white">✓</span>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  
+  <!-- Extra Credit Content -->
+  <div class="extra-credit-content {% if bonus_completed %}extra-credit-content-collapsed hidden{% endif %} border-t border-gray-200 dark:border-gray-700 p-6">
+    {% with has_specific_workout=first_bonus.peloton_ride_url|default:first_bonus.peloton_run_url|default:first_bonus.peloton_yoga_url|default:first_bonus.peloton_strength_url %}
+    {% with activity_type=first_bonus.peloton_focus|lower %}
+    
+    <!-- Always show "Any 30 min+ Peloton Workout" option first -->
+    <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50 p-6 mb-4">
+      <div class="flex justify-between items-start">
+        <div class="flex-1">
+          <h4 class="text-lg font-bold text-gray-900 dark:text-white mb-2">Any 30 min+ Peloton Workout</h4>
+          <span class="inline-block px-3 py-1 text-xs font-bold text-gray-900 bg-primary/20 rounded-full mb-4">
+            +10 bonus pts
+          </span>
+        </div>
+        <div class="ml-4">
+          {% if can_access_week %}
+            {% if "run" in activity_type %}
+              <a href="{% url 'tracker:toggle_activity' first_bonus.id 'run' %}" 
+                 class="workout-checkbox toggle-activity-ajax bonus-checkbox block w-6 h-6 border-2 border-gray-300 dark:border-gray-600 rounded {% if first_bonus.run_done %}bg-primary{% else %}bg-transparent{% endif %} cursor-pointer flex items-center justify-center transition-colors" 
+                 data-item-id="{{ first_bonus.id }}"
+                 data-activity="run">
+                {% if first_bonus.run_done %}
+                  <span class="text-xs font-bold text-white">✓</span>
+                {% endif %}
+              </a>
+            {% else %}
+              <a href="{% url 'tracker:toggle_activity' first_bonus.id 'ride' %}" 
+                 class="workout-checkbox toggle-activity-ajax bonus-checkbox block w-6 h-6 border-2 border-gray-300 dark:border-gray-600 rounded {% if first_bonus.ride_done %}bg-primary{% else %}bg-transparent{% endif %} cursor-pointer flex items-center justify-center transition-colors" 
+                 data-item-id="{{ first_bonus.id }}"
+                 data-activity="ride">
+                {% if first_bonus.ride_done %}
+                  <span class="text-xs font-bold text-white">✓</span>
+                {% endif %}
+              </a>
+            {% endif %}
+          {% else %}
+            <div class="w-6 h-6 border-2 border-gray-300 dark:border-gray-600 rounded bg-transparent opacity-50"></div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    
+    <!-- Show OR separator and specific workout if it exists -->
+    {% if has_specific_workout %}
+    <div class="text-center my-6">
+      <span class="inline-block px-6 py-2 text-sm font-bold text-gray-900 bg-primary/20 rounded-full">OR</span>
+    </div>
+    
+    <!-- Specific Bonus Workout -->
+    <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50 p-6">
+      <div class="flex justify-between items-start mb-4">
+        <div class="flex-1">
+          <h4 class="text-lg font-bold text-gray-900 dark:text-white mb-2">{{ first_bonus.peloton_focus|default:"Bonus Workout" }}</h4>
+          <div class="text-sm text-gray-600 dark:text-gray-400 mb-1">
+            {% if first_bonus.peloton_ride_url %}Ride{% elif first_bonus.peloton_run_url %}Run{% elif first_bonus.peloton_yoga_url %}Yoga{% elif first_bonus.peloton_strength_url %}Strength{% endif %}
+          </div>
+          <div class="text-xs text-gray-500 dark:text-gray-500 mb-1">Instructor Name</div>
+          <div class="text-xs text-gray-500 dark:text-gray-500 mb-4">{{ plan.week_start|date:"d/m/Y" }}</div>
+          <div class="flex gap-3 mb-4">
+            {% if has_specific_workout %}
+            <a href="{{ first_bonus.peloton_ride_url|default:first_bonus.peloton_run_url|default:first_bonus.peloton_yoga_url|default:first_bonus.peloton_strength_url }}" target="_blank" rel="noopener noreferrer" class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors">
+              View on Peloton ↗
+            </a>
+            {% endif %}
+            <button type="button" class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors">
+              Start ▶
+            </button>
+          </div>
+          <div class="text-xs text-gray-500 dark:text-gray-500 mb-4">TSS: -- IF: --</div>
+          <span class="inline-block px-3 py-1 text-xs font-bold text-gray-900 bg-primary/20 rounded-full mb-4">
+            +10 bonus pts
+          </span>
+        </div>
+        <div class="ml-4">
+          {% if can_access_week %}
+            {% if first_bonus.peloton_ride_url %}
+              <a href="{% url 'tracker:toggle_activity' first_bonus.id 'ride' %}" 
+                 class="workout-checkbox toggle-activity-ajax bonus-checkbox block w-6 h-6 border-2 border-gray-300 dark:border-gray-600 rounded {% if first_bonus.ride_done %}bg-primary{% else %}bg-transparent{% endif %} cursor-pointer flex items-center justify-center transition-colors" 
+                 data-item-id="{{ first_bonus.id }}"
+                 data-activity="ride">
+                {% if first_bonus.ride_done %}
+                  <span class="text-xs font-bold text-white">✓</span>
+                {% endif %}
+              </a>
+            {% elif first_bonus.peloton_run_url %}
+              <a href="{% url 'tracker:toggle_activity' first_bonus.id 'run' %}" 
+                 class="workout-checkbox toggle-activity-ajax bonus-checkbox block w-6 h-6 border-2 border-gray-300 dark:border-gray-600 rounded {% if first_bonus.run_done %}bg-primary{% else %}bg-transparent{% endif %} cursor-pointer flex items-center justify-center transition-colors" 
+                 data-item-id="{{ first_bonus.id }}"
+                 data-activity="run">
+                {% if first_bonus.run_done %}
+                  <span class="text-xs font-bold text-white">✓</span>
+                {% endif %}
+              </a>
+            {% elif first_bonus.peloton_yoga_url %}
+              <a href="{% url 'tracker:toggle_activity' first_bonus.id 'yoga' %}" 
+                 class="workout-checkbox toggle-activity-ajax bonus-checkbox block w-6 h-6 border-2 border-gray-300 dark:border-gray-600 rounded {% if first_bonus.yoga_done %}bg-primary{% else %}bg-transparent{% endif %} cursor-pointer flex items-center justify-center transition-colors" 
+                 data-item-id="{{ first_bonus.id }}"
+                 data-activity="yoga">
+                {% if first_bonus.yoga_done %}
+                  <span class="text-xs font-bold text-white">✓</span>
+                {% endif %}
+              </a>
+            {% elif first_bonus.peloton_strength_url %}
+              <a href="{% url 'tracker:toggle_activity' first_bonus.id 'strength' %}" 
+                 class="workout-checkbox toggle-activity-ajax bonus-checkbox block w-6 h-6 border-2 border-gray-300 dark:border-gray-600 rounded {% if first_bonus.strength_done %}bg-primary{% else %}bg-transparent{% endif %} cursor-pointer flex items-center justify-center transition-colors" 
+                 data-item-id="{{ first_bonus.id }}"
+                 data-activity="strength">
+                {% if first_bonus.strength_done %}
+                  <span class="text-xs font-bold text-white">✓</span>
+                {% endif %}
+              </a>
+            {% endif %}
+          {% else %}
+            <div class="w-6 h-6 border-2 border-gray-300 dark:border-gray-600 rounded bg-transparent opacity-50"></div>
+          {% endif %}
+        </div>
+      </div>
+      
+      <!-- Intensity Zone Graph -->
+      <div class="bg-gray-100 dark:bg-gray-800 rounded-lg p-4 mb-4">
+        <div class="flex h-48">
+          <!-- Zone Labels -->
+          <div class="flex flex-col justify-between w-28 mr-4">
+            <div class="bg-red-800 text-white text-xs font-bold py-2 text-center rounded">ZONE 6</div>
+            <div class="bg-orange-600 text-white text-xs font-bold py-2 text-center rounded">ZONE 5</div>
+            <div class="bg-yellow-500 text-gray-900 text-xs font-bold py-2 text-center rounded">ZONE 4</div>
+            <div class="bg-teal-500 text-white text-xs font-bold py-2 text-center rounded">ZONE 3</div>
+            <div class="bg-blue-600 text-white text-xs font-bold py-2 text-center rounded">ZONE 2</div>
+            <div class="bg-purple-500 text-white text-xs font-bold py-2 text-center rounded">ZONE 1</div>
+          </div>
+          
+          <!-- Graph Area -->
+          <div class="flex-1 relative bg-gray-900 dark:bg-gray-950 rounded border border-gray-700 overflow-hidden">
+            <!-- Zone Backgrounds -->
+            <div class="absolute inset-0 flex flex-col">
+              <div class="flex-1 bg-red-900/30"></div>
+              <div class="flex-1 bg-orange-600/30"></div>
+              <div class="flex-1 bg-yellow-500/30"></div>
+              <div class="flex-1 bg-teal-500/30"></div>
+              <div class="flex-1 bg-blue-600/30"></div>
+              <div class="flex-1 bg-purple-500/30"></div>
+            </div>
+            
+            <!-- Graph Line -->
+            <svg class="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+              <polyline points="0,80 10,75 20,70 30,65 40,60 50,55 60,50 70,45 80,40 90,35 100,30" 
+                        fill="none" 
+                        stroke="#87CEEB" 
+                        stroke-width="2"/>
+            </svg>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Workout Description -->
+      <div class="bg-gray-100 dark:bg-gray-800 rounded-lg p-4">
+        <p class="text-sm text-gray-600 dark:text-gray-400 leading-relaxed mb-2">
+          This is a placeholder description for the workout. When we integrate with the Peloton API, this will be replaced with the actual workout description, class details, and metrics from Peloton.
+        </p>
+        <p class="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
+          The graph above shows the workout intensity profile, which will be populated with real data from Peloton's workout database once the API integration is complete.
+        </p>
+      </div>
+    </div>
+    {% endif %}
+    {% endwith %}
+    {% endwith %}
+  </div>
+</div>
+{% endwith %}
+{% endif %}
+
+<!-- Plan Actions -->
+<div class="mt-8 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
+  <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div>
+      <h3 class="text-base font-semibold text-gray-900 dark:text-white mb-1">Plan Actions</h3>
+      <p class="text-sm text-gray-600 dark:text-gray-400">Manage this weekly plan</p>
+    </div>
+    <div class="flex gap-3">
+      <a href="{% url 'tracker:weekly_plans' %}" class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+        Back to Plans
+      </a>
+      <form method="post" action="{% url 'tracker:delete_plan' plan.id %}" onsubmit="return confirm('Are you sure you want to delete this plan? This action cannot be undone.');" class="inline">
+        {% csrf_token %}
+        <button type="submit" class="px-4 py-2 text-sm font-medium text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors">
+          Delete Plan
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Initialize: Disable alternatives for days that already have a completed workout
+  document.querySelectorAll('.workout-day-card').forEach(function(dayCard) {
+    const dayCheckboxes = dayCard.querySelectorAll('.toggle-activity-ajax:not(.bonus-checkbox)');
+    let hasCompleted = false;
+    let completedCheckbox = null;
+    
+    // Find if any workout is already completed
+    dayCheckboxes.forEach(function(cb) {
+      if (cb.classList.contains('bg-primary')) {
+        hasCompleted = true;
+        completedCheckbox = cb;
+      }
+    });
+    
+    // If a workout is completed, disable all other alternatives
+    if (hasCompleted && completedCheckbox) {
+      dayCheckboxes.forEach(function(cb) {
+        if (cb !== completedCheckbox) {
+          cb.style.opacity = '0.4';
+          cb.style.pointerEvents = 'none';
+          cb.style.cursor = 'not-allowed';
+          cb.classList.add('opacity-40');
+          cb.setAttribute('data-disabled', 'true');
+          cb.setAttribute('title', 'Another workout for this day is already completed');
+        }
+      });
+    }
+  });
+  
+  // Workout day collapse functionality
+  document.querySelectorAll('.workout-day-toggle').forEach(function(toggle) {
+    toggle.addEventListener('click', function(e) {
+      if (e.target.closest('a') || e.target.closest('button') || e.target.closest('input')) {
+        return;
+      }
+      
+      const dayIndex = this.getAttribute('data-day-index');
+      const dayCard = this.closest('.workout-day-card');
+      const dayContent = document.querySelector('.workout-day-content[data-day-content-index="' + dayIndex + '"]');
+      const chevron = this.querySelector('.workout-day-chevron');
+      
+      if (dayContent) {
+        const isCollapsed = dayContent.classList.contains('hidden');
+        
+        if (isCollapsed) {
+          dayContent.classList.remove('hidden');
+          dayContent.classList.remove('workout-day-content-collapsed');
+          dayCard.classList.remove('workout-day-collapsed');
+          if (chevron) chevron.textContent = '✓';
+        } else {
+          dayContent.classList.add('hidden');
+          dayContent.classList.add('workout-day-content-collapsed');
+          dayCard.classList.add('workout-day-collapsed');
+          if (chevron) chevron.textContent = '>';
+        }
+      }
+    });
+  });
+
+  // Extra Credit collapse functionality
+  document.querySelectorAll('.extra-credit-toggle').forEach(function(toggle) {
+    toggle.addEventListener('click', function(e) {
+      if (e.target.closest('a') || e.target.closest('button') || e.target.closest('input')) {
+        return;
+      }
+      
+      const extraCreditCard = this.closest('.extra-credit-card');
+      const extraCreditContent = extraCreditCard.querySelector('.extra-credit-content');
+      const chevron = this.querySelector('.extra-credit-chevron');
+      
+      if (extraCreditContent) {
+        const isCollapsed = extraCreditContent.classList.contains('hidden');
+        
+        if (isCollapsed) {
+          extraCreditContent.classList.remove('hidden');
+          extraCreditContent.classList.remove('extra-credit-content-collapsed');
+          extraCreditCard.classList.remove('extra-credit-collapsed');
+          if (chevron) chevron.textContent = '✓';
+        } else {
+          extraCreditContent.classList.add('hidden');
+          extraCreditContent.classList.add('extra-credit-content-collapsed');
+          extraCreditCard.classList.add('extra-credit-collapsed');
+          if (chevron) chevron.textContent = '>';
+        }
+      }
+    });
+  });
+
+  // AJAX handling for workout activity toggles
+  document.querySelectorAll('.toggle-activity-ajax').forEach(function(checkbox) {
+    checkbox.addEventListener('click', function(e) {
+      e.preventDefault();
+      
+      // Prevent action if checkbox is disabled
+      if (this.getAttribute('data-disabled') === 'true' || this.style.pointerEvents === 'none') {
+        return;
+      }
+      
+      const url = this.getAttribute('href');
+      const itemId = this.getAttribute('data-item-id');
+      const activity = this.getAttribute('data-activity');
+      const dayNumber = this.getAttribute('data-day-number');
+      const checkboxElement = this;
+      const isBonus = checkboxElement.classList.contains('bonus-checkbox');
+      
+      checkboxElement.style.opacity = '0.5';
+      checkboxElement.style.pointerEvents = 'none';
+      
+      fetch(url, {
+        method: 'GET',
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest',
+        },
+        credentials: 'same-origin'
+      })
+      .then(function(response) { return response.json(); })
+      .then(function(data) {
+        if (data.success) {
+          if (data.activity_done) {
+            checkboxElement.classList.add('bg-primary');
+            checkboxElement.classList.remove('bg-transparent');
+            if (!checkboxElement.querySelector('span')) {
+              const checkmark = document.createElement('span');
+              checkmark.className = 'text-xs font-bold text-white';
+              checkmark.textContent = '✓';
+              checkboxElement.appendChild(checkmark);
+            }
+            
+            // Disable and uncheck other workout alternatives on the same day
+            if (!isBonus && dayNumber) {
+              const dayCard = checkboxElement.closest('.workout-day-card');
+              if (dayCard) {
+                const allDayCheckboxes = dayCard.querySelectorAll('.toggle-activity-ajax:not(.bonus-checkbox)');
+                allDayCheckboxes.forEach(function(cb) {
+                  if (cb !== checkboxElement) {
+                    // Uncheck other alternatives
+                    cb.classList.remove('bg-primary');
+                    cb.classList.add('bg-transparent');
+                    const checkmark = cb.querySelector('span');
+                    if (checkmark) checkmark.remove();
+                    
+                    // Disable other alternatives (gray them out, make unclickable)
+                    cb.style.opacity = '0.4';
+                    cb.style.pointerEvents = 'none';
+                    cb.style.cursor = 'not-allowed';
+                    cb.classList.add('opacity-40');
+                    // Add visual indicator that it's disabled
+                    cb.setAttribute('data-disabled', 'true');
+                    cb.setAttribute('title', 'Another workout for this day is already completed');
+                  }
+                });
+              }
+            }
+          } else {
+            checkboxElement.classList.remove('bg-primary');
+            checkboxElement.classList.add('bg-transparent');
+            const checkmark = checkboxElement.querySelector('span');
+            if (checkmark) checkmark.remove();
+            
+            // Re-enable other workout alternatives on the same day
+            if (!isBonus && dayNumber) {
+              const dayCard = checkboxElement.closest('.workout-day-card');
+              if (dayCard) {
+                const allDayCheckboxes = dayCard.querySelectorAll('.toggle-activity-ajax:not(.bonus-checkbox)');
+                // Check if any other workout is still completed
+                let anyOtherCompleted = false;
+                allDayCheckboxes.forEach(function(cb) {
+                  if (cb !== checkboxElement && cb.classList.contains('bg-primary')) {
+                    anyOtherCompleted = true;
+                  }
+                });
+                
+                // If no other workout is completed, re-enable all alternatives
+                if (!anyOtherCompleted) {
+                  allDayCheckboxes.forEach(function(cb) {
+                    cb.style.opacity = '1';
+                    cb.style.pointerEvents = 'auto';
+                    cb.style.cursor = 'pointer';
+                    cb.classList.remove('opacity-40', 'opacity-50');
+                    cb.removeAttribute('data-disabled');
+                    cb.removeAttribute('title');
+                  });
+                } else {
+                  // Another workout is still completed, keep others disabled
+                  allDayCheckboxes.forEach(function(cb) {
+                    if (cb !== checkboxElement && !cb.classList.contains('bg-primary')) {
+                      cb.style.opacity = '0.4';
+                      cb.style.pointerEvents = 'none';
+                      cb.style.cursor = 'not-allowed';
+                      cb.classList.add('opacity-40');
+                      cb.setAttribute('data-disabled', 'true');
+                      cb.setAttribute('title', 'Another workout for this day is already completed');
+                    }
+                  });
+                }
+              }
+            }
+          }
+          
+          // Handle day completion (for regular workout days, not bonus)
+          if (!isBonus && dayNumber) {
+            const dayCard = checkboxElement.closest('.workout-day-card');
+            if (dayCard) {
+              // Check if any workout on this day is completed
+              const dayCheckboxes = dayCard.querySelectorAll('.toggle-activity-ajax:not(.bonus-checkbox)');
+              let dayCompleted = false;
+              dayCheckboxes.forEach(function(cb) {
+                if (cb.classList.contains('bg-primary')) {
+                  dayCompleted = true;
+                }
+              });
+              
+              // Update day card styling
+              const dayHeader = dayCard.querySelector('.workout-day-header');
+              const statusText = dayHeader ? dayHeader.querySelector('.text-sm.font-medium') : null;
+              const chevron = dayHeader ? dayHeader.querySelector('.workout-day-chevron') : null;
+              const headerCheckbox = dayHeader ? dayHeader.querySelector('.w-5.h-5') : null;
+              const dayContent = dayCard.querySelector('.workout-day-content');
+              
+              if (dayCompleted) {
+                // Day is completed - turn green
+                dayCard.classList.remove('border-gray-200', 'dark:border-gray-700');
+                dayCard.classList.add('border-green-500', 'dark:border-green-600');
+                
+                if (statusText) {
+                  statusText.textContent = 'Completed';
+                  statusText.classList.remove('text-gray-600', 'dark:text-gray-400');
+                  statusText.classList.add('text-primary');
+                }
+                
+                if (chevron) {
+                  chevron.textContent = '>';
+                }
+                
+                if (headerCheckbox) {
+                  headerCheckbox.classList.add('bg-primary');
+                  headerCheckbox.classList.remove('bg-transparent');
+                  if (!headerCheckbox.querySelector('span')) {
+                    const checkmark = document.createElement('span');
+                    checkmark.className = 'text-xs font-bold text-white';
+                    checkmark.textContent = '✓';
+                    headerCheckbox.appendChild(checkmark);
+                  }
+                }
+                
+                // Collapse day content
+                if (dayContent) {
+                  dayContent.classList.add('hidden');
+                  dayContent.classList.add('workout-day-content-collapsed');
+                  dayCard.classList.add('workout-day-collapsed');
+                }
+              } else {
+                // Day is not completed - revert to default
+                dayCard.classList.remove('border-green-500', 'dark:border-green-600');
+                dayCard.classList.add('border-gray-200', 'dark:border-gray-700');
+                
+                if (statusText) {
+                  statusText.textContent = 'Pending';
+                  statusText.classList.remove('text-primary');
+                  statusText.classList.add('text-gray-600', 'dark:text-gray-400');
+                }
+                
+                if (chevron) {
+                  chevron.textContent = '✓';
+                }
+                
+                if (headerCheckbox) {
+                  headerCheckbox.classList.remove('bg-primary');
+                  headerCheckbox.classList.add('bg-transparent');
+                  const checkmark = headerCheckbox.querySelector('span');
+                  if (checkmark) checkmark.remove();
+                }
+                
+                // Expand day content
+                if (dayContent) {
+                  dayContent.classList.remove('hidden');
+                  dayContent.classList.remove('workout-day-content-collapsed');
+                  dayCard.classList.remove('workout-day-collapsed');
+                }
+              }
+            }
+          }
+          
+          // Handle bonus workout completion
+          if (isBonus) {
+            const extraCreditCard = checkboxElement.closest('.extra-credit-card');
+            if (extraCreditCard) {
+              // Check if any bonus workout is completed (after updating the current checkbox)
+              const allBonusCheckboxes = extraCreditCard.querySelectorAll('.bonus-checkbox');
+              let anyBonusDone = false;
+              allBonusCheckboxes.forEach(function(cb) {
+                // Check if this checkbox has bg-primary class (completed)
+                if (cb.classList.contains('bg-primary')) {
+                  anyBonusDone = true;
+                }
+              });
+              
+              // Update extra credit card styling based on completion
+              const dayHeader = extraCreditCard.querySelector('.extra-credit-header');
+              const statusText = dayHeader ? dayHeader.querySelector('.text-sm.font-medium') : null;
+              const chevron = dayHeader ? dayHeader.querySelector('.extra-credit-chevron') : null;
+              const headerCheckbox = dayHeader ? dayHeader.querySelector('.w-5.h-5') : null;
+              const extraCreditContent = extraCreditCard.querySelector('.extra-credit-content');
+              
+              if (anyBonusDone) {
+                // Extra credit is completed - turn green
+                extraCreditCard.classList.remove('border-gray-200', 'dark:border-gray-700');
+                extraCreditCard.classList.add('border-green-500', 'dark:border-green-600');
+                
+                if (statusText) {
+                  statusText.textContent = 'Completed';
+                  statusText.classList.remove('text-gray-600', 'dark:text-gray-400');
+                  statusText.classList.add('text-primary');
+                }
+                
+                if (chevron) {
+                  chevron.textContent = '>';
+                }
+                
+                if (headerCheckbox) {
+                  headerCheckbox.classList.add('bg-primary');
+                  headerCheckbox.classList.remove('bg-transparent');
+                  if (!headerCheckbox.querySelector('span')) {
+                    const checkmark = document.createElement('span');
+                    checkmark.className = 'text-xs font-bold text-white';
+                    checkmark.textContent = '✓';
+                    headerCheckbox.appendChild(checkmark);
+                  }
+                }
+                
+                // Collapse extra credit content
+                if (extraCreditContent) {
+                  extraCreditContent.classList.add('hidden');
+                  extraCreditContent.classList.add('extra-credit-content-collapsed');
+                  extraCreditCard.classList.add('extra-credit-collapsed');
+                }
+              } else {
+                // Extra credit is not completed - revert to default
+                extraCreditCard.classList.remove('border-green-500', 'dark:border-green-600');
+                extraCreditCard.classList.add('border-gray-200', 'dark:border-gray-700');
+                
+                if (statusText) {
+                  statusText.textContent = 'Pending';
+                  statusText.classList.remove('text-primary');
+                  statusText.classList.add('text-gray-600', 'dark:text-gray-400');
+                }
+                
+                if (chevron) {
+                  chevron.textContent = '✓';
+                }
+                
+                if (headerCheckbox) {
+                  headerCheckbox.classList.remove('bg-primary');
+                  headerCheckbox.classList.add('bg-transparent');
+                  const checkmark = headerCheckbox.querySelector('span');
+                  if (checkmark) checkmark.remove();
+                }
+                
+                // Expand extra credit content
+                if (extraCreditContent) {
+                  extraCreditContent.classList.remove('hidden');
+                  extraCreditContent.classList.remove('extra-credit-content-collapsed');
+                  extraCreditCard.classList.remove('extra-credit-collapsed');
+                }
+              }
+            }
+          }
+          
+          // Update progress
+          if (data.plan_completion_rate !== undefined) {
+            updateProgress(data.plan_completion_rate, data.plan_total_points, data.plan_max_total_points);
+          }
+        }
+      })
+      .catch(function(error) {
+        console.error('Error:', error);
+      })
+      .finally(function() {
+        checkboxElement.style.opacity = '1';
+        checkboxElement.style.pointerEvents = 'auto';
+      });
+    });
+  });
+  
+  function updateProgress(completionRate, totalPoints, maxPoints) {
+    const progressBar = document.getElementById('progress-bar');
+    const progressText = document.getElementById('progress-text');
+    
+    if (progressBar) {
+      progressBar.style.width = Math.min(completionRate, 100) + '%';
+    }
+    if (progressText) {
+      progressText.textContent = Math.round(completionRate) + '% done (' + totalPoints + ' / ' + maxPoints + ' points)';
+    }
+    
+    // Update medal status
+    updateMedalStatus(completionRate);
+  }
+  
+  function getMedal(completionRate) {
+    // Medal thresholds based on max core points (150):
+    // - Platinum: 100.1%+ (150.15+ points, e.g., 160/150 = 106.67%)
+    // - Gold: 90-100% (135-150 points)
+    // - Silver: 80-89.99% (120-134.99 points)
+    // - Bronze: 79.99% and below (<120 points)
+    if (completionRate >= 100.1) {
+      return {emoji: '💎', name: 'Platinum', color: '#E5E4E2'};
+    } else if (completionRate >= 90) {
+      return {emoji: '🥇', name: 'Gold', color: '#FFD700'};
+    } else if (completionRate >= 80) {
+      return {emoji: '🥈', name: 'Silver', color: '#C0C0C0'};
+    } else if (completionRate >= 0) {
+      return {emoji: '🥉', name: 'Bronze', color: '#CD7F32'};
+    }
+    return null;
+  }
+  
+  function updateMedalStatus(completionRate) {
+    const medalStatus = document.getElementById('medal-status');
+    const weekCompletedMedal = document.querySelector('.week-completed-medal');
+    const medal = getMedal(completionRate);
+    
+    if (medal) {
+      const medalHtml = '<span class="inline-block px-3 py-1 text-xs font-bold rounded medal-badge" style="background: rgba(255, 215, 0, 0.2); border: 1px solid ' + medal.color + '; color: ' + medal.color + ';" title="' + medal.name + ' Medal - ' + Math.round(completionRate) + '% Complete">' + medal.emoji + ' ' + medal.name + ' Medal</span>';
+      
+      // Update header medal status
+      if (medalStatus) {
+        medalStatus.innerHTML = medalHtml;
+      }
+      
+      // Update week completed banner medal if it exists
+      if (weekCompletedMedal) {
+        weekCompletedMedal.innerHTML = medal.emoji + ' ' + medal.name + ' Medal';
+        weekCompletedMedal.style.borderColor = medal.color;
+        weekCompletedMedal.style.color = medal.color;
+        weekCompletedMedal.title = medal.name + ' Medal - ' + Math.round(completionRate) + '% Complete';
+      }
+    } else {
+      // No medal yet
+      if (medalStatus) {
+        medalStatus.innerHTML = '';
+      }
+    }
+  }
+});
+</script>
+{% endblock %}

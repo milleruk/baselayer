@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Select Plan Template{% endblock %}
+{% block page_title %}Generate Weekly Plan{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+  <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">Generate Weekly Plan</h1>
+  <p class="text-gray-600 dark:text-gray-400">Choose a training plan template or join a challenge</p>
+</div>
+
+{% if challenges %}
+<div class="mb-8">
+  <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4">Join a Challenge</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    {% for challenge in challenges %}
+      <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm hover:shadow-md transition-shadow">
+        <h3 class="text-lg font-bold text-primary mb-2">{{ challenge.name }}</h3>
+        <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">{{ challenge.description|truncatewords:15 }}</p>
+        <div class="text-xs text-gray-500 dark:text-gray-500 mb-4">
+          {{ challenge.start_date|date:"M d" }} - {{ challenge.end_date|date:"M d, Y" }} ({{ challenge.duration_weeks }} weeks)
+        </div>
+        <form method="post" action="{% url 'tracker:generate' %}">
+          {% csrf_token %}
+          <input type="hidden" name="challenge_id" value="{{ challenge.id }}">
+          <input type="hidden" name="template_id" value="{% if challenge.default_template %}{{ challenge.default_template.id }}{% else %}{{ templates.0.id }}{% endif %}">
+          <button type="submit" class="w-full px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors">
+            Join & Generate Week
+          </button>
+        </form>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<div>
+  <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4">Or Select a Template</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    {% for template in templates %}
+      <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm hover:shadow-md transition-shadow cursor-pointer" onclick="document.getElementById('form-{{ template.id }}').submit();">
+        <h3 class="text-lg font-bold text-primary mb-2">{{ template.name }}</h3>
+        <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">{{ template.description }}</p>
+        <form id="form-{{ template.id }}" method="post" action="{% url 'tracker:generate' %}">
+          {% csrf_token %}
+          <input type="hidden" name="template_id" value="{{ template.id }}">
+        </form>
+        <button type="submit" form="form-{{ template.id }}" class="w-full px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors">
+          Select
+        </button>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}
