@@ -499,6 +499,14 @@ class PelotonClient:
 
     def fetch_user(self, user_id: str) -> Dict[str, Any]:
         return self._get(f"/api/user/{user_id}")
+    
+    def fetch_user_overview(self, user_id: str) -> Dict[str, Any]:
+        """Fetch user overview statistics from /api/user/{userId}/overview endpoint"""
+        logger.info(f"Fetching user overview for user_id: {user_id}")
+        result = self._get(f"/api/user/{user_id}/overview")
+        logger.info(f"Overview endpoint returned {len(str(result))} characters of data")
+        logger.debug(f"Overview response keys: {list(result.keys()) if isinstance(result, dict) else 'Not a dict'}")
+        return result
 
     # ------------------------------------------------------------------------------
     # Instructors

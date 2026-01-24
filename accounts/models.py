@@ -61,6 +61,79 @@ class Profile(models.Model):
         null=True,
         help_text="Peloton leaderboard name (synced from Peloton account)"
     )
+    peloton_total_workouts = models.IntegerField(
+        blank=True,
+        null=True,
+        help_text="Total number of Peloton workouts completed"
+    )
+    peloton_total_output = models.BigIntegerField(
+        blank=True,
+        null=True,
+        help_text="Total output in kilojoules from all Peloton workouts"
+    )
+    peloton_total_distance = models.FloatField(
+        blank=True,
+        null=True,
+        help_text="Total distance in miles from all Peloton workouts"
+    )
+    peloton_total_calories = models.IntegerField(
+        blank=True,
+        null=True,
+        help_text="Total calories burned from all Peloton workouts"
+    )
+    peloton_total_pedaling_duration = models.IntegerField(
+        blank=True,
+        null=True,
+        help_text="Total pedaling duration in seconds"
+    )
+    peloton_last_synced_at = models.DateTimeField(
+        blank=True,
+        null=True,
+        help_text="Last time Peloton data was synced"
+    )
+    
+    # Peloton workout breakdown
+    peloton_total_pedaling_metric_workouts = models.IntegerField(
+        blank=True,
+        null=True,
+        help_text="Total number of Peloton workouts with pedaling metrics (cycling, etc.)"
+    )
+    peloton_total_non_pedaling_metric_workouts = models.IntegerField(
+        blank=True,
+        null=True,
+        help_text="Total number of Peloton workouts without pedaling metrics (meditation, strength, etc.)"
+    )
+    
+    # Peloton streaks
+    peloton_current_weekly_streak = models.IntegerField(
+        blank=True,
+        null=True,
+        help_text="Current weekly workout streak"
+    )
+    peloton_best_weekly_streak = models.IntegerField(
+        blank=True,
+        null=True,
+        help_text="Best weekly workout streak achieved"
+    )
+    peloton_current_daily_streak = models.IntegerField(
+        blank=True,
+        null=True,
+        help_text="Current daily workout streak"
+    )
+    
+    # Peloton achievements
+    peloton_total_achievements = models.IntegerField(
+        blank=True,
+        null=True,
+        help_text="Total number of Peloton achievements earned"
+    )
+    
+    # Peloton workout type breakdown (stored as JSON)
+    peloton_workout_counts = models.JSONField(
+        blank=True,
+        null=True,
+        help_text="Breakdown of Peloton workouts by type (slug -> count)"
+    )
     
     # Cycling metrics
     ftp_score = models.IntegerField(

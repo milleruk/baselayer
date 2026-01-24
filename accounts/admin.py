@@ -28,9 +28,37 @@ class UserAdmin(BaseUserAdmin):
 
 @admin.register(Profile)
 class ProfileAdmin(admin.ModelAdmin):
-    list_display = ['user', 'full_name', 'date_of_birth']
-    search_fields = ['user__email', 'full_name']
-    list_filter = ['date_of_birth']
+    list_display = ['user', 'full_name', 'date_of_birth', 'peloton_leaderboard_name', 'peloton_total_workouts', 'peloton_current_weekly_streak', 'peloton_total_achievements', 'peloton_last_synced_at']
+    search_fields = ['user__email', 'full_name', 'peloton_leaderboard_name']
+    list_filter = ['date_of_birth', 'peloton_last_synced_at']
+    
+    fieldsets = (
+        ('Personal Information', {
+            'fields': ('user', 'full_name', 'date_of_birth')
+        }),
+        ('Peloton Integration', {
+            'fields': (
+                'peloton_leaderboard_name',
+                'peloton_total_workouts',
+                'peloton_total_pedaling_metric_workouts',
+                'peloton_total_non_pedaling_metric_workouts',
+                'peloton_current_weekly_streak',
+                'peloton_best_weekly_streak',
+                'peloton_current_daily_streak',
+                'peloton_total_achievements',
+                'peloton_total_output',
+                'peloton_total_distance',
+                'peloton_total_calories',
+                'peloton_total_pedaling_duration',
+                'peloton_last_synced_at',
+            ),
+            'classes': ('collapse',)
+        }),
+        ('Fitness Metrics', {
+            'fields': ('ftp_score', 'pace_target_level'),
+            'classes': ('collapse',)
+        }),
+    )
 
 @admin.register(WeightEntry)
 class WeightEntryAdmin(admin.ModelAdmin):

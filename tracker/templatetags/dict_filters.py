@@ -8,3 +8,10 @@ def get_item(dictionary, key):
     if dictionary is None:
         return None
     return dictionary.get(key)
+
+@register.filter
+def split(value, delimiter=','):
+    """Split a string by delimiter and return a list"""
+    if value is None:
+        return []
+    return value.split(delimiter)

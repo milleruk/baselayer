@@ -288,4 +288,57 @@ def metrics(request):
         'pw_history_tread': pw_history_tread,
     }
     
+    # Calculate Peloton milestones
+    peloton_milestones = []
+    if hasattr(request.user, 'profile') and request.user.profile.peloton_workout_counts:
+        workout_counts = request.user.profile.peloton_workout_counts
+        
+        # Map milestone categories to Peloton workout slugs
+        categories = [
+            {'name': 'Yoga', 'slug': 'yoga', 'icon': '🧘'},
+            {'name': 'Bike', 'slug': 'cycling', 'icon': '🚴'},
+            {'name': 'Tread', 'slug': 'running', 'icon': '🏃'},
+            {'name': 'Stretching', 'slug': 'stretching', 'icon': '🤸'},
+            {'name': 'Strength', 'slug': 'strength', 'icon': '💪'},
+        ]
+        
+        # Milestone thresholds
+        milestone_thresholds = [10, 50, 100, 500, 1000]
+        
+        for category_info in categories:
+            count = workout_counts.get(category_info['slug'], 0)
+            achieved = []
+            
+            # Check which milestones are achieved
+            for threshold in milestone_thresholds:
+                if count >= threshold:
+                    achieved.append(threshold)
+            
+            peloton_milestones.append({
+                'name': category_info['name'],
+                'icon': category_info['icon'],
+                'count': count,
+                'achieved': achieved,
+                'thresholds': milestone_thresholds,
+            })
+    else:
+        # Default structure if no Peloton data
+        categories = [
+            {'name': 'Yoga', 'icon': '🧘'},
+            {'name': 'Bike', 'icon': '🚴'},
+            {'name': 'Tread', 'icon': '🏃'},
+            {'name': 'Stretching', 'icon': '🤸'},
+            {'name': 'Strength', 'icon': '💪'},
+        ]
+        for category_info in categories:
+            peloton_milestones.append({
+                'name': category_info['name'],
+                'icon': category_info['icon'],
+                'count': 0,
+                'achieved': [],
+                'thresholds': [10, 50, 100, 500, 1000],
+            })
+    
+    context['peloton_milestones'] = peloton_milestones
+    
     return render(request, "plans/metrics.html", context)
