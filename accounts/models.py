@@ -54,6 +54,14 @@ class Profile(models.Model):
     full_name = models.CharField(max_length=255, blank=True, null=True)
     date_of_birth = models.DateField(blank=True, null=True)
     
+    # Peloton integration
+    peloton_leaderboard_name = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        help_text="Peloton leaderboard name (synced from Peloton account)"
+    )
+    
     # Cycling metrics
     ftp_score = models.IntegerField(
         blank=True, 
