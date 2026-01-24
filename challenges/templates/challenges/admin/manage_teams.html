@@ -1,0 +1,260 @@
+{% extends "base.html" %}
+{% block title %}Manage Teams - {{ challenge.name }}{% endblock %}
+{% block page_title %}Manage Teams: {{ challenge.name }}{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+  <div class="flex items-center justify-between">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">Manage Teams: {{ challenge.name }}</h1>
+      <p class="text-gray-600 dark:text-gray-400">Assign users to teams and manage team leaders</p>
+    </div>
+    <a href="{% url 'challenges:admin_assign_teams_dragdrop' challenge.id %}" 
+       class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors">
+      Drag & Drop Assignment
+    </a>
+  </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+  <!-- Team Leader Volunteers -->
+  <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
+    <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+      Team Leader Volunteers ({{ volunteers|length }})
+    </h2>
+    
+    {% if volunteers %}
+      <div class="space-y-3">
+        {% for volunteer in volunteers %}
+          <div class="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+            <div class="flex items-center justify-between mb-2">
+              <div>
+                <div class="font-semibold text-gray-900 dark:text-white">{{ volunteer.user.email }}</div>
+                <div class="text-sm text-gray-500 dark:text-gray-400">
+                  Volunteered: {{ volunteer.volunteered_at|date:"M d, Y H:i" }}
+                </div>
+              </div>
+            </div>
+            
+            <form method="post" action="{% url 'challenges:admin_manage_teams' challenge.id %}" class="mt-3">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="assign_volunteer">
+              <input type="hidden" name="volunteer_id" value="{{ volunteer.id }}">
+              
+              <div class="flex gap-2 mb-2">
+                <select name="team_id" class="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+                  <option value="">Select existing team...</option>
+                  {% for team in all_teams %}
+                    <option value="{{ team.id }}">{{ team.name }} {% if team.leader %}(Leader: {{ team.leader.email }}){% else %}(No leader){% endif %}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              
+              <div class="flex items-center gap-2 mb-2">
+                <input type="checkbox" name="create_new_team" id="create_new_{{ volunteer.id }}" class="w-4 h-4 text-primary border-gray-300 rounded">
+                <label for="create_new_{{ volunteer.id }}" class="text-sm text-gray-700 dark:text-gray-300">Create new team</label>
+              </div>
+              
+              <input type="text" name="new_team_name" placeholder="New team name" 
+                     class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white mb-2"
+                     disabled id="new_team_name_{{ volunteer.id }}">
+              
+              <button type="submit" class="w-full px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors">
+                Assign as Team Leader
+              </button>
+            </form>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="text-gray-500 dark:text-gray-400">No volunteers pending assignment.</p>
+    {% endif %}
+  </div>
+  
+  <!-- Users Without Teams -->
+  <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
+    <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+      Users Without Teams ({{ users_without_teams|length }})
+    </h2>
+    
+    {% if users_without_teams %}
+      <div class="space-y-2 max-h-96 overflow-y-auto">
+        {% for user in users_without_teams %}
+          <div class="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+            <div class="flex items-center justify-between">
+              <div>
+                <div class="font-medium text-gray-900 dark:text-white">{{ user.email }}</div>
+              </div>
+              <form method="post" action="{% url 'challenges:admin_manage_teams' challenge.id %}" class="flex gap-2">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="assign_user_to_team">
+                <input type="hidden" name="user_id" value="{{ user.id }}">
+                <select name="team_id" required class="px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+                  <option value="">Select team...</option>
+                  {% for team in all_teams %}
+                    <option value="{{ team.id }}">{{ team.name }}</option>
+                  {% endfor %}
+                </select>
+                <button type="submit" class="px-3 py-1 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors">
+                  Assign
+                </button>
+              </form>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="text-gray-500 dark:text-gray-400">All users are assigned to teams.</p>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Create Team (Superusers Only) -->
+{% if user.is_superuser %}
+<div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm mb-6">
+  <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Create New Team</h2>
+  
+  <form method="post" action="{% url 'challenges:admin_manage_teams' challenge.id %}" class="space-y-4">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="create_team">
+    
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div>
+        <label for="team_name" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          Team Name <span class="text-red-500">*</span>
+        </label>
+        <input 
+          type="text" 
+          name="team_name" 
+          id="team_name" 
+          required
+          class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
+          placeholder="Enter team name"
+        >
+      </div>
+      
+      <div>
+        <label for="leader_id" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          Team Leader (Optional)
+        </label>
+        <select 
+          name="leader_id" 
+          id="leader_id"
+          class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
+        >
+          <option value="">No leader</option>
+          {% for user in all_challenge_users %}
+            <option value="{{ user.id }}">{{ user.email }}</option>
+          {% empty %}
+            <option value="" disabled>No users in this challenge</option>
+          {% endfor %}
+        </select>
+        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+          Select a user to assign as team leader. If the leader is participating in this challenge, they'll be automatically added to the team.
+        </p>
+      </div>
+    </div>
+    
+    <div>
+      <button 
+        type="submit" 
+        class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors"
+      >
+        Create Team
+      </button>
+    </div>
+  </form>
+</div>
+{% endif %}
+
+<!-- Teams Overview -->
+<div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
+  <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Teams Overview</h2>
+  
+  {% if teams_data %}
+    <div class="space-y-4">
+      {% for team_id, team_info in teams_data.items %}
+        <div class="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+          <div class="flex items-center justify-between mb-3">
+            <div>
+              <h3 class="font-semibold text-gray-900 dark:text-white">{{ team_info.team.name }}</h3>
+              <p class="text-sm text-gray-500 dark:text-gray-400">
+                Leader: {% if team_info.team.leader %}{{ team_info.team.leader.email }}{% else %}<span class="text-red-500">No leader</span>{% endif %}
+                | {{ team_info.members|length }} member{{ team_info.members|length|pluralize }}
+              </p>
+            </div>
+            
+            {% if team_info.members %}
+            <form method="post" action="{% url 'challenges:admin_manage_teams' challenge.id %}" class="flex gap-2">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="change_team_leader">
+              <input type="hidden" name="team_id" value="{{ team_info.team.id }}">
+              <select name="new_leader_id" class="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+                <option value="">Change leader...</option>
+                {% for member in team_info.members %}
+                  <option value="{{ member.challenge_instance.user.id }}" {% if team_info.team.leader == member.challenge_instance.user %}selected{% endif %}>
+                    {{ member.challenge_instance.user.email }}
+                  </option>
+                {% endfor %}
+              </select>
+              <button type="submit" class="px-3 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors">
+                Update Leader
+              </button>
+            </form>
+            {% endif %}
+          </div>
+          
+          <div class="space-y-2">
+            {% for member in team_info.members %}
+              <div class="flex items-center justify-between p-2 bg-white dark:bg-gray-800 rounded">
+                <span class="text-sm text-gray-700 dark:text-gray-300">{{ member.challenge_instance.user.email }}</span>
+                <form method="post" action="{% url 'challenges:admin_manage_teams' challenge.id %}" class="inline">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="remove_member">
+                  <input type="hidden" name="member_id" value="{{ member.id }}">
+                  <button type="submit" 
+                          onclick="return confirm('Remove {{ member.challenge_instance.user.email }} from this team?')"
+                          class="px-2 py-1 text-xs font-medium text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors">
+                    Remove
+                  </button>
+                </form>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p class="text-gray-500 dark:text-gray-400">No teams found for this challenge.</p>
+  {% endif %}
+</div>
+
+<div class="mt-6">
+  <a href="{% url 'challenges:admin_challenges_list' %}" class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+    Back to Challenges
+  </a>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // Enable/disable new team name input based on checkbox
+    document.querySelectorAll('input[name="create_new_team"]').forEach(checkbox => {
+      checkbox.addEventListener('change', function() {
+        const volunteerId = this.id.replace('create_new_', '');
+        const nameInput = document.getElementById('new_team_name_' + volunteerId);
+        const teamSelect = this.closest('form').querySelector('select[name="team_id"]');
+        
+        if (this.checked) {
+          nameInput.disabled = false;
+          nameInput.required = true;
+          teamSelect.disabled = true;
+        } else {
+          nameInput.disabled = true;
+          nameInput.required = false;
+          teamSelect.disabled = false;
+        }
+      });
+    });
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}All Teams & Users{% endblock %}
+{% block page_title %}All Teams & Users (Super Admin){% endblock %}
+
+{% block content %}
+<div class="mb-6">
+  <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">All Teams & Users</h1>
+  <p class="text-gray-600 dark:text-gray-400">Overview of all teams and users across all challenges</p>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+  <!-- Teams List -->
+  <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
+    <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">All Teams ({{ teams|length }})</h2>
+    
+    <div class="space-y-4">
+      {% for team in teams %}
+        <div class="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="font-semibold text-gray-900 dark:text-white">
+              <a href="{% url 'challenges:team_admin' team.id %}" class="hover:text-primary">
+                {{ team.name }}
+              </a>
+            </h3>
+            <span class="text-sm text-gray-500 dark:text-gray-400">
+              {{ team.total_members }} member{{ team.total_members|pluralize }}
+            </span>
+          </div>
+          
+          {% if team.leader %}
+            <p class="text-sm text-gray-600 dark:text-gray-400">
+              Leader: <strong>{{ team.leader.email }}</strong>
+            </p>
+          {% else %}
+            <p class="text-sm text-gray-500 dark:text-gray-400 italic">No leader assigned</p>
+          {% endif %}
+          
+          <div class="mt-2 text-sm text-gray-600 dark:text-gray-400">
+            {% for member in team.members.all|slice:":3" %}
+              {% if member.challenge_instance.is_active %}
+                <span class="inline-block mr-2">{{ member.challenge_instance.user.email }}</span>
+              {% endif %}
+            {% endfor %}
+            {% if team.total_members > 3 %}
+              <span class="text-gray-500 dark:text-gray-400">+{{ team.total_members|add:"-3" }} more</span>
+            {% endif %}
+          </div>
+        </div>
+      {% empty %}
+        <p class="text-gray-500 dark:text-gray-400">No teams found.</p>
+      {% endfor %}
+    </div>
+  </div>
+  
+  <!-- Users Not in Teams -->
+  <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
+    <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+      Users Not in Teams ({{ users_not_in_teams|length }})
+    </h2>
+    
+    <div class="space-y-2 max-h-96 overflow-y-auto">
+      {% for user in users_not_in_teams %}
+        <div class="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+          <div class="font-medium text-gray-900 dark:text-white">{{ user.email }}</div>
+          <div class="text-sm text-gray-500 dark:text-gray-400">
+            {% if user.is_superuser %}
+              <span class="px-2 py-1 text-xs font-bold text-purple-800 dark:text-purple-200 bg-purple-100 dark:bg-purple-900/30 border border-purple-200 dark:border-purple-800 rounded">SUPERUSER</span>
+            {% elif user.is_staff %}
+              <span class="px-2 py-1 text-xs font-bold text-blue-800 dark:text-blue-200 bg-blue-100 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded">STAFF</span>
+            {% endif %}
+          </div>
+        </div>
+      {% empty %}
+        <p class="text-gray-500 dark:text-gray-400">All users are in teams.</p>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<div class="mt-6">
+  <a href="{% url 'challenges:challenges_list' %}" class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+    Back to Challenges
+  </a>
+</div>
+{% endblock %}

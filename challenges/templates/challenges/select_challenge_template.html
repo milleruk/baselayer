@@ -27,7 +27,7 @@
   </div>
   {% endif %}
 
-  <form method="post" action="{% url 'challenges:join_challenge' challenge.id %}" id="join-challenge-form">
+  <form method="post" action="{% url 'challenges:select_challenge_template' challenge.id %}" id="join-challenge-form">
     {% csrf_token %}
     {% if existing_current_week_plan %}
       <input type="hidden" name="delete_existing_plan" id="delete-existing-plan-input" value="false">

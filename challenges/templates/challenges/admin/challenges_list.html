@@ -197,6 +197,13 @@
           </td>
           <td class="px-6 py-4">
             <div class="flex items-center justify-end gap-1.5">
+              {% if challenge.challenge_type == "team" %}
+                <a href="{% url 'challenges:admin_manage_teams' challenge.id %}" 
+                   class="px-2.5 py-1.5 text-xs font-medium text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded transition-colors" 
+                   title="Manage teams">
+                  👥
+                </a>
+              {% endif %}
               {% if challenge.available_templates.exists %}
                 <a href="{% url 'challenges:admin_assign_workouts' challenge.id %}" 
                    class="px-2.5 py-1.5 text-xs font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors" 

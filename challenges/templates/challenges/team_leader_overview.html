@@ -1,0 +1,307 @@
+{% extends "base.html" %}
+{% block title %}Team Leader Overview{% endblock %}
+{% block page_title %}Team Leader Overview: {{ team.name }}{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+  <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">Team Leader Overview: {{ team.name }}</h1>
+  <p class="text-gray-600 dark:text-gray-400">View leaderboards and team performance</p>
+</div>
+
+<!-- Challenge Filter -->
+<div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm mb-6">
+  <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Select Challenge</h2>
+  <form method="get" action="{% url 'challenges:team_leader_overview' %}" class="flex gap-4 items-end">
+    <div class="flex-1">
+      <label for="challenge_id" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        Challenge
+      </label>
+      <select name="challenge_id" id="challenge_id" 
+              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              onchange="this.form.submit()">
+        <option value="">-- Select a challenge --</option>
+        {% for challenge in active_challenges %}
+          <option value="{{ challenge.id }}" {% if selected_challenge and selected_challenge.id == challenge.id %}selected{% endif %}>
+            {{ challenge.name }} ({{ challenge.start_date|date:"M d" }} - {{ challenge.end_date|date:"M d, Y" }})
+          </option>
+        {% empty %}
+          <option value="" disabled>No challenges available</option>
+        {% endfor %}
+      </select>
+    </div>
+    {% if selected_challenge %}
+    <div>
+      <label for="week" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        Week
+      </label>
+      <select name="week" id="week" 
+              class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              onchange="this.form.submit()">
+        {% for week_num in selected_challenge.week_range %}
+          <option value="{{ week_num }}" {% if week_number == week_num %}selected{% endif %}>
+            Week {{ week_num }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+    {% endif %}
+  </form>
+</div>
+
+{% if selected_challenge %}
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+  <!-- Team Summary -->
+  <div class="lg:col-span-1">
+    <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
+      <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Team Summary</h2>
+      
+      <div class="space-y-4">
+        <div>
+          <div class="text-sm text-gray-500 dark:text-gray-400">Challenge</div>
+          <div class="text-lg font-semibold text-gray-900 dark:text-white">{{ selected_challenge.name }}</div>
+        </div>
+        
+        <div>
+          <div class="text-sm text-gray-500 dark:text-gray-400">Week</div>
+          <div class="text-lg font-semibold text-gray-900 dark:text-white">Week {{ week_number }}</div>
+        </div>
+        
+        <div>
+          <div class="text-sm text-gray-500 dark:text-gray-400">Team Score</div>
+          <div class="text-2xl font-bold text-primary">{{ team_score|default:0 }} points</div>
+        </div>
+        
+        {% if team_rank %}
+        <div>
+          <div class="text-sm text-gray-500 dark:text-gray-400">Rank</div>
+          <div class="text-lg font-semibold text-gray-900 dark:text-white">
+            #{{ team_rank }} of {{ leaderboard_data|length }}
+          </div>
+        </div>
+        {% endif %}
+        
+        <div>
+          <div class="text-sm text-gray-500 dark:text-gray-400">Team Members</div>
+          <div class="text-lg font-semibold text-gray-900 dark:text-white">{{ total_member_count }} members</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Leaderboard -->
+  <div class="lg:col-span-2">
+    <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
+      <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+        Leaderboard - Week {{ week_number }}
+      </h2>
+      
+      {% if leaderboard_data %}
+        <div class="space-y-2">
+          {% for entry in leaderboard_data %}
+            <div class="flex items-center justify-between p-4 rounded-lg {% if entry.team.id == team.id %}bg-primary/10 border-2 border-primary{% else %}bg-gray-50 dark:bg-gray-700/50{% endif %}">
+              <div class="flex items-center gap-4">
+                <div class="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center font-bold text-sm">
+                  {{ forloop.counter }}
+                </div>
+                <div>
+                  <div class="font-semibold text-gray-900 dark:text-white">
+                    {{ entry.team.name }}
+                    {% if entry.team.id == team.id %}
+                      <span class="ml-2 px-2 py-1 text-xs font-bold text-primary bg-primary/20 rounded">Your Team</span>
+                    {% endif %}
+                  </div>
+                  <div class="text-sm text-gray-500 dark:text-gray-400">
+                    Leader: {% if entry.team.leader %}{% if entry.team.leader.first_name or entry.team.leader.last_name %}{{ entry.team.leader.first_name }} {{ entry.team.leader.last_name }}{% else %}User #{{ entry.team.leader.id }}{% endif %}{% else %}No leader{% endif %}
+                  </div>
+                </div>
+              </div>
+              <div class="text-right">
+                <div class="text-xl font-bold text-gray-900 dark:text-white">{{ entry.score }} pts</div>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="text-gray-500 dark:text-gray-400">No leaderboard data available.</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Team Members Performance -->
+<div class="mt-6 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 shadow-sm">
+  <h2 class="text-base font-semibold text-gray-900 dark:text-white mb-3">Team Members Performance</h2>
+  
+  {% if team_members_data %}
+    <div class="space-y-4">
+      {% for plan_name, plan_data in team_members_data %}
+        <div class="border-b border-gray-200 dark:border-gray-700 pb-4 last:border-b-0 last:pb-0">
+          <!-- Plan Header with Subtotal -->
+          <div class="flex items-center justify-between mb-3 pb-2 border-b border-gray-200 dark:border-gray-700">
+            <h3 class="text-sm font-semibold text-gray-900 dark:text-white">
+              {{ plan_name }}
+              <span class="ml-1.5 text-xs font-normal text-gray-500 dark:text-gray-400">
+                ({{ plan_data.members|length }})
+              </span>
+            </h3>
+            <div class="text-right">
+              <div class="text-xs text-gray-500 dark:text-gray-400">Subtotal</div>
+              <div class="text-base font-bold text-primary">{{ plan_data.subtotal }} pts</div>
+            </div>
+          </div>
+          
+          <!-- Table format for members -->
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="border-b border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-700">
+                  <th class="text-left py-2 px-3 font-semibold text-gray-900 dark:text-white">Leaderboard</th>
+                  {% if plan_data.members.0.weeks_status %}
+                    {% for week in plan_data.members.0.weeks_status %}
+                      <th class="text-center py-2 px-2 font-semibold text-gray-900 dark:text-white">{{ week.week_number }}</th>
+                    {% endfor %}
+                  {% endif %}
+                  <th class="text-center py-2 px-2 font-semibold text-gray-900 dark:text-white">Extra</th>
+                  <th class="text-center py-2 px-2 font-semibold text-gray-900 dark:text-white">Missed</th>
+                  <th class="text-right py-2 px-3 font-semibold text-gray-900 dark:text-white">Points</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for member in plan_data.members %}
+                  {% with first_initial=member.user.first_name|first|default:member.user.email|first|upper last_initial=member.user.last_name|first|default:member.user.email|slice:"1:2"|upper %}
+                  <tr class="border-b border-gray-200 dark:border-gray-700 {% cycle 'bg-white dark:bg-gray-800' 'bg-gray-50 dark:bg-gray-700/50' %} hover:bg-gray-100 dark:hover:bg-gray-600/50">
+                    <td class="py-2.5 px-3">
+                      <div class="flex items-center gap-2">
+                        <div class="w-7 h-7 rounded-full bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-300 flex items-center justify-center font-semibold text-xs flex-shrink-0">
+                          {{ first_initial }}{{ last_initial }}
+                        </div>
+                        <div class="min-w-0">
+                          <div class="font-medium text-gray-900 dark:text-white truncate">
+                            {% if member.user.first_name or member.user.last_name %}
+                              {{ member.user.first_name }} {{ member.user.last_name }}
+                            {% else %}
+                              User #{{ member.user.id }}
+                            {% endif %}
+                            {% if not member.is_scoring %}
+                              <span class="ml-1.5 px-1.5 py-0.5 text-xs font-bold text-gray-500 bg-gray-200 dark:bg-gray-600 rounded">NS</span>
+                            {% endif %}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    {% for week in member.weeks_status %}
+                      <td class="text-center py-2.5 px-2">
+                        {% if week.is_completed %}
+                          <span class="text-green-600 dark:text-green-400 font-bold">Y</span>
+                        {% elif week.week_plan %}
+                          <span class="text-red-600 dark:text-red-400 font-bold">N</span>
+                        {% else %}
+                          <span class="text-red-600 dark:text-red-400 font-bold">N</span>
+                        {% endif %}
+                      </td>
+                    {% endfor %}
+                    <td class="text-center py-2.5 px-2">
+                      {% for week in member.weeks_status %}
+                        {% if week.week_number == week_number %}
+                          {% if week.week_has_started %}
+                            {% if week.bonus_done %}
+                              <span class="text-green-600 dark:text-green-400 font-bold">Y</span>
+                            {% else %}
+                              <span class="text-red-600 dark:text-red-400 font-bold">N</span>
+                            {% endif %}
+                          {% else %}
+                            <span class="text-gray-400 dark:text-gray-600">-</span>
+                          {% endif %}
+                        {% endif %}
+                      {% endfor %}
+                    </td>
+                    <td class="text-center py-2.5 px-2">
+                      {% if member.missed_items > 0 %}
+                        <span class="text-red-600 dark:text-red-400 font-semibold">{{ member.missed_items }}</span>
+                      {% else %}
+                        <span class="text-gray-600 dark:text-gray-400">0</span>
+                      {% endif %}
+                    </td>
+                    <td class="text-right py-2.5 px-3 font-bold text-gray-900 dark:text-white">
+                      {{ member.total_score }}
+                    </td>
+                  </tr>
+                  {% endwith %}
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p class="text-sm text-gray-500 dark:text-gray-400">No team members found for this challenge.</p>
+  {% endif %}
+</div>
+
+<!-- All Users List (if enabled) -->
+{% if can_see_users and all_users_data %}
+<div class="mt-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 shadow-sm">
+  <h2 class="text-base font-semibold text-gray-900 dark:text-white mb-2">All Challenge Participants</h2>
+  <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">View all users participating in this challenge</p>
+  
+  <div class="space-y-1">
+    {% for user_data in all_users_data %}
+      {% with first_initial=user_data.user.first_name|first|default:user_data.user.email|first|upper last_initial=user_data.user.last_name|first|default:user_data.user.email|slice:"1:2"|upper %}
+      <div class="flex items-center justify-between py-1.5 px-2 bg-gray-50 dark:bg-gray-700/50 rounded text-sm">
+        <div class="flex items-center gap-2.5 min-w-0 flex-1">
+          <div class="w-7 h-7 rounded-full bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-300 flex items-center justify-center font-semibold text-xs flex-shrink-0">
+            {{ first_initial }}{{ last_initial }}
+          </div>
+          <div class="min-w-0 flex-1">
+            <div class="font-medium text-gray-900 dark:text-white truncate">
+              {% if user_data.user.first_name or user_data.user.last_name %}
+                {{ user_data.user.first_name }} {{ user_data.user.last_name }}
+              {% else %}
+                User #{{ user_data.user.id }}
+              {% endif %}
+              {% if not user_data.is_scoring %}
+                <span class="ml-1.5 px-1.5 py-0.5 text-xs font-bold text-gray-500 bg-gray-200 dark:bg-gray-600 rounded">NS</span>
+              {% endif %}
+            </div>
+            <div class="text-xs text-gray-500 dark:text-gray-400 truncate">
+              Team: <strong>{{ user_data.team_name }}</strong>
+              {% if user_data.team_name == team.name %}
+                <span class="ml-1.5 px-1.5 py-0.5 text-xs font-bold text-primary bg-primary/20 rounded">Your Team</span>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        <div class="text-right flex-shrink-0 ml-2">
+          <div class="text-sm font-bold text-gray-900 dark:text-white">{{ user_data.score }} pts</div>
+        </div>
+      </div>
+      {% endwith %}
+    {% endfor %}
+  </div>
+</div>
+{% elif selected_challenge and not can_see_users %}
+<div class="mt-6 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
+  <p class="text-gray-500 dark:text-gray-400 text-center py-4">
+    User list is not available yet. {% if selected_challenge.team_leaders_see_users_date %}It will be visible starting {{ selected_challenge.team_leaders_see_users_date|date:"M d, Y" }}.{% else %}It will be visible once the challenge starts.{% endif %}
+  </p>
+</div>
+{% endif %}
+{% else %}
+<div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
+  {% if active_challenges.exists %}
+    <p class="text-gray-500 dark:text-gray-400">Please select a challenge to view leaderboards.</p>
+  {% else %}
+    <p class="text-gray-500 dark:text-gray-400 text-center py-4">
+      No currently running team challenges available. Challenges will appear here once they start and team leader visibility is enabled.
+    </p>
+  {% endif %}
+</div>
+{% endif %}
+
+<div class="mt-6">
+  <a href="{% url 'challenges:challenges_list' %}" class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+    Back to Challenges
+  </a>
+</div>
+{% endblock %}

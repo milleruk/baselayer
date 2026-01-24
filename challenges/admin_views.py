@@ -4,7 +4,11 @@ from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.db.models import Q, Count
 from datetime import date
-from .models import Challenge, ChallengeInstance, ChallengeWorkoutAssignment, ChallengeWeekUnlock, ChallengeBonusWorkout
+from .models import Challenge, ChallengeInstance, ChallengeWorkoutAssignment, ChallengeWeekUnlock, ChallengeBonusWorkout, Team, TeamMember, TeamLeaderVolunteer
+from django.contrib.auth import get_user_model
+from django.utils import timezone
+
+User = get_user_model()
 from plans.models import PlanTemplate
 
 def is_admin(user):
@@ -96,6 +100,15 @@ def admin_challenge_create(request):
             challenge.signup_deadline = request.POST.get("signup_deadline") or None
             challenge.is_active = request.POST.get("is_active") == "on"
             challenge.is_visible = request.POST.get("is_visible") == "on"
+            challenge.team_leaders_can_see_users = request.POST.get("team_leaders_can_see_users") == "on"
+            team_leaders_see_users_date_str = request.POST.get("team_leaders_see_users_date", "").strip()
+            challenge.team_leaders_see_users_date = None
+            if team_leaders_see_users_date_str:
+                try:
+                    from datetime import datetime
+                    challenge.team_leaders_see_users_date = datetime.strptime(team_leaders_see_users_date_str, "%Y-%m-%d").date()
+                except ValueError:
+                    pass
             challenge.challenge_type = request.POST.get("challenge_type", "mini")
             challenge.categories = request.POST.get("categories", "")
             
@@ -156,6 +169,15 @@ def admin_challenge_edit(request, challenge_id):
             challenge.signup_deadline = request.POST.get("signup_deadline") or None
             challenge.is_active = request.POST.get("is_active") == "on"
             challenge.is_visible = request.POST.get("is_visible") == "on"
+            challenge.team_leaders_can_see_users = request.POST.get("team_leaders_can_see_users") == "on"
+            team_leaders_see_users_date_str = request.POST.get("team_leaders_see_users_date", "").strip()
+            challenge.team_leaders_see_users_date = None
+            if team_leaders_see_users_date_str:
+                try:
+                    from datetime import datetime
+                    challenge.team_leaders_see_users_date = datetime.strptime(team_leaders_see_users_date_str, "%Y-%m-%d").date()
+                except ValueError:
+                    pass
             challenge.challenge_type = request.POST.get("challenge_type", "mini")
             challenge.categories = request.POST.get("categories", "")
             
@@ -568,3 +590,356 @@ def admin_assign_workouts(request, challenge_id):
         "num_weeks": num_weeks,
         "week_range": week_range,
     })
+
+
+@login_required
+@user_passes_test(is_admin, login_url='/')
+def admin_manage_teams(request, challenge_id):
+    """Admin panel to manage team assignments and volunteers"""
+    challenge = get_object_or_404(Challenge, pk=challenge_id)
+    
+    # Get all teams
+    all_teams = Team.objects.all().order_by('name')
+    
+    # Get volunteers for this challenge
+    volunteers = TeamLeaderVolunteer.objects.filter(
+        challenge=challenge,
+        assigned=False
+    ).select_related('user', 'challenge_instance').order_by('-volunteered_at')
+    
+    # Get users without teams for this challenge (only those who have signed up)
+    users_with_teams = set()
+    for member in TeamMember.objects.filter(challenge_instance__challenge=challenge, challenge_instance__is_active=True):
+        users_with_teams.add(member.challenge_instance.user.id)
+    
+    # Only show users who have actually signed up for this challenge
+    users_without_teams = User.objects.filter(
+        challenge_instances__challenge=challenge,
+        challenge_instances__is_active=True
+    ).exclude(id__in=users_with_teams).distinct().order_by('email')
+    
+    # Get team members for this challenge
+    team_members = TeamMember.objects.filter(
+        challenge_instance__challenge=challenge,
+        challenge_instance__is_active=True
+    ).select_related('team', 'challenge_instance__user').order_by('team__name', 'challenge_instance__user__email')
+    
+    # Group by team
+    teams_data = {}
+    for member in team_members:
+        team = member.team
+        if team.id not in teams_data:
+            teams_data[team.id] = {
+                'team': team,
+                'members': []
+            }
+        teams_data[team.id]['members'].append(member)
+    
+    # Handle POST requests
+    if request.method == "POST":
+        action = request.POST.get("action")
+        
+        if action == "assign_volunteer":
+            volunteer_id = request.POST.get("volunteer_id")
+            team_id = request.POST.get("team_id")
+            create_new_team = request.POST.get("create_new_team") == "on"
+            new_team_name = request.POST.get("new_team_name", "").strip()
+            
+            try:
+                volunteer = TeamLeaderVolunteer.objects.get(pk=volunteer_id, challenge=challenge, assigned=False)
+                
+                if create_new_team:
+                    if not new_team_name:
+                        messages.error(request, "Please provide a team name.")
+                    else:
+                        # Create new team with volunteer as leader
+                        team = Team.objects.create(name=new_team_name, leader=volunteer.user)
+                        # Assign volunteer to challenge instance
+                        if volunteer.challenge_instance:
+                            TeamMember.objects.get_or_create(
+                                team=team,
+                                challenge_instance=volunteer.challenge_instance
+                            )
+                        volunteer.assigned = True
+                        volunteer.assigned_team = team
+                        volunteer.assigned_at = timezone.now()
+                        volunteer.save()
+                        messages.success(request, f"Created team '{team.name}' and assigned {volunteer.user.email} as leader.")
+                elif team_id:
+                    team = get_object_or_404(Team, pk=team_id)
+                    # Check if team can add another leader (max 3)
+                    # For now, we only have one leader field, so we'll replace if needed
+                    # TODO: When implementing multiple leaders, check if team.team_leaders count < 3
+                    if team.leader and team.leader != volunteer.user:
+                        # Check if we're at max leaders (for now, just one leader)
+                        # In future, check: len(team.team_leaders) >= 3
+                        if not team.can_add_leader():
+                            messages.error(request, f"Team '{team.name}' already has the maximum number of leaders (3).")
+                            return redirect("challenges:admin_manage_teams", challenge_id=challenge_id)
+                    
+                    # Assign volunteer as leader
+                    team.leader = volunteer.user
+                    team.save()
+                    # Assign volunteer to challenge instance
+                    if volunteer.challenge_instance:
+                        TeamMember.objects.get_or_create(
+                            team=team,
+                            challenge_instance=volunteer.challenge_instance
+                        )
+                    volunteer.assigned = True
+                    volunteer.assigned_team = team
+                    volunteer.assigned_at = timezone.now()
+                    volunteer.save()
+                    messages.success(request, f"Assigned {volunteer.user.email} as leader of '{team.name}'.")
+                else:
+                    messages.error(request, "Please select a team or create a new one.")
+            except TeamLeaderVolunteer.DoesNotExist:
+                messages.error(request, "Volunteer not found or already assigned.")
+        
+        elif action == "assign_user_to_team":
+            user_id = request.POST.get("user_id")
+            team_id = request.POST.get("team_id")
+            
+            try:
+                user = User.objects.get(pk=user_id)
+                team = get_object_or_404(Team, pk=team_id)
+                # Find user's challenge instance
+                instance = ChallengeInstance.objects.filter(
+                    user=user,
+                    challenge=challenge,
+                    is_active=True
+                ).first()
+                
+                if instance:
+                    TeamMember.objects.get_or_create(
+                        team=team,
+                        challenge_instance=instance
+                    )
+                    messages.success(request, f"Assigned {user.email} to team '{team.name}'.")
+                else:
+                    messages.error(request, f"User {user.email} is not participating in this challenge.")
+            except User.DoesNotExist:
+                messages.error(request, "User not found.")
+        
+        elif action == "remove_member":
+            member_id = request.POST.get("member_id")
+            try:
+                member = TeamMember.objects.get(pk=member_id, challenge_instance__challenge=challenge)
+                user_email = member.challenge_instance.user.email
+                team_name = member.team.name
+                member.delete()
+                messages.success(request, f"Removed {user_email} from team '{team_name}'.")
+            except TeamMember.DoesNotExist:
+                messages.error(request, "Member not found.")
+        
+        elif action == "change_team_leader":
+            team_id = request.POST.get("team_id")
+            new_leader_id = request.POST.get("new_leader_id")
+            try:
+                team = get_object_or_404(Team, pk=team_id)
+                new_leader = User.objects.get(pk=new_leader_id)
+                # Check if new leader is a member of the team
+                is_member = TeamMember.objects.filter(
+                    team=team,
+                    challenge_instance__user=new_leader,
+                    challenge_instance__challenge=challenge,
+                    challenge_instance__is_active=True
+                ).exists()
+                
+                if is_member:
+                    # Check if team already has max leaders (3)
+                    # For now, we only track one leader, but we can add additional leaders later
+                    # Just check if we're replacing the existing leader or if there's no leader
+                    if team.leader and team.leader != new_leader:
+                        # Check if we can add another leader (max 3)
+                        # Since we only have one leader field for now, we'll just replace it
+                        # TODO: Implement multiple leaders (up to 3) when needed
+                        pass
+                    team.leader = new_leader
+                    team.save()
+                    messages.success(request, f"Changed team leader of '{team.name}' to {new_leader.email}.")
+                else:
+                    messages.error(request, "New leader must be a member of the team.")
+            except User.DoesNotExist:
+                messages.error(request, "User not found.")
+        
+        elif action == "create_team":
+            # Only allow superusers to create teams
+            if not request.user.is_superuser:
+                messages.error(request, "Only superusers can create teams.")
+                return redirect("challenges:admin_manage_teams", challenge_id=challenge_id)
+            
+            team_name = request.POST.get("team_name", "").strip()
+            leader_id = request.POST.get("leader_id") or None
+            
+            if not team_name:
+                messages.error(request, "Please provide a team name.")
+                return redirect("challenges:admin_manage_teams", challenge_id=challenge_id)
+            
+            # Check if team name already exists
+            if Team.objects.filter(name=team_name).exists():
+                messages.error(request, f"A team with the name '{team_name}' already exists.")
+                return redirect("challenges:admin_manage_teams", challenge_id=challenge_id)
+            
+            try:
+                leader = None
+                if leader_id:
+                    leader = User.objects.get(pk=leader_id)
+                
+                team = Team.objects.create(name=team_name, leader=leader)
+                
+                # If leader was specified and they're in this challenge, assign them to the team
+                if leader:
+                    instance = ChallengeInstance.objects.filter(
+                        user=leader,
+                        challenge=challenge,
+                        is_active=True
+                    ).first()
+                    if instance:
+                        TeamMember.objects.get_or_create(
+                            team=team,
+                            challenge_instance=instance
+                        )
+                
+                messages.success(request, f"Created team '{team.name}' successfully.")
+            except User.DoesNotExist:
+                messages.error(request, "Leader user not found.")
+            except Exception as e:
+                messages.error(request, f"Error creating team: {str(e)}")
+        
+        return redirect("challenges:admin_manage_teams", challenge_id=challenge_id)
+    
+    # Get all users in the challenge for team leader selection
+    all_challenge_users = User.objects.filter(
+        challenge_instances__challenge=challenge,
+        challenge_instances__is_active=True
+    ).distinct().order_by('email')
+    
+    return render(request, "challenges/admin/manage_teams.html", {
+        "challenge": challenge,
+        "all_teams": all_teams,
+        "volunteers": volunteers,
+        "users_without_teams": users_without_teams,
+        "teams_data": teams_data,
+        "all_challenge_users": all_challenge_users,
+    })
+
+
+@login_required
+@user_passes_test(is_admin, login_url='/')
+def admin_assign_teams_dragdrop(request, challenge_id):
+    """Drag-and-drop interface for assigning users to teams"""
+    challenge = get_object_or_404(Challenge, pk=challenge_id)
+    
+    # Get all teams
+    all_teams = Team.objects.all().order_by('name')
+    
+    # Get users without teams for this challenge
+    users_with_teams = set()
+    for member in TeamMember.objects.filter(challenge_instance__challenge=challenge, challenge_instance__is_active=True):
+        users_with_teams.add(member.challenge_instance.user.id)
+    
+    # Get unassigned users with their challenge instances
+    unassigned_users = []
+    for user in User.objects.filter(
+        challenge_instances__challenge=challenge,
+        challenge_instances__is_active=True
+    ).exclude(id__in=users_with_teams).distinct().order_by('email'):
+        instance = ChallengeInstance.objects.filter(
+            user=user,
+            challenge=challenge,
+            is_active=True
+        ).first()
+        if instance:
+            unassigned_users.append({
+                'user': user,
+                'instance': instance
+            })
+    
+    # Get team members grouped by team
+    team_members = TeamMember.objects.filter(
+        challenge_instance__challenge=challenge,
+        challenge_instance__is_active=True
+    ).select_related('team', 'challenge_instance__user').order_by('team__name', 'challenge_instance__user__email')
+    
+    # Initialize teams_data with all teams (including empty ones)
+    teams_data = {}
+    for team in all_teams:
+        teams_data[team.id] = {
+            'team': team,
+            'members': []
+        }
+    
+    # Populate members for teams that have them
+    for member in team_members:
+        team = member.team
+        if team.id in teams_data:
+            teams_data[team.id]['members'].append(member)
+    
+    return render(request, "challenges/admin/assign_teams_dragdrop.html", {
+        "challenge": challenge,
+        "all_teams": all_teams,
+        "unassigned_users": unassigned_users,
+        "teams_data": teams_data,
+    })
+
+
+@login_required
+@user_passes_test(is_admin, login_url='/')
+def admin_assign_user_to_team_ajax(request, challenge_id):
+    """AJAX endpoint to assign a user to a team via drag-and-drop"""
+    if request.method != "POST":
+        from django.http import JsonResponse
+        return JsonResponse({'success': False, 'error': 'Method not allowed'}, status=405)
+    
+    import json
+    from django.http import JsonResponse
+    
+    try:
+        data = json.loads(request.body)
+        user_id = data.get('user_id')
+        team_id = data.get('team_id')
+        
+        if not user_id or not team_id:
+            return JsonResponse({'success': False, 'error': 'Missing user_id or team_id'}, status=400)
+        
+        challenge = get_object_or_404(Challenge, pk=challenge_id)
+        user = get_object_or_404(User, pk=user_id)
+        team = get_object_or_404(Team, pk=team_id)
+        
+        # Find user's challenge instance
+        instance = ChallengeInstance.objects.filter(
+            user=user,
+            challenge=challenge,
+            is_active=True
+        ).first()
+        
+        if not instance:
+            return JsonResponse({
+                'success': False, 
+                'error': f'User {user.email} is not participating in this challenge.'
+            }, status=400)
+        
+        # Check if user is already in a team
+        existing_member = TeamMember.objects.filter(challenge_instance=instance).first()
+        if existing_member:
+            # Remove from old team
+            existing_member.delete()
+        
+        # Assign to new team
+        TeamMember.objects.get_or_create(
+            team=team,
+            challenge_instance=instance
+        )
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Assigned {user.email} to team {team.name}',
+            'user_email': user.email,
+            'team_name': team.name
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({'success': False, 'error': 'Invalid JSON'}, status=400)
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)

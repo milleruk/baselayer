@@ -1,0 +1,212 @@
+{% extends "base.html" %}
+{% block title %}Select Team{% endblock %}
+{% block page_title %}Choose your training plan at the start of the challenge{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+  <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">Join Challenge: {{ challenge.name }}</h1>
+  <p class="text-gray-600 dark:text-gray-400">Choose how you'd like to join a team</p>
+</div>
+
+<div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
+  <form method="post" action="{% url 'challenges:select_team' challenge.id %}" id="team-selection-form">
+    {% csrf_token %}
+    
+    <div class="space-y-4 mb-6">
+      <!-- Option 1: Join existing team -->
+      <div class="relative">
+        <input type="radio" name="team_option" value="join_existing" id="team-option-existing" 
+               class="sr-only peer" required>
+        <label for="team-option-existing" 
+               class="block p-4 rounded-lg border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 cursor-pointer transition-all hover:border-primary peer-checked:border-primary peer-checked:bg-primary/5">
+          <div class="flex items-start gap-3">
+            <div class="flex-shrink-0 mt-1">
+              <div class="w-5 h-5 rounded-full border-2 border-gray-300 dark:border-gray-600 flex items-center justify-center transition-all" id="radio-existing">
+                <div class="w-3 h-3 rounded-full bg-primary opacity-0 transition-opacity" id="radio-dot-existing"></div>
+              </div>
+            </div>
+            <div class="flex-1">
+              <div class="font-bold text-gray-900 dark:text-white mb-1">Join an existing team number or group name</div>
+              <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">Select a team from the list below or enter a team name/number</p>
+              
+              <!-- Team selection dropdown -->
+              <select name="team_id" id="team-select" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white mb-2" disabled>
+                <option value="">Select a team...</option>
+                {% for team in teams %}
+                  <option value="{{ team.id }}">{{ team.name }} ({{ team.member_count }} members)</option>
+                {% endfor %}
+              </select>
+              
+              <!-- Manual team name input -->
+              <input type="text" name="team_name" id="team-name-input" 
+                     placeholder="Or enter team name/number" 
+                     class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white" 
+                     disabled>
+            </div>
+          </div>
+        </label>
+      </div>
+      
+      <!-- Option 2: Join random team -->
+      <div class="relative">
+        <input type="radio" name="team_option" value="random" id="team-option-random" 
+               class="sr-only peer">
+        <label for="team-option-random" 
+               class="block p-4 rounded-lg border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 cursor-pointer transition-all hover:border-primary peer-checked:border-primary peer-checked:bg-primary/5">
+          <div class="flex items-start gap-3">
+            <div class="flex-shrink-0 mt-1">
+              <div class="w-5 h-5 rounded-full border-2 border-gray-300 dark:border-gray-600 flex items-center justify-center transition-all" id="radio-random">
+                <div class="w-3 h-3 rounded-full bg-primary opacity-0 transition-opacity" id="radio-dot-random"></div>
+              </div>
+            </div>
+            <div class="flex-1">
+              <div class="font-bold text-gray-900 dark:text-white mb-1">Join a random team</div>
+              <p class="text-sm text-gray-600 dark:text-gray-400">We'll assign you to a team with available space</p>
+            </div>
+          </div>
+        </label>
+      </div>
+      
+      <!-- Option 3: Ride with previous team -->
+      {% if previous_team %}
+      <div class="relative">
+        <input type="radio" name="team_option" value="previous_team" id="team-option-previous" 
+               class="sr-only peer">
+        <label for="team-option-previous" 
+               class="block p-4 rounded-lg border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 cursor-pointer transition-all hover:border-primary peer-checked:border-primary peer-checked:bg-primary/5">
+          <div class="flex items-start gap-3">
+            <div class="flex-shrink-0 mt-1">
+              <div class="w-5 h-5 rounded-full border-2 border-gray-300 dark:border-gray-600 flex items-center justify-center transition-all" id="radio-previous">
+                <div class="w-3 h-3 rounded-full bg-primary opacity-0 transition-opacity" id="radio-dot-previous"></div>
+              </div>
+            </div>
+            <div class="flex-1">
+              <div class="font-bold text-gray-900 dark:text-white mb-1">Ride with previous team</div>
+              <p class="text-sm text-gray-600 dark:text-gray-400">Join your previous team: <strong>{{ previous_team.name }}</strong></p>
+            </div>
+          </div>
+        </label>
+      </div>
+      {% endif %}
+    </div>
+    
+    <!-- Volunteer to be team lead checkbox -->
+    <div class="mb-6 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50 p-4">
+      <label class="flex items-start gap-3 cursor-pointer">
+        <input type="checkbox" name="volunteer_team_lead" id="volunteer-team-lead" class="mt-1 w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary">
+        <div>
+          <div class="font-semibold text-gray-900 dark:text-white mb-1">Volunteer to be a Team Leader</div>
+          <p class="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
+            If you select "Join a random team" and check this box, admins can assign you to lead a new or existing team. This helps us organize teams better!
+          </p>
+        </div>
+      </label>
+    </div>
+    
+    <div class="flex gap-3 justify-end">
+      <a href="{% url 'challenges:select_challenge_template' challenge.id %}" class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+        Back
+      </a>
+      <button type="submit" class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors">
+        Continue
+      </button>
+    </div>
+  </form>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const radioButtons = document.querySelectorAll('input[name="team_option"]');
+    const teamSelect = document.getElementById('team-select');
+    const teamNameInput = document.getElementById('team-name-input');
+    const volunteerCheckbox = document.getElementById('volunteer-team-lead');
+    
+    function updateRadioVisuals() {
+      radioButtons.forEach(radio => {
+        const radioId = radio.id.replace('team-option-', '');
+        const radioEl = document.getElementById('radio-' + radioId);
+        const dot = document.getElementById('radio-dot-' + radioId);
+        const label = document.querySelector('label[for="' + radio.id + '"]');
+        
+        if (radio.checked) {
+          if (radioEl) {
+            radioEl.classList.add('border-primary');
+            radioEl.classList.remove('border-gray-300', 'dark:border-gray-600');
+          }
+          if (dot) {
+            dot.classList.remove('opacity-0');
+            dot.classList.add('opacity-100');
+          }
+          if (label) {
+            label.classList.add('border-primary', 'bg-primary/5');
+            label.classList.remove('border-gray-200', 'dark:border-gray-700');
+          }
+          
+          // Enable/disable inputs based on selection
+          if (radio.value === 'join_existing') {
+            teamSelect.disabled = false;
+            teamNameInput.disabled = false;
+            // Disable volunteer checkbox if joining existing team
+            if (volunteerCheckbox) {
+              volunteerCheckbox.disabled = true;
+              volunteerCheckbox.checked = false;
+            }
+          } else if (radio.value === 'random') {
+            teamSelect.disabled = true;
+            teamNameInput.disabled = true;
+            // Enable volunteer checkbox for random assignment
+            if (volunteerCheckbox) {
+              volunteerCheckbox.disabled = false;
+            }
+          } else {
+            teamSelect.disabled = true;
+            teamNameInput.disabled = true;
+            // Disable volunteer checkbox for previous team
+            if (volunteerCheckbox) {
+              volunteerCheckbox.disabled = true;
+              volunteerCheckbox.checked = false;
+            }
+          }
+        } else {
+          if (radioEl) {
+            radioEl.classList.remove('border-primary');
+            radioEl.classList.add('border-gray-300', 'dark:border-gray-600');
+          }
+          if (dot) {
+            dot.classList.add('opacity-0');
+            dot.classList.remove('opacity-100');
+          }
+          if (label) {
+            label.classList.remove('border-primary', 'bg-primary/5');
+            label.classList.add('border-gray-200', 'dark:border-gray-700');
+          }
+        }
+      });
+    }
+    
+    radioButtons.forEach(radio => {
+      radio.addEventListener('change', updateRadioVisuals);
+    });
+    
+    // Handle manual team name lookup
+    teamNameInput.addEventListener('input', function() {
+      const searchTerm = this.value.toLowerCase();
+      const options = teamSelect.querySelectorAll('option');
+      let found = false;
+      
+      options.forEach(option => {
+        if (option.value && option.text.toLowerCase().includes(searchTerm)) {
+          teamSelect.value = option.value;
+          found = true;
+        }
+      });
+      
+      if (!found && this.value) {
+        teamSelect.value = '';
+      }
+    });
+    
+    updateRadioVisuals();
+  });
+</script>
+{% endblock %}

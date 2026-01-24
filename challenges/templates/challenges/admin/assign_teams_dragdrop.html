@@ -1,0 +1,337 @@
+{% extends "base.html" %}
+{% block title %}Assign Teams - {{ challenge.name }}{% endblock %}
+{% block page_title %}Assign Teams: {{ challenge.name }}{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+  <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">Assign Teams: {{ challenge.name }}</h1>
+  <p class="text-gray-600 dark:text-gray-400">Drag and drop users to assign them to teams</p>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+  <!-- Unassigned Users (Draggable) -->
+  <div class="lg:col-span-1">
+    <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
+      <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+        Unassigned Users ({{ unassigned_users|length }})
+      </h2>
+      
+      <div id="unassigned-users" class="space-y-2 max-h-[calc(100vh-300px)] overflow-y-auto">
+        {% for user_data in unassigned_users %}
+          <div 
+            class="draggable-user p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg cursor-move hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors border-2 border-transparent hover:border-primary/50"
+            draggable="true"
+            data-user-id="{{ user_data.user.id }}"
+            data-instance-id="{{ user_data.instance.id }}"
+            data-user-email="{{ user_data.user.email }}"
+            id="user-{{ user_data.user.id }}"
+          >
+            <div class="font-medium text-gray-900 dark:text-white">{{ user_data.user.email }}</div>
+            <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              Template: {{ user_data.instance.selected_template.name|default:"None" }}
+            </div>
+          </div>
+        {% empty %}
+          <p class="text-gray-500 dark:text-gray-400 text-center py-4">All users are assigned to teams!</p>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  
+  <!-- Teams (Drop Zones) -->
+  <div class="lg:col-span-2">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {% for team_id, team_info in teams_data.items %}
+        <div 
+          class="team-dropzone rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 p-4 shadow-sm min-h-[200px] transition-colors"
+          data-team-id="{{ team_info.team.id }}"
+          id="team-{{ team_info.team.id }}"
+        >
+          <div class="mb-3 pb-3 border-b border-gray-200 dark:border-gray-700">
+            <h3 class="font-semibold text-gray-900 dark:text-white text-lg">{{ team_info.team.name }}</h3>
+            <p class="text-sm text-gray-500 dark:text-gray-400">
+              Leader: {% if team_info.team.leader %}{{ team_info.team.leader.email }}{% else %}<span class="text-red-500">No leader</span>{% endif %}
+            </p>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              {{ team_info.members|length }} member{{ team_info.members|length|pluralize }}
+            </p>
+          </div>
+          
+          <div class="team-members space-y-2 min-h-[100px]">
+            {% for member in team_info.members %}
+              <div 
+                class="draggable-user p-2 bg-gray-50 dark:bg-gray-700/50 rounded text-sm cursor-move hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors border-2 border-transparent hover:border-primary/50"
+                draggable="true"
+                data-user-id="{{ member.challenge_instance.user.id }}"
+                data-instance-id="{{ member.challenge_instance.id }}"
+                data-user-email="{{ member.challenge_instance.user.email }}"
+                id="user-{{ member.challenge_instance.user.id }}"
+              >
+                {{ member.challenge_instance.user.email }}
+              </div>
+            {% empty %}
+              <p class="text-xs text-gray-400 dark:text-gray-500 text-center py-4 italic">No members yet - drag users here</p>
+            {% endfor %}
+          </div>
+          
+          <div class="drop-indicator mt-2 text-center text-sm text-gray-400 dark:text-gray-500 py-2 hidden">
+            Drop user here
+          </div>
+        </div>
+      {% empty %}
+        <div class="col-span-2">
+          <p class="text-gray-500 dark:text-gray-400 text-center py-8">No teams found. Create teams first.</p>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<div class="mt-6 flex gap-4">
+  <a href="{% url 'challenges:admin_manage_teams' challenge.id %}" class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+    Back to Team Management
+  </a>
+  <a href="{% url 'challenges:admin_challenges_list' %}" class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+    Back to Challenges
+  </a>
+</div>
+
+<!-- Toast notification -->
+<div id="toast" class="fixed bottom-4 right-4 hidden px-6 py-3 rounded-lg shadow-lg z-50">
+  <div class="flex items-center gap-2">
+    <span id="toast-message"></span>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  let draggedElement = null;
+  let draggedUserData = null;
+  
+  // Get all draggable users
+  const draggableUsers = document.querySelectorAll('.draggable-user');
+  
+  // Add drag event listeners to all draggable users
+  draggableUsers.forEach(user => {
+    user.addEventListener('dragstart', function(e) {
+      draggedElement = this;
+      draggedUserData = {
+        userId: this.dataset.userId,
+        instanceId: this.dataset.instanceId,
+        userEmail: this.dataset.userEmail
+      };
+      this.style.opacity = '0.5';
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/html', this.outerHTML);
+    });
+    
+    user.addEventListener('dragend', function(e) {
+      this.style.opacity = '1';
+      // Remove drop indicators
+      document.querySelectorAll('.drop-indicator').forEach(indicator => {
+        indicator.classList.add('hidden');
+      });
+      document.querySelectorAll('.team-dropzone').forEach(zone => {
+        zone.classList.remove('border-primary', 'bg-primary/5');
+      });
+    });
+  });
+  
+  // Get all team drop zones
+  const dropZones = document.querySelectorAll('.team-dropzone');
+  
+  dropZones.forEach(zone => {
+    zone.addEventListener('dragover', function(e) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      this.classList.add('border-primary', 'bg-primary/5');
+      const indicator = this.querySelector('.drop-indicator');
+      if (indicator) {
+        indicator.classList.remove('hidden');
+      }
+    });
+    
+    zone.addEventListener('dragleave', function(e) {
+      this.classList.remove('border-primary', 'bg-primary/5');
+      const indicator = this.querySelector('.drop-indicator');
+      if (indicator) {
+        indicator.classList.add('hidden');
+      }
+    });
+    
+    zone.addEventListener('drop', function(e) {
+      e.preventDefault();
+      this.classList.remove('border-primary', 'bg-primary/5');
+      const indicator = this.querySelector('.drop-indicator');
+      if (indicator) {
+        indicator.classList.add('hidden');
+      }
+      
+      if (!draggedUserData) return;
+      
+      const teamId = this.dataset.teamId;
+      const teamName = this.querySelector('h3').textContent;
+      
+      // Make AJAX request to assign user to team
+      assignUserToTeam(draggedUserData.userId, teamId, draggedUserData.userEmail, teamName, draggedElement);
+    });
+  });
+  
+  function assignUserToTeam(userId, teamId, userEmail, teamName, draggedElement) {
+    const url = "{% url 'challenges:admin_assign_user_to_team_ajax' challenge.id %}";
+    // Get CSRF token from cookie
+    function getCookie(name) {
+      let cookieValue = null;
+      if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+          const cookie = cookies[i].trim();
+          if (cookie.substring(0, name.length + 1) === (name + '=')) {
+            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+            break;
+          }
+        }
+      }
+      return cookieValue;
+    }
+    const csrftoken = getCookie('csrftoken');
+    
+    fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrftoken
+      },
+      body: JSON.stringify({
+        user_id: userId,
+        team_id: teamId
+      })
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        showToast(data.message || `Assigned ${userEmail} to ${teamName}`, 'success');
+        
+        // Move the element to the new team
+        const teamZone = document.getElementById(`team-${teamId}`);
+        const membersContainer = teamZone.querySelector('.team-members');
+        
+        // Create new element in the team
+        const newElement = draggedElement.cloneNode(true);
+        newElement.style.opacity = '1';
+        newElement.classList.remove('hover:bg-gray-100', 'hover:bg-gray-700', 'hover:border-primary/50');
+        newElement.classList.add('text-sm', 'cursor-move', 'border-2', 'border-transparent', 'hover:border-primary/50');
+        if (!newElement.querySelector('.p-2')) {
+          newElement.innerHTML = `<div class="p-2">${userEmail}</div>`;
+        }
+        
+        // Remove from unassigned if it was there
+        const wasUnassigned = draggedElement.closest('#unassigned-users');
+        if (wasUnassigned) {
+          draggedElement.remove();
+          
+          // Update unassigned count
+          const unassignedCount = document.querySelectorAll('#unassigned-users .draggable-user').length;
+          const header = document.querySelector('#unassigned-users').previousElementSibling;
+          if (header) {
+            header.textContent = `Unassigned Users (${unassignedCount})`;
+          }
+        } else {
+          // Remove from old team and update its count
+          const oldTeamZone = draggedElement.closest('.team-dropzone');
+          draggedElement.remove();
+          
+          if (oldTeamZone) {
+            const oldMembersContainer = oldTeamZone.querySelector('.team-members');
+            const oldMemberCount = oldMembersContainer.querySelectorAll('.draggable-user').length;
+            const oldCountText = oldTeamZone.querySelector('p.text-xs');
+            if (oldCountText) {
+              oldCountText.textContent = `${oldMemberCount} member${oldMemberCount !== 1 ? 's' : ''}`;
+            }
+          }
+        }
+        
+        // Add to new team
+        membersContainer.appendChild(newElement);
+        
+        // Update team member count
+        const memberCount = membersContainer.querySelectorAll('.draggable-user').length;
+        const countText = teamZone.querySelector('p.text-xs');
+        if (countText) {
+          countText.textContent = `${memberCount} member${memberCount !== 1 ? 's' : ''}`;
+        }
+        
+        // Re-attach drag listeners to the new element
+        attachDragListeners(newElement);
+      } else {
+        showToast(data.error || 'Failed to assign user to team', 'error');
+      }
+    })
+    .catch(error => {
+      console.error('Error:', error);
+      showToast('An error occurred while assigning user to team', 'error');
+    });
+  }
+  
+  function attachDragListeners(element) {
+    element.addEventListener('dragstart', function(e) {
+      draggedElement = this;
+      draggedUserData = {
+        userId: this.dataset.userId,
+        instanceId: this.dataset.instanceId,
+        userEmail: this.dataset.userEmail
+      };
+      this.style.opacity = '0.5';
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/html', this.outerHTML);
+    });
+    
+    element.addEventListener('dragend', function(e) {
+      this.style.opacity = '1';
+      document.querySelectorAll('.drop-indicator').forEach(indicator => {
+        indicator.classList.add('hidden');
+      });
+      document.querySelectorAll('.team-dropzone').forEach(zone => {
+        zone.classList.remove('border-primary', 'bg-primary/5');
+      });
+    });
+  }
+  
+  function showToast(message, type = 'success') {
+    const toast = document.getElementById('toast');
+    const toastMessage = document.getElementById('toast-message');
+    
+    toastMessage.textContent = message;
+    
+    // Set colors based on type
+    if (type === 'success') {
+      toast.className = 'fixed bottom-4 right-4 px-6 py-3 rounded-lg shadow-lg z-50 bg-green-500 text-white';
+    } else {
+      toast.className = 'fixed bottom-4 right-4 px-6 py-3 rounded-lg shadow-lg z-50 bg-red-500 text-white';
+    }
+    
+    toast.classList.remove('hidden');
+    
+    setTimeout(() => {
+      toast.classList.add('hidden');
+    }, 3000);
+  }
+  
+});
+</script>
+
+<style>
+.draggable-user {
+  user-select: none;
+}
+
+.draggable-user:active {
+  cursor: grabbing;
+}
+
+.team-dropzone.drag-over {
+  border-color: #465fff;
+  background-color: rgba(70, 95, 255, 0.05);
+}
+</style>
+{% endblock %}

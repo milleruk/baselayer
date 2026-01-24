@@ -1,7 +1,7 @@
 from django.conf import settings
 from django.db import models
 from django.core.exceptions import ValidationError
-from datetime import date
+from datetime import date, timedelta
 from plans.models import PlanTemplate
 from tracker.models import DailyPlanItem
 
@@ -28,6 +28,8 @@ class Challenge(models.Model):
     signup_deadline = models.DateField(null=True, blank=True, help_text="Last date users can sign up (optional)")
     is_active = models.BooleanField(default=True, help_text="Whether this challenge is currently active")
     is_visible = models.BooleanField(default=True, help_text="Whether this challenge is visible for signup")
+    team_leaders_can_see_users = models.BooleanField(default=False, help_text="Whether team leaders can see the user list (only after challenge starts)")
+    team_leaders_see_users_date = models.DateField(null=True, blank=True, help_text="Date when team leaders can see the user list (optional, defaults to challenge start date)")
     challenge_type = models.CharField(max_length=20, choices=CHALLENGE_TYPE_CHOICES, default="mini")
     categories = models.CharField(max_length=200, blank=True, default="", help_text="Comma-separated categories (cycling,running,strength,yoga)")
     image = models.ImageField(upload_to="challenges/", blank=True, null=True, help_text="Challenge logo/image")
@@ -97,6 +99,20 @@ class Challenge(models.Model):
         
         # If no deadline, can signup after signup opens and before challenge starts
         return True
+    
+    def team_leaders_can_see_user_list(self):
+        """Check if team leaders can see the user list for this challenge"""
+        if not self.team_leaders_can_see_users:
+            return False
+        
+        today = date.today()
+        
+        # If specific visibility date is set, use that (can be before challenge starts)
+        if self.team_leaders_see_users_date:
+            return today >= self.team_leaders_see_users_date
+        
+        # Default to challenge start date (must be after challenge starts)
+        return today >= self.start_date
     
     @property
     def duration_weeks(self):
@@ -497,3 +513,144 @@ class ChallengeWeekUnlock(models.Model):
     def __str__(self):
         status = "Unlocked" if self.is_unlocked else "Locked"
         return f"{self.challenge.name} - Week {self.week_number} ({status})"
+
+
+class Team(models.Model):
+    """Team for challenges - teams persist across challenges with static team leaders.
+    Maximum of 3 team leaders per team."""
+    name = models.CharField(max_length=120, unique=True, help_text="Team name")
+    leader = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, 
+                               related_name="led_teams", help_text="Primary team leader (static across all challenges)")
+    max_members = models.IntegerField(default=999999, help_text="Maximum number of members per team (effectively unlimited)")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    @property
+    def team_leaders(self):
+        """Get all team leaders for this team (max 3)"""
+        leaders = []
+        if self.leader:
+            leaders.append(self.leader)
+        # Get additional leaders from TeamLeader model if we add it, or from a many-to-many
+        # For now, just return the primary leader
+        return leaders[:3]
+    
+    def can_add_leader(self):
+        """Check if team can add another leader (max 3)"""
+        return len(self.team_leaders) < 3
+    
+    class Meta:
+        db_table = "challenges_team"
+        ordering = ["name"]
+    
+    def __str__(self):
+        return self.name
+    
+    @property
+    def current_member_count(self):
+        """Get current number of active members across all challenges"""
+        return self.members.filter(challenge_instance__is_active=True).count()
+    
+    def get_members_for_challenge(self, challenge):
+        """Get all team members for a specific challenge"""
+        return self.members.filter(challenge_instance__challenge=challenge, challenge_instance__is_active=True)
+    
+    def can_join(self, challenge):
+        """Check if team can accept new members for a challenge (unlimited members)"""
+        return True  # No limit on team size
+    
+    def calculate_team_score(self, challenge, week_number=None):
+        """Calculate total team score for a challenge (optionally for a specific week)"""
+        members = self.get_members_for_challenge(challenge)
+        total_score = 0
+        
+        for member in members:
+            instance = member.challenge_instance
+            if not instance.is_scoring:
+                continue
+            
+            if week_number:
+                # Calculate score for specific week
+                from tracker.models import WeeklyPlan
+                from datetime import timedelta
+                challenge_start = challenge.start_date
+                week_start = challenge_start + timedelta(days=(week_number - 1) * 7)
+                week_plan = instance.weekly_plans.filter(week_start=week_start).first()
+                if week_plan:
+                    total_score += week_plan.total_points
+            else:
+                # Calculate total score across all weeks
+                total_score += instance.total_points
+        
+        return total_score
+    
+    def get_leaderboard_entry(self, challenge, week_number=None):
+        """Get or create leaderboard entry for this team/challenge/week"""
+        entry, created = TeamLeaderboard.objects.get_or_create(
+            team=self,
+            challenge=challenge,
+            week_number=week_number,
+            defaults={'total_points': 0}
+        )
+        return entry
+
+
+class TeamMember(models.Model):
+    """Tracks which users are in which teams for which challenges"""
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name="members")
+    challenge_instance = models.OneToOneField(ChallengeInstance, on_delete=models.CASCADE, 
+                                            related_name="team_membership", 
+                                            help_text="User's participation in a challenge")
+    joined_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = "challenges_teammember"
+        unique_together = ("team", "challenge_instance")
+        ordering = ["-joined_at"]
+    
+    def __str__(self):
+        return f"{self.challenge_instance.user.email} - {self.team.name} ({self.challenge_instance.challenge.name})"
+
+
+class TeamLeaderVolunteer(models.Model):
+    """Tracks users who volunteered to be team leaders"""
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="team_leader_volunteers")
+    challenge = models.ForeignKey(Challenge, on_delete=models.CASCADE, related_name="team_leader_volunteers")
+    challenge_instance = models.ForeignKey(ChallengeInstance, on_delete=models.CASCADE, related_name="team_leader_volunteer",
+                                          null=True, blank=True, help_text="Challenge instance when user volunteered")
+    volunteered_at = models.DateTimeField(auto_now_add=True)
+    assigned = models.BooleanField(default=False, help_text="Whether admin has assigned this volunteer to a team")
+    assigned_team = models.ForeignKey(Team, on_delete=models.SET_NULL, null=True, blank=True, 
+                                     related_name="assigned_volunteers",
+                                     help_text="Team this volunteer was assigned to lead")
+    assigned_at = models.DateTimeField(null=True, blank=True)
+    
+    class Meta:
+        db_table = "challenges_teamleadervolunteer"
+        unique_together = ("user", "challenge")
+        ordering = ["-volunteered_at"]
+    
+    def __str__(self):
+        status = "Assigned" if self.assigned else "Pending"
+        return f"{self.user.email} - {self.challenge.name} ({status})"
+
+
+class TeamLeaderboard(models.Model):
+    """Stores calculated team scores for leaderboards (calculated at midnight BST)"""
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name="leaderboard_entries")
+    challenge = models.ForeignKey(Challenge, on_delete=models.CASCADE, related_name="team_leaderboards")
+    week_number = models.IntegerField(null=True, blank=True, help_text="Week number (null = total score)")
+    total_points = models.IntegerField(default=0, help_text="Total team points for this challenge/week")
+    calculated_at = models.DateTimeField(auto_now_add=True, help_text="When this score was calculated")
+    
+    class Meta:
+        db_table = "challenges_teamleaderboard"
+        unique_together = ("team", "challenge", "week_number")
+        ordering = ["-total_points", "team__name"]
+        indexes = [
+            models.Index(fields=["challenge", "week_number", "-total_points"]),
+        ]
+    
+    def __str__(self):
+        week_str = f"Week {self.week_number}" if self.week_number else "Total"
+        return f"{self.team.name} - {self.challenge.name} - {week_str}: {self.total_points} points"

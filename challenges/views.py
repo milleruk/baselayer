@@ -3,10 +3,14 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.utils import timezone
+from django.db.models import Count, Q
+from django.contrib.auth import get_user_model
 from plans.models import PlanTemplate
 from plans.services import generate_weekly_plan
 from tracker.models import WeeklyPlan
-from .models import Challenge, ChallengeInstance
+from .models import Challenge, ChallengeInstance, Team, TeamMember, TeamLeaderboard, TeamLeaderVolunteer
+
+User = get_user_model()
 
 
 def sunday_of_current_week(d: date) -> date:
@@ -164,10 +168,96 @@ def select_challenge_template(request, challenge_id):
         templates.remove(challenge.default_template)
         templates.insert(0, challenge.default_template)
     
+    # If POST, save template selection and redirect to team selection
+    if request.method == "POST":
+        template_id = request.POST.get("template_id")
+        if not template_id:
+            messages.error(request, "Please select a plan template.")
+            return render(request, "challenges/select_challenge_template.html", {
+                "challenge": challenge,
+                "templates": templates,
+                "existing_current_week_plan": existing_current_week_plan,
+            })
+        
+        # Store template selection in session
+        request.session[f'challenge_{challenge_id}_template_id'] = template_id
+        request.session[f'challenge_{challenge_id}_include_kegels'] = request.POST.get("include_kegels") == "on"
+        request.session[f'challenge_{challenge_id}_delete_existing_plan'] = request.POST.get("delete_existing_plan") == "true"
+        
+        # For team challenges, redirect to team selection; otherwise go directly to join
+        if challenge.challenge_type == "team":
+            return redirect("challenges:select_team", challenge_id=challenge_id)
+        else:
+            # For non-team challenges, skip team selection and go directly to join
+            request.session[f'challenge_{challenge_id}_team_option'] = None
+            return redirect("challenges:join_challenge", challenge_id=challenge_id)
+    
     return render(request, "challenges/select_challenge_template.html", {
         "challenge": challenge,
         "templates": templates,
         "existing_current_week_plan": existing_current_week_plan,
+    })
+
+
+@login_required
+def select_team(request, challenge_id):
+    """Select team when joining a challenge"""
+    challenge = get_object_or_404(Challenge, pk=challenge_id)
+    
+    # Check if signup is allowed
+    if not challenge.can_signup:
+        messages.error(request, f"Signup for '{challenge.name}' is no longer available.")
+        return redirect("challenges:challenges_list")
+    
+    # Check if template was selected (should be in session)
+    template_id = request.session.get(f'challenge_{challenge_id}_template_id')
+    if not template_id:
+        messages.error(request, "Please select a plan template first.")
+        return redirect("challenges:select_challenge_template", challenge_id=challenge_id)
+    
+    # Get all teams with member counts for this challenge
+    teams = Team.objects.annotate(
+        member_count=Count('members', filter=Q(members__challenge_instance__challenge=challenge, members__challenge_instance__is_active=True))
+    ).order_by('name')
+    
+    # Get user's previous team (if they were in a team for a previous challenge)
+    previous_team = None
+    previous_team_membership = TeamMember.objects.filter(
+        challenge_instance__user=request.user
+    ).exclude(
+        challenge_instance__challenge=challenge
+    ).select_related('team', 'challenge_instance__challenge').order_by('-joined_at').first()
+    
+    if previous_team_membership:
+        previous_team = previous_team_membership.team
+    
+    # Handle POST - team selection
+    if request.method == "POST":
+        team_option = request.POST.get("team_option")
+        team_id = request.POST.get("team_id")
+        team_name = request.POST.get("team_name", "").strip()
+        
+        if not team_option:
+            messages.error(request, "Please select a team option.")
+            return render(request, "challenges/select_team.html", {
+                "challenge": challenge,
+                "teams": teams,
+                "previous_team": previous_team,
+            })
+        
+        # Store team selection in session
+        request.session[f'challenge_{challenge_id}_team_option'] = team_option
+        request.session[f'challenge_{challenge_id}_team_id'] = team_id
+        request.session[f'challenge_{challenge_id}_team_name'] = team_name
+        request.session[f'challenge_{challenge_id}_volunteer_team_lead'] = request.POST.get("volunteer_team_lead") == "on"
+        
+        # Redirect to join_challenge to process everything
+        return redirect("challenges:join_challenge", challenge_id=challenge_id)
+    
+    return render(request, "challenges/select_team.html", {
+        "challenge": challenge,
+        "teams": teams,
+        "previous_team": previous_team,
     })
 
 
@@ -181,51 +271,19 @@ def join_challenge(request, challenge_id):
         messages.error(request, f"Signup for '{challenge.name}' is no longer available.")
         return redirect("challenges:challenges_list")
     
-    # For future challenges: allow signup even if user has other future challenges
-    # For active/running challenges: check if user already has an active challenge
-    today = date.today()
-    if challenge.start_date <= today:
-        # Challenge has started - check if user already has an active challenge
-        active_challenge_instance = ChallengeInstance.objects.filter(user=request.user, is_active=True).first()
-        if active_challenge_instance:
-            if active_challenge_instance.challenge.id != challenge.id:
-                messages.error(request, f"You are already actively participating in '{active_challenge_instance.challenge.name}'. Please leave or complete that challenge before joining another active challenge.")
-                return redirect("challenges:challenges_list")
-            else:
-                # User is trying to join the same challenge they're already in
-                messages.info(request, f"You're already participating in '{challenge.name}'")
-                return redirect("tracker:weekly_plans")
-    else:
-        # Future challenge - allow signup even if user has other future challenges
-        # But check if they're already signed up for this specific challenge
-        existing_instance = ChallengeInstance.objects.filter(
-            user=request.user, 
-            challenge=challenge,
-            is_active=True
-        ).first()
-        if existing_instance:
-            messages.info(request, f"You're already signed up for '{challenge.name}'")
-            return redirect("tracker:weekly_plans")
+    # Get template and team info from session
+    template_id = request.session.get(f'challenge_{challenge_id}_template_id')
+    include_kegels = request.session.get(f'challenge_{challenge_id}_include_kegels', True)
+    delete_existing_plan = request.session.get(f'challenge_{challenge_id}_delete_existing_plan', False)
+    team_option = request.session.get(f'challenge_{challenge_id}_team_option')
+    team_id = request.session.get(f'challenge_{challenge_id}_team_id')
+    team_name = request.session.get(f'challenge_{challenge_id}_team_name', '')
+    volunteer_team_lead = request.session.get(f'challenge_{challenge_id}_volunteer_team_lead', False)
     
-    # Check if user is already participating (for retaking completed challenges)
-    # Get the most recent instance (prefer active ones)
-    challenge_instance = ChallengeInstance.objects.filter(
-        user=request.user, 
-        challenge=challenge
-    ).order_by('-is_active', '-started_at').first()
-    
-    if challenge_instance:
-        if challenge_instance.is_active:
-            # This shouldn't happen due to check above, but handle it anyway
-            messages.info(request, f"You're already participating in '{challenge.name}'")
-            return redirect("tracker:weekly_plans")
-        else:
-            # Rejoin a completed challenge - allow retaking
-            # Don't redirect to template selection, let them proceed to join flow
-            pass
-    
-    # If POST, create challenge instance with selected template and generate weeks
-    if request.method == "POST":
+    # If POST or if we have session data, create challenge instance with selected template and team
+    # For team challenges, require team_option; for others, only require template_id
+    has_required_data = template_id and (challenge.challenge_type != "team" or team_option)
+    if request.method == "POST" or has_required_data:
         # Double-check constraints based on challenge start date
         today = date.today()
         if challenge.start_date <= today:
@@ -233,6 +291,10 @@ def join_challenge(request, challenge_id):
             active_challenge_instance = ChallengeInstance.objects.filter(user=request.user, is_active=True).first()
             if active_challenge_instance and active_challenge_instance.challenge.id != challenge.id:
                 messages.error(request, f"You are already actively participating in '{active_challenge_instance.challenge.name}'. Please leave or complete that challenge before joining another active challenge.")
+                # Clear session
+                for key in list(request.session.keys()):
+                    if key.startswith(f'challenge_{challenge_id}_'):
+                        del request.session[key]
                 return redirect("challenges:challenges_list")
         else:
             # Future challenge - allow multiple signups, but check if already signed up for this one
@@ -243,14 +305,28 @@ def join_challenge(request, challenge_id):
             ).first()
             if existing_instance:
                 messages.info(request, f"You're already signed up for '{challenge.name}'")
+                # Clear session
+                for key in list(request.session.keys()):
+                    if key.startswith(f'challenge_{challenge_id}_'):
+                        del request.session[key]
                 return redirect("tracker:weekly_plans")
-        
-        template_id = request.POST.get("template_id")
-        delete_existing_plan = request.POST.get("delete_existing_plan") == "true"
         
         if not template_id:
             messages.error(request, "Please select a plan template.")
+            # Clear session
+            for key in list(request.session.keys()):
+                if key.startswith(f'challenge_{challenge_id}_'):
+                    del request.session[key]
             return redirect("challenges:select_challenge_template", challenge_id=challenge_id)
+        
+        # Only require team selection for team challenges
+        if challenge.challenge_type == "team" and not team_option:
+            messages.error(request, "Please select a team option.")
+            # Clear session
+            for key in list(request.session.keys()):
+                if key.startswith(f'challenge_{challenge_id}_'):
+                    del request.session[key]
+            return redirect("challenges:select_team", challenge_id=challenge_id)
         
         # Check if user has a plan for the current week and handle deletion
         current_week_start = sunday_of_current_week(date.today())
@@ -267,7 +343,46 @@ def join_challenge(request, challenge_id):
                 return redirect("challenges:select_challenge_template", challenge_id=challenge_id)
         
         template = get_object_or_404(PlanTemplate, pk=template_id)
-        include_kegels = request.POST.get("include_kegels") == "on"
+        
+        # Handle team assignment
+        team = None
+        if team_option == "join_existing":
+            if team_id:
+                team = get_object_or_404(Team, pk=team_id)
+            elif team_name:
+                # Try to find team by name
+                team = Team.objects.filter(name__iexact=team_name).first()
+                if not team:
+                    messages.error(request, f"Team '{team_name}' not found. Please select from the list or create a new team.")
+                    # Clear session
+                    for key in list(request.session.keys()):
+                        if key.startswith(f'challenge_{challenge_id}_'):
+                            del request.session[key]
+                    return redirect("challenges:select_team", challenge_id=challenge_id)
+            
+        elif team_option == "random":
+            # For random assignment, don't assign team yet - admin will do it
+            # If user volunteered to be team lead, create volunteer record
+            if volunteer_team_lead:
+                # Store volunteer info - will be processed after challenge instance is created
+                pass
+            # Don't assign team yet - admin will handle assignment
+            team = None
+            messages.info(request, "You'll be assigned to a team by an admin. You can start the challenge now!")
+        elif team_option == "previous_team":
+            # Get user's previous team
+            previous_team_membership = TeamMember.objects.filter(
+                challenge_instance__user=request.user
+            ).exclude(
+                challenge_instance__challenge=challenge
+            ).select_related('team').order_by('-joined_at').first()
+            
+            if previous_team_membership:
+                team = previous_team_membership.team
+            else:
+                # No previous team - treat as random assignment
+                team = None
+                messages.info(request, "No previous team found. You'll be assigned to a team by an admin.")
         
         # Check if user has an active instance for this challenge
         active_instance = ChallengeInstance.objects.filter(
@@ -340,6 +455,30 @@ def join_challenge(request, challenge_id):
             
             current_week_start += timedelta(days=7)
         
+        # Assign user to team (if team was selected)
+        if team:
+            TeamMember.objects.get_or_create(
+                team=team,
+                challenge_instance=challenge_instance
+            )
+        
+        # Handle volunteer team lead
+        if volunteer_team_lead and team_option == "random":
+            TeamLeaderVolunteer.objects.get_or_create(
+                user=request.user,
+                challenge=challenge,
+                defaults={
+                    'challenge_instance': challenge_instance,
+                    'assigned': False
+                }
+            )
+            messages.info(request, "Thank you for volunteering to be a team leader! An admin will assign you to a team soon.")
+        
+        # Clear session data
+        for key in list(request.session.keys()):
+            if key.startswith(f'challenge_{challenge_id}_'):
+                del request.session[key]
+        
         if weeks_generated > 0:
             messages.success(request, f"Joined challenge '{challenge.name}'! Generated {weeks_generated} week(s).")
         else:
@@ -347,8 +486,13 @@ def join_challenge(request, challenge_id):
         
         return redirect("tracker:weekly_plans")
     
-    # GET request - redirect to template selection
-    return redirect("challenges:select_challenge_template", challenge_id=challenge_id)
+    # GET request - check if we have session data, otherwise redirect to template selection
+    if template_id and team_option:
+        # We have session data, process it (will be handled by POST logic above)
+        pass
+    else:
+        # No session data, redirect to template selection
+        return redirect("challenges:select_challenge_template", challenge_id=challenge_id)
 
 
 @login_required
@@ -599,3 +743,409 @@ def challenge_detail(request, challenge_id, week_number=None):
     # This keeps the URL as /challenges/55/week/1/ instead of redirecting to /tracker/17/
     # The plan_detail view accepts pk as a parameter, so we can call it directly
     return tracker_plan_detail(request, pk=plan.id)
+
+
+@login_required
+def team_admin(request, team_id):
+    """Team admin page for team leaders to manage their team"""
+    team = get_object_or_404(Team, pk=team_id)
+    
+    # Check if user is the team leader
+    if team.leader != request.user and not request.user.is_superuser:
+        messages.error(request, "You don't have permission to manage this team.")
+        return redirect("challenges:challenges_list")
+    
+    # Get all active challenge instances for team members
+    team_members = TeamMember.objects.filter(team=team, challenge_instance__is_active=True).select_related(
+        'challenge_instance__user', 'challenge_instance__challenge'
+    ).order_by('challenge_instance__challenge__start_date', 'challenge_instance__user__email')
+    
+    # Group by challenge
+    challenges_data = {}
+    for member in team_members:
+        challenge = member.challenge_instance.challenge
+        if challenge.id not in challenges_data:
+            challenges_data[challenge.id] = {
+                'challenge': challenge,
+                'members': []
+            }
+        challenges_data[challenge.id]['members'].append({
+            'user': member.challenge_instance.user,
+            'instance': member.challenge_instance,
+            'team_member': member,  # Store the TeamMember instance
+            'joined_at': member.joined_at
+        })
+    
+    # Handle POST requests (remove member, change leader, etc.)
+    if request.method == "POST":
+        action = request.POST.get("action")
+        
+        if action == "remove_member":
+            member_id = request.POST.get("member_id")
+            try:
+                member = TeamMember.objects.get(pk=member_id, team=team)
+                user_email = member.challenge_instance.user.email
+                member.delete()
+                messages.success(request, f"Removed {user_email} from the team.")
+            except TeamMember.DoesNotExist:
+                messages.error(request, "Member not found.")
+        
+        elif action == "change_leader":
+            new_leader_id = request.POST.get("new_leader_id")
+            try:
+                new_leader = User.objects.get(pk=new_leader_id)
+                # Check if new leader is a member of the team
+                is_member = TeamMember.objects.filter(
+                    team=team,
+                    challenge_instance__user=new_leader,
+                    challenge_instance__is_active=True
+                ).exists()
+                
+                if is_member:
+                    team.leader = new_leader
+                    team.save(update_fields=['leader'])
+                    messages.success(request, f"Changed team leader to {new_leader.email}.")
+                else:
+                    messages.error(request, "New leader must be a member of the team.")
+            except User.DoesNotExist:
+                messages.error(request, "User not found.")
+        
+        return redirect("challenges:team_admin", team_id=team_id)
+    
+    return render(request, "challenges/team_admin.html", {
+        "team": team,
+        "challenges_data": challenges_data,
+        "is_leader": team.leader == request.user,
+    })
+
+
+@login_required
+def team_admin_all_users(request):
+    """Super user view to see all users across all teams"""
+    if not request.user.is_superuser:
+        messages.error(request, "You don't have permission to view this page.")
+        return redirect("challenges:challenges_list")
+    
+    # Get all teams with their members
+    teams = Team.objects.annotate(
+        total_members=Count('members', filter=Q(members__challenge_instance__is_active=True))
+    ).prefetch_related('members__challenge_instance__user', 'members__challenge_instance__challenge').order_by('name')
+    
+    # Get all users not in any team (for current active challenges)
+    active_challenges = Challenge.objects.filter(is_active=True, is_visible=True)
+    users_in_teams = set()
+    for team in teams:
+        for member in team.members.filter(challenge_instance__is_active=True):
+            users_in_teams.add(member.challenge_instance.user.id)
+    
+    users_not_in_teams = User.objects.exclude(id__in=users_in_teams).order_by('email')
+    
+    return render(request, "challenges/team_admin_all_users.html", {
+        "teams": teams,
+        "users_not_in_teams": users_not_in_teams,
+    })
+
+
+@login_required
+def team_leader_overview(request):
+    """Team leader overview page with challenge filter and leaderboard"""
+    # Get user's teams where they are leader
+    user_teams = Team.objects.filter(leader=request.user)
+    
+    if not user_teams.exists():
+        messages.error(request, "You are not a team leader.")
+        return redirect("challenges:challenges_list")
+    
+    # For now, use the first team (can be extended to support multiple teams)
+    team = user_teams.first()
+    
+    # Get currently running team challenges where team leaders can see user list
+    today = date.today()
+    from django.db.models import Q
+    
+    # Get all team challenges with visibility enabled
+    all_team_challenges = Challenge.objects.filter(
+        challenge_type="team",
+        is_active=True,
+        team_leaders_can_see_users=True
+    ).order_by("-start_date")
+    
+    # Filter to show challenges that are currently running AND team leaders can see user list
+    # The team_leaders_can_see_user_list() method checks if visibility date has passed
+    visible_challenges = []
+    for challenge in all_team_challenges:
+        # Challenge must be currently running (started and not ended)
+        # OR if visibility date is set and has passed, show it even if challenge hasn't started
+        can_show = False
+        if challenge.is_currently_running:
+            can_show = True
+        elif challenge.team_leaders_see_users_date and today >= challenge.team_leaders_see_users_date:
+            # Visibility date has passed, but challenge hasn't started yet - still show it
+            can_show = True
+        
+        if can_show and challenge.team_leaders_can_see_user_list():
+            visible_challenges.append(challenge)
+    
+    active_challenges = visible_challenges
+    
+    # Get selected challenge from query params
+    challenge_id = request.GET.get("challenge_id")
+    selected_challenge = None
+    if challenge_id:
+        # Allow selecting any challenge that matches the ID, even if not in filtered list
+        # (in case admin changed settings after page load)
+        try:
+            challenge = Challenge.objects.get(pk=challenge_id, challenge_type="team", is_active=True)
+            if challenge.team_leaders_can_see_user_list() and challenge.is_currently_running:
+                selected_challenge = challenge
+        except Challenge.DoesNotExist:
+            pass
+    
+    # If no challenge selected, use the most recent running challenge
+    if not selected_challenge and active_challenges:
+        selected_challenge = active_challenges[0] if active_challenges else None
+    
+    # Get week number from query params (required - default to week 1 if not provided)
+    week_number = request.GET.get("week")
+    if week_number:
+        try:
+            week_number = int(week_number)
+        except ValueError:
+            week_number = None
+    
+    # If no week selected and challenge exists, default to week 1
+    if selected_challenge and not week_number:
+        week_number = 1
+    
+    # Get leaderboard data
+    leaderboard_data = None
+    team_members_data = []
+    total_member_count = 0
+    team_rank = None
+    team_score = 0
+    
+    if selected_challenge:
+        # Get all teams participating in this challenge
+        participating_teams = Team.objects.filter(
+            members__challenge_instance__challenge=selected_challenge,
+            members__challenge_instance__is_active=True
+        ).distinct()
+        
+        # Calculate or get leaderboard scores
+        leaderboard_entries = []
+        for t in participating_teams:
+            entry = t.get_leaderboard_entry(selected_challenge, week_number)
+            # Recalculate score (in case it's not up to date)
+            score = t.calculate_team_score(selected_challenge, week_number)
+            entry.total_points = score
+            entry.save()
+            leaderboard_entries.append({
+                'team': t,
+                'score': score,
+                'entry': entry
+            })
+        
+        # Sort by score descending
+        leaderboard_entries.sort(key=lambda x: x['score'], reverse=True)
+        
+        # Find team's rank
+        for idx, entry in enumerate(leaderboard_entries, 1):
+            if entry['team'].id == team.id:
+                team_rank = idx
+                team_score = entry['score']
+                break
+        
+        leaderboard_data = leaderboard_entries
+        
+        # Get team members for this challenge
+        team_members = team.get_members_for_challenge(selected_challenge).select_related(
+            'challenge_instance__user',
+            'challenge_instance__selected_template'
+        )
+        
+        # Group members by plan template
+        members_by_plan = {}
+        from tracker.models import WeeklyPlan
+        from datetime import timedelta
+        from django.utils import timezone
+        
+        # Calculate week dates (weeks start on Sunday, matching how plans are created)
+        challenge_start = selected_challenge.start_date
+        challenge_end = selected_challenge.end_date
+        # First week starts on the Sunday of the week containing challenge_start
+        first_week_start = sunday_of_current_week(challenge_start)
+        today = timezone.now().date()
+        
+        # Get all weeks for this challenge
+        total_weeks = selected_challenge.duration_weeks
+        all_weeks_data = []
+        for week_num in range(1, total_weeks + 1):
+            week_start = first_week_start + timedelta(days=(week_num - 1) * 7)
+            week_end = week_start + timedelta(days=6)
+            if week_start <= challenge_end:  # Only include weeks within challenge period
+                all_weeks_data.append({
+                    'week_number': week_num,
+                    'week_start': week_start,
+                    'week_end': week_end
+                })
+        
+        for member in team_members:
+            instance = member.challenge_instance
+            # Get all weekly plans for this member, ordered by week_start
+            all_member_plans = instance.weekly_plans.filter(
+                week_start__gte=first_week_start,
+                week_start__lte=challenge_end
+            ).order_by('week_start')
+            
+            # Create a dict for quick lookup
+            plans_by_week_start = {plan.week_start: plan for plan in all_member_plans}
+            
+            # Get data for each week
+            weeks_status = []
+            total_points = 0
+            missed_weeks = 0
+            
+            for week_info in all_weeks_data:
+                week_plan = plans_by_week_start.get(week_info['week_start'])
+                week_start = week_info['week_start']
+                week_end = week_info['week_end']
+                
+                # Check if week is completed
+                # A week is completed if all days with assigned workouts have at least one completed activity
+                # (not counting total activities, but days - some days can have 2 activities but only need 1)
+                is_completed = False
+                if week_plan:
+                    # Check if all days with workouts have at least one completed activity
+                    core_count = week_plan.core_workout_count  # Days with workouts assigned
+                    completed_core_count = week_plan.completed_core_workouts  # Days with at least one completed workout
+                    # Week is completed if all days with workouts are completed, or if completed_at is set
+                    is_completed = (core_count > 0 and completed_core_count >= core_count) or bool(week_plan.completed_at)
+                    total_points += week_plan.total_points
+                else:
+                    missed_weeks += 1
+                
+                # Check bonus workout status (only for weeks that have started)
+                bonus_done = False
+                week_has_started = week_start <= today
+                if week_plan and week_has_started:
+                    bonus_done = week_plan.bonus_workout_done or (week_plan.bonus_points > 0)
+                
+                # Calculate remaining days for current/upcoming weeks
+                days_remaining = 0
+                if week_end < today:
+                    days_remaining = 0  # Week is over
+                elif week_start > today:
+                    days_remaining = 7  # Week hasn't started
+                else:
+                    days_remaining = max(0, (week_end - today).days + 1)  # Current week
+                
+                weeks_status.append({
+                    'week_number': week_info['week_number'],
+                    'is_completed': is_completed,
+                    'bonus_done': bonus_done,
+                    'days_remaining': days_remaining,
+                    'week_plan': week_plan,
+                    'points': week_plan.total_points if week_plan else 0,
+                    'week_has_started': week_has_started
+                })
+            
+            # Get plan template name (or "No Plan" if None)
+            plan_name = instance.selected_template.name if instance.selected_template else "No Plan"
+            
+            if plan_name not in members_by_plan:
+                members_by_plan[plan_name] = {
+                    'plan': instance.selected_template,
+                    'members': [],
+                    'subtotal': 0
+                }
+            
+            # Count missed items for the selected week only (week not completed + bonus not done)
+            missed_items = 0
+            for week in weeks_status:
+                if week['week_number'] == week_number and week['week_has_started']:
+                    if not week['is_completed']:
+                        missed_items += 1
+                    if not week['bonus_done']:
+                        missed_items += 1
+            
+            member_data = {
+                'user': instance.user,
+                'instance': instance,
+                'total_score': total_points,
+                'is_scoring': instance.is_scoring,
+                'weeks_status': weeks_status,
+                'missed_weeks': missed_weeks,
+                'missed_items': missed_items
+            }
+            members_by_plan[plan_name]['members'].append(member_data)
+            members_by_plan[plan_name]['subtotal'] += total_points
+        
+        # Sort members within each plan by score, then sort plans by subtotal
+        for plan_name in members_by_plan:
+            members_by_plan[plan_name]['members'].sort(key=lambda x: x['total_score'], reverse=True)
+        
+        # Convert to list of groups, sorted by subtotal (descending)
+        team_members_data = sorted(
+            members_by_plan.items(),
+            key=lambda x: x[1]['subtotal'],
+            reverse=True
+        )
+        
+        # Calculate total member count
+        total_member_count = sum(len(plan_data['members']) for _, plan_data in team_members_data)
+    
+    # Check if team leaders can see user list (must be enabled and challenge must have started)
+    can_see_users = False
+    all_users_data = []
+    if selected_challenge and selected_challenge.team_leaders_can_see_users and selected_challenge.team_leaders_can_see_user_list():
+        can_see_users = True
+        # Get all users participating in this challenge (for team leaders to see)
+        all_instances = ChallengeInstance.objects.filter(
+            challenge=selected_challenge,
+            is_active=True
+        ).select_related('user').order_by('user__email')
+        
+        for instance in all_instances:
+            # Get user's team if they have one (OneToOneField returns object directly, not queryset)
+            # OneToOneField raises RelatedObjectDoesNotExist if not found, which we catch
+            try:
+                team_membership = instance.team_membership
+                team_name = team_membership.team.name
+            except TeamMember.DoesNotExist:
+                team_name = "No team"
+            
+            if week_number:
+                # Get score for specific week
+                from tracker.models import WeeklyPlan
+                from datetime import timedelta
+                challenge_start = selected_challenge.start_date
+                week_start = challenge_start + timedelta(days=(week_number - 1) * 7)
+                week_plan = instance.weekly_plans.filter(week_start=week_start).first()
+                user_score = week_plan.total_points if week_plan else 0
+            else:
+                user_score = instance.total_points
+            
+            all_users_data.append({
+                'user': instance.user,
+                'instance': instance,
+                'team_name': team_name,
+                'score': user_score,
+                'is_scoring': instance.is_scoring
+            })
+        
+        # Sort by score
+        all_users_data.sort(key=lambda x: x['score'], reverse=True)
+    
+    return render(request, "challenges/team_leader_overview.html", {
+        "team": team,
+        "active_challenges": active_challenges,
+        "selected_challenge": selected_challenge,
+        "week_number": week_number,
+        "leaderboard_data": leaderboard_data,
+        "team_members_data": team_members_data,
+        "total_member_count": total_member_count if selected_challenge else 0,
+        "team_rank": team_rank,
+        "team_score": team_score,
+        "can_see_users": can_see_users,
+        "all_users_data": all_users_data,
+    })
