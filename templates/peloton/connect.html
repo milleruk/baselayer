@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}Connect Peloton{% endblock %}
+{% block page_title %}Connect Peloton Account{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+  <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">Connect Peloton Account</h1>
+  <p class="text-gray-600 dark:text-gray-400">Link your Peloton account to sync your workout data</p>
+</div>
+
+<div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
+  <form method="post" class="space-y-6">
+    {% csrf_token %}
+    
+    {% if form.non_field_errors %}
+      <div class="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+        {% for error in form.non_field_errors %}
+          <p class="text-sm text-red-800 dark:text-red-200">{{ error }}</p>
+        {% endfor %}
+      </div>
+    {% endif %}
+    
+    <!-- Username/Password Fields -->
+    <div>
+      <label for="{{ form.username.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        {{ form.username.label }}
+      </label>
+      <input 
+        type="text" 
+        name="{{ form.username.name }}" 
+        id="{{ form.username.id_for_label }}"
+        value="{{ form.username.value|default:'' }}"
+        class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        placeholder="Enter your Peloton username or email"
+        required
+      >
+      {% if form.username.help_text %}
+        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ form.username.help_text }}</p>
+      {% endif %}
+      {% if form.username.errors %}
+        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.username.errors.0 }}</p>
+      {% endif %}
+    </div>
+    
+    <div>
+      <label for="{{ form.password.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        {{ form.password.label }}
+      </label>
+      <input 
+        type="password" 
+        name="{{ form.password.name }}" 
+        id="{{ form.password.id_for_label }}"
+        class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        placeholder="Enter your Peloton password"
+        required
+      >
+      {% if form.password.help_text %}
+        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ form.password.help_text }}</p>
+      {% endif %}
+      {% if form.password.errors %}
+        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.password.errors.0 }}</p>
+      {% endif %}
+    </div>
+    
+    <div class="flex gap-4">
+      <button 
+        type="submit" 
+        class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
+      >
+        Connect Account
+      </button>
+      <a 
+        href="{% url 'peloton:status' %}" 
+        class="px-6 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-900 dark:text-white font-medium rounded-lg transition-colors"
+      >
+        Cancel
+      </a>
+    </div>
+  </form>
+  
+  {% if connection and connection.is_active %}
+    <div class="mt-6 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+      <p class="text-sm text-yellow-800 dark:text-yellow-200">
+        <strong>Note:</strong> Connecting a new account will replace your existing Peloton connection.
+      </p>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

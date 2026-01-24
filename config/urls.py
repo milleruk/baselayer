@@ -10,6 +10,7 @@ urlpatterns = [
     path("tracker/", include("tracker.urls")),
     path("challenges/", include("challenges.urls")),
     path("workouts/", include("workouts.urls")),
+    path("peloton/", include("peloton.urls")),
 ]
 
 # Serve media files in development

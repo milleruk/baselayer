@@ -823,10 +823,44 @@
       </div>
     </div>
     
-    <div class="text-center py-12 text-gray-600 dark:text-gray-400">
-      <div class="text-4xl mb-4">🔌</div>
-      <p class="mb-2">No connected apps yet.</p>
-      <p class="text-sm">App integrations coming soon. Connect Peloton, Strava, and more to sync your workout data.</p>
+    <div class="space-y-4">
+      <!-- Peloton Integration -->
+      <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-4">
+            <div class="text-2xl">🚴</div>
+            <div>
+              <h3 class="font-semibold text-gray-900 dark:text-white">Peloton</h3>
+              <p class="text-sm text-gray-600 dark:text-gray-400">
+                {% if user.peloton_api_connection and user.peloton_api_connection.is_active %}
+                  Connected as {{ user.peloton_api_connection.username }}
+                  {% if profile.peloton_leaderboard_name %}
+                    ({{ profile.peloton_leaderboard_name }})
+                  {% endif %}
+                {% else %}
+                  Connect your Peloton account to sync workouts and data
+                {% endif %}
+              </p>
+            </div>
+          </div>
+          <div>
+            {% if user.peloton_api_connection and user.peloton_api_connection.is_active %}
+              <a href="{% url 'peloton:status' %}" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors text-sm">
+                Manage
+              </a>
+            {% else %}
+              <a href="{% url 'peloton:connect' %}" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors text-sm">
+                Connect
+              </a>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      
+      <!-- Placeholder for future integrations -->
+      <div class="text-center py-8 text-gray-600 dark:text-gray-400">
+        <p class="text-sm">More app integrations coming soon (Strava, Garmin, etc.)</p>
+      </div>
     </div>
   </div>
 </div>

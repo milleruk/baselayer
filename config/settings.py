@@ -50,6 +50,7 @@ INSTALLED_APPS = [
     "tracker",
     "challenges",
     "workouts",
+    "peloton",
 ]
 
 # Custom User Model
