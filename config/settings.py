@@ -159,6 +159,9 @@ STATIC_URL = "static/"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+# Increase field limit for admin bulk operations (e.g., deleting many workouts)
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 10000
+
 # Logging configuration
 LOGGING = {
     'version': 1,

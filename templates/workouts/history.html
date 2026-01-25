@@ -13,35 +13,38 @@
   <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm mb-6">
     <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
       <div class="flex items-start gap-4">
-        <div class="w-3 h-3 rounded-full mt-1 {% if peloton_connection.is_connected %}bg-green-500{% else %}bg-gray-400{% endif %}"></div>
+        <div class="w-3 h-3 rounded-full mt-1 bg-green-500"></div>
         <div>
           <div class="font-semibold text-gray-900 dark:text-white mb-1">
-            {% if peloton_connection.is_connected %}
-              Connected to Peloton
-            {% else %}
-              Not Connected to Peloton
-            {% endif %}
+            Connected to Peloton
           </div>
           <div class="text-sm text-gray-600 dark:text-gray-400">
-            {% if peloton_connection.is_connected %}
-              Connected as {{ peloton_connection.peloton_username|default:"User" }}. Your workouts are ready to sync.
-            {% else %}
-              Connect your Peloton account to sync your workout history.
-            {% endif %}
+            Your Peloton account is connected. Click "Sync Workouts" to import your workout history.
           </div>
           {% if peloton_connection.last_sync_at %}
             <div class="text-xs text-gray-500 dark:text-gray-500 mt-1">
-              Last sync: {{ peloton_connection.last_sync_at|date:"d/m/Y" }}
+              Last sync: {{ peloton_connection.last_sync_at|date:"M d, Y g:i A" }}
+            </div>
+          {% elif request.user.profile.peloton_last_synced_at %}
+            <div class="text-xs text-gray-500 dark:text-gray-500 mt-1">
+              Last sync: {{ request.user.profile.peloton_last_synced_at|date:"M d, Y g:i A" }}
             </div>
           {% endif %}
         </div>
       </div>
-      <form method="post" action="{% url 'workouts:sync' %}">
+      <form method="post" action="{% url 'workouts:sync' %}" id="sync-workouts-form">
         {% csrf_token %}
-        <button type="submit" class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors {% if not peloton_connection.is_connected %}opacity-50 cursor-not-allowed{% endif %}" {% if not peloton_connection.is_connected %}disabled{% endif %}>
-          Sync Workouts
+        <button type="submit" id="sync-workouts-btn" class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+          <span id="sync-btn-text">Sync Workouts</span>
+          <span id="sync-btn-spinner" class="hidden inline-block ml-2">
+            <svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+          </span>
         </button>
       </form>
+      <div id="sync-status-message" class="hidden mt-2 text-sm text-gray-600 dark:text-gray-400"></div>
     </div>
   </div>
 {% else %}
@@ -61,77 +64,405 @@
   </div>
 {% endif %}
 
-<!-- Workout List -->
-{% if workouts %}
-  <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm overflow-hidden">
-    <div class="overflow-x-auto">
-      <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-        <thead class="bg-gray-50 dark:bg-gray-700">
-          <tr>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Date</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Workout</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Type</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Duration</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
-          </tr>
-        </thead>
-        <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-          {% for workout in workouts %}
-            <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                {{ workout.completed_date|date:"M d, Y" }}
-              </td>
-              <td class="px-6 py-4 text-sm">
-                <a href="{% url 'workouts:detail' workout.id %}" class="font-medium text-primary hover:text-primary-dark">
-                  {{ workout.title }}
-                </a>
-                {% if workout.instructor %}
-                  <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">{{ workout.instructor.name }}</div>
-                {% endif %}
-              </td>
-              <td class="px-6 py-4 whitespace-nowrap">
-                <span class="px-2 py-1 text-xs font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded">
-                  {{ workout.workout_type.name }}
-                </span>
-              </td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                {{ workout.duration_minutes }}min
-              </td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm">
-                {% if workout.peloton_url %}
-                  <a href="{{ workout.peloton_url }}" target="_blank" rel="noopener noreferrer" class="text-primary hover:text-primary-dark">
-                    View ↗
-                  </a>
-                {% endif %}
-              </td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+<!-- Filters and Search -->
+<div class="mb-6 space-y-4">
+  <!-- Search Bar -->
+  <form method="get" action="{% url 'workouts:history' %}" class="flex gap-3">
+    <div class="flex-1 relative">
+      <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+        <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+        </svg>
+      </div>
+      <input type="text" name="search" value="{{ search_query }}" placeholder="Search workouts by title or instructor" 
+             class="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-primary focus:border-transparent">
     </div>
+    
+    <!-- Filter Dropdowns -->
+    <div class="flex gap-2">
+      <!-- TSS Filter -->
+      <div class="relative">
+        <input type="number" name="tss" value="{{ tss_filter }}" placeholder="TSS" min="0" step="0.1"
+               class="w-20 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-primary focus:border-transparent">
+      </div>
+      
+      <!-- Instructor Filter -->
+      <div class="relative">
+        <select name="instructor" onchange="this.form.submit()" 
+                class="appearance-none bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 pr-8 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent cursor-pointer">
+          <option value="">Add Instructor</option>
+          {% for instructor in instructors %}
+            <option value="{{ instructor.id }}" {% if instructor_filter == instructor.id|stringformat:"s" %}selected{% endif %}>
+              {{ instructor.name }}
+            </option>
+          {% endfor %}
+        </select>
+        <div class="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+          <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+          </svg>
+        </div>
+      </div>
+      
+      <!-- Duration Filter -->
+      <div class="relative">
+        <select name="duration" onchange="this.form.submit()" 
+                class="appearance-none bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 pr-8 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent cursor-pointer">
+          <option value="">Add Duration</option>
+          {% for duration in durations %}
+            <option value="{{ duration }}" {% if duration_filter == duration|stringformat:"s" %}selected{% endif %}>
+              {{ duration }} min
+            </option>
+          {% endfor %}
+        </select>
+        <div class="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+          <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+          </svg>
+        </div>
+      </div>
+      
+      <!-- Preserve other filters -->
+      {% if workout_type_filter %}
+        <input type="hidden" name="type" value="{{ workout_type_filter }}">
+      {% endif %}
+      
+      <button type="submit" class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors">
+        Search
+      </button>
+    </div>
+  </form>
+  
+  <!-- Workout Type Tabs -->
+  <div class="flex gap-1 border-b border-gray-200 dark:border-gray-700">
+    <a href="?{% if search_query %}search={{ search_query }}&{% endif %}{% if instructor_filter %}instructor={{ instructor_filter }}&{% endif %}{% if duration_filter %}duration={{ duration_filter }}&{% endif %}{% if tss_filter %}tss={{ tss_filter }}{% endif %}" 
+       class="px-4 py-2 text-sm font-medium {% if not workout_type_filter %}text-primary border-b-2 border-primary{% else %}text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white{% endif %} transition-colors">
+      All
+    </a>
+    {% for workout_type in workout_types %}
+      <a href="?type={{ workout_type.slug }}{% if search_query %}&search={{ search_query }}{% endif %}{% if instructor_filter %}&instructor={{ instructor_filter }}{% endif %}{% if duration_filter %}&duration={{ duration_filter }}{% endif %}{% if tss_filter %}&tss={{ tss_filter }}{% endif %}" 
+         class="px-4 py-2 text-sm font-medium {% if workout_type_filter == workout_type.slug %}text-primary border-b-2 border-primary{% else %}text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white{% endif %} transition-colors">
+        {{ workout_type.name }}
+      </a>
+    {% endfor %}
   </div>
   
-  <!-- Pagination -->
-  {% if is_paginated %}
-    <div class="mt-6 flex justify-center">
-      <nav class="flex gap-2">
-        {% if page_obj.has_previous %}
-          <a href="?page={{ page_obj.previous_page_number }}" class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-            Previous
-          </a>
-        {% endif %}
-        <span class="px-4 py-2 text-sm font-medium text-gray-900 dark:text-white">
-          Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+  <!-- Active Filters Display -->
+  {% if search_query or instructor_filter or duration_filter or tss_filter %}
+    <div class="flex flex-wrap gap-2 items-center">
+      <span class="text-sm text-gray-600 dark:text-gray-400">Active filters:</span>
+      {% if search_query %}
+        <span class="inline-flex items-center gap-1 px-3 py-1 text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full">
+          Search: "{{ search_query }}"
+          <a href="?{% if workout_type_filter %}type={{ workout_type_filter }}&{% endif %}{% if instructor_filter %}instructor={{ instructor_filter }}&{% endif %}{% if duration_filter %}duration={{ duration_filter }}&{% endif %}{% if tss_filter %}tss={{ tss_filter }}{% endif %}" class="hover:text-gray-900 dark:hover:text-white">×</a>
         </span>
-        {% if page_obj.has_next %}
-          <a href="?page={{ page_obj.next_page_number }}" class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-            Next
-          </a>
-        {% endif %}
-      </nav>
+      {% endif %}
+      {% if instructor_filter %}
+        {% for instructor in instructors %}
+          {% if instructor.id|stringformat:"s" == instructor_filter %}
+            <span class="inline-flex items-center gap-1 px-3 py-1 text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full">
+              Instructor: {{ instructor.name }}
+              <a href="?{% if workout_type_filter %}type={{ workout_type_filter }}&{% endif %}{% if search_query %}search={{ search_query }}&{% endif %}{% if duration_filter %}duration={{ duration_filter }}&{% endif %}{% if tss_filter %}tss={{ tss_filter }}{% endif %}" class="hover:text-gray-900 dark:hover:text-white">×</a>
+            </span>
+          {% endif %}
+        {% endfor %}
+      {% endif %}
+      {% if duration_filter %}
+        <span class="inline-flex items-center gap-1 px-3 py-1 text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full">
+          Duration: {{ duration_filter }} min
+          <a href="?{% if workout_type_filter %}type={{ workout_type_filter }}&{% endif %}{% if search_query %}search={{ search_query }}&{% endif %}{% if instructor_filter %}instructor={{ instructor_filter }}&{% endif %}{% if tss_filter %}tss={{ tss_filter }}{% endif %}" class="hover:text-gray-900 dark:hover:text-white">×</a>
+        </span>
+      {% endif %}
+      {% if tss_filter %}
+        <span class="inline-flex items-center gap-1 px-3 py-1 text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full">
+          TSS: ≥{{ tss_filter }}
+          <a href="?{% if workout_type_filter %}type={{ workout_type_filter }}&{% endif %}{% if search_query %}search={{ search_query }}&{% endif %}{% if instructor_filter %}instructor={{ instructor_filter }}&{% endif %}{% if duration_filter %}duration={{ duration_filter }}{% endif %}" class="hover:text-gray-900 dark:hover:text-white">×</a>
+        </span>
+      {% endif %}
     </div>
   {% endif %}
-{% else %}
+</div>
+
+<!-- Workout Count and Pagination Info -->
+{% if workouts %}
+  <div class="mb-4 text-sm text-gray-600 dark:text-gray-400">
+    Showing {{ workouts.start_index }} - {{ workouts.end_index }} of {{ total_workouts }} workout{{ total_workouts|pluralize }}
+  </div>
+{% endif %}
+
+<!-- Workout List (Card Layout) -->
+{% if workouts %}
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+    {% for workout in workouts %}
+      <div class="rounded-lg bg-gray-800 dark:bg-gray-800 p-5 shadow-2xl hover:shadow-[0_0_20px_rgba(59,130,246,0.3)] transition-all border-2 border-gray-600 dark:border-gray-600 hover:border-primary/50 dark:hover:border-primary/50 backdrop-blur-sm">
+        <!-- Top Section: Duration Badge and Icon -->
+        <div class="flex items-start justify-between mb-4">
+          <span class="px-3 py-1 text-sm font-bold text-gray-900 bg-yellow-400 rounded-full">
+            {{ workout.duration_minutes }}min
+          </span>
+          {% if workout.workout_type %}
+            <span class="text-yellow-400 text-xl">
+              {% if workout.workout_type.slug == 'cycling' or workout.workout_type.slug == 'ride' %}
+                🚴
+              {% elif workout.workout_type.slug == 'running' or workout.workout_type.slug == 'run' %}
+                🏃
+              {% elif workout.workout_type.slug == 'walking' %}
+                🚶
+              {% elif workout.workout_type.slug == 'yoga' %}
+                🧘
+              {% elif workout.workout_type.slug == 'strength' %}
+                💪
+              {% elif workout.workout_type.slug == 'rowing' %}
+                🚣
+              {% else %}
+                🏋️
+              {% endif %}
+            </span>
+          {% endif %}
+        </div>
+        
+        <!-- Title -->
+        <h3 class="text-xl font-bold text-white mb-2 line-clamp-2">
+          {{ workout.title }}
+        </h3>
+        
+        <!-- Instructor -->
+        {% if workout.instructor %}
+          <p class="text-sm text-gray-400 mb-3">{{ workout.instructor.name }}</p>
+        {% endif %}
+        
+        <!-- Dates -->
+        <div class="flex flex-col gap-1 text-xs text-gray-400 mb-4">
+          <div>Recorded: {{ workout.recorded_date|date:"m/d/Y" }}</div>
+          <div>Completed: {{ workout.completed_date|date:"m/d/Y" }}</div>
+        </div>
+        
+        <!-- Performance Metrics -->
+        {% if workout.details %}
+          {% comment %}Determine which metrics to show based on workout type{% endcomment %}
+          {% if workout.workout_type %}
+            {% if workout.workout_type.slug == 'cycling' or workout.workout_type.slug == 'ride' %}
+              {% comment %}Cycling: Show TSS, Output metrics{% endcomment %}
+              <div class="grid grid-cols-4 gap-2 mb-4 py-3 border-t border-b border-gray-700">
+                <!-- TSS -->
+                <div class="text-center">
+                  <div class="text-white font-semibold text-sm">
+                    {% if workout.details.tss %}
+                      {% if workout.details.tss_target %}
+                        {{ workout.details.tss|floatformat:0 }}/{{ workout.details.tss_target|floatformat:0 }}
+                      {% else %}
+                        {{ workout.details.tss|floatformat:0 }}
+                      {% endif %}
+                    {% else %}
+                      —
+                    {% endif %}
+                  </div>
+                  <div class="text-xs text-gray-400 mt-1">TSS</div>
+                </div>
+                
+                <!-- Avg Output -->
+                <div class="text-center border-l border-gray-700 pl-2">
+                  <div class="text-white font-semibold text-sm">
+                    {% if workout.details.avg_output %}
+                      {{ workout.details.avg_output|floatformat:0 }}W
+                    {% else %}
+                      —
+                    {% endif %}
+                  </div>
+                  <div class="text-xs text-gray-400 mt-1">Avg Output</div>
+                </div>
+                
+                <!-- Total Output -->
+                <div class="text-center border-l border-gray-700 pl-2">
+                  <div class="text-white font-semibold text-sm">
+                    {% if workout.details.total_output %}
+                      {{ workout.details.total_output|floatformat:0 }} kJ
+                    {% else %}
+                      —
+                    {% endif %}
+                  </div>
+                  <div class="text-xs text-gray-400 mt-1">Total Output</div>
+                </div>
+                
+                <!-- Calories -->
+                <div class="text-center border-l border-gray-700 pl-2">
+                  <div class="text-white font-semibold text-sm">
+                    {% if workout.details.total_calories %}
+                      {{ workout.details.total_calories }}
+                    {% else %}
+                      —
+                    {% endif %}
+                  </div>
+                  <div class="text-xs text-gray-400 mt-1">Calories</div>
+                </div>
+              </div>
+            {% elif workout.workout_type.slug == 'running' or workout.workout_type.slug == 'run' or workout.workout_type.slug == 'walking' %}
+              {% comment %}Running/Walking: Show Distance, Speed, Calories{% endcomment %}
+              <div class="grid grid-cols-3 gap-2 mb-4 py-3 border-t border-b border-gray-700">
+                <!-- Distance -->
+                <div class="text-center">
+                  <div class="text-white font-semibold text-sm">
+                    {% if workout.details.distance %}
+                      {{ workout.details.distance|floatformat:2 }} mi
+                    {% else %}
+                      —
+                    {% endif %}
+                  </div>
+                  <div class="text-xs text-gray-400 mt-1">Distance</div>
+                </div>
+                
+                <!-- Avg Speed -->
+                <div class="text-center border-l border-gray-700 pl-2">
+                  <div class="text-white font-semibold text-sm">
+                    {% if workout.details.avg_speed %}
+                      {{ workout.details.avg_speed|floatformat:1 }} mph
+                    {% else %}
+                      —
+                    {% endif %}
+                  </div>
+                  <div class="text-xs text-gray-400 mt-1">Avg Speed</div>
+                </div>
+                
+                <!-- Calories -->
+                <div class="text-center border-l border-gray-700 pl-2">
+                  <div class="text-white font-semibold text-sm">
+                    {% if workout.details.total_calories %}
+                      {{ workout.details.total_calories }}
+                    {% else %}
+                      —
+                    {% endif %}
+                  </div>
+                  <div class="text-xs text-gray-400 mt-1">Calories</div>
+                </div>
+              </div>
+            {% else %}
+              {% comment %}Other types (yoga, meditation, strength, etc.): Show only Calories and Heart Rate if available{% endcomment %}
+              {% if workout.details.total_calories or workout.details.avg_heart_rate %}
+                <div class="grid grid-cols-{% if workout.details.total_calories and workout.details.avg_heart_rate %}2{% else %}1{% endif %} gap-2 mb-4 py-3 border-t border-b border-gray-700">
+                  {% if workout.details.total_calories %}
+                    <!-- Calories -->
+                    <div class="text-center">
+                      <div class="text-white font-semibold text-sm">
+                        {{ workout.details.total_calories }}
+                      </div>
+                      <div class="text-xs text-gray-400 mt-1">Calories</div>
+                    </div>
+                  {% endif %}
+                  
+                  {% if workout.details.avg_heart_rate %}
+                    <!-- Avg Heart Rate -->
+                    <div class="text-center {% if workout.details.total_calories %}border-l border-gray-700 pl-2{% endif %}">
+                      <div class="text-white font-semibold text-sm">
+                        {{ workout.details.avg_heart_rate }} bpm
+                      </div>
+                      <div class="text-xs text-gray-400 mt-1">Avg HR</div>
+                    </div>
+                  {% endif %}
+                </div>
+              {% endif %}
+            {% endif %}
+          {% else %}
+            {% comment %}Fallback: Show basic metrics if workout type is unknown{% endcomment %}
+            {% if workout.details.total_calories %}
+              <div class="grid grid-cols-1 gap-2 mb-4 py-3 border-t border-b border-gray-700">
+                <div class="text-center">
+                  <div class="text-white font-semibold text-sm">
+                    {{ workout.details.total_calories }}
+                  </div>
+                  <div class="text-xs text-gray-400 mt-1">Calories</div>
+                </div>
+              </div>
+            {% endif %}
+          {% endif %}
+        {% endif %}
+        
+        <!-- Action Buttons -->
+        <div class="flex gap-2 mt-4">
+          <a href="{% url 'workouts:detail' workout.id %}" 
+             class="flex-1 px-4 py-2 text-sm font-medium text-white border border-gray-500 rounded-lg hover:bg-gray-700 hover:border-gray-400 transition-colors text-center">
+            View Details
+          </a>
+          {% if workout.peloton_url %}
+            <a href="{{ workout.peloton_url }}" target="_blank" rel="noopener noreferrer" 
+               class="flex-1 px-4 py-2 text-sm font-medium text-white border border-gray-500 rounded-lg hover:bg-gray-700 hover:border-gray-400 transition-colors text-center flex items-center justify-center gap-1">
+              View on Peloton
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+              </svg>
+            </a>
+          {% elif workout.ride_detail and workout.ride_detail.peloton_class_url %}
+            <a href="{{ workout.ride_detail.peloton_class_url }}" target="_blank" rel="noopener noreferrer" 
+               class="flex-1 px-4 py-2 text-sm font-medium text-white border border-gray-500 rounded-lg hover:bg-gray-700 hover:border-gray-400 transition-colors text-center flex items-center justify-center gap-1">
+              View on Peloton
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+              </svg>
+            </a>
+          {% else %}
+            <span class="flex-1 px-4 py-2 text-sm font-medium text-gray-500 border border-gray-700 rounded-lg text-center cursor-not-allowed opacity-50">
+              View on Peloton
+            </span>
+          {% endif %}
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+{% endif %}
+
+<!-- Pagination - Always show when there are multiple pages -->
+{% if workouts and workouts.paginator.num_pages > 1 %}
+  <div class="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+    <div class="text-sm text-gray-600 dark:text-gray-400">
+      Page {{ workouts.number }} of {{ workouts.paginator.num_pages }}
+    </div>
+    <nav class="flex items-center gap-2 flex-wrap justify-center">
+      {% if workouts.has_previous %}
+        <a href="?page={{ workouts.previous_page_number }}{% if workout_type_filter %}&type={{ workout_type_filter }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}{% if instructor_filter %}&instructor={{ instructor_filter }}{% endif %}{% if duration_filter %}&duration={{ duration_filter }}{% endif %}{% if tss_filter %}&tss={{ tss_filter }}{% endif %}" 
+           class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+          ← Previous
+        </a>
+      {% else %}
+        <span class="px-4 py-2 text-sm font-medium text-gray-400 dark:text-gray-600 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg cursor-not-allowed opacity-50">
+          ← Previous
+        </span>
+      {% endif %}
+      
+      <!-- Page Numbers -->
+      {% for num in workouts.paginator.page_range %}
+        {% if workouts.number == num %}
+          <span class="px-3 py-2 text-sm font-medium text-white bg-primary rounded-lg">
+            {{ num }}
+          </span>
+        {% elif num > workouts.number|add:'-3' and num < workouts.number|add:'3' %}
+          <a href="?page={{ num }}{% if workout_type_filter %}&type={{ workout_type_filter }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}{% if instructor_filter %}&instructor={{ instructor_filter }}{% endif %}{% if duration_filter %}&duration={{ duration_filter }}{% endif %}{% if tss_filter %}&tss={{ tss_filter }}{% endif %}" 
+             class="px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+            {{ num }}
+          </a>
+        {% elif num == 1 or num == workouts.paginator.num_pages %}
+          <a href="?page={{ num }}{% if workout_type_filter %}&type={{ workout_type_filter }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}{% if instructor_filter %}&instructor={{ instructor_filter }}{% endif %}{% if duration_filter %}&duration={{ duration_filter }}{% endif %}{% if tss_filter %}&tss={{ tss_filter }}{% endif %}" 
+             class="px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+            {{ num }}
+          </a>
+        {% elif num == workouts.number|add:'-4' or num == workouts.number|add:'4' %}
+          <span class="px-2 text-sm text-gray-400 dark:text-gray-600">...</span>
+        {% endif %}
+      {% endfor %}
+      
+      {% if workouts.has_next %}
+        <a href="?page={{ workouts.next_page_number }}{% if workout_type_filter %}&type={{ workout_type_filter }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}{% if instructor_filter %}&instructor={{ instructor_filter }}{% endif %}{% if duration_filter %}&duration={{ duration_filter }}{% endif %}{% if tss_filter %}&tss={{ tss_filter }}{% endif %}" 
+           class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+          Next →
+        </a>
+      {% else %}
+        <span class="px-4 py-2 text-sm font-medium text-gray-400 dark:text-gray-600 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg cursor-not-allowed opacity-50">
+          Next →
+        </span>
+      {% endif %}
+    </nav>
+  </div>
+{% endif %}
+
+{% if not workouts %}
   <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-12 text-center">
     <div class="text-5xl mb-4">🏋️</div>
     <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">No workouts yet</h3>
@@ -143,4 +474,87 @@
     {% endif %}
   </div>
 {% endif %}
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const syncForm = document.getElementById('sync-workouts-form');
+  const syncBtn = document.getElementById('sync-workouts-btn');
+  const syncBtnText = document.getElementById('sync-btn-text');
+  const syncBtnSpinner = document.getElementById('sync-btn-spinner');
+  const syncStatusMessage = document.getElementById('sync-status-message');
+  
+  if (syncForm) {
+    syncForm.addEventListener('submit', function(e) {
+      e.preventDefault();
+      
+      // Disable button and show spinner
+      syncBtn.disabled = true;
+      syncBtnText.textContent = 'Syncing...';
+      syncBtnSpinner.classList.remove('hidden');
+      syncStatusMessage.classList.remove('hidden');
+      syncStatusMessage.textContent = 'Sync in progress. This may take a few minutes...';
+      syncStatusMessage.className = 'mt-2 text-sm text-blue-600 dark:text-blue-400';
+      
+      // Submit form via AJAX
+      const formData = new FormData(syncForm);
+      
+      fetch(syncForm.action, {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest',
+        },
+      })
+      .then(response => {
+        // Check if response is JSON
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          return response.json();
+        } else {
+          // If not JSON, it's probably a redirect (success page)
+          // Follow redirect to get success message
+          if (response.redirected) {
+            window.location.href = response.url;
+            return null;
+          } else {
+            // Try to parse as JSON anyway
+            return response.json().catch(() => {
+              // If that fails, reload the page
+              window.location.reload();
+              return null;
+            });
+          }
+        }
+      })
+      .then(data => {
+        if (data) {
+          // If we got JSON back, show status
+          if (data.status === 'success') {
+            syncStatusMessage.textContent = data.message || 'Sync completed successfully!';
+            syncStatusMessage.className = 'mt-2 text-sm text-green-600 dark:text-green-400';
+            // Reload page after a delay to show updated workouts
+            setTimeout(() => {
+              window.location.reload();
+            }, 2000);
+          } else if (data.status === 'error') {
+            syncStatusMessage.textContent = data.message || 'Sync failed. Please try again.';
+            syncStatusMessage.className = 'mt-2 text-sm text-red-600 dark:text-red-400';
+            syncBtn.disabled = false;
+            syncBtnText.textContent = 'Sync Workouts';
+            syncBtnSpinner.classList.add('hidden');
+          }
+        }
+      })
+      .catch(error => {
+        console.error('Sync error:', error);
+        syncStatusMessage.textContent = 'An error occurred during sync. Please try again.';
+        syncStatusMessage.className = 'mt-2 text-sm text-red-600 dark:text-red-400';
+        syncBtn.disabled = false;
+        syncBtnText.textContent = 'Sync Workouts';
+        syncBtnSpinner.classList.add('hidden');
+      });
+    });
+  }
+});
+</script>
 {% endblock %}

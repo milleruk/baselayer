@@ -1,8 +1,10 @@
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render
 from django.utils import timezone
+from django.utils.safestring import mark_safe
 from datetime import date, timedelta, datetime
 from collections import defaultdict
+import json
 from .models import Exercise
 from tracker.models import WeeklyPlan
 from challenges.models import ChallengeInstance
@@ -14,7 +16,20 @@ def dashboard(request):
     active_challenge_instance = ChallengeInstance.objects.filter(
         user=request.user,
         is_active=True
-    ).select_related('challenge').prefetch_related('weekly_plans').first()
+    ).select_related('challenge').prefetch_related('weekly_plans', 'team_membership__team').first()
+    
+    # Get team information if user is in a team for this challenge
+    team_info = None
+    if active_challenge_instance:
+        try:
+            from challenges.models import TeamMember
+            team_membership = active_challenge_instance.team_membership
+            team_info = {
+                'name': team_membership.team.name,
+                'id': team_membership.team.id,
+            }
+        except (TeamMember.DoesNotExist, AttributeError):
+            team_info = None
     
     # Get current week plan
     current_week_start = sunday_of_current_week(date.today())
@@ -89,8 +104,157 @@ def dashboard(request):
         show_recent_plans = False
         avg_completion_rate = 0
     
+    # Get recent workouts from Peloton
+    # All class data comes from ride_detail via SQL joins
+    from workouts.models import Workout, WorkoutDetails
+    from django.db.models import Sum, Avg, Count, Q
+    from django.core.exceptions import ObjectDoesNotExist
+    
+    recent_workouts = Workout.objects.filter(
+        user=request.user
+    ).select_related('ride_detail', 'ride_detail__workout_type', 'ride_detail__instructor', 'details').order_by('-completed_date')[:5]
+    
+    # Get Peloton statistics from user's profile
+    profile = request.user.profile
+    peloton_stats = {
+        'total_workouts': profile.peloton_total_workouts or 0,
+        'total_output': profile.peloton_total_output or 0,
+        'total_distance': profile.peloton_total_distance or 0,
+        'total_calories': profile.peloton_total_calories or 0,
+        'current_weekly_streak': profile.peloton_current_weekly_streak or 0,
+        'best_weekly_streak': profile.peloton_best_weekly_streak or 0,
+        'current_daily_streak': profile.peloton_current_daily_streak or 0,
+        'total_achievements': profile.peloton_total_achievements or 0,
+        'workout_counts': profile.peloton_workout_counts or {},
+    }
+    
+    # Calculate workout statistics from database (more accurate than profile)
+    all_workouts = Workout.objects.filter(user=request.user).select_related('ride_detail', 'details')
+    
+    # Total workouts count
+    total_workouts_count = all_workouts.count()
+    
+    # Calculate totals from workout details (sum all workouts)
+    workout_stats = all_workouts.aggregate(
+        total_output_sum=Sum('details__total_output'),
+        total_distance_sum=Sum('details__distance'),
+        total_calories_sum=Sum('details__total_calories'),
+        avg_output=Avg('details__avg_output'),
+        avg_heart_rate=Avg('details__avg_heart_rate'),
+    )
+    
+    # Workouts by type breakdown
+    workouts_by_type = {}
+    for workout in all_workouts.select_related('ride_detail__workout_type'):
+        if workout.ride_detail and workout.ride_detail.workout_type:
+            type_name = workout.ride_detail.workout_type.name
+            workouts_by_type[type_name] = workouts_by_type.get(type_name, 0) + 1
+    
+    # Workouts over time (last 30 days, grouped by week)
+    thirty_days_ago = timezone.now().date() - timedelta(days=30)
+    recent_workouts_30d = all_workouts.filter(completed_date__gte=thirty_days_ago)
+    
+    # Group workouts by week for chart
+    workouts_by_week = {}
+    for workout in recent_workouts_30d:
+        week_start = workout.completed_date - timedelta(days=workout.completed_date.weekday())
+        week_key = week_start.strftime('%Y-%m-%d')
+        if week_key not in workouts_by_week:
+            workouts_by_week[week_key] = {
+                'date': week_start,
+                'count': 0,
+                'total_output': 0,
+                'total_calories': 0,
+            }
+        workouts_by_week[week_key]['count'] += 1
+        try:
+            details = workout.details
+            if details and details.total_output:
+                workouts_by_week[week_key]['total_output'] += details.total_output
+            if details and details.total_calories:
+                workouts_by_week[week_key]['total_calories'] += details.total_calories
+        except (WorkoutDetails.DoesNotExist, AttributeError):
+            pass
+    
+    # Sort by date
+    workouts_by_week_list = sorted(workouts_by_week.values(), key=lambda x: x['date'])
+    
+    # This week's workouts
+    today = timezone.now().date()
+    week_start = today - timedelta(days=today.weekday())
+    this_week_workouts = all_workouts.filter(
+        completed_date__gte=week_start
+    )
+    this_week_count = this_week_workouts.count()
+    def safe_get_output(workout):
+        try:
+            return workout.details.total_output if workout.details and workout.details.total_output else 0
+        except (WorkoutDetails.DoesNotExist, AttributeError):
+            return 0
+    
+    def safe_get_calories(workout):
+        try:
+            return workout.details.total_calories if workout.details and workout.details.total_calories else 0
+        except (WorkoutDetails.DoesNotExist, AttributeError):
+            return 0
+    
+    this_week_output = sum(safe_get_output(w) for w in this_week_workouts) or 0
+    this_week_calories = sum(safe_get_calories(w) for w in this_week_workouts) or 0
+    
+    # Last 7 days workouts
+    seven_days_ago = today - timedelta(days=7)
+    last_7_days_workouts = all_workouts.filter(completed_date__gte=seven_days_ago)
+    last_7_days_count = last_7_days_workouts.count()
+    last_7_days_output = sum(safe_get_output(w) for w in last_7_days_workouts) or 0
+    
+    # Previous 7 days (for comparison)
+    fourteen_days_ago = today - timedelta(days=14)
+    previous_7_days_workouts = all_workouts.filter(completed_date__gte=fourteen_days_ago, completed_date__lt=seven_days_ago)
+    previous_7_days_count = previous_7_days_workouts.count()
+    previous_7_days_output = sum(safe_get_output(w) for w in previous_7_days_workouts) or 0
+    
+    # Monthly totals (this month)
+    month_start = today.replace(day=1)
+    this_month_workouts = all_workouts.filter(completed_date__gte=month_start)
+    this_month_count = this_month_workouts.count()
+    this_month_output = sum(safe_get_output(w) for w in this_month_workouts) or 0
+    this_month_calories = sum(safe_get_calories(w) for w in this_month_workouts) or 0
+    
+    # Previous month (for comparison)
+    if month_start.month == 1:
+        previous_month_start = date(month_start.year - 1, 12, 1)
+    else:
+        previous_month_start = date(month_start.year, month_start.month - 1, 1)
+    
+    # Calculate end of previous month
+    if previous_month_start.month == 12:
+        previous_month_end = date(previous_month_start.year + 1, 1, 1) - timedelta(days=1)
+    else:
+        previous_month_end = date(previous_month_start.year, previous_month_start.month + 1, 1) - timedelta(days=1)
+    
+    previous_month_workouts = all_workouts.filter(completed_date__gte=previous_month_start, completed_date__lte=previous_month_end)
+    previous_month_count = previous_month_workouts.count()
+    previous_month_output = sum(safe_get_output(w) for w in previous_month_workouts) or 0
+    
+    # Calculate differences for comparison display
+    last_7_days_diff = last_7_days_count - previous_7_days_count
+    this_month_diff = this_month_count - previous_month_count
+    
+    # Convert data to JSON for JavaScript charts
+    workouts_by_week_json = mark_safe(json.dumps([
+        {
+            'date': w['date'].strftime('%Y-%m-%d'),
+            'count': w['count'],
+            'total_output': w['total_output'],
+            'total_calories': w['total_calories']
+        }
+        for w in workouts_by_week_list
+    ]))
+    workouts_by_type_json = mark_safe(json.dumps(workouts_by_type))
+    
     context = {
         'active_challenge_instance': active_challenge_instance,
+        'team_info': team_info,
         'current_week_plan': current_week_plan,
         'total_points': total_points,
         'total_weeks_completed': total_weeks_completed,
@@ -101,6 +265,27 @@ def dashboard(request):
         'completed_challenges_count': completed_challenges_count,
         'show_recent_plans': show_recent_plans,
         'has_challenge_involvement': has_challenge_involvement,
+        'recent_workouts': recent_workouts,
+        # Peloton stats
+        'peloton_stats': peloton_stats,
+        'total_workouts_count': total_workouts_count,
+        'workout_stats': workout_stats,
+        'workouts_by_type': workouts_by_type_json,
+        'workouts_by_week': workouts_by_week_json,
+        'this_week_count': this_week_count,
+        'this_week_output': this_week_output,
+        'this_week_calories': this_week_calories,
+        'last_7_days_count': last_7_days_count,
+        'last_7_days_output': last_7_days_output,
+        'previous_7_days_count': previous_7_days_count,
+        'previous_7_days_output': previous_7_days_output,
+        'this_month_count': this_month_count,
+        'this_month_output': this_month_output,
+        'this_month_calories': this_month_calories,
+        'previous_month_count': previous_month_count,
+        'previous_month_output': previous_month_output,
+        'last_7_days_diff': last_7_days_diff,
+        'this_month_diff': this_month_diff,
     }
     
     return render(request, "plans/dashboard.html", context)

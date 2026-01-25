@@ -16,20 +16,29 @@
         <span class="px-3 py-1 text-sm font-semibold text-gray-900 bg-primary/20 rounded-lg">
           {{ workout.duration_minutes }}min
         </span>
+        {% if workout.workout_type %}
         <span class="px-3 py-1 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg">
           {{ workout.workout_type.name }}
         </span>
+        {% endif %}
       </div>
       <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">{{ workout.title }}</h1>
       {% if workout.instructor %}
         <p class="text-gray-600 dark:text-gray-400">{{ workout.instructor.name }}</p>
       {% endif %}
     </div>
-    {% if workout.peloton_url %}
-      <a href="{{ workout.peloton_url }}" target="_blank" rel="noopener noreferrer" class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors">
-        View on Peloton ↗
-      </a>
-    {% endif %}
+    <div class="flex gap-2">
+      {% if workout.peloton_url %}
+        <a href="{{ workout.peloton_url }}" target="_blank" rel="noopener noreferrer" class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors">
+          View Workout ↗
+        </a>
+      {% endif %}
+      {% if workout.ride_detail and workout.ride_detail.peloton_class_url %}
+        <a href="{{ workout.ride_detail.peloton_class_url }}" target="_blank" rel="noopener noreferrer" class="px-4 py-2 text-sm font-medium text-white bg-gray-600 hover:bg-gray-700 rounded-lg transition-colors">
+          View Class ↗
+        </a>
+      {% endif %}
+    </div>
   </div>
 
   <!-- Dates -->
@@ -44,76 +53,130 @@
 </div>
 
 <!-- Metrics Section -->
-{% if workout.metrics %}
+{% if workout.details %}
   <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm mb-6">
     <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Workout Metrics</h2>
     <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-      {% if workout.metrics.tss %}
+      {% if workout.details.tss %}
         <div>
           <div class="text-xs text-gray-600 dark:text-gray-400 mb-1">Training Stress Score</div>
           <div class="text-xl font-bold text-gray-900 dark:text-white">
-            {% if workout.metrics.tss_target %}
-              {{ workout.metrics.tss|floatformat:0 }}/{{ workout.metrics.tss_target|floatformat:0 }}
+            {% if workout.details.tss_target %}
+              {{ workout.details.tss|floatformat:0 }}/{{ workout.details.tss_target|floatformat:0 }}
             {% else %}
-              {{ workout.metrics.tss|floatformat:0 }}
+              {{ workout.details.tss|floatformat:0 }}
             {% endif %}
           </div>
         </div>
       {% endif %}
-      {% if workout.metrics.avg_output %}
+      {% if workout.details.avg_output %}
         <div>
           <div class="text-xs text-gray-600 dark:text-gray-400 mb-1">Average Output</div>
-          <div class="text-xl font-bold text-gray-900 dark:text-white">{{ workout.metrics.avg_output|floatformat:0 }}W</div>
+          <div class="text-xl font-bold text-gray-900 dark:text-white">{{ workout.details.avg_output|floatformat:0 }}W</div>
         </div>
       {% endif %}
-      {% if workout.metrics.total_output %}
+      {% if workout.details.total_output %}
         <div>
           <div class="text-xs text-gray-600 dark:text-gray-400 mb-1">Total Output</div>
-          <div class="text-xl font-bold text-gray-900 dark:text-white">{{ workout.metrics.total_output|floatformat:0 }} kJ</div>
+          <div class="text-xl font-bold text-gray-900 dark:text-white">{{ workout.details.total_output|floatformat:0 }} kJ</div>
         </div>
       {% endif %}
-      {% if workout.metrics.max_output %}
+      {% if workout.details.max_output %}
         <div>
           <div class="text-xs text-gray-600 dark:text-gray-400 mb-1">Max Output</div>
-          <div class="text-xl font-bold text-gray-900 dark:text-white">{{ workout.metrics.max_output|floatformat:0 }}W</div>
+          <div class="text-xl font-bold text-gray-900 dark:text-white">{{ workout.details.max_output|floatformat:0 }}W</div>
         </div>
       {% endif %}
-      {% if workout.metrics.avg_speed %}
+      {% if workout.details.avg_speed %}
         <div>
           <div class="text-xs text-gray-600 dark:text-gray-400 mb-1">Average Speed</div>
-          <div class="text-xl font-bold text-gray-900 dark:text-white">{{ workout.metrics.avg_speed|floatformat:1 }} mph</div>
+          <div class="text-xl font-bold text-gray-900 dark:text-white">{{ workout.details.avg_speed|floatformat:1 }} mph</div>
         </div>
       {% endif %}
-      {% if workout.metrics.max_speed %}
+      {% if workout.details.max_speed %}
         <div>
           <div class="text-xs text-gray-600 dark:text-gray-400 mb-1">Max Speed</div>
-          <div class="text-xl font-bold text-gray-900 dark:text-white">{{ workout.metrics.max_speed|floatformat:1 }} mph</div>
+          <div class="text-xl font-bold text-gray-900 dark:text-white">{{ workout.details.max_speed|floatformat:1 }} mph</div>
         </div>
       {% endif %}
-      {% if workout.metrics.distance %}
+      {% if workout.details.distance %}
         <div>
           <div class="text-xs text-gray-600 dark:text-gray-400 mb-1">Distance</div>
-          <div class="text-xl font-bold text-gray-900 dark:text-white">{{ workout.metrics.distance|floatformat:2 }} mi</div>
+          <div class="text-xl font-bold text-gray-900 dark:text-white">{{ workout.details.distance|floatformat:2 }} mi</div>
         </div>
       {% endif %}
-      {% if workout.metrics.avg_heart_rate %}
+      {% if workout.details.avg_heart_rate %}
         <div>
           <div class="text-xs text-gray-600 dark:text-gray-400 mb-1">Avg Heart Rate</div>
-          <div class="text-xl font-bold text-gray-900 dark:text-white">{{ workout.metrics.avg_heart_rate }} bpm</div>
+          <div class="text-xl font-bold text-gray-900 dark:text-white">{{ workout.details.avg_heart_rate }} bpm</div>
         </div>
       {% endif %}
-      {% if workout.metrics.max_heart_rate %}
+      {% if workout.details.max_heart_rate %}
         <div>
           <div class="text-xs text-gray-600 dark:text-gray-400 mb-1">Max Heart Rate</div>
-          <div class="text-xl font-bold text-gray-900 dark:text-white">{{ workout.metrics.max_heart_rate }} bpm</div>
+          <div class="text-xl font-bold text-gray-900 dark:text-white">{{ workout.details.max_heart_rate }} bpm</div>
         </div>
       {% endif %}
-      {% if workout.metrics.total_calories %}
+      {% if workout.details.total_calories %}
         <div>
           <div class="text-xs text-gray-600 dark:text-gray-400 mb-1">Calories</div>
-          <div class="text-xl font-bold text-gray-900 dark:text-white">{{ workout.metrics.total_calories }}</div>
+          <div class="text-xl font-bold text-gray-900 dark:text-white">{{ workout.details.total_calories }}</div>
         </div>
       {% endif %}
+    </div>
+  </div>
+{% endif %}
+
+<!-- Workout Metrics with Target Ranges -->
+{% if workout.ride_detail and target_metrics %}
+  <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm mb-6">
+    <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-2">Workout Metrics</h2>
+    <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">Track your performance against class targets.</p>
+    
+    <!-- Metric Selection Buttons -->
+    <div class="flex flex-wrap gap-2 mb-4">
+      {% if target_metrics.type == 'power_zone' %}
+        <button onclick="switchMetric('output')" id="btn-output" class="px-4 py-2 text-sm font-medium text-white bg-primary rounded-lg transition-colors">
+          Output
+        </button>
+        <button onclick="switchMetric('cadence')" id="btn-cadence" class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-700 rounded-lg transition-colors hover:bg-gray-300 dark:hover:bg-gray-600">
+          Cadence
+        </button>
+        <button onclick="switchMetric('resistance')" id="btn-resistance" class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-700 rounded-lg transition-colors hover:bg-gray-300 dark:hover:bg-gray-600">
+          Resistance
+        </button>
+      {% elif target_metrics.type == 'cadence_resistance' %}
+        <button onclick="switchMetric('output')" id="btn-output" class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-700 rounded-lg transition-colors hover:bg-gray-300 dark:hover:bg-gray-600">
+          Output
+        </button>
+        <button onclick="switchMetric('cadence')" id="btn-cadence" class="px-4 py-2 text-sm font-medium text-white bg-primary rounded-lg transition-colors">
+          Cadence
+        </button>
+        <button onclick="switchMetric('resistance')" id="btn-resistance" class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-700 rounded-lg transition-colors hover:bg-gray-300 dark:hover:bg-gray-600">
+          Resistance
+        </button>
+      {% elif target_metrics.type == 'pace' %}
+        <button onclick="switchMetric('pace')" id="btn-pace" class="px-4 py-2 text-sm font-medium text-white bg-primary rounded-lg transition-colors">
+          Pace
+        </button>
+      {% endif %}
+    </div>
+    
+    <!-- Target Metrics Graph -->
+    <div class="relative bg-gray-50 dark:bg-gray-900 p-4 rounded-lg min-h-[400px]">
+      <canvas id="targetMetricsChart"></canvas>
+    </div>
+    
+    <!-- Legend -->
+    <div class="flex items-center justify-center gap-4 mt-4 text-sm">
+      <div class="flex items-center gap-2">
+        <div id="legend-actual" class="w-4 h-0.5 bg-blue-500"></div>
+        <span class="text-gray-600 dark:text-gray-400" id="legend-actual-label">Actual</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <div class="w-4 h-4 bg-gray-400 rounded"></div>
+        <span class="text-gray-600 dark:text-gray-400">Target Range</span>
+      </div>
     </div>
   </div>
 {% endif %}
@@ -136,9 +199,315 @@
   </div>
 {% endif %}
 
-{% if performance_data %}
 <!-- Chart.js Library -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+{% if workout.ride_detail and target_metrics_json %}
+<!-- Target Metrics Chart Script -->
+<script>
+  // Target metrics data from Django
+  const targetMetricsData = {{ target_metrics_json }};
+  const targetMetricsType = targetMetricsData.type;
+  const targetMetricsSegments = targetMetricsData.segments || [];
+  const zoneRanges = targetMetricsData.zone_ranges || null;
+  const paceZones = targetMetricsData.pace_zones || null;
+  
+  // Performance data (if available)
+  const performanceData = [
+    {% if performance_data %}
+    {% for data in performance_data %}
+    {
+      timestamp: {{ data.timestamp }},
+      output: {{ data.output|default:"null" }},
+      cadence: {{ data.cadence|default:"null" }},
+      resistance: {{ data.resistance|default:"null" }},
+      speed: {{ data.speed|default:"null" }}
+    }{% if not forloop.last %},{% endif %}
+    {% endfor %}
+    {% else %}
+    // No performance data yet
+    {% endif %}
+  ];
+  
+  const workoutDuration = {{ workout.duration_minutes }};
+  const durationSeconds = {{ workout.ride_detail.duration_seconds }};
+  
+  // Format time from seconds to MM:SS
+  function formatTime(seconds) {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  }
+  
+  // Power Zone colors (Zone 7 at top, Zone 1 at bottom)
+  const powerZoneColors = {
+    7: 'rgba(139, 69, 19, 0.3)',    // Dark brown
+    6: 'rgba(184, 134, 11, 0.3)',   // Dark goldenrod
+    5: 'rgba(255, 140, 0, 0.3)',    // Dark orange
+    4: 'rgba(255, 165, 0, 0.3)',    // Orange
+    3: 'rgba(154, 205, 50, 0.3)',   // Yellow green
+    2: 'rgba(0, 191, 255, 0.3)',    // Deep sky blue
+    1: 'rgba(75, 0, 130, 0.3)'       // Indigo
+  };
+  
+  // Pace zone colors
+  const paceZoneColors = {
+    'max': 'rgba(139, 69, 19, 0.3)',
+    'very_hard': 'rgba(184, 134, 11, 0.3)',
+    'hard': 'rgba(255, 140, 0, 0.3)',
+    'challenging': 'rgba(255, 165, 0, 0.3)',
+    'moderate': 'rgba(154, 205, 50, 0.3)',
+    'easy': 'rgba(0, 191, 255, 0.3)',
+    'recovery': 'rgba(75, 0, 130, 0.3)'
+  };
+  
+  let currentMetric = targetMetricsType === 'power_zone' ? 'output' : (targetMetricsType === 'pace' ? 'pace' : 'cadence');
+  let targetMetricsChart = null;
+  
+  function switchMetric(metric) {
+    currentMetric = metric;
+    
+    // Update button styles
+    document.querySelectorAll('[id^="btn-"]').forEach(btn => {
+      btn.classList.remove('bg-primary', 'text-white');
+      btn.classList.add('bg-gray-200', 'dark:bg-gray-700', 'text-gray-700', 'dark:text-gray-300');
+    });
+    const activeBtn = document.getElementById(`btn-${metric}`);
+    if (activeBtn) {
+      activeBtn.classList.remove('bg-gray-200', 'dark:bg-gray-700', 'text-gray-700', 'dark:text-gray-300');
+      activeBtn.classList.add('bg-primary', 'text-white');
+    }
+    
+    // Update legend
+    const legendLabel = document.getElementById('legend-actual-label');
+    if (legendLabel) {
+      const labels = {
+        'output': 'Output',
+        'cadence': 'Cadence',
+        'resistance': 'Resistance',
+        'pace': 'Pace'
+      };
+      legendLabel.textContent = labels[metric] || 'Actual';
+    }
+    
+    // Re-render chart
+    renderTargetMetricsChart();
+  }
+  
+  function renderTargetMetricsChart() {
+    const ctx = document.getElementById('targetMetricsChart');
+    if (!ctx) return;
+    
+    if (targetMetricsChart) {
+      targetMetricsChart.destroy();
+    }
+    
+    // Generate time labels
+    const labels = [];
+    const step = Math.max(1, Math.floor(durationSeconds / 20));
+    for (let i = 0; i <= durationSeconds; i += step) {
+      labels.push(formatTime(i));
+    }
+    
+    // Prepare datasets
+    const datasets = [];
+    let yAxisLabel = '';
+    let yAxisMin = 0;
+    let yAxisMax = null;
+    
+    // Add zone backgrounds (for power zones or pace zones)
+    if (targetMetricsType === 'power_zone' && zoneRanges && currentMetric === 'output') {
+      // Add background zones for power zones
+      for (let zone = 7; zone >= 1; zone--) {
+        const range = zoneRanges[zone];
+        if (range) {
+          const [min, max] = range;
+          datasets.push({
+            label: `Zone ${zone}`,
+            data: labels.map(() => ({ x: null, y: max || yAxisMax || 500 })),
+            backgroundColor: powerZoneColors[zone],
+            borderWidth: 0,
+            pointRadius: 0,
+            order: 0,
+            type: 'bar',
+            barThickness: 'flex',
+            categoryPercentage: 1.0,
+            barPercentage: 1.0
+          });
+          if (max && (!yAxisMax || max > yAxisMax)) {
+            yAxisMax = max * 1.1; // Add 10% padding
+          }
+        }
+      }
+      yAxisLabel = 'Output (Watts)';
+    } else if (targetMetricsType === 'pace' && paceZones && currentMetric === 'pace') {
+      // Add background zones for pace
+      const zoneOrder = ['max', 'very_hard', 'hard', 'challenging', 'moderate', 'easy', 'recovery'];
+      for (const zone of zoneOrder) {
+        if (paceZones[zone]) {
+          datasets.push({
+            label: zone.charAt(0).toUpperCase() + zone.slice(1),
+            data: labels.map(() => paceZones[zone]),
+            backgroundColor: paceZoneColors[zone],
+            borderWidth: 0,
+            pointRadius: 0,
+            order: 0,
+            type: 'line',
+            fill: true
+          });
+        }
+      }
+      yAxisLabel = 'Pace (min/mile)';
+    }
+    
+    // Add target range rectangles (for cadence/resistance)
+    if (targetMetricsType === 'cadence_resistance' && targetMetricsSegments) {
+      targetMetricsSegments.forEach(segment => {
+        const range = segment[currentMetric];
+        if (range && range.lower !== undefined && range.upper !== undefined) {
+          // Create a dataset for this target range segment
+          const segmentData = labels.map((label, idx) => {
+            const time = idx * step;
+            if (time >= segment.start && time <= segment.end) {
+              return { x: time, y: [range.lower, range.upper] };
+            }
+            return null;
+          });
+          
+          datasets.push({
+            label: `Target ${currentMetric.charAt(0).toUpperCase() + currentMetric.slice(1)}`,
+            data: segmentData,
+            backgroundColor: 'rgba(107, 114, 128, 0.3)',
+            borderColor: 'rgba(107, 114, 128, 0.5)',
+            borderWidth: 1,
+            pointRadius: 0,
+            order: 1,
+            type: 'line',
+            fill: true
+          });
+          
+          if (range.upper > (yAxisMax || 0)) {
+            yAxisMax = range.upper * 1.1;
+          }
+        }
+      });
+      
+      yAxisLabel = currentMetric === 'cadence' ? 'Cadence (rpm)' : 
+                   currentMetric === 'resistance' ? 'Resistance (%)' : 'Output (Watts)';
+    }
+    
+    // Add actual performance line
+    if (performanceData && performanceData.length > 0) {
+      const actualData = performanceData.map(d => {
+        if (currentMetric === 'output') return d.output;
+        if (currentMetric === 'cadence') return d.cadence;
+        if (currentMetric === 'resistance') return d.resistance;
+        if (currentMetric === 'pace' && d.speed) {
+          // Convert speed (mph) to pace (min/mile)
+          return d.speed > 0 ? 60 / d.speed : null;
+        }
+        return null;
+      });
+      
+      datasets.push({
+        label: 'Actual',
+        data: actualData,
+        borderColor: 'rgb(59, 130, 246)',
+        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+        borderWidth: 2,
+        fill: false,
+        tension: 0.1,
+        pointRadius: 0,
+        pointHoverRadius: 4,
+        order: 2
+      });
+      
+      // Update y-axis max based on actual data
+      const maxActual = Math.max(...actualData.filter(v => v !== null));
+      if (maxActual && (!yAxisMax || maxActual > yAxisMax)) {
+        yAxisMax = maxActual * 1.1;
+      }
+    }
+    
+    // Create chart
+    targetMetricsChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: datasets
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: {
+          intersect: false,
+          mode: 'index'
+        },
+        plugins: {
+          legend: {
+            display: false
+          },
+          tooltip: {
+            enabled: true,
+            backgroundColor: 'rgba(0, 0, 0, 0.9)',
+            titleColor: 'rgba(255, 255, 255, 1)',
+            bodyColor: 'rgba(255, 255, 255, 0.9)',
+            borderColor: 'rgba(255, 255, 255, 0.2)',
+            borderWidth: 1,
+            padding: 12
+          }
+        },
+        scales: {
+          x: {
+            title: {
+              display: true,
+              text: 'Time (MM:SS)',
+              color: window.matchMedia('(prefers-color-scheme: dark)').matches ? 'rgba(255, 255, 255, 0.7)' : 'rgba(0, 0, 0, 0.7)',
+              font: { size: 12 }
+            },
+            ticks: {
+              color: window.matchMedia('(prefers-color-scheme: dark)').matches ? 'rgba(255, 255, 255, 0.6)' : 'rgba(0, 0, 0, 0.6)',
+              maxTicksLimit: 12
+            },
+            grid: {
+              color: window.matchMedia('(prefers-color-scheme: dark)').matches ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'
+            }
+          },
+          y: {
+            title: {
+              display: true,
+              text: yAxisLabel,
+              color: window.matchMedia('(prefers-color-scheme: dark)').matches ? 'rgba(255, 255, 255, 0.7)' : 'rgba(0, 0, 0, 0.7)',
+              font: { size: 12 }
+            },
+            ticks: {
+              color: window.matchMedia('(prefers-color-scheme: dark)').matches ? 'rgba(255, 255, 255, 0.6)' : 'rgba(0, 0, 0, 0.6)',
+              precision: 0
+            },
+            grid: {
+              color: window.matchMedia('(prefers-color-scheme: dark)').matches ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'
+            },
+            min: yAxisMin,
+            max: yAxisMax || undefined,
+            beginAtZero: !yAxisMax
+          }
+        }
+      }
+    });
+  }
+  
+  // Initialize chart on page load
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', renderTargetMetricsChart);
+  } else {
+    renderTargetMetricsChart();
+  }
+</script>
+{% endif %}
+
+{% if performance_data %}
+<!-- Performance Graph Script -->
+<script>
 
 <script>
   // Performance data from Django
@@ -157,7 +526,7 @@
     {% endfor %}
   ];
 
-  const workoutType = "{{ workout.workout_type.slug }}";
+  const workoutType = "{% if workout.workout_type %}{{ workout.workout_type.slug }}{% else %}other{% endif %}";
   const workoutDuration = {{ workout.duration_minutes }};
 
   // Format time from seconds to MM:SS
