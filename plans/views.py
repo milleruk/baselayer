@@ -795,3 +795,343 @@ def metrics(request):
     context['peloton_milestones'] = peloton_milestones
     
     return render(request, "plans/metrics.html", context)
+
+
+@login_required
+def recap(request):
+    """Yearly recap view showing comprehensive stats for a selected year"""
+    from workouts.models import Workout, WorkoutDetails
+    from .models import RecapShare
+    from django.db.models import Sum, Avg, Count, Q
+    from django.urls import reverse
+    from django.http import HttpResponseNotFound, HttpResponseForbidden
+    
+    # Get available years (years with workouts)
+    available_years = Workout.objects.filter(
+        user=request.user
+    ).values_list('completed_date__year', flat=True).distinct().order_by('-completed_date__year')
+    
+    # Get year from query params, default to most recent available year
+    selected_year_param = request.GET.get('year')
+    if selected_year_param:
+        try:
+            selected_year = int(selected_year_param)
+            if selected_year not in available_years:
+                selected_year = available_years[0] if available_years else None
+        except ValueError:
+            selected_year = available_years[0] if available_years else None
+    else:
+        selected_year = available_years[0] if available_years else None
+    
+    if not selected_year:
+        context = {
+            "has_workouts": False,
+            "selected_year": None,
+            "available_years": [],
+            "no_years_message": "No completed years found. Check back next year for your recap!",
+        }
+        return render(request, "plans/recap.html", context)
+    
+    # Get all workouts for the selected year
+    year_start = date(selected_year, 1, 1)
+    year_end = date(selected_year, 12, 31)
+    
+    all_workouts = Workout.objects.filter(
+        user=request.user,
+        completed_date__gte=year_start,
+        completed_date__lte=year_end
+    ).select_related('ride_detail', 'ride_detail__workout_type', 'ride_detail__instructor', 'details')
+    
+    if not all_workouts.exists():
+        context = {
+            "has_workouts": False,
+            "selected_year": selected_year,
+            "available_years": list(available_years),
+        }
+        return render(request, "plans/recap.html", context)
+    
+    # Calculate basic statistics
+    total_workouts = all_workouts.count()
+    
+    # Get workout details for metrics
+    workouts_with_details = all_workouts.filter(details__isnull=False)
+    
+    # Calculate summary stats
+    summary_stats = workouts_with_details.aggregate(
+        total_distance=Sum('details__distance'),
+        total_calories=Sum('details__total_calories'),
+        total_output=Sum('details__total_output'),
+        avg_output=Avg('details__avg_output'),
+        avg_calories=Avg('details__total_calories'),
+    )
+    
+    # Calculate active days
+    active_days = all_workouts.values('completed_date').distinct().count()
+    
+    # Calculate streaks (simplified)
+    workout_dates = sorted(set(all_workouts.values_list('completed_date', flat=True)))
+    longest_streak = 1
+    current_streak = 1
+    for i in range(1, len(workout_dates)):
+        if (workout_dates[i] - workout_dates[i-1]).days == 1:
+            current_streak += 1
+            longest_streak = max(longest_streak, current_streak)
+        else:
+            current_streak = 1
+    
+    # Top instructors
+    top_instructors = all_workouts.filter(
+        ride_detail__instructor__isnull=False
+    ).values(
+        'ride_detail__instructor__name'
+    ).annotate(
+        count=Count('id')
+    ).order_by('-count')[:10]
+    
+    # Monthly breakdown
+    monthly_data = []
+    for month_num in range(1, 13):
+        month_workouts = all_workouts.filter(completed_date__month=month_num)
+        month_count = month_workouts.count()
+        monthly_data.append({
+            'month': date(selected_year, month_num, 1).strftime('%B'),
+            'count': month_count,
+        })
+    
+    # Check if user has a share link for this year
+    try:
+        share = RecapShare.objects.get(user=request.user, year=selected_year)
+        share_url = request.build_absolute_uri(
+            reverse('plans:recap_share', args=[share.token])
+        )
+    except RecapShare.DoesNotExist:
+        share = None
+        share_url = None
+    
+    context = {
+        "has_workouts": True,
+        "selected_year": selected_year,
+        "available_years": list(available_years),
+        "total_workouts": total_workouts,
+        "active_days": active_days,
+        "longest_streak": longest_streak,
+        "summary_stats": {
+            "total_distance_km": round((summary_stats['total_distance'] or 0) * 1.60934, 1),
+            "total_calories": round(summary_stats['total_calories'] or 0, 0),
+            "total_output_kj": round(summary_stats['total_output'] or 0, 1),
+            "avg_output": round(summary_stats['avg_output'] or 0, 1),
+            "avg_calories": round(summary_stats['avg_calories'] or 0, 0),
+        },
+        "top_instructors": list(top_instructors),
+        "monthly_data": monthly_data,
+        "share": share,
+        "share_url": share_url,
+    }
+    
+    return render(request, "plans/recap.html", context)
+
+
+def recap_share(request, token):
+    """Public view for shared recap pages"""
+    from workouts.models import Workout, WorkoutDetails
+    from .models import RecapShare
+    from django.db.models import Sum, Avg, Count
+    from django.http import HttpResponseNotFound, HttpResponseForbidden
+    
+    try:
+        share = RecapShare.objects.get(token=token)
+    except RecapShare.DoesNotExist:
+        return HttpResponseNotFound("Share link not found or has been removed.")
+    
+    # Check if share is valid
+    if not share.is_valid():
+        return HttpResponseForbidden("This share link is disabled or has expired.")
+    
+    # Increment view count
+    share.increment_view_count()
+    
+    # Get the year from the share
+    year = share.year
+    user = share.user
+    
+    # Get all workouts for the selected year
+    year_start = date(year, 1, 1)
+    year_end = date(year, 12, 31)
+    
+    all_workouts = Workout.objects.filter(
+        user=user,
+        completed_date__gte=year_start,
+        completed_date__lte=year_end
+    ).select_related('ride_detail', 'ride_detail__workout_type', 'ride_detail__instructor', 'details')
+    
+    if not all_workouts.exists():
+        context = {
+            "has_workouts": False,
+            "selected_year": year,
+            "share": share,
+            "is_public": True,
+            "username": user.username,
+        }
+        return render(request, "plans/recap_public.html", context)
+    
+    # Calculate basic statistics (same as recap view)
+    total_workouts = all_workouts.count()
+    workouts_with_details = all_workouts.filter(details__isnull=False)
+    
+    summary_stats = workouts_with_details.aggregate(
+        total_distance=Sum('details__distance'),
+        total_calories=Sum('details__total_calories'),
+        total_output=Sum('details__total_output'),
+        avg_output=Avg('details__avg_output'),
+        avg_calories=Avg('details__total_calories'),
+    )
+    
+    active_days = all_workouts.values('completed_date').distinct().count()
+    
+    workout_dates = sorted(set(all_workouts.values_list('completed_date', flat=True)))
+    longest_streak = 1
+    current_streak = 1
+    for i in range(1, len(workout_dates)):
+        if (workout_dates[i] - workout_dates[i-1]).days == 1:
+            current_streak += 1
+            longest_streak = max(longest_streak, current_streak)
+        else:
+            current_streak = 1
+    
+    top_instructors = all_workouts.filter(
+        ride_detail__instructor__isnull=False
+    ).values(
+        'ride_detail__instructor__name'
+    ).annotate(
+        count=Count('id')
+    ).order_by('-count')[:10]
+    
+    monthly_data = []
+    for month_num in range(1, 13):
+        month_workouts = all_workouts.filter(completed_date__month=month_num)
+        month_count = month_workouts.count()
+        monthly_data.append({
+            'month': date(year, month_num, 1).strftime('%B'),
+            'count': month_count,
+        })
+    
+    context = {
+        "has_workouts": True,
+        "selected_year": year,
+        "share": share,
+        "is_public": True,
+        "username": user.username,
+        "total_workouts": total_workouts,
+        "active_days": active_days,
+        "longest_streak": longest_streak,
+        "summary_stats": {
+            "total_distance_km": round((summary_stats['total_distance'] or 0) * 1.60934, 1),
+            "total_calories": round(summary_stats['total_calories'] or 0, 0),
+            "total_output_kj": round(summary_stats['total_output'] or 0, 1),
+            "avg_output": round(summary_stats['avg_output'] or 0, 1),
+            "avg_calories": round(summary_stats['avg_calories'] or 0, 0),
+        },
+        "top_instructors": list(top_instructors),
+        "monthly_data": monthly_data,
+    }
+    
+    return render(request, "plans/recap_public.html", context)
+
+
+@login_required
+def recap_share_manage(request):
+    """API view for managing recap shares (create, enable, disable, regenerate)"""
+    from .models import RecapShare
+    from django.http import JsonResponse
+    from django.urls import reverse
+    
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        year = request.POST.get('year')
+        
+        if not year:
+            return JsonResponse({'error': 'Year is required'}, status=400)
+        
+        try:
+            year = int(year)
+        except ValueError:
+            return JsonResponse({'error': 'Invalid year'}, status=400)
+        
+        if action == 'create':
+            share, created = RecapShare.get_or_create_for_user_year(request.user, year)
+            if not created and not share.is_enabled:
+                share.is_enabled = True
+                share.save(update_fields=['is_enabled'])
+            
+            share_url = request.build_absolute_uri(
+                reverse('plans:recap_share', args=[share.token])
+            )
+            
+            return JsonResponse({
+                'success': True,
+                'token': share.token,
+                'share_url': share_url,
+                'is_enabled': share.is_enabled,
+                'view_count': share.view_count,
+            })
+        
+        elif action == 'disable':
+            try:
+                share = RecapShare.objects.get(user=request.user, year=year)
+                share.is_enabled = False
+                share.save(update_fields=['is_enabled'])
+                return JsonResponse({
+                    'success': True,
+                    'is_enabled': False,
+                })
+            except RecapShare.DoesNotExist:
+                return JsonResponse({'error': 'Share not found'}, status=404)
+        
+        elif action == 'regenerate':
+            try:
+                share = RecapShare.objects.get(user=request.user, year=year)
+                share.regenerate_token()
+                share_url = request.build_absolute_uri(
+                    reverse('plans:recap_share', args=[share.token])
+                )
+                return JsonResponse({
+                    'success': True,
+                    'token': share.token,
+                    'share_url': share_url,
+                })
+            except RecapShare.DoesNotExist:
+                return JsonResponse({'error': 'Share not found'}, status=404)
+        
+        else:
+            return JsonResponse({'error': 'Invalid action'}, status=400)
+    
+    elif request.method == 'GET':
+        year = request.GET.get('year')
+        
+        if not year:
+            return JsonResponse({'error': 'Year is required'}, status=400)
+        
+        try:
+            year = int(year)
+        except ValueError:
+            return JsonResponse({'error': 'Invalid year'}, status=400)
+        
+        try:
+            share = RecapShare.objects.get(user=request.user, year=year)
+            share_url = request.build_absolute_uri(
+                reverse('plans:recap_share', args=[share.token])
+            )
+            return JsonResponse({
+                'exists': True,
+                'token': share.token,
+                'share_url': share_url,
+                'is_enabled': share.is_enabled,
+                'view_count': share.view_count,
+                'last_viewed_at': share.last_viewed_at.isoformat() if share.last_viewed_at else None,
+            })
+        except RecapShare.DoesNotExist:
+            return JsonResponse({
+                'exists': False,
+            })
+    
+    return JsonResponse({'error': 'Method not allowed'}, status=405)

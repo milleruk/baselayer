@@ -1,0 +1,220 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Yearly Recap • {{ selected_year|default:"Recap" }}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+  <div class="mb-6 flex justify-between items-center">
+    <h1 class="text-3xl font-bold">Yearly Recap</h1>
+    <div class="flex items-center gap-4">
+      <div class="flex items-center gap-2">
+        <label for="year-select" class="text-sm text-gray-600 dark:text-gray-400">Year:</label>
+        <select id="year-select" onchange="window.location.href='?year=' + this.value" class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100">
+          {% for year in available_years %}
+            <option value="{{ year }}" {% if year == selected_year %}selected{% endif %}>{{ year }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      {% if share and share.is_enabled %}
+        <a href="{% url 'plans:recap_share' share.token %}" target="_blank" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors text-sm">
+          🔗 View Share Link
+        </a>
+      {% else %}
+        <button onclick="createShare()" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors text-sm">
+          🔗 Create Share Link
+        </button>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if not selected_year %}
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+      <h2 class="text-xl font-semibold mb-2">No completed years</h2>
+      <p class="text-gray-600 dark:text-gray-400">{{ no_years_message|default:"No completed years found. Check back next year for your recap!" }}</p>
+    </div>
+  {% elif not has_workouts %}
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+      <h2 class="text-xl font-semibold mb-2">No workouts found</h2>
+      <p class="text-gray-600 dark:text-gray-400">No workouts found for {{ selected_year }}. Please select a different year or sync your workouts.</p>
+    </div>
+  {% else %}
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <!-- Summary Stats -->
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+        <h2 class="text-xl font-semibold mb-4">📊 Summary</h2>
+        <div class="space-y-3">
+          <div>
+            <div class="text-sm text-gray-600 dark:text-gray-400">Total Workouts</div>
+            <div class="text-2xl font-bold">{{ total_workouts }}</div>
+          </div>
+          <div>
+            <div class="text-sm text-gray-600 dark:text-gray-400">Active Days</div>
+            <div class="text-2xl font-bold">{{ active_days }}</div>
+          </div>
+          <div>
+            <div class="text-sm text-gray-600 dark:text-gray-400">Longest Streak</div>
+            <div class="text-2xl font-bold">{{ longest_streak }} days</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Distance & Calories -->
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+        <h2 class="text-xl font-semibold mb-4">📈 Performance</h2>
+        <div class="space-y-3">
+          {% if summary_stats.total_distance_km > 0 %}
+          <div>
+            <div class="text-sm text-gray-600 dark:text-gray-400">Total Distance</div>
+            <div class="text-2xl font-bold">{{ summary_stats.total_distance_km }} km</div>
+          </div>
+          {% endif %}
+          {% if summary_stats.total_calories > 0 %}
+          <div>
+            <div class="text-sm text-gray-600 dark:text-gray-400">Total Calories</div>
+            <div class="text-2xl font-bold">{{ summary_stats.total_calories|floatformat:0 }} cal</div>
+          </div>
+          {% endif %}
+          {% if summary_stats.total_output_kj > 0 %}
+          <div>
+            <div class="text-sm text-gray-600 dark:text-gray-400">Total Output</div>
+            <div class="text-2xl font-bold">{{ summary_stats.total_output_kj }} kJ</div>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Averages -->
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+        <h2 class="text-xl font-semibold mb-4">📊 Averages</h2>
+        <div class="space-y-3">
+          {% if summary_stats.avg_output > 0 %}
+          <div>
+            <div class="text-sm text-gray-600 dark:text-gray-400">Avg Output</div>
+            <div class="text-2xl font-bold">{{ summary_stats.avg_output }} W</div>
+          </div>
+          {% endif %}
+          {% if summary_stats.avg_calories > 0 %}
+          <div>
+            <div class="text-sm text-gray-600 dark:text-gray-400">Avg Calories</div>
+            <div class="text-2xl font-bold">{{ summary_stats.avg_calories|floatformat:0 }} cal</div>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Top Instructors -->
+      {% if top_instructors %}
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 md:col-span-2 lg:col-span-3">
+        <h2 class="text-xl font-semibold mb-4">👨‍🏫 Top Instructors</h2>
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+          {% for instructor in top_instructors %}
+          <div class="text-center">
+            <div class="text-lg font-semibold">{{ instructor.ride_detail__instructor__name }}</div>
+            <div class="text-sm text-gray-600 dark:text-gray-400">{{ instructor.count }} classes</div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Monthly Breakdown -->
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 md:col-span-2 lg:col-span-3">
+        <h2 class="text-xl font-semibold mb-4">📅 Monthly Breakdown</h2>
+        <div class="grid grid-cols-3 md:grid-cols-6 lg:grid-cols-12 gap-4">
+          {% for month in monthly_data %}
+          <div class="text-center">
+            <div class="text-sm font-semibold">{{ month.month|slice:":3" }}</div>
+            <div class="text-lg">{{ month.count }}</div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  {% endif %}
+</div>
+
+<!-- Hidden CSRF token for JavaScript access -->
+{% csrf_token %}
+
+<script>
+function getCSRFToken() {
+  // Try to get CSRF token from hidden input first
+  const hiddenInput = document.querySelector('[name=csrfmiddlewaretoken]');
+  if (hiddenInput && hiddenInput.value) {
+    return hiddenInput.value;
+  }
+  
+  // Try to get from cookie
+  let token = getCookie('csrftoken');
+  if (token) return token;
+  
+  // Try alternative cookie names
+  token = getCookie('csrf_token');
+  if (token) return token;
+  
+  // Fallback: try to get from meta tag
+  const metaTag = document.querySelector('meta[name=csrf-token]');
+  if (metaTag) return metaTag.getAttribute('content');
+  
+  console.error('CSRF token not found');
+  return null;
+}
+
+function createShare() {
+  const year = document.getElementById('year-select')?.value || '{{ selected_year }}';
+  const formData = new FormData();
+  formData.append('action', 'create');
+  formData.append('year', year);
+  
+  const csrfToken = getCSRFToken();
+  if (!csrfToken) {
+    alert('CSRF token not found. Please refresh the page and try again.');
+    return;
+  }
+  
+  fetch('{% url "plans:recap_share_manage" %}', {
+    method: 'POST',
+    body: formData,
+    headers: {
+      'X-CSRFToken': csrfToken
+    },
+    credentials: 'same-origin'
+  })
+  .then(response => {
+    if (!response.ok) {
+      return response.text().then(text => {
+        throw new Error(`HTTP ${response.status}: ${text}`);
+      });
+    }
+    return response.json();
+  })
+  .then(data => {
+    if (data.success) {
+      location.reload();
+    } else {
+      alert('Error: ' + (data.error || 'Failed to create share link'));
+    }
+  })
+  .catch(error => {
+    console.error('Error:', error);
+    alert('Failed to create share link: ' + error.message);
+  });
+}
+
+function getCookie(name) {
+  let cookieValue = null;
+  if (document.cookie && document.cookie !== '') {
+    const cookies = document.cookie.split(';');
+    for (let i = 0; i < cookies.length; i++) {
+      const cookie = cookies[i].trim();
+      if (cookie.substring(0, name.length + 1) === (name + '=')) {
+        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+        break;
+      }
+    }
+  }
+  return cookieValue;
+}
+</script>
+{% endblock %}
