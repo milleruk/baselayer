@@ -919,13 +919,21 @@ def class_detail(request, pk):
             # Sort segments by start time to ensure proper order
             chart_segments.sort(key=lambda x: x['start'])
             
-            # Use exact class duration (no offset)
+            # Calculate actual duration from segments (use last segment's end time)
+            # This ensures we match the actual class plan duration, not just ride.duration_seconds
+            actual_duration = total_duration
+            if chart_segments:
+                last_segment_end = max(seg.get('end', 0) for seg in chart_segments)
+                # Use the larger of ride duration or last segment end (but don't exceed ride duration)
+                actual_duration = min(max(last_segment_end, total_duration), total_duration)
+            
+            # Use actual duration from segments (matches class plan)
             pace_chart = {
                 'chart_data': {
                     'type': 'pace_target',
                     'segments': chart_segments,
                     'zones': chart_zones,
-                    'total_duration': total_duration,  # Exact class duration
+                    'total_duration': actual_duration,  # Actual duration from segments
                 }
             }
         
@@ -995,12 +1003,19 @@ def class_detail(request, pk):
                 # Sort segments by start time to ensure proper order
                 fallback_chart_segments.sort(key=lambda x: x['start'])
                 
+                # Calculate actual duration from segments (use last segment's end time)
+                actual_duration = total_duration
+                if fallback_chart_segments:
+                    last_segment_end = max(seg.get('end', 0) for seg in fallback_chart_segments)
+                    # Use the larger of ride duration or last segment end (but don't exceed ride duration)
+                    actual_duration = min(max(last_segment_end, total_duration), total_duration)
+                
                 pace_chart = {
                     'chart_data': {
                         'type': 'pace_target',
                         'segments': fallback_chart_segments,
                         'zones': chart_zones,
-                        'total_duration': total_duration,  # Exact class duration
+                        'total_duration': actual_duration,  # Actual duration from segments
                     }
                 }
         
