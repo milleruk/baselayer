@@ -12,12 +12,16 @@
 <!-- Workout Header -->
 <div class="mb-6">
   <div class="flex flex-col sm:flex-row justify-between items-start gap-4 mb-4">
-    <div>
+    <div class="flex-1">
       <div class="flex items-center gap-3 mb-3">
-        <span class="px-3 py-1 text-sm font-semibold text-gray-900 bg-primary/20 rounded-lg">
+        <span class="px-3 py-1 text-sm font-semibold text-gray-900 dark:text-white bg-primary/20 dark:bg-primary/30 rounded-lg">
           {{ workout.duration_minutes }}min
         </span>
-        {% if workout.workout_type %}
+        {% if workout.ride_detail and workout.ride_detail.workout_type %}
+        <span class="px-3 py-1 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg">
+          {{ workout.ride_detail.workout_type.name }}
+        </span>
+        {% elif workout.workout_type %}
         <span class="px-3 py-1 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg">
           {{ workout.workout_type.name }}
         </span>
@@ -28,14 +32,14 @@
         <p class="text-gray-600 dark:text-gray-400">{{ workout.instructor.name }}</p>
       {% endif %}
     </div>
-    <div class="flex gap-2">
+    <div class="flex flex-wrap gap-2">
       {% if workout.peloton_url %}
         <a href="{{ workout.peloton_url }}" target="_blank" rel="noopener noreferrer" class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors">
           View Workout ↗
         </a>
       {% endif %}
       {% if workout.ride_detail and workout.ride_detail.peloton_class_url %}
-        <a href="{{ workout.ride_detail.peloton_class_url }}" target="_blank" rel="noopener noreferrer" class="px-4 py-2 text-sm font-medium text-white bg-gray-600 hover:bg-gray-700 rounded-lg transition-colors">
+        <a href="{{ workout.ride_detail.peloton_class_url }}" target="_blank" rel="noopener noreferrer" class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors">
           View Class ↗
         </a>
       {% endif %}
@@ -45,10 +49,10 @@
   <!-- Dates -->
   <div class="flex flex-wrap gap-4 text-sm text-gray-600 dark:text-gray-400">
     <div>
-      <strong>Recorded:</strong> {{ workout.recorded_date|date:"F d, Y" }}
+      <strong class="font-semibold">Recorded:</strong> {{ workout.recorded_date|date:"F d, Y" }}
     </div>
     <div>
-      <strong>Completed:</strong> {{ workout.completed_date|date:"F d, Y" }}
+      <strong class="font-semibold">Completed:</strong> {{ workout.completed_date|date:"F d, Y" }}
     </div>
   </div>
 </div>
@@ -128,67 +132,47 @@
   </div>
 {% endif %}
 
-<!-- Workout Metrics with Target Ranges -->
-{% if workout.ride_detail and target_metrics %}
-  <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm mb-6">
-    <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-2">Workout Metrics</h2>
-    <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">Track your performance against class targets.</p>
-    
-    <!-- Metric Selection Buttons -->
-    <div class="flex flex-wrap gap-2 mb-4">
-      {% if target_metrics.type == 'power_zone' %}
-        <button onclick="switchMetric('output')" id="btn-output" class="px-4 py-2 text-sm font-medium text-white bg-primary rounded-lg transition-colors">
-          Output
-        </button>
-        <button onclick="switchMetric('cadence')" id="btn-cadence" class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-700 rounded-lg transition-colors hover:bg-gray-300 dark:hover:bg-gray-600">
-          Cadence
-        </button>
-        <button onclick="switchMetric('resistance')" id="btn-resistance" class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-700 rounded-lg transition-colors hover:bg-gray-300 dark:hover:bg-gray-600">
-          Resistance
-        </button>
-      {% elif target_metrics.type == 'cadence_resistance' %}
-        <button onclick="switchMetric('output')" id="btn-output" class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-700 rounded-lg transition-colors hover:bg-gray-300 dark:hover:bg-gray-600">
-          Output
-        </button>
-        <button onclick="switchMetric('cadence')" id="btn-cadence" class="px-4 py-2 text-sm font-medium text-white bg-primary rounded-lg transition-colors">
-          Cadence
-        </button>
-        <button onclick="switchMetric('resistance')" id="btn-resistance" class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-700 rounded-lg transition-colors hover:bg-gray-300 dark:hover:bg-gray-600">
-          Resistance
-        </button>
-      {% elif target_metrics.type == 'pace' %}
-        <button onclick="switchMetric('pace')" id="btn-pace" class="px-4 py-2 text-sm font-medium text-white bg-primary rounded-lg transition-colors">
-          Pace
-        </button>
-      {% endif %}
-    </div>
-    
-    <!-- Target Metrics Graph -->
-    <div class="relative bg-gray-50 dark:bg-gray-900 p-4 rounded-lg min-h-[400px]">
-      <canvas id="targetMetricsChart"></canvas>
-    </div>
-    
-    <!-- Legend -->
-    <div class="flex items-center justify-center gap-4 mt-4 text-sm">
-      <div class="flex items-center gap-2">
-        <div id="legend-actual" class="w-4 h-0.5 bg-blue-500"></div>
-        <span class="text-gray-600 dark:text-gray-400" id="legend-actual-label">Actual</span>
-      </div>
-      <div class="flex items-center gap-2">
-        <div class="w-4 h-4 bg-gray-400 rounded"></div>
-        <span class="text-gray-600 dark:text-gray-400">Target Range</span>
-      </div>
-    </div>
-  </div>
-{% endif %}
-
 <!-- Performance Graph -->
 {% if performance_data %}
   <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm mb-6">
+    {% if target_metrics and target_metrics.type == 'power_zone' %}
+    <div class="mb-4">
+      <div class="flex items-start justify-between mb-2">
+        <div>
+          <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-1">Power Zone Timeline</h2>
+          <p class="text-sm text-gray-600 dark:text-gray-400">Coach cues mapped against your effort.</p>
+        </div>
+        {% if playlist and playlist.songs %}
+        <label class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 cursor-pointer">
+          <input type="checkbox" id="showMusicTimeline" checked class="rounded border-gray-300 dark:border-gray-600 text-primary focus:ring-primary bg-white dark:bg-gray-700">
+          <span>Show Music Timeline</span>
+        </label>
+        {% endif %}
+      </div>
+    </div>
+    <div class="pace-target-chart relative px-3 pt-2">
+      {% if playlist and playlist.songs %}
+      <!-- Music Timeline Overlay - Above Chart -->
+      <div id="musicTimeline" class="mb-3 h-12 relative bg-gray-800 dark:bg-gray-950 rounded border border-gray-700 dark:border-gray-600 overflow-hidden"></div>
+      {% endif %}
+      <div class="relative bg-gray-50 dark:bg-gray-900 rounded-lg min-h-[320px]">
+        <canvas id="performanceChart"></canvas>
+      </div>
+      <div id="powerChartLegend" class="mt-3 px-3 flex flex-wrap gap-3 text-xs text-gray-700 dark:text-gray-300"></div>
+      <div id="powerChartReadout" class="mt-2 px-3 text-sm font-medium text-gray-600 dark:text-gray-400 opacity-85"></div>
+    </div>
+    {% else %}
     <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Performance Graph</h2>
     <div class="relative bg-gray-50 dark:bg-gray-900 p-4 rounded-lg min-h-[400px]">
       <canvas id="performanceChart"></canvas>
     </div>
+    {% endif %}
+  </div>
+{% else %}
+  <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm mb-6">
+    <p class="text-gray-600 dark:text-gray-400">
+      Performance data not available for this workout. Please sync your workouts to see performance graphs.
+    </p>
   </div>
 {% endif %}
 
@@ -297,313 +281,8 @@
 <!-- Chart.js Library -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
-{% if workout.ride_detail and target_metrics_json %}
-<!-- Target Metrics Chart Script -->
-<script>
-  // Target metrics data from Django
-  const targetMetricsData = {{ target_metrics_json }};
-  const targetMetricsType = targetMetricsData.type;
-  const targetMetricsSegments = targetMetricsData.segments || [];
-  const zoneRanges = targetMetricsData.zone_ranges || null;
-  const paceZones = targetMetricsData.pace_zones || null;
-  
-  // Performance data (if available)
-  const performanceData = [
-    {% if performance_data %}
-    {% for data in performance_data %}
-    {
-      timestamp: {{ data.timestamp }},
-      output: {{ data.output|default:"null" }},
-      cadence: {{ data.cadence|default:"null" }},
-      resistance: {{ data.resistance|default:"null" }},
-      speed: {{ data.speed|default:"null" }}
-    }{% if not forloop.last %},{% endif %}
-    {% endfor %}
-    {% else %}
-    // No performance data yet
-    {% endif %}
-  ];
-  
-  const workoutDuration = {{ workout.duration_minutes }};
-  const durationSeconds = {{ workout.ride_detail.duration_seconds }};
-  
-  // Format time from seconds to MM:SS
-  function formatTime(seconds) {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  }
-  
-  // Power Zone colors (Zone 7 at top, Zone 1 at bottom)
-  const powerZoneColors = {
-    7: 'rgba(139, 69, 19, 0.3)',    // Dark brown
-    6: 'rgba(184, 134, 11, 0.3)',   // Dark goldenrod
-    5: 'rgba(255, 140, 0, 0.3)',    // Dark orange
-    4: 'rgba(255, 165, 0, 0.3)',    // Orange
-    3: 'rgba(154, 205, 50, 0.3)',   // Yellow green
-    2: 'rgba(0, 191, 255, 0.3)',    // Deep sky blue
-    1: 'rgba(75, 0, 130, 0.3)'       // Indigo
-  };
-  
-  // Pace zone colors
-  const paceZoneColors = {
-    'max': 'rgba(139, 69, 19, 0.3)',
-    'very_hard': 'rgba(184, 134, 11, 0.3)',
-    'hard': 'rgba(255, 140, 0, 0.3)',
-    'challenging': 'rgba(255, 165, 0, 0.3)',
-    'moderate': 'rgba(154, 205, 50, 0.3)',
-    'easy': 'rgba(0, 191, 255, 0.3)',
-    'recovery': 'rgba(75, 0, 130, 0.3)'
-  };
-  
-  let currentMetric = targetMetricsType === 'power_zone' ? 'output' : (targetMetricsType === 'pace' ? 'pace' : 'cadence');
-  let targetMetricsChart = null;
-  
-  function switchMetric(metric) {
-    currentMetric = metric;
-    
-    // Update button styles
-    document.querySelectorAll('[id^="btn-"]').forEach(btn => {
-      btn.classList.remove('bg-primary', 'text-white');
-      btn.classList.add('bg-gray-200', 'dark:bg-gray-700', 'text-gray-700', 'dark:text-gray-300');
-    });
-    const activeBtn = document.getElementById(`btn-${metric}`);
-    if (activeBtn) {
-      activeBtn.classList.remove('bg-gray-200', 'dark:bg-gray-700', 'text-gray-700', 'dark:text-gray-300');
-      activeBtn.classList.add('bg-primary', 'text-white');
-    }
-    
-    // Update legend
-    const legendLabel = document.getElementById('legend-actual-label');
-    if (legendLabel) {
-      const labels = {
-        'output': 'Output',
-        'cadence': 'Cadence',
-        'resistance': 'Resistance',
-        'pace': 'Pace'
-      };
-      legendLabel.textContent = labels[metric] || 'Actual';
-    }
-    
-    // Re-render chart
-    renderTargetMetricsChart();
-  }
-  
-  function renderTargetMetricsChart() {
-    const ctx = document.getElementById('targetMetricsChart');
-    if (!ctx) return;
-    
-    if (targetMetricsChart) {
-      targetMetricsChart.destroy();
-    }
-    
-    // Generate time labels
-    const labels = [];
-    const step = Math.max(1, Math.floor(durationSeconds / 20));
-    for (let i = 0; i <= durationSeconds; i += step) {
-      labels.push(formatTime(i));
-    }
-    
-    // Prepare datasets
-    const datasets = [];
-    let yAxisLabel = '';
-    let yAxisMin = 0;
-    let yAxisMax = null;
-    
-    // Add zone backgrounds (for power zones or pace zones)
-    if (targetMetricsType === 'power_zone' && zoneRanges && currentMetric === 'output') {
-      // Add background zones for power zones
-      for (let zone = 7; zone >= 1; zone--) {
-        const range = zoneRanges[zone];
-        if (range) {
-          const [min, max] = range;
-          datasets.push({
-            label: `Zone ${zone}`,
-            data: labels.map(() => ({ x: null, y: max || yAxisMax || 500 })),
-            backgroundColor: powerZoneColors[zone],
-            borderWidth: 0,
-            pointRadius: 0,
-            order: 0,
-            type: 'bar',
-            barThickness: 'flex',
-            categoryPercentage: 1.0,
-            barPercentage: 1.0
-          });
-          if (max && (!yAxisMax || max > yAxisMax)) {
-            yAxisMax = max * 1.1; // Add 10% padding
-          }
-        }
-      }
-      yAxisLabel = 'Output (Watts)';
-    } else if (targetMetricsType === 'pace' && paceZones && currentMetric === 'pace') {
-      // Add background zones for pace
-      const zoneOrder = ['max', 'very_hard', 'hard', 'challenging', 'moderate', 'easy', 'recovery'];
-      for (const zone of zoneOrder) {
-        if (paceZones[zone]) {
-          datasets.push({
-            label: zone.charAt(0).toUpperCase() + zone.slice(1),
-            data: labels.map(() => paceZones[zone]),
-            backgroundColor: paceZoneColors[zone],
-            borderWidth: 0,
-            pointRadius: 0,
-            order: 0,
-            type: 'line',
-            fill: true
-          });
-        }
-      }
-      yAxisLabel = 'Pace (min/mile)';
-    }
-    
-    // Add target range rectangles (for cadence/resistance)
-    if (targetMetricsType === 'cadence_resistance' && targetMetricsSegments) {
-      targetMetricsSegments.forEach(segment => {
-        const range = segment[currentMetric];
-        if (range && range.lower !== undefined && range.upper !== undefined) {
-          // Create a dataset for this target range segment
-          const segmentData = labels.map((label, idx) => {
-            const time = idx * step;
-            if (time >= segment.start && time <= segment.end) {
-              return { x: time, y: [range.lower, range.upper] };
-            }
-            return null;
-          });
-          
-          datasets.push({
-            label: `Target ${currentMetric.charAt(0).toUpperCase() + currentMetric.slice(1)}`,
-            data: segmentData,
-            backgroundColor: 'rgba(107, 114, 128, 0.3)',
-            borderColor: 'rgba(107, 114, 128, 0.5)',
-            borderWidth: 1,
-            pointRadius: 0,
-            order: 1,
-            type: 'line',
-            fill: true
-          });
-          
-          if (range.upper > (yAxisMax || 0)) {
-            yAxisMax = range.upper * 1.1;
-          }
-        }
-      });
-      
-      yAxisLabel = currentMetric === 'cadence' ? 'Cadence (rpm)' : 
-                   currentMetric === 'resistance' ? 'Resistance (%)' : 'Output (Watts)';
-    }
-    
-    // Add actual performance line
-    if (performanceData && performanceData.length > 0) {
-      const actualData = performanceData.map(d => {
-        if (currentMetric === 'output') return d.output;
-        if (currentMetric === 'cadence') return d.cadence;
-        if (currentMetric === 'resistance') return d.resistance;
-        if (currentMetric === 'pace' && d.speed) {
-          // Convert speed (mph) to pace (min/mile)
-          return d.speed > 0 ? 60 / d.speed : null;
-        }
-        return null;
-      });
-      
-      datasets.push({
-        label: 'Actual',
-        data: actualData,
-        borderColor: 'rgb(59, 130, 246)',
-        backgroundColor: 'rgba(59, 130, 246, 0.1)',
-        borderWidth: 2,
-        fill: false,
-        tension: 0.1,
-        pointRadius: 0,
-        pointHoverRadius: 4,
-        order: 2
-      });
-      
-      // Update y-axis max based on actual data
-      const maxActual = Math.max(...actualData.filter(v => v !== null));
-      if (maxActual && (!yAxisMax || maxActual > yAxisMax)) {
-        yAxisMax = maxActual * 1.1;
-      }
-    }
-    
-    // Create chart
-    targetMetricsChart = new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels: labels,
-        datasets: datasets
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        interaction: {
-          intersect: false,
-          mode: 'index'
-        },
-        plugins: {
-          legend: {
-            display: false
-          },
-          tooltip: {
-            enabled: true,
-            backgroundColor: 'rgba(0, 0, 0, 0.9)',
-            titleColor: 'rgba(255, 255, 255, 1)',
-            bodyColor: 'rgba(255, 255, 255, 0.9)',
-            borderColor: 'rgba(255, 255, 255, 0.2)',
-            borderWidth: 1,
-            padding: 12
-          }
-        },
-        scales: {
-          x: {
-            title: {
-              display: true,
-              text: 'Time (MM:SS)',
-              color: window.matchMedia('(prefers-color-scheme: dark)').matches ? 'rgba(255, 255, 255, 0.7)' : 'rgba(0, 0, 0, 0.7)',
-              font: { size: 12 }
-            },
-            ticks: {
-              color: window.matchMedia('(prefers-color-scheme: dark)').matches ? 'rgba(255, 255, 255, 0.6)' : 'rgba(0, 0, 0, 0.6)',
-              maxTicksLimit: 12
-            },
-            grid: {
-              color: window.matchMedia('(prefers-color-scheme: dark)').matches ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'
-            }
-          },
-          y: {
-            title: {
-              display: true,
-              text: yAxisLabel,
-              color: window.matchMedia('(prefers-color-scheme: dark)').matches ? 'rgba(255, 255, 255, 0.7)' : 'rgba(0, 0, 0, 0.7)',
-              font: { size: 12 }
-            },
-            ticks: {
-              color: window.matchMedia('(prefers-color-scheme: dark)').matches ? 'rgba(255, 255, 255, 0.6)' : 'rgba(0, 0, 0, 0.6)',
-              precision: 0
-            },
-            grid: {
-              color: window.matchMedia('(prefers-color-scheme: dark)').matches ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'
-            },
-            min: yAxisMin,
-            max: yAxisMax || undefined,
-            beginAtZero: !yAxisMax
-          }
-        }
-      }
-    });
-  }
-  
-  // Initialize chart on page load
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', renderTargetMetricsChart);
-  } else {
-    renderTargetMetricsChart();
-  }
-</script>
-{% endif %}
-
 {% if performance_data %}
 <!-- Performance Graph Script -->
-<script>
-
 <script>
   // Performance data from Django
   const performanceData = [
@@ -621,8 +300,54 @@
     {% endfor %}
   ];
 
-  const workoutType = "{% if workout.workout_type %}{{ workout.workout_type.slug }}{% else %}other{% endif %}";
-  const workoutDuration = {{ workout.duration_minutes }};
+  // Target line data (for power zone classes)
+  const targetLineData = {% if target_line_data %}{{ target_line_data }}{% else %}null{% endif %};
+  
+  const workoutType = "{% if workout.ride_detail and workout.ride_detail.workout_type %}{{ workout.ride_detail.workout_type.slug }}{% elif workout.workout_type %}{{ workout.workout_type.slug }}{% else %}other{% endif %}";
+  // Check if this is a power zone class - check both target_metrics and ride_detail
+  const isPowerZone = {% if target_metrics and target_metrics.type == 'power_zone' %}true{% elif workout.ride_detail and workout.ride_detail.is_power_zone_class %}true{% elif workout.ride_detail and workout.ride_detail.class_type == 'power_zone' %}true{% else %}false{% endif %};
+  const workoutDuration = {{ workout.duration_minutes|default:30 }} * 60; // Convert to seconds
+  const userFTP = {% if user_ftp %}{{ user_ftp }}{% else %}null{% endif %};
+  // Get target metrics JSON (includes zone_ranges)
+  const targetMetricsJson = {% if target_metrics_json %}{{ target_metrics_json|safe }}{% else %}null{% endif %};
+  // Extract zone_ranges from target_metrics_json if available
+  const zoneRanges = (targetMetricsJson && targetMetricsJson.zone_ranges) ? targetMetricsJson.zone_ranges : null;
+  
+  // Playlist data for music timeline
+  const playlistData = {% if playlist and playlist.songs %}[
+    {% for song in playlist.songs %}
+    {
+      title: "{{ song.title|escapejs }}",
+      artists: [{% for artist in song.artists %}"{{ artist.artist_name|escapejs }}"{% if not forloop.last %}, {% endif %}{% endfor %}],
+      start_time: {{ song.start_time_offset|default:0 }},
+      duration: {{ song.duration|default:0 }}
+    }{% if not forloop.last %},{% endif %}
+    {% endfor %}
+  ]{% else %}null{% endif %};
+  
+  // Calculate song durations if not provided (from next song's start time)
+  if (playlistData && playlistData.length > 0) {
+    for (let i = 0; i < playlistData.length; i++) {
+      const song = playlistData[i];
+      if (!song.duration || song.duration <= 0) {
+        // Calculate duration from next song's start time
+        if (i < playlistData.length - 1) {
+          song.duration = playlistData[i + 1].start_time - song.start_time;
+        } else {
+          // Last song - use workout duration minus start time
+          song.duration = Math.max(180, workoutDuration - song.start_time);
+        }
+      }
+    }
+  }
+  
+  // Debug logging
+  console.log('Performance data count:', performanceData.length);
+  console.log('Target line data:', targetLineData ? targetLineData.length : 'null');
+  console.log('Is Power Zone:', isPowerZone);
+  console.log('User FTP:', userFTP);
+  console.log('Zone ranges:', zoneRanges);
+  console.log('Target metrics:', {% if target_metrics_json %}{{ target_metrics_json|safe }}{% else %}null{% endif %});
 
   // Format time from seconds to MM:SS
   function formatTime(seconds) {
@@ -631,31 +356,130 @@
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   }
 
-  // Prepare chart data
+  // Prepare chart data - use timestamps directly for x-axis (like reference)
+  const timeSeconds = performanceData.map(d => d.timestamp);
   const labels = performanceData.map(d => formatTime(d.timestamp));
-  const outputData = performanceData.map(d => d.output);
-  const speedData = performanceData.map(d => d.speed);
-  const heartRateData = performanceData.map(d => d.heart_rate);
+  const outputData = performanceData.map(d => d.output !== null && d.output !== undefined ? d.output : null);
+  const speedData = performanceData.map(d => d.speed !== null && d.speed !== undefined ? d.speed : null);
+  const heartRateData = performanceData.map(d => d.heart_rate !== null && d.heart_rate !== undefined ? d.heart_rate : null);
+  
+  // Calculate y-axis range for power zone charts (like reference)
+  let ymin = 0;
+  let ymax = null;
+  if (isPowerZone && (workoutType === 'cycling' || workoutType === 'ride')) {
+    const pool = [...outputData.filter(v => v !== null)];
+    if (targetLineData && targetLineData.length > 0) {
+      pool.push(...targetLineData.map(item => item.target_output).filter(v => v !== null));
+    }
+    if (pool.length > 0) {
+      ymin = Math.min(...pool);
+      ymax = Math.max(...pool);
+      if (Math.abs(ymax - ymin) < 10) {
+        ymax = ymin + 10;
+      }
+      // Add padding (6% like reference)
+      const pad = Math.max((ymax - ymin) * 0.06, 10);
+      ymin = Math.max(0, ymin - pad);
+      ymax = ymax + pad;
+    } else {
+      ymax = 300;  // Default max
+    }
+  }
+  
+  // Debug: Check if we have any output data
+  const hasOutputData = outputData.some(v => v !== null && v !== undefined);
+  console.log('Has output data:', hasOutputData, 'Output data sample:', outputData.slice(0, 10));
+  console.log('Y-axis range:', ymin, '-', ymax);
+
+  // Power Zone colors matching reference implementation
+  const POWER_ZONE_COLORS = {
+    1: "#6f42c1",  // Purple - Z1 • Active Recovery
+    2: "#17a2b8",  // Teal - Z2 • Endurance
+    3: "#28a745",  // Green - Z3 • Tempo
+    4: "#ffc107",  // Yellow - Z4 • Threshold
+    5: "#fd7e14",  // Orange - Z5 • VO2 Max
+    6: "#dc3545",  // Red - Z6 • Anaerobic
+    7: "#6610f2"   // Dark Purple - Z7 • Neuromuscular
+  };
+  
+  const POWER_ZONE_NAMES = {
+    1: "Z1 • Active Recovery",
+    2: "Z2 • Endurance",
+    3: "Z3 • Tempo",
+    4: "Z4 • Threshold",
+    5: "Z5 • VO2 Max",
+    6: "Z6 • Anaerobic",
+    7: "Z7 • Neuromuscular"
+  };
 
   // Determine chart type and data based on workout type
   let datasets = [];
   let yAxisLabel = '';
+  let powerZoneBands = [];
+
+  // Build power zone bands for background (like reference implementation)
+  // Build in order Zone 1 to Zone 7, but they'll be drawn reversed (Zone 7 on top)
+  if (zoneRanges && userFTP && isPowerZone) {
+    for (let zone = 1; zone <= 7; zone++) {
+      const zoneKey = String(zone);
+      if (zoneRanges[zoneKey]) {
+        const range = zoneRanges[zoneKey];
+        const lower = Array.isArray(range) ? range[0] : null;
+        const upper = Array.isArray(range) ? range[1] : null;
+        powerZoneBands.push({
+          zone: zone,
+          label: POWER_ZONE_NAMES[zone] || `Zone ${zone}`,
+          color: POWER_ZONE_COLORS[zone] || '#888',
+          lower: lower !== null && lower !== undefined ? lower : null,
+          upper: upper !== null && upper !== undefined ? upper : null
+        });
+      }
+    }
+  }
 
   if (workoutType === 'cycling' || workoutType === 'ride') {
     yAxisLabel = 'Output (Watts)';
-    datasets = [
-      {
-        label: 'Actual Output',
-        data: outputData,
-        borderColor: 'rgb(59, 130, 246)',
-        backgroundColor: 'rgba(59, 130, 246, 0.1)',
-        borderWidth: 2,
-        fill: false,
-        tension: 0.1,
-        pointRadius: 0,
-        pointHoverRadius: 4
+    
+    // Actual output line (blue like reference)
+    datasets.push({
+      label: 'Actual',
+      data: outputData,  // Chart.js will map to labels array
+      borderColor: '#5b7cfa',  // Blue like reference
+      backgroundColor: 'rgba(91, 124, 250, 0.1)',
+      borderWidth: 2.8,  // Slightly thicker like reference
+      fill: false,
+      cubicInterpolationMode: 'monotone',  // Smooth curve like reference
+      pointRadius: 0,
+      pointHoverRadius: 4,
+      spanGaps: true  // Connect across null values
+    });
+    
+    // Target output line (light blue, stepped) for power zone classes
+    if (isPowerZone && targetLineData && targetLineData.length > 0) {
+      // Extract target output values - targetLineData should be aligned with performanceData
+      const targetOutputData = targetLineData.map(item => item.target_output);
+      
+      // Ensure arrays match length (pad with null if needed)
+      while (targetOutputData.length < performanceData.length) {
+        targetOutputData.push(null);
       }
-    ];
+      targetOutputData.splice(performanceData.length);
+      
+      datasets.push({
+        label: 'Target',
+        data: targetOutputData,  // Chart.js will map to labels array
+        borderColor: '#5b7cfa',  // Blue target line like reference image 2
+        backgroundColor: 'rgba(91, 124, 250, 0.1)',
+        borderWidth: 2.8,  // Match actual line thickness
+        borderDash: [5, 4],  // Dashed line like reference
+        fill: false,
+        tension: 0,  // Stepped line (no smoothing)
+        stepped: 'before',  // Stepped line
+        pointRadius: 0,
+        pointHoverRadius: 4,
+        spanGaps: true  // Connect across null values
+      });
+    }
   } else if (workoutType === 'running' || workoutType === 'run') {
     yAxisLabel = 'Speed (mph)';
     datasets = [
@@ -668,7 +492,8 @@
         fill: false,
         tension: 0.1,
         pointRadius: 0,
-        pointHoverRadius: 4
+        pointHoverRadius: 4,
+        spanGaps: true
       }
     ];
   } else {
@@ -683,79 +508,292 @@
         fill: false,
         tension: 0.1,
         pointRadius: 0,
-        pointHoverRadius: 4
+        pointHoverRadius: 4,
+        spanGaps: true
       }
     ];
   }
 
-  // Create chart
-  const ctx = document.getElementById('performanceChart');
-  const chart = new Chart(ctx, {
+  // Zone bands plugin (like reference implementation)
+  const zoneBandsPlugin = {
+    id: 'zoneBands',
+    beforeDatasetsDraw(chart, args, opts) {
+      const {ctx, chartArea, scales} = chart;
+      const bands = opts?.bands || [];
+      ctx.save();
+      // Draw bands from Zone 7 (top) to Zone 1 (bottom)
+      // Reverse order so Zone 7 is drawn first (on top)
+      [...bands].reverse().forEach(b => {
+        if (b.lower == null && b.upper == null) return;
+        const yTop = scales.y.getPixelForValue(b.upper ?? scales.y.max);
+        const yBot = scales.y.getPixelForValue(b.lower ?? scales.y.min);
+        ctx.fillStyle = b.color;
+        ctx.globalAlpha = 0.18;  // Match reference opacity
+        ctx.fillRect(chartArea.left, yTop, chartArea.right - chartArea.left, yBot - yTop);
+      });
+      ctx.restore();
+    }
+  };
+  
+  // External tooltip/readout handler (like reference)
+  const readout = document.getElementById('powerChartReadout');
+  const externalTooltip = (ctx) => {
+    const {tooltip} = ctx;
+    if (readout && tooltip.opacity === 0) {
+      readout.textContent = '';
+      return;
+    }
+    if (!readout) {
+      // For non-power-zone classes, use default tooltip
+      return;
+    }
+    const i = tooltip.dataPoints?.[0]?.dataIndex ?? null;
+    if (i == null) return;
+    
+    // Get timestamp and values from data
+    const t = performanceData[i]?.timestamp || 0;
+    const vA = outputData[i];
+    const vT = targetLineData && i < targetLineData.length ? targetLineData[i].target_output : null;
+    
+    const parts = [formatTime(t)];
+    if (vA != null && vA !== undefined) parts.push(`Output ${Math.round(vA)} w`);
+    if (vT != null && vT !== undefined) parts.push(`Target ${Math.round(vT)} w`);
+    readout.textContent = parts.join('  •  ');
+  };
+  
+  // Build legend (like reference) - show zones in reverse order (Zone 7 to Zone 1)
+  const legendEl = document.getElementById('powerChartLegend');
+  if (legendEl && powerZoneBands.length > 0) {
+    // Reverse order to show Zone 7 first, Zone 1 last (like reference)
+    const reversedBands = [...powerZoneBands].reverse();
+    legendEl.innerHTML = reversedBands.map(b => {
+      const r = (b.lower != null || b.upper != null)
+        ? `${b.lower ?? ''}${(b.lower != null && b.upper != null) ? '–' : ''}${b.upper ?? ''} w`
+        : '';
+      return `<span class="flex items-center gap-2 opacity-90"><i class="w-3.5 h-3.5 rounded inline-block" style="background: ${b.color};"></i><span>${b.label}${r ? ' • ' + r : ''}</span></span>`;
+    }).join('');
+  }
+
+  // Initialize chart when DOM is ready
+  function initChart() {
+    // Check if Chart.js is loaded
+    if (typeof Chart === 'undefined') {
+      console.error('Chart.js library not loaded');
+      return;
+    }
+    
+    // Create chart
+    const ctx = document.getElementById('performanceChart');
+    if (!ctx) {
+      console.error('Performance chart canvas not found');
+      return;
+    }
+    
+    // Check if we have data
+    if (performanceData.length === 0) {
+      console.error('No performance data available');
+      return;
+    }
+    
+    // Create chart configuration matching reference exactly
+    // For power zone charts, use time_seconds array as labels with linear scale
+    const chartConfig = {
     type: 'line',
     data: {
-      labels: labels,
+      labels: isPowerZone ? timeSeconds : labels,
       datasets: datasets
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      animation: false,  // Disable animation like reference
       interaction: {
         intersect: false,
         mode: 'index'
       },
       plugins: {
         legend: {
-          display: true,
-          labels: {
-            color: window.matchMedia('(prefers-color-scheme: dark)').matches ? 'rgba(255, 255, 255, 0.8)' : 'rgba(0, 0, 0, 0.8)',
-            font: { size: 12 }
-          }
+          display: false  // Hide legend (we show custom legend below)
         },
         tooltip: {
-          enabled: true,
-          backgroundColor: 'rgba(0, 0, 0, 0.9)',
-          titleColor: 'rgba(255, 255, 255, 1)',
-          bodyColor: 'rgba(255, 255, 255, 0.9)',
-          borderColor: 'rgba(255, 255, 255, 0.2)',
-          borderWidth: 1,
-          padding: 12
-        }
+          enabled: !isPowerZone || !readout,  // Use external tooltip for power zone, default for others
+          external: (isPowerZone && readout) ? externalTooltip : undefined
+        },
+        zoneBands: powerZoneBands.length > 0 ? { bands: powerZoneBands } : undefined
       },
       scales: {
         x: {
-          title: {
-            display: true,
-            text: 'Time (MM:SS)',
-            color: window.matchMedia('(prefers-color-scheme: dark)').matches ? 'rgba(255, 255, 255, 0.7)' : 'rgba(0, 0, 0, 0.7)',
-            font: { size: 12 }
+          type: isPowerZone ? 'linear' : 'category',  // Linear scale for power zone (time-based)
+          min: isPowerZone ? 0 : undefined,
+          max: isPowerZone && timeSeconds.length > 0 ? timeSeconds[timeSeconds.length - 1] : undefined,
+          grid: {
+            color: 'rgba(255,255,255,0.06)'  // Match reference
           },
           ticks: {
-            color: window.matchMedia('(prefers-color-scheme: dark)').matches ? 'rgba(255, 255, 255, 0.6)' : 'rgba(0, 0, 0, 0.6)',
-            maxTicksLimit: 12
-          },
-          grid: {
-            color: window.matchMedia('(prefers-color-scheme: dark)').matches ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'
+            autoSkip: true,
+            maxTicksLimit: 9,
+            callback: function(value, index) {
+              if (isPowerZone) {
+                // For linear scale, value is the timestamp
+                return formatTime(value);
+              } else {
+                // For category scale, use index
+                if (index >= 0 && index < performanceData.length) {
+                  return formatTime(performanceData[index].timestamp);
+                }
+                return formatTime(value);
+              }
+            },
+            color: 'rgba(255,255,255,0.7)'
           }
         },
         y: {
+          min: (isPowerZone && ymax) ? ymin : 0,
+          max: (isPowerZone && ymax) ? ymax : undefined,
           title: {
             display: true,
-            text: yAxisLabel,
-            color: window.matchMedia('(prefers-color-scheme: dark)').matches ? 'rgba(255, 255, 255, 0.7)' : 'rgba(0, 0, 0, 0.7)',
-            font: { size: 12 }
-          },
-          ticks: {
-            color: window.matchMedia('(prefers-color-scheme: dark)').matches ? 'rgba(255, 255, 255, 0.6)' : 'rgba(0, 0, 0, 0.6)',
-            precision: 0
+            text: yAxisLabel.toLowerCase(),
+            color: 'rgba(255,255,255,0.7)'
           },
           grid: {
-            color: window.matchMedia('(prefers-color-scheme: dark)').matches ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'
+            color: 'rgba(255,255,255,0.06)'
           },
-          beginAtZero: true
+          ticks: {
+            callback: function(value) {
+              return value.toFixed(0);
+            },
+            color: 'rgba(255,255,255,0.7)'
+          }
         }
       }
+    },
+    plugins: powerZoneBands.length > 0 ? [zoneBandsPlugin] : []
+  };
+  
+    const chart = new Chart(ctx, chartConfig);
+    
+    // Music timeline overlay
+    if (playlistData && playlistData.length > 0 && isPowerZone) {
+      const musicTimelineEl = document.getElementById('musicTimeline');
+      const showMusicCheckbox = document.getElementById('showMusicTimeline');
+      
+      function renderMusicTimeline() {
+        if (!musicTimelineEl || !showMusicCheckbox) return;
+        
+        if (!showMusicCheckbox.checked) {
+          musicTimelineEl.classList.add('hidden');
+          return;
+        }
+        
+        musicTimelineEl.classList.remove('hidden');
+        musicTimelineEl.innerHTML = '';
+        
+        // Get max time from chart or workout duration
+        const maxTime = timeSeconds.length > 0 ? timeSeconds[timeSeconds.length - 1] : workoutDuration;
+        const timelineWidth = musicTimelineEl.offsetWidth || 800;
+        
+        // Color palette for different songs (like reference)
+        const songColors = [
+          'rgba(91, 124, 250, 0.4)',   // Blue
+          'rgba(34, 197, 94, 0.4)',    // Green
+          'rgba(234, 179, 8, 0.4)',    // Yellow
+          'rgba(239, 68, 68, 0.4)',    // Red
+          'rgba(168, 85, 247, 0.4)',   // Purple
+          'rgba(236, 72, 153, 0.4)',   // Pink
+          'rgba(20, 184, 166, 0.4)',   // Teal
+          'rgba(251, 146, 60, 0.4)',   // Orange
+        ];
+        
+        playlistData.forEach((song, idx) => {
+          const startTime = song.start_time || 0;
+          const duration = song.duration || 180;
+          
+          // Calculate percentages based on max time (align with chart's time axis)
+          const startPercent = maxTime > 0 ? (startTime / maxTime) * 100 : 0;
+          const widthPercent = maxTime > 0 ? (duration / maxTime) * 100 : 0;
+          
+          // Ensure we don't go beyond 100%
+          const actualStartPercent = Math.max(0, Math.min(startPercent, 100));
+          const actualWidthPercent = Math.max(0, Math.min(widthPercent, 100 - actualStartPercent));
+          
+          // Skip if segment is too small or outside bounds
+          if (actualWidthPercent < 0.5 || actualStartPercent >= 100) {
+            return;
+          }
+          
+          const segment = document.createElement('div');
+          const color = songColors[idx % songColors.length];
+          const artistName = song.artists && song.artists.length > 0 ? song.artists[0] : '';
+          
+          segment.style.cssText = `
+            position: absolute;
+            left: ${actualStartPercent}%;
+            width: ${actualWidthPercent}%;
+            height: 100%;
+            background: ${color};
+            border-right: 1px solid rgba(255,255,255,0.25);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 2px 6px;
+            font-size: 10px;
+            line-height: 1.2;
+            color: rgba(255,255,255,0.95);
+            overflow: hidden;
+            cursor: pointer;
+            transition: opacity 0.2s, background 0.2s;
+            min-width: 60px;
+          `;
+          
+          segment.onmouseenter = () => {
+            segment.style.opacity = '0.85';
+            segment.style.background = color.replace('0.4', '0.6');
+          };
+          segment.onmouseleave = () => {
+            segment.style.opacity = '1';
+            segment.style.background = color;
+          };
+          
+          // Create title element (truncate if too long)
+          const titleEl = document.createElement('div');
+          titleEl.style.cssText = 'font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; font-size: 10px;';
+          titleEl.textContent = song.title || 'Unknown';
+          
+          // Create artist element (only if there's space)
+          if (artistName && actualWidthPercent > 5) {
+            const artistEl = document.createElement('div');
+            artistEl.style.cssText = 'font-size: 9px; opacity: 0.8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; margin-top: 1px;';
+            artistEl.textContent = artistName;
+            segment.appendChild(artistEl);
+          }
+          
+          segment.insertBefore(titleEl, segment.firstChild);
+          
+          // Tooltip with full info
+          const fullInfo = `${song.title}${artistName ? ' • ' + artistName : ''}`;
+          segment.title = fullInfo;
+          
+          musicTimelineEl.appendChild(segment);
+        });
+      }
+      
+      if (showMusicCheckbox) {
+        showMusicCheckbox.addEventListener('change', renderMusicTimeline);
+        // Initial render after a short delay to ensure chart is rendered
+        setTimeout(renderMusicTimeline, 200);
+      }
     }
-  });
+    
+    console.log('Chart initialized successfully');
+  }
+  
+  // Initialize when DOM is ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initChart);
+  } else {
+    initChart();
+  }
 </script>
 {% endif %}
 {% endblock %}
