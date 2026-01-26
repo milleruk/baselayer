@@ -15,6 +15,9 @@ import re
 
 from .models import Workout, WorkoutType, Instructor, RideDetail, WorkoutDetails, Playlist
 from peloton.models import PelotonConnection
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def detect_class_type(ride_data, ride_details=None):
@@ -1889,19 +1892,104 @@ def workout_detail(request, pk):
     # Prepare target metrics data based on class type
     target_metrics = None
     target_metrics_json = None
+    target_line_data = None  # For power zone graph target line
+    
     if workout.ride_detail:
         ride_detail = workout.ride_detail
         
-        if ride_detail.is_power_zone_class:
-            # Power Zone class - get user's FTP for zone calculations
-            user_ftp = user_profile.get_current_ftp()
+        if ride_detail.is_power_zone_class or ride_detail.class_type == 'power_zone':
+            # Power Zone class - get user's FTP at workout date for zone calculations
+            workout_date = workout.completed_date or workout.recorded_date
+            user_ftp = user_profile.get_ftp_at_date(workout_date)
+            
+            # Calculate zone ranges using FTP at workout date (not current FTP)
+            zone_ranges = None
+            if user_ftp:
+                zone_ranges = {
+                    1: (0, int(user_ftp * 0.55)),           # Zone 1: 0-55% FTP
+                    2: (int(user_ftp * 0.55), int(user_ftp * 0.75)),  # Zone 2: 55-75% FTP
+                    3: (int(user_ftp * 0.75), int(user_ftp * 0.90)),  # Zone 3: 75-90% FTP
+                    4: (int(user_ftp * 0.90), int(user_ftp * 1.05)),  # Zone 4: 90-105% FTP
+                    5: (int(user_ftp * 1.05), int(user_ftp * 1.20)),  # Zone 5: 105-120% FTP
+                    6: (int(user_ftp * 1.20), int(user_ftp * 1.50)),  # Zone 6: 120-150% FTP
+                    7: (int(user_ftp * 1.50), None)              # Zone 7: 150%+ FTP
+                }
+            
             segments = ride_detail.get_power_zone_segments(user_ftp=user_ftp)
-            zone_ranges = user_profile.get_power_zone_ranges() if user_ftp else None
+            # Always set target_metrics for power zone classes, even if segments are empty
+            # This ensures the template detects it as a power zone class
+            # Convert zone_ranges tuples to lists for JSON serialization
+            zone_ranges_json = None
+            if zone_ranges:
+                zone_ranges_json = {str(k): [v[0] if v[0] is not None else None, v[1] if v[1] is not None else None] for k, v in zone_ranges.items()}
+            
             target_metrics = {
                 'type': 'power_zone',
-                'segments': segments,
-                'zone_ranges': zone_ranges
+                'segments': segments or [],  # Ensure it's always a list
+                'zone_ranges': zone_ranges_json  # Use JSON-serializable format
             }
+            
+            logger.info(f"Power zone workout {workout.id}: segments={len(segments)}, user_ftp={user_ftp}, zone_ranges={'set' if zone_ranges else 'none'}")
+            
+            # Calculate target line from class plan segments (preferred method)
+            # Use segments from ride_detail.get_power_zone_segments() which has the class plan
+            target_line_data = None
+            
+            if user_ftp and performance_data.exists():
+                performance_timestamps = list(performance_data.values_list('timestamp', flat=True))
+                
+                if segments and len(segments) > 0:
+                    # Method 1: Use segments from class plan
+                    target_line_data = _calculate_target_line_from_segments(
+                        segments,
+                        zone_ranges,
+                        performance_timestamps
+                    )
+                    logger.info(f"Calculated target line from {len(segments)} segments for workout {workout.id}")
+                else:
+                    logger.warning(f"No segments found for power zone workout {workout.id}, trying API fallback")
+                
+                # Fallback: Try to fetch from performance graph API if segments not available
+                if not target_line_data and workout.peloton_workout_id:
+                    try:
+                        from peloton.models import PelotonConnection
+                        from peloton.services.peloton import PelotonClient, PelotonAPIError
+                        
+                        connection = PelotonConnection.objects.filter(
+                            user=request.user, 
+                            is_active=True
+                        ).first()
+                        
+                        if connection:
+                            client = connection.get_client()
+                            performance_graph = client.fetch_performance_graph(workout.peloton_workout_id, every_n=5)
+                            
+                            # Extract target_metrics_performance_data
+                            target_metrics_perf = performance_graph.get('target_metrics_performance_data', {})
+                            target_metrics_list = target_metrics_perf.get('target_metrics', [])
+                            
+                            if target_metrics_list and user_ftp:
+                                # Get timestamps from performance_data (database) to align target line
+                                # If no performance_data yet, use seconds_since_pedaling_start from graph
+                                if performance_data.exists():
+                                    performance_timestamps = list(performance_data.values_list('timestamp', flat=True))
+                                else:
+                                    performance_timestamps = performance_graph.get('seconds_since_pedaling_start', [])
+                                
+                                # Calculate target line data points aligned with performance data timestamps
+                                target_line_data = _calculate_power_zone_target_line(
+                                    target_metrics_list, 
+                                    user_ftp,
+                                    performance_timestamps
+                                )
+                                logger.info(f"Calculated target line from API for workout {workout.id}")
+                    except Exception as e:
+                        logger.warning(f"Could not fetch performance graph for workout {workout.id}: {e}")
+            else:
+                if not user_ftp:
+                    logger.warning(f"No FTP found for power zone workout {workout.id}")
+                if not performance_data.exists():
+                    logger.warning(f"No performance data found for workout {workout.id}")
         elif ride_detail.fitness_discipline in ['running', 'walking']:
             # Running/Walking class - get user's pace zones
             pace_zones = user_profile.get_pace_zone_targets()
@@ -1931,16 +2019,420 @@ def workout_detail(request, pk):
         except:
             pass
     
+    # Serialize target_line_data to JSON
+    target_line_data_json = None
+    if target_line_data:
+        target_line_data_json = mark_safe(json.dumps(target_line_data))
+    
+    # Get user FTP for power zone classes
+    user_ftp = None
+    if workout.ride_detail and (workout.ride_detail.is_power_zone_class or workout.ride_detail.class_type == 'power_zone'):
+        workout_date = workout.completed_date or workout.recorded_date
+        user_ftp = user_profile.get_ftp_at_date(workout_date)
+    
+    # Calculate power profile (5s, 1m, 5m, 20m peak power) - matching example code approach
+    power_profile = None
+    if performance_data and workout.ride_detail and (workout.ride_detail.is_power_zone_class or workout.ride_detail.class_type == 'power_zone'):
+        # Calculate segment_length from performance data timestamps (default 5 seconds)
+        segment_length = 5  # Default Peloton sampling interval
+        perf_list = list(performance_data.order_by('timestamp'))
+        if len(perf_list) > 1:
+            # Calculate average interval between data points
+            intervals = []
+            for i in range(1, min(10, len(perf_list))):  # Check first 10 intervals
+                interval = perf_list[i].timestamp - perf_list[i-1].timestamp
+                if interval > 0:
+                    intervals.append(interval)
+            if intervals:
+                segment_length = int(sum(intervals) / len(intervals))
+        
+        # Extract output values as list
+        output_values = [p.output for p in performance_data if p.output is not None]
+        if output_values and len(output_values) > 0:
+            power_profile = {}
+            intervals = [
+                (5, '5_second'),
+                (60, '1_minute'),
+                (300, '5_minute'),
+                (1200, '20_minute')
+            ]
+            
+            for interval_seconds, key in intervals:
+                # Calculate number of samples needed for this interval
+                num_samples = max(1, int(interval_seconds / segment_length))
+                
+                if num_samples > len(output_values):
+                    continue
+                
+                peak_power = 0
+                # Calculate rolling average power for the duration
+                for i in range(len(output_values) - num_samples + 1):
+                    window = output_values[i:i + num_samples]
+                    avg_power = sum(window) / len(window) if window else 0
+                    peak_power = max(peak_power, avg_power)
+                
+                if interval_seconds == 5:
+                    power_profile["5_second"] = round(peak_power)
+                elif interval_seconds == 60:
+                    power_profile["1_minute"] = round(peak_power)
+                elif interval_seconds == 300:
+                    power_profile["5_minute"] = round(peak_power)
+                elif interval_seconds == 1200:
+                    power_profile["20_minute"] = round(peak_power)
+    
+    # Calculate zone targets and progress for power zone classes - matching example code approach
+    zone_targets = None
+    class_notes = None
+    if target_metrics and target_metrics.get('type') == 'power_zone' and target_metrics.get('segments'):
+        segments = target_metrics.get('segments', [])
+        
+        # Calculate segment_length from performance data timestamps (default 5 seconds)
+        segment_length = 5  # Default Peloton sampling interval
+        if performance_data:
+            perf_list = list(performance_data.order_by('timestamp'))
+            if len(perf_list) > 1:
+                # Calculate average interval between data points
+                intervals = []
+                for i in range(1, min(10, len(perf_list))):  # Check first 10 intervals
+                    interval = perf_list[i].timestamp - perf_list[i-1].timestamp
+                    if interval > 0:
+                        intervals.append(interval)
+                if intervals:
+                    segment_length = int(sum(intervals) / len(intervals))
+        
+        # Calculate time in each zone from target segments
+        zone_times = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0}
+        zone_blocks = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0}
+        previous_zone = None
+        
+        for segment in segments:
+            zone = segment.get('zone')
+            # Get duration from segment - segments from get_power_zone_segments() have 'start' and 'end' keys
+            # But they might also have 'offsets' dict with 'start' and 'end' inside
+            if 'start' in segment and 'end' in segment:
+                start = segment.get('start', 0)
+                end = segment.get('end', start)
+                duration = max(end - start, 0)
+            else:
+                # Try offsets structure
+                offsets = segment.get('offsets', {})
+                start = offsets.get('start', 0)
+                end = offsets.get('end', start)
+                duration = max(end - start, segment.get('duration', 0))
+            
+            if zone and duration > 0:
+                zone_times[zone] = zone_times.get(zone, 0) + duration
+                # Count blocks - consecutive segments in same zone = 1 block
+                if zone != previous_zone:
+                    # Zone changed, this is a new block
+                    zone_blocks[zone] = zone_blocks.get(zone, 0) + 1
+                # If same zone as previous, it's a continuation of the same block, don't increment
+                previous_zone = zone
+        
+        # Calculate actual time in zones from performance data
+        zone_actual_times = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0}
+        if performance_data and user_ftp:
+            # Use segment_length to determine time duration per data point
+            for perf in performance_data:
+                if perf.output and perf.output > 0:
+                    percentage = perf.output / user_ftp
+                    
+                    # Map watts to power zone based on FTP (matching example code)
+                    if percentage < 0.55:
+                        zone_actual_times[1] += segment_length
+                    elif percentage < 0.75:
+                        zone_actual_times[2] += segment_length
+                    elif percentage < 0.90:
+                        zone_actual_times[3] += segment_length
+                    elif percentage < 1.05:
+                        zone_actual_times[4] += segment_length
+                    elif percentage < 1.20:
+                        zone_actual_times[5] += segment_length
+                    elif percentage < 1.50:
+                        zone_actual_times[6] += segment_length
+                    else:
+                        zone_actual_times[7] += segment_length
+        
+        # Build zone targets with progress
+        zone_targets_list = []
+        total_target_time = 0
+        total_actual_time = 0
+        
+        zone_names = {
+            1: "Z1 • Active Recovery",
+            2: "Z2 • Endurance",
+            3: "Z3 • Tempo",
+            4: "Z4 • Threshold",
+            5: "Z5 • VO2 Max",
+            6: "Z6 • Anaerobic",
+            7: "Z7 • Neuromuscular"
+        }
+        
+        # Process zones in reverse order (Z7 to Z1) for display
+        for zone in range(7, 0, -1):
+            target_time = zone_times.get(zone, 0)
+            actual_time = zone_actual_times.get(zone, 0)
+            blocks = zone_blocks.get(zone, 0)
+            
+            if target_time > 0:
+                total_target_time += target_time
+                # Only count actual time up to target (matching example code)
+                total_actual_time += min(actual_time, target_time)
+                
+                percentage = min(100, (actual_time / target_time * 100)) if target_time > 0 else 0
+                
+                def format_duration(seconds):
+                    mins = seconds // 60
+                    secs = seconds % 60
+                    return f"{mins}:{secs:02d}"
+                
+                zone_targets_list.append({
+                    'zone': zone,
+                    'name': zone_names[zone],
+                    'target_time': target_time,
+                    'target_time_str': format_duration(target_time),
+                    'actual_time': actual_time,
+                    'actual_time_str': format_duration(actual_time),
+                    'percentage': percentage,
+                    'blocks': blocks
+                })
+        
+        # Calculate overall progress (matching example code - only count up to target)
+        overall_percentage = 0
+        if total_target_time > 0:
+            overall_percentage = (total_actual_time / total_target_time) * 100
+        
+        # Only create zone_targets if we have zones with targets
+        if zone_targets_list:
+            zone_targets = {
+                'overall_percentage': round(overall_percentage, 2),
+                'zones': zone_targets_list
+            }
+        else:
+            zone_targets = None
+        
+        # Build class notes (zone breakdown) - reuse zone_names from above
+        class_notes_list = []
+        for zone in range(7, 0, -1):
+            target_time = zone_times.get(zone, 0)
+            blocks = zone_blocks.get(zone, 0)
+            if target_time > 0:
+                def format_duration(seconds):
+                    mins = seconds // 60
+                    secs = seconds % 60
+                    return f"{mins}:{secs:02d}"
+                
+                # Get zone name (format: "Z1 • Active Recovery" -> "Active Recovery")
+                full_name = zone_names.get(zone, f"Zone {zone}")
+                zone_name = full_name.split(' • ')[1] if ' • ' in full_name else full_name
+                
+                class_notes_list.append({
+                    'zone': zone,
+                    'zone_label': f"Z{zone}",
+                    'name': zone_name,
+                    'total_time': target_time,
+                    'total_time_str': format_duration(target_time),
+                    'blocks': blocks
+                })
+        
+        class_notes = class_notes_list if class_notes_list else None
+    
     context = {
         'workout': workout,
         'performance_data': performance_data,
         'target_metrics': target_metrics,
         'target_metrics_json': target_metrics_json,
+        'target_line_data': target_line_data_json,
         'user_profile': user_profile,
+        'user_ftp': user_ftp,  # Pass FTP explicitly for template
         'playlist': playlist,
+        'power_profile': power_profile,
+        'zone_targets': zone_targets,
+        'class_notes': class_notes,
     }
     
     return render(request, 'workouts/detail.html', context)
+
+
+def _calculate_target_line_from_segments(segments, zone_ranges, seconds_array):
+    """
+    Calculate target output line from class plan segments (from ride_detail.get_power_zone_segments()).
+    Uses the middle of each zone's watt range as the target.
+    Returns a list matching seconds_array length with target watts for each timestamp.
+    Shifts target line 60 seconds backwards (earlier).
+    """
+    if not segments or not zone_ranges or not seconds_array:
+        return []
+    
+    sample_count = len(seconds_array)
+    target_series = [None] * sample_count
+    
+    # Shift target line 60 seconds backwards
+    TIME_SHIFT = -60
+    
+    # Helper function to calculate target watts from zone number (middle of zone range)
+    def _zone_to_watts(zone_num):
+        if zone_num and zone_num in zone_ranges:
+            lower, upper = zone_ranges[zone_num]
+            if lower is not None and upper is not None:
+                # Use middle of zone range
+                return round((lower + upper) / 2)
+            elif lower is not None:
+                # Zone 7 has no upper bound, use a reasonable estimate
+                return round(lower * 1.25)  # 25% above lower bound
+        return None
+    
+    # Process each segment from the class plan
+    for segment in segments:
+        zone_num = segment.get('zone')
+        if not zone_num:
+            continue
+        
+        # Shift segment times 60 seconds backwards
+        start_time = max(0, segment.get('start', 0) + TIME_SHIFT)
+        end_time = max(0, segment.get('end', 0) + TIME_SHIFT)
+        
+        if end_time <= start_time:
+            continue
+        
+        # Calculate target watts for this zone (middle of zone range)
+        target_watts = _zone_to_watts(zone_num)
+        if target_watts is None:
+            continue
+        
+        # Map time offsets to array indices using seconds_array
+        start_idx = 0
+        end_idx = sample_count
+        
+        for i, timestamp in enumerate(seconds_array):
+            if isinstance(timestamp, (int, float)) and timestamp >= start_time:
+                start_idx = i
+                break
+        
+        for i in range(len(seconds_array) - 1, -1, -1):
+            timestamp = seconds_array[i]
+            if isinstance(timestamp, (int, float)) and timestamp <= end_time:
+                end_idx = i + 1
+                break
+        
+        # Fill target_series for this segment
+        for i in range(start_idx, min(end_idx, sample_count)):
+            target_series[i] = target_watts
+    
+    # Convert to list of {timestamp, target_output} objects for template
+    target_line_list = []
+    for i, timestamp in enumerate(seconds_array):
+        if not isinstance(timestamp, (int, float)):
+            continue
+        target_line_list.append({
+            'timestamp': int(timestamp),
+            'target_output': target_series[i] if i < len(target_series) else None
+        })
+    
+    return target_line_list
+
+
+def _calculate_power_zone_target_line(target_metrics_list, user_ftp, seconds_array):
+    """
+    Calculate target output line data points from target_metrics_performance_data.
+    Returns a list matching seconds_array length with target watts for each timestamp.
+    Similar to reference implementation - creates a target_series array aligned with actual data.
+    Shifts target line 60 seconds backwards (earlier).
+    
+    Power zone percentages (middle of zone):
+    Zone 1: 55% of FTP (midpoint: 0.55)
+    Zone 2: 55-75% of FTP (midpoint: 0.65)
+    Zone 3: 75-90% of FTP (midpoint: 0.825)
+    Zone 4: 90-105% of FTP (midpoint: 0.975)
+    Zone 5: 105-120% of FTP (midpoint: 1.125)
+    Zone 6: 120-150% of FTP (midpoint: 1.35)
+    Zone 7: 150%+ of FTP (midpoint: 1.75)
+    """
+    zone_power_percentages = {
+        1: 0.55,   # Zone 1: 55% of FTP
+        2: 0.65,   # Zone 2: 65% (midpoint of 55-75%)
+        3: 0.825,  # Zone 3: 82.5% (midpoint of 75-90%)
+        4: 0.975,  # Zone 4: 97.5% (midpoint of 90-105%)
+        5: 1.125,  # Zone 5: 112.5% (midpoint of 105-120%)
+        6: 1.35,   # Zone 6: 135% (midpoint of 120-150%)
+        7: 1.75,   # Zone 7: 175% (conservative estimate for 150%+)
+    }
+    
+    # Shift target line 60 seconds backwards
+    TIME_SHIFT = -60
+    
+    # Create target series array matching seconds_array length
+    sample_count = len(seconds_array)
+    target_series = [None] * sample_count
+    
+    # Helper function to calculate target watts from zone number
+    def _zone_to_watts(zone_num):
+        if zone_num and zone_num in zone_power_percentages:
+            return round(user_ftp * zone_power_percentages[zone_num])
+        return None
+    
+    # Process each target metric segment
+    for segment in target_metrics_list:
+        if segment.get('segment_type') != 'power_zone':
+            continue
+            
+        offsets = segment.get('offsets', {})
+        # Shift segment times 60 seconds backwards
+        start_offset = max(0, offsets.get('start', 0) + TIME_SHIFT)
+        end_offset = max(0, offsets.get('end', 0) + TIME_SHIFT)
+        
+        if start_offset is None or end_offset is None or end_offset <= start_offset:
+            continue
+        
+        # Extract zone number from metrics
+        zone_num = None
+        for metric in segment.get('metrics', []):
+            if metric.get('name') == 'power_zone':
+                zone_lower = metric.get('lower')
+                zone_upper = metric.get('upper')
+                # Use lower if they match, otherwise use lower (we'll apply midpoint percentage)
+                zone_num = zone_lower if zone_lower == zone_upper else zone_lower
+                break
+        
+        if zone_num is None:
+            continue
+        
+        # Calculate target watts for this zone
+        target_watts = _zone_to_watts(zone_num)
+        if target_watts is None:
+            continue
+        
+        # Map time offsets to array indices using seconds_array
+        # Find indices where seconds_array matches start/end times
+        start_idx = 0
+        end_idx = sample_count
+        
+        for i, timestamp in enumerate(seconds_array):
+            if isinstance(timestamp, (int, float)) and timestamp >= start_offset:
+                start_idx = i
+                break
+        
+        for i in range(len(seconds_array) - 1, -1, -1):
+            timestamp = seconds_array[i]
+            if isinstance(timestamp, (int, float)) and timestamp <= end_offset:
+                end_idx = i + 1
+                break
+        
+        # Fill target_series for this segment
+        for i in range(start_idx, min(end_idx, sample_count)):
+            target_series[i] = target_watts
+    
+    # Convert to list of {timestamp, target_output} objects for template
+    target_line_list = []
+    for i, timestamp in enumerate(seconds_array):
+        if not isinstance(timestamp, (int, float)):
+            continue
+        target_line_list.append({
+            'timestamp': int(timestamp),
+            'target_output': target_series[i] if i < len(target_series) else None
+        })
+    
+    return target_line_list
 
 
 @login_required
@@ -2767,6 +3259,14 @@ def sync_workouts(request):
                             logger.info(f"Workout {total_processed} ({peloton_workout_id}): Stored {len(performance_data_entries)} time-series data points")
                         else:
                             logger.debug(f"Workout {total_processed} ({peloton_workout_id}): No time-series data to store")
+                        
+                        # Log target_metrics_performance_data availability for power zone classes
+                        target_metrics_perf = performance_graph.get('target_metrics_performance_data', {})
+                        target_metrics_list = target_metrics_perf.get('target_metrics', [])
+                        if target_metrics_list:
+                            logger.info(f"Workout {total_processed} ({peloton_workout_id}): Found {len(target_metrics_list)} target metric segments (will be fetched on-demand for graph)")
+                        elif ride_detail and ride_detail.is_power_zone_class:
+                            logger.warning(f"Workout {total_processed} ({peloton_workout_id}): Power zone class but no target_metrics_performance_data found in API response")
                     else:
                         logger.debug(f"Workout {total_processed} ({peloton_workout_id}): No time-series data available (seconds_array: {len(seconds_array) if seconds_array else 0}, metrics_array: {len(metrics_array) if metrics_array else 0})")
                         

@@ -134,32 +134,48 @@
 
 <!-- Performance Graph -->
 {% if performance_data %}
-  <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm mb-6">
+  <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3 sm:p-6 shadow-sm mb-6">
     {% if target_metrics and target_metrics.type == 'power_zone' %}
-    <div class="mb-4">
-      <div class="flex items-start justify-between mb-2">
+    <div class="mb-3 sm:mb-4">
+      <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-2">
         <div>
-          <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-1">Power Zone Timeline</h2>
-          <p class="text-sm text-gray-600 dark:text-gray-400">Coach cues mapped against your effort.</p>
+          <h2 class="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-1">Power Zone Timeline</h2>
+          <p class="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Coach cues mapped against your effort.</p>
         </div>
         {% if playlist and playlist.songs %}
-        <label class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 cursor-pointer">
+        <label class="flex items-center gap-2 text-xs sm:text-sm text-gray-600 dark:text-gray-400 cursor-pointer">
           <input type="checkbox" id="showMusicTimeline" checked class="rounded border-gray-300 dark:border-gray-600 text-primary focus:ring-primary bg-white dark:bg-gray-700">
           <span>Show Music Timeline</span>
         </label>
         {% endif %}
       </div>
     </div>
-    <div class="pace-target-chart relative px-3 pt-2">
+    <div class="pace-target-chart relative px-1 sm:px-3 pt-2 overflow-x-auto">
       {% if playlist and playlist.songs %}
       <!-- Music Timeline Overlay - Above Chart -->
-      <div id="musicTimeline" class="mb-3 h-12 relative bg-gray-800 dark:bg-gray-950 rounded border border-gray-700 dark:border-gray-600 overflow-hidden"></div>
+      <div id="musicTimeline" class="mb-2 sm:mb-3 h-10 sm:h-12 relative bg-gray-800 dark:bg-gray-950 rounded border border-gray-700 dark:border-gray-600 overflow-hidden"></div>
       {% endif %}
-      <div class="relative bg-gray-50 dark:bg-gray-900 rounded-lg min-h-[320px]">
+      <div class="relative bg-gray-50 dark:bg-gray-900 rounded-lg min-h-[240px] sm:min-h-[320px] w-full">
         <canvas id="performanceChart"></canvas>
       </div>
-      <div id="powerChartLegend" class="mt-3 px-3 flex flex-wrap gap-3 text-xs text-gray-700 dark:text-gray-300"></div>
-      <div id="powerChartReadout" class="mt-2 px-3 text-sm font-medium text-gray-600 dark:text-gray-400 opacity-85"></div>
+      <div id="powerChartReadout" class="mt-2 px-1 sm:px-3 text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-400 opacity-85 break-words"></div>
+      
+      <!-- Chart Controls (only for power zone workouts) -->
+      {% if target_metrics and target_metrics.type == 'power_zone' %}
+      <div class="chart-controls mt-3 sm:mt-4">
+        <button id="toggle-target-line" class="chart-control-btn text-xs sm:text-sm">Hide Target</button>
+        <button id="save-chart" class="chart-control-btn text-xs sm:text-sm">
+          <svg class="w-3 h-3 sm:w-4 sm:h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"></path>
+          </svg>
+          Save
+        </button>
+        <label class="chart-control-checkbox text-xs sm:text-sm">
+          <input type="checkbox" id="toggle-zone-colors" checked class="w-3 h-3 sm:w-4 sm:h-4">
+          <span>Zone Colors</span>
+        </label>
+      </div>
+      {% endif %}
     </div>
     {% else %}
     <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Performance Graph</h2>
@@ -168,6 +184,124 @@
     </div>
     {% endif %}
   </div>
+  
+  <!-- Power Profile and Zone Cards (only for power zone workouts) -->
+  {% if target_metrics and target_metrics.type == 'power_zone' %}
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+    <!-- Power Profile Card -->
+    {% if power_profile %}
+    <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
+      <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4 text-center">Power Profile</h3>
+      <div class="grid grid-cols-2 gap-4">
+        {% if power_profile.5_second %}
+        <div class="text-center">
+          <div class="bg-gradient-to-b from-purple-600 to-purple-400 rounded-lg p-4 mb-2">
+            <div class="text-3xl font-bold text-white mb-1">5</div>
+            <div class="text-xs font-semibold text-white uppercase">SECOND POWER</div>
+          </div>
+          <div class="text-xl font-bold text-gray-900 dark:text-white">{{ power_profile.5_second }} w</div>
+        </div>
+        {% endif %}
+        {% if power_profile.1_minute %}
+        <div class="text-center">
+          <div class="bg-gradient-to-b from-purple-600 to-purple-400 rounded-lg p-4 mb-2">
+            <div class="text-3xl font-bold text-white mb-1">1</div>
+            <div class="text-xs font-semibold text-white uppercase">MINUTE POWER</div>
+          </div>
+          <div class="text-xl font-bold text-gray-900 dark:text-white">{{ power_profile.1_minute }} w</div>
+        </div>
+        {% endif %}
+        {% if power_profile.5_minute %}
+        <div class="text-center">
+          <div class="bg-gradient-to-b from-purple-600 to-purple-400 rounded-lg p-4 mb-2">
+            <div class="text-3xl font-bold text-white mb-1">5</div>
+            <div class="text-xs font-semibold text-white uppercase">MINUTE POWER</div>
+          </div>
+          <div class="text-xl font-bold text-gray-900 dark:text-white">{{ power_profile.5_minute }} w</div>
+        </div>
+        {% endif %}
+        {% if power_profile.20_minute %}
+        <div class="text-center">
+          <div class="bg-gradient-to-b from-purple-600 to-purple-400 rounded-lg p-4 mb-2">
+            <div class="text-3xl font-bold text-white mb-1">20</div>
+            <div class="text-xs font-semibold text-white uppercase">MINUTE POWER</div>
+          </div>
+          <div class="text-xl font-bold text-gray-900 dark:text-white">{{ power_profile.20_minute }} w</div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+    
+    <!-- Main Set Zone Targets Card -->
+    {% if zone_targets %}
+    <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
+      <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Main Set Zone Targets</h3>
+      
+      <!-- Overall Progress Bar -->
+      <div class="mb-4">
+        <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-8 relative overflow-hidden">
+          <div class="bg-gradient-to-r from-orange-500 to-yellow-400 h-full rounded-full flex items-center justify-center transition-all duration-300" style="width: {{ zone_targets.overall_percentage }}%">
+            <span class="text-white font-bold text-sm">{{ zone_targets.overall_percentage|floatformat:2 }}%</span>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Zone Details -->
+      <div class="space-y-3">
+        {% for zone_info in zone_targets.zones %}
+        <div class="flex items-center gap-3">
+          <div class="flex-1 min-w-0">
+            <div class="text-sm font-medium text-gray-900 dark:text-white mb-1">{{ zone_info.name }}</div>
+            <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-4 relative overflow-hidden">
+              {% if zone_info.zone == 5 %}
+                <div class="bg-orange-500 h-full rounded-full" style="width: {{ zone_info.percentage }}%"></div>
+              {% elif zone_info.zone == 4 %}
+                <div class="bg-yellow-400 h-full rounded-full" style="width: {{ zone_info.percentage }}%"></div>
+              {% elif zone_info.zone == 3 %}
+                <div class="bg-green-500 h-full rounded-full" style="width: {{ zone_info.percentage }}%"></div>
+              {% elif zone_info.zone == 2 %}
+                <div class="bg-teal-500 h-full rounded-full" style="width: {{ zone_info.percentage }}%"></div>
+              {% elif zone_info.zone == 1 %}
+                <div class="bg-purple-500 h-full rounded-full" style="width: {{ zone_info.percentage }}%"></div>
+              {% elif zone_info.zone == 6 %}
+                <div class="bg-red-500 h-full rounded-full" style="width: {{ zone_info.percentage }}%"></div>
+              {% elif zone_info.zone == 7 %}
+                <div class="bg-pink-500 h-full rounded-full" style="width: {{ zone_info.percentage }}%"></div>
+              {% endif %}
+            </div>
+          </div>
+          <div class="text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">
+            {{ zone_info.target_time_str }} ({{ zone_info.percentage|floatformat:1 }}%)
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+    
+    <!-- Class Notes Card -->
+    {% if class_notes %}
+    <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
+      <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Class Notes</h3>
+      <ul class="space-y-2">
+        {% for note in class_notes %}
+        <li class="text-sm text-gray-900 dark:text-white">
+          <span class="font-semibold">{{ note.zone_label }}</span> • 
+          <span>{{ note.name }}</span> — 
+          <span>{{ note.total_time_str }} total</span>
+          {% if note.blocks > 1 %}
+            <span>({{ note.blocks }} blocks)</span>
+          {% else %}
+            <span>({{ note.blocks }} block)</span>
+          {% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
 {% else %}
   <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm mb-6">
     <p class="text-gray-600 dark:text-gray-400">
@@ -363,6 +497,19 @@
   const speedData = performanceData.map(d => d.speed !== null && d.speed !== undefined ? d.speed : null);
   const heartRateData = performanceData.map(d => d.heart_rate !== null && d.heart_rate !== undefined ? d.heart_rate : null);
   
+  // Helper function to convert watts to zone (1-7) based on FTP
+  function wattsToZone(watts, ftp) {
+    if (!watts || !ftp || watts <= 0 || ftp <= 0) return 1;
+    const percentage = watts / ftp;
+    if (percentage < 0.55) return 1;  // Zone 1: < 55% FTP
+    if (percentage < 0.75) return 2;  // Zone 2: 55-75% FTP
+    if (percentage < 0.90) return 3;  // Zone 3: 75-90% FTP
+    if (percentage < 1.05) return 4;  // Zone 4: 90-105% FTP
+    if (percentage < 1.20) return 5;  // Zone 5: 105-120% FTP
+    if (percentage < 1.50) return 6;  // Zone 6: 120-150% FTP
+    return 7;  // Zone 7: >= 150% FTP
+  }
+  
   // Calculate y-axis range for power zone charts (like reference)
   let ymin = 0;
   let ymax = null;
@@ -416,9 +563,11 @@
   let datasets = [];
   let yAxisLabel = '';
   let powerZoneBands = [];
+  let showTargetLine = true;  // Track target line visibility
 
   // Build power zone bands for background (like reference implementation)
   // Build in order Zone 1 to Zone 7, but they'll be drawn reversed (Zone 7 on top)
+  let showZoneColors = true;
   if (zoneRanges && userFTP && isPowerZone) {
     for (let zone = 1; zone <= 7; zone++) {
       const zoneKey = String(zone);
@@ -438,46 +587,152 @@
   }
 
   if (workoutType === 'cycling' || workoutType === 'ride') {
-    yAxisLabel = 'Output (Watts)';
-    
-    // Actual output line (blue like reference)
-    datasets.push({
-      label: 'Actual',
-      data: outputData,  // Chart.js will map to labels array
-      borderColor: '#5b7cfa',  // Blue like reference
-      backgroundColor: 'rgba(91, 124, 250, 0.1)',
-      borderWidth: 2.8,  // Slightly thicker like reference
-      fill: false,
-      cubicInterpolationMode: 'monotone',  // Smooth curve like reference
-      pointRadius: 0,
-      pointHoverRadius: 4,
-      spanGaps: true  // Connect across null values
-    });
-    
-    // Target output line (light blue, stepped) for power zone classes
-    if (isPowerZone && targetLineData && targetLineData.length > 0) {
-      // Extract target output values - targetLineData should be aligned with performanceData
-      const targetOutputData = targetLineData.map(item => item.target_output);
+    if (isPowerZone && userFTP) {
+      // For power zone charts, use zones (1-7) on Y-axis instead of watts
+      yAxisLabel = 'Zone';
       
-      // Ensure arrays match length (pad with null if needed)
-      while (targetOutputData.length < performanceData.length) {
-        targetOutputData.push(null);
+      // Convert actual output (watts) to zones with correct boundaries
+      // Map to decimal zones (1.0-7.0) for smooth curves, using proper zone boundaries
+      let actualZoneData = outputData.map(watts => {
+        if (watts === null || watts === undefined) return null;
+        const percentage = watts / userFTP;
+        // Use correct zone boundaries and map to decimal zones for smooth interpolation
+        // Zone 1: 0-55% FTP -> 1.0 to 1.5
+        if (percentage < 0.55) {
+          return 1.0 + (percentage / 0.55) * 0.5;
+        }
+        // Zone 2: 55-75% FTP -> 1.5 to 2.5
+        if (percentage < 0.75) {
+          return 1.5 + ((percentage - 0.55) / 0.20) * 1.0;
+        }
+        // Zone 3: 75-90% FTP -> 2.5 to 3.5
+        if (percentage < 0.90) {
+          return 2.5 + ((percentage - 0.75) / 0.15) * 1.0;
+        }
+        // Zone 4: 90-105% FTP -> 3.5 to 4.5
+        if (percentage < 1.05) {
+          return 3.5 + ((percentage - 0.90) / 0.15) * 1.0;
+        }
+        // Zone 5: 105-120% FTP -> 4.5 to 5.5
+        if (percentage < 1.20) {
+          return 4.5 + ((percentage - 1.05) / 0.15) * 1.0;
+        }
+        // Zone 6: 120-150% FTP -> 5.5 to 6.5
+        if (percentage < 1.50) {
+          return 5.5 + ((percentage - 1.20) / 0.30) * 1.0;
+        }
+        // Zone 7: >=150% FTP -> 6.5 to 7.0
+        return 6.5 + Math.min((percentage - 1.50) / 0.50, 1.0) * 0.5;
+      });
+      
+      // Apply light smoothing to actual data to reduce noise while maintaining flow
+      // Use a smaller window and weighted average to preserve the flowing nature
+      if (targetLineData && targetLineData.length > 0) {
+        const smoothedZoneData = [];
+        const windowSize = 3; // Smaller window to preserve variations
+        for (let i = 0; i < actualZoneData.length; i++) {
+          if (actualZoneData[i] === null) {
+            smoothedZoneData.push(null);
+            continue;
+          }
+          
+          // Weighted moving average (center point has more weight)
+          let sum = 0;
+          let weightSum = 0;
+          for (let j = Math.max(0, i - Math.floor(windowSize / 2)); j <= Math.min(actualZoneData.length - 1, i + Math.floor(windowSize / 2)); j++) {
+            if (actualZoneData[j] !== null) {
+              const distance = Math.abs(j - i);
+              const weight = distance === 0 ? 2.0 : (distance === 1 ? 1.0 : 0.5); // Center point weighted more
+              sum += actualZoneData[j] * weight;
+              weightSum += weight;
+            }
+          }
+          
+          if (weightSum > 0) {
+            smoothedZoneData.push(sum / weightSum);
+          } else {
+            smoothedZoneData.push(actualZoneData[i]);
+          }
+        }
+        actualZoneData = smoothedZoneData;
       }
-      targetOutputData.splice(performanceData.length);
       
+      // Actual performance line (yellow like reference) - flowing and smooth with curves
       datasets.push({
-        label: 'Target',
-        data: targetOutputData,  // Chart.js will map to labels array
-        borderColor: '#5b7cfa',  // Blue target line like reference image 2
-        backgroundColor: 'rgba(91, 124, 250, 0.1)',
-        borderWidth: 2.8,  // Match actual line thickness
-        borderDash: [5, 4],  // Dashed line like reference
+        label: 'Actual',
+        data: actualZoneData.map((zone, index) => ({ x: timeSeconds[index], y: zone })),
+        borderColor: '#fbbf24',  // Yellow like reference
+        backgroundColor: 'rgba(251, 191, 36, 0.1)',
+        borderWidth: 2.8,
         fill: false,
-        tension: 0,  // Stepped line (no smoothing)
-        stepped: 'before',  // Stepped line
+        tension: 1.0,  // Maximum smoothness for very flowing, curved lines
+        stepped: false,  // Explicitly disable stepped lines
         pointRadius: 0,
         pointHoverRadius: 4,
-        spanGaps: true  // Connect across null values
+        spanGaps: false  // Don't span gaps to show actual data variations
+      });
+      
+      // Target output line (light blue, stepped) for power zone classes
+      if (targetLineData && targetLineData.length > 0) {
+        // Convert target output (watts) to zones using the same decimal conversion as actual
+        const targetZoneData = [];
+        for (let i = 0; i < performanceData.length; i++) {
+          if (i < targetLineData.length && targetLineData[i].target_output) {
+            const targetWatts = targetLineData[i].target_output;
+            const percentage = targetWatts / userFTP;
+            // Use the same decimal zone mapping as actual for consistency
+            let targetZone;
+            if (percentage < 0.55) {
+              targetZone = 1.0 + (percentage / 0.55) * 0.5;
+            } else if (percentage < 0.75) {
+              targetZone = 1.5 + ((percentage - 0.55) / 0.20) * 1.0;
+            } else if (percentage < 0.90) {
+              targetZone = 2.5 + ((percentage - 0.75) / 0.15) * 1.0;
+            } else if (percentage < 1.05) {
+              targetZone = 3.5 + ((percentage - 0.90) / 0.15) * 1.0;
+            } else if (percentage < 1.20) {
+              targetZone = 4.5 + ((percentage - 1.05) / 0.15) * 1.0;
+            } else if (percentage < 1.50) {
+              targetZone = 5.5 + ((percentage - 1.20) / 0.30) * 1.0;
+            } else {
+              targetZone = 6.5 + Math.min((percentage - 1.50) / 0.50, 1.0) * 0.5;
+            }
+            targetZoneData.push({ x: timeSeconds[i], y: targetZone });
+          } else {
+            targetZoneData.push({ x: timeSeconds[i], y: null });
+          }
+        }
+        
+        datasets.push({
+          label: 'Target',
+          data: targetZoneData,
+          borderColor: '#93c5fd',  // Light blue like reference
+          backgroundColor: 'rgba(147, 197, 253, 0.1)',
+          borderWidth: 2.8,
+          fill: false,
+          tension: 0,  // Stepped line (no smoothing)
+          stepped: 'before',  // Stepped line
+          pointRadius: 0,
+          pointHoverRadius: 4,
+          spanGaps: true,
+          hidden: !showTargetLine
+        });
+      }
+    } else {
+      // Non-power zone cycling charts - use watts
+      yAxisLabel = 'Output (Watts)';
+      
+      datasets.push({
+        label: 'Actual',
+        data: outputData,
+        borderColor: '#5b7cfa',
+        backgroundColor: 'rgba(91, 124, 250, 0.1)',
+        borderWidth: 2.8,
+        fill: false,
+        cubicInterpolationMode: 'monotone',
+        pointRadius: 0,
+        pointHoverRadius: 4,
+        spanGaps: true
       });
     }
   } else if (workoutType === 'running' || workoutType === 'run') {
@@ -514,65 +769,66 @@
     ];
   }
 
-  // Zone bands plugin (like reference implementation)
+  // Zone bands plugin (like reference implementation) - can be toggled on/off
   const zoneBandsPlugin = {
     id: 'zoneBands',
     beforeDatasetsDraw(chart, args, opts) {
+      if (!showZoneColors) return;
       const {ctx, chartArea, scales} = chart;
-      const bands = opts?.bands || [];
       ctx.save();
-      // Draw bands from Zone 7 (top) to Zone 1 (bottom)
-      // Reverse order so Zone 7 is drawn first (on top)
-      [...bands].reverse().forEach(b => {
-        if (b.lower == null && b.upper == null) return;
-        const yTop = scales.y.getPixelForValue(b.upper ?? scales.y.max);
-        const yBot = scales.y.getPixelForValue(b.lower ?? scales.y.min);
-        ctx.fillStyle = b.color;
-        ctx.globalAlpha = 0.18;  // Match reference opacity
-        ctx.fillRect(chartArea.left, yTop, chartArea.right - chartArea.left, yBot - yTop);
-      });
+      
+      if (isPowerZone && userFTP) {
+        // For power zone charts with zone-based Y-axis, draw bands by zone number (1-7)
+        // Draw bands across the full range from 0.5 to 7.5
+        for (let zone = 1; zone <= 7; zone++) {
+          const zoneColor = POWER_ZONE_COLORS[zone] || '#888';
+          // Each zone spans from (zone - 0.5) to (zone + 0.5)
+          const yTop = scales.y.getPixelForValue(zone - 0.5);
+          const yBot = scales.y.getPixelForValue(zone + 0.5);
+          ctx.fillStyle = zoneColor;
+          ctx.globalAlpha = 0.18;  // Match reference opacity
+          ctx.fillRect(chartArea.left, yTop, chartArea.right - chartArea.left, yBot - yTop);
+        }
+      } else {
+        // For watt-based charts, use the bands from opts
+        const bands = opts?.bands || [];
+        [...bands].reverse().forEach(b => {
+          if (b.lower == null && b.upper == null) return;
+          const yTop = scales.y.getPixelForValue(b.upper ?? scales.y.max);
+          const yBot = scales.y.getPixelForValue(b.lower ?? scales.y.min);
+          ctx.fillStyle = b.color;
+          ctx.globalAlpha = 0.18;
+          ctx.fillRect(chartArea.left, yTop, chartArea.right - chartArea.left, yBot - yTop);
+        });
+      }
       ctx.restore();
+    },
+    afterDraw(chart, args, opts) {
+      // Overlay zone labels on the chart (on the left side of the chart area)
+      if (isPowerZone && userFTP) {
+        const {ctx, chartArea, scales} = chart;
+        ctx.save();
+        ctx.font = '12px sans-serif';
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        
+        // Draw zone labels (ZONE 1 through ZONE 7) overlaid on the chart
+        for (let zone = 1; zone <= 7; zone++) {
+          const yPos = scales.y.getPixelForValue(zone);
+          // Position labels on the left side of the chart area
+          ctx.fillText(`ZONE ${zone}`, chartArea.left + 8, yPos);
+        }
+        ctx.restore();
+      }
     }
   };
   
-  // External tooltip/readout handler (like reference)
+  // External tooltip/readout handler - now using built-in tooltip instead
+  // Keep readout for backward compatibility but tooltip will handle display
   const readout = document.getElementById('powerChartReadout');
-  const externalTooltip = (ctx) => {
-    const {tooltip} = ctx;
-    if (readout && tooltip.opacity === 0) {
-      readout.textContent = '';
-      return;
-    }
-    if (!readout) {
-      // For non-power-zone classes, use default tooltip
-      return;
-    }
-    const i = tooltip.dataPoints?.[0]?.dataIndex ?? null;
-    if (i == null) return;
-    
-    // Get timestamp and values from data
-    const t = performanceData[i]?.timestamp || 0;
-    const vA = outputData[i];
-    const vT = targetLineData && i < targetLineData.length ? targetLineData[i].target_output : null;
-    
-    const parts = [formatTime(t)];
-    if (vA != null && vA !== undefined) parts.push(`Output ${Math.round(vA)} w`);
-    if (vT != null && vT !== undefined) parts.push(`Target ${Math.round(vT)} w`);
-    readout.textContent = parts.join('  •  ');
-  };
   
-  // Build legend (like reference) - show zones in reverse order (Zone 7 to Zone 1)
-  const legendEl = document.getElementById('powerChartLegend');
-  if (legendEl && powerZoneBands.length > 0) {
-    // Reverse order to show Zone 7 first, Zone 1 last (like reference)
-    const reversedBands = [...powerZoneBands].reverse();
-    legendEl.innerHTML = reversedBands.map(b => {
-      const r = (b.lower != null || b.upper != null)
-        ? `${b.lower ?? ''}${(b.lower != null && b.upper != null) ? '–' : ''}${b.upper ?? ''} w`
-        : '';
-      return `<span class="flex items-center gap-2 opacity-90"><i class="w-3.5 h-3.5 rounded inline-block" style="background: ${b.color};"></i><span>${b.label}${r ? ' • ' + r : ''}</span></span>`;
-    }).join('');
-  }
+  // Legend removed - users can see output values on hover via tooltip
 
   // Initialize chart when DOM is ready
   function initChart() {
@@ -600,7 +856,7 @@
     const chartConfig = {
     type: 'line',
     data: {
-      labels: isPowerZone ? timeSeconds : labels,
+      labels: isPowerZone && userFTP ? [] : (isPowerZone ? timeSeconds : labels),  // Empty labels for power zone when using x/y data points
       datasets: datasets
     },
     options: {
@@ -611,15 +867,58 @@
         intersect: false,
         mode: 'index'
       },
+      elements: {
+        line: {
+          tension: 1.0  // Maximum smoothness at element level
+        }
+      },
       plugins: {
         legend: {
           display: false  // Hide legend (we show custom legend below)
         },
         tooltip: {
-          enabled: !isPowerZone || !readout,  // Use external tooltip for power zone, default for others
-          external: (isPowerZone && readout) ? externalTooltip : undefined
+          enabled: true,  // Enable tooltip for all charts
+          mode: 'index',
+          intersect: false,
+          callbacks: {
+            title: function(context) {
+              if (context.length > 0 && context[0].parsed) {
+                const timestamp = isPowerZone ? context[0].parsed.x : performanceData[context[0].dataIndex]?.timestamp || 0;
+                return formatTime(timestamp);
+              }
+              return '';
+            },
+            label: function(context) {
+              if (isPowerZone && userFTP) {
+                const datasetLabel = context.dataset.label;
+                const zoneValue = context.parsed.y;
+                const dataIndex = context.dataIndex;
+                
+                if (datasetLabel === 'Actual') {
+                  const watts = outputData[dataIndex];
+                  if (watts !== null && watts !== undefined) {
+                    const zone = Math.round(zoneValue);
+                    return `Actual: ${Math.round(watts)} watts (Zone ${zone})`;
+                  }
+                } else if (datasetLabel === 'Target') {
+                  if (targetLineData && dataIndex < targetLineData.length && targetLineData[dataIndex].target_output) {
+                    const targetWatts = targetLineData[dataIndex].target_output;
+                    const zone = Math.round(zoneValue);
+                    return `Target: ${Math.round(targetWatts)} watts (Zone ${zone})`;
+                  }
+                }
+              }
+              return context.dataset.label + ': ' + context.parsed.y;
+            }
+          },
+          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+          titleColor: 'rgba(255, 255, 255, 0.9)',
+          bodyColor: 'rgba(255, 255, 255, 0.9)',
+          borderColor: 'rgba(255, 255, 255, 0.2)',
+          borderWidth: 1,
+          padding: 12
         },
-        zoneBands: powerZoneBands.length > 0 ? { bands: powerZoneBands } : undefined
+        zoneBands: (isPowerZone && userFTP) ? { bands: [] } : (powerZoneBands.length > 0 ? { bands: powerZoneBands } : undefined)
       },
       scales: {
         x: {
@@ -648,29 +947,81 @@
           }
         },
         y: {
-          min: (isPowerZone && ymax) ? ymin : 0,
-          max: (isPowerZone && ymax) ? ymax : undefined,
+          min: isPowerZone ? 0.5 : ((ymax) ? ymin : 0),
+          max: isPowerZone ? 7.5 : ((ymax) ? ymax : undefined),
           title: {
-            display: true,
+            display: false,  // Hide y-axis title
             text: yAxisLabel.toLowerCase(),
             color: 'rgba(255,255,255,0.7)'
           },
           grid: {
-            color: 'rgba(255,255,255,0.06)'
+            color: 'rgba(255,255,255,0.1)',
+            drawOnChartArea: true,
+            drawTicks: false
           },
           ticks: {
+            stepSize: isPowerZone ? 1 : undefined,
+            maxTicksLimit: isPowerZone ? 8 : undefined,
+            display: false,  // Hide ticks on left - we'll overlay zone labels on chart
             callback: function(value) {
-              return value.toFixed(0);
+              if (isPowerZone) {
+                const zone = Math.round(value);
+                // Show labels for all zones (1-7)
+                if (zone >= 1 && zone <= 7) {
+                  return `ZONE ${zone}`;
+                }
+                return '';
+              } else {
+                return value.toFixed(0);
+              }
             },
             color: 'rgba(255,255,255,0.7)'
           }
         }
       }
     },
-    plugins: powerZoneBands.length > 0 ? [zoneBandsPlugin] : []
+    plugins: (isPowerZone && userFTP) ? [zoneBandsPlugin] : (powerZoneBands.length > 0 ? [zoneBandsPlugin] : [])
   };
   
     const chart = new Chart(ctx, chartConfig);
+    
+    // Chart control handlers
+    const toggleTargetLineBtn = document.getElementById('toggle-target-line');
+    const toggleZoneColorsCheckbox = document.getElementById('toggle-zone-colors');
+    const saveChartBtn = document.getElementById('save-chart');
+    
+    // Toggle target line visibility
+    if (toggleTargetLineBtn && isPowerZone) {
+        toggleTargetLineBtn.addEventListener('click', function() {
+            showTargetLine = !showTargetLine;
+            const targetDataset = chart.data.datasets.find(d => d.label === 'Target');
+            if (targetDataset) {
+                targetDataset.hidden = !showTargetLine;
+                chart.update('none');
+                this.textContent = showTargetLine ? 'Hide Target' : 'Show Target';
+            }
+        });
+    }
+    
+    // Toggle zone colors visibility
+    if (toggleZoneColorsCheckbox && isPowerZone) {
+        toggleZoneColorsCheckbox.addEventListener('change', function() {
+            showZoneColors = this.checked;
+            chart.update('none');
+        });
+    }
+    
+    // Save chart functionality
+    if (saveChartBtn) {
+        saveChartBtn.addEventListener('click', function() {
+            // Convert chart to image and download
+            const url = chart.toBase64Image();
+            const link = document.createElement('a');
+            link.download = 'power-zone-chart.png';
+            link.href = url;
+            link.click();
+        });
+    }
     
     // Music timeline overlay
     if (playlistData && playlistData.length > 0 && isPowerZone) {
@@ -795,5 +1146,142 @@
     initChart();
   }
 </script>
+
+<style>
+/* Chart Controls */
+.chart-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: center;
+  margin-top: 1rem;
+  padding: 0.5rem 0;
+}
+
+@media (min-width: 640px) {
+  .chart-controls {
+    gap: 0.75rem;
+    justify-content: flex-end;
+  }
+}
+
+.chart-control-btn {
+  padding: 0.375rem 0.75rem;
+  background: rgb(55 65 81); /* dark:bg-gray-700 */
+  color: white;
+  border: 1px solid rgb(75 85 99); /* dark:border-gray-600 */
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+@media (min-width: 640px) {
+  .chart-control-btn {
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+  }
+}
+
+.chart-control-btn:hover {
+  background: rgb(75 85 99); /* dark:hover:bg-gray-600 */
+  border-color: rgb(107 114 128); /* dark:hover:border-gray-500 */
+}
+
+@media (prefers-color-scheme: light) {
+  .chart-control-btn {
+    background: rgb(229 231 235); /* bg-gray-200 */
+    color: rgb(17 24 39); /* text-gray-900 */
+    border-color: rgb(209 213 219); /* border-gray-300 */
+  }
+  
+  .chart-control-btn:hover {
+    background: rgb(209 213 219); /* hover:bg-gray-300 */
+    border-color: rgb(156 163 175); /* hover:border-gray-400 */
+  }
+}
+
+.dark .chart-control-btn {
+  background: rgb(55 65 81); /* dark:bg-gray-700 */
+  color: white;
+  border-color: rgb(75 85 99); /* dark:border-gray-600 */
+}
+
+.dark .chart-control-btn:hover {
+  background: rgb(75 85 99); /* dark:hover:bg-gray-600 */
+  border-color: rgb(107 114 128); /* dark:hover:border-gray-500 */
+}
+
+.chart-control-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.75rem;
+  background: rgb(55 65 81); /* dark:bg-gray-700 */
+}
+
+@media (min-width: 640px) {
+  .chart-control-checkbox {
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+  }
+}
+  border: 1px solid rgb(75 85 99); /* dark:border-gray-600 */
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.chart-control-checkbox:hover {
+  background: rgb(75 85 99); /* dark:hover:bg-gray-600 */
+  border-color: rgb(107 114 128); /* dark:hover:border-gray-500 */
+}
+
+.chart-control-checkbox input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: rgb(59 130 246); /* accent-blue-500 */
+}
+
+@media (min-width: 640px) {
+  .chart-control-checkbox input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+  }
+}
+
+@media (prefers-color-scheme: light) {
+  .chart-control-checkbox {
+    background: rgb(229 231 235); /* bg-gray-200 */
+    color: rgb(17 24 39); /* text-gray-900 */
+    border-color: rgb(209 213 219); /* border-gray-300 */
+  }
+  
+  .chart-control-checkbox:hover {
+    background: rgb(209 213 219); /* hover:bg-gray-300 */
+    border-color: rgb(156 163 175); /* hover:border-gray-400 */
+  }
+}
+
+.dark .chart-control-checkbox {
+  background: rgb(55 65 81); /* dark:bg-gray-700 */
+  color: white;
+  border-color: rgb(75 85 99); /* dark:border-gray-600 */
+}
+
+.dark .chart-control-checkbox:hover {
+  background: rgb(75 85 99); /* dark:hover:bg-gray-600 */
+  border-color: rgb(107 114 128); /* dark:hover:border-gray-500 */
+}
+</style>
 {% endif %}
 {% endblock %}

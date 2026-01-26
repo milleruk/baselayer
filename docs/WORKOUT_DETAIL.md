@@ -68,7 +68,46 @@ For non-power zone workouts:
 - **Running**: Speed line (mph)
 - **Other**: Heart rate line (bpm)
 
-### 4. Playlist Section
+### 4. Power Profile and Zone Cards (Power Zone Classes Only)
+
+For power zone cycling classes, three additional cards are displayed below the performance graph:
+
+#### Power Profile Card
+
+Displays peak power output for different time intervals:
+- **5 Second Power**: Maximum average power over 5 seconds
+- **1 Minute Power**: Maximum average power over 1 minute
+- **5 Minute Power**: Maximum average power over 5 minutes
+- **20 Minute Power**: Maximum average power over 20 minutes
+
+Each metric is displayed in a purple gradient card with the duration prominently shown, followed by the wattage value below.
+
+#### Main Set Zone Targets Card
+
+Shows compliance with class zone targets:
+- **Overall Progress Bar**: Large horizontal bar showing overall completion percentage (orange-yellow gradient)
+- **Individual Zone Progress**: For each zone (Z7 to Z1) with target time:
+  - Zone label (e.g., "Z5 • VO2 Max")
+  - Colored progress bar showing actual vs target time
+  - Target time and completion percentage
+  - Zone colors match the chart zones:
+    - Z5: Orange
+    - Z4: Yellow
+    - Z3: Green
+    - Z2: Teal
+    - Z1: Purple
+    - Z6: Red
+    - Z7: Pink
+
+#### Class Notes Card
+
+Displays zone breakdown summary:
+- **Zone List**: Each zone (Z7 to Z1) with:
+  - Zone label and name (e.g., "Z5 • VO2 Max")
+  - Total time in that zone
+  - Number of blocks (consecutive segments in same zone)
+
+### 5. Playlist Section
 
 Displays class playlist if available:
 - **Song List**: Numbered list with:
@@ -106,10 +145,22 @@ Displays class playlist if available:
      - **Power Zone**: Uses `ride_detail.get_power_zone_segments()` with user's FTP at workout date
      - **Target Line**: Calculated from class plan segments (preferred) or API fallback
      - **Zone Ranges**: Calculated from user's FTP at workout date
+   - Calculates power profile (5s, 1m, 5m, 20m peak power):
+     - Uses rolling averages over performance data
+     - Calculates segment_length from timestamp intervals
+     - Finds maximum average power for each duration window
+   - Calculates zone targets and compliance:
+     - Extracts target zone times from class plan segments
+     - Calculates actual time in each zone from performance data
+     - Compares actual vs target for compliance percentage
+     - Counts zone blocks (consecutive segments in same zone)
    - Prepares JSON data for frontend:
      - `target_metrics_json`: Zone ranges and segments
      - `target_line_data`: Target output line data points
      - `playlist`: Song data for music timeline
+     - `power_profile`: Peak power for different durations
+     - `zone_targets`: Zone compliance data with progress bars
+     - `class_notes`: Zone breakdown summary
 
 #### Frontend JavaScript
 
@@ -174,6 +225,26 @@ The template uses Tailwind CSS classes for consistent styling:
 - **Headings**: `text-lg font-semibold text-gray-900 dark:text-white`
 - **Text**: `text-sm text-gray-600 dark:text-gray-400`
 - **Spacing**: Consistent `mb-6` between sections
+
+#### Mobile Responsiveness
+
+The workout detail page is fully responsive with mobile-optimized layouts:
+
+- **Chart Card**: 
+  - Reduced padding on mobile (`p-3` vs `p-6` on desktop)
+  - Smaller chart height on mobile (`min-h-[240px]` vs `min-h-[320px]`)
+  - Responsive text sizes (`text-base sm:text-lg`)
+  - Stacked header layout on mobile
+- **Chart Controls**: 
+  - Centered on mobile, right-aligned on desktop
+  - Smaller buttons and text on mobile
+  - Touch-friendly spacing
+- **Power Profile Cards**: 
+  - 2-column grid on mobile, 3-column on desktop
+  - Responsive card sizing
+- **Zone Targets Card**: 
+  - Full-width on mobile, responsive grid on desktop
+  - Scrollable content if needed
 
 ### Chart.js Configuration
 
