@@ -310,6 +310,18 @@ def terms_and_conditions(request):
 def features(request):
     return render(request, "plans/features.html")
 
+def about(request):
+    return render(request, "plans/about.html")
+
+def faq(request):
+    return render(request, "plans/faq.html")
+
+def contact(request):
+    return render(request, "plans/contact.html")
+
+def how_it_works(request):
+    return render(request, "plans/how_it_works.html")
+
 @login_required
 def metrics(request):
     from collections import defaultdict

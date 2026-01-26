@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" x-data="{ 
+<html lang="en" class="overflow-x-hidden" x-data="{ 
   sidebarOpen: false, 
   darkMode: (() => {
     // Load from localStorage or default to true (dark mode)
@@ -41,6 +41,42 @@
   
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="{% static 'img/fav.png' %}" />
+  
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="{% static 'site.webmanifest' %}" />
+  
+  <!-- Theme Color -->
+  <meta name="theme-color" content="#465fff" />
+  <meta name="msapplication-TileColor" content="#465fff" />
+  
+  <!-- iOS App Icons -->
+  <link rel="apple-touch-icon" sizes="20x20" href="{% static 'img/icons/ios/AppIcon-20@2x.png' %}" />
+  <link rel="apple-touch-icon" sizes="20x20" href="{% static 'img/icons/ios/AppIcon-20@3x.png' %}" />
+  <link rel="apple-touch-icon" sizes="29x29" href="{% static 'img/icons/ios/AppIcon-29@2x.png' %}" />
+  <link rel="apple-touch-icon" sizes="29x29" href="{% static 'img/icons/ios/AppIcon-29@3x.png' %}" />
+  <link rel="apple-touch-icon" sizes="40x40" href="{% static 'img/icons/ios/AppIcon-40@2x.png' %}" />
+  <link rel="apple-touch-icon" sizes="40x40" href="{% static 'img/icons/ios/AppIcon-40@3x.png' %}" />
+  <link rel="apple-touch-icon" sizes="60x60" href="{% static 'img/icons/ios/AppIcon-60@2x.png' %}" />
+  <link rel="apple-touch-icon" sizes="60x60" href="{% static 'img/icons/ios/AppIcon-60@3x.png' %}" />
+  <link rel="apple-touch-icon" sizes="1024x1024" href="{% static 'img/icons/ios/AppIcon-1024.png' %}" />
+  
+  <!-- iOS Meta Tags -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Chase The Zones" />
+  
+  <!-- PWA Icons -->
+  <link rel="icon" type="image/png" sizes="192x192" href="{% static 'img/icons/pwa/pwa-192.png' %}" />
+  <link rel="icon" type="image/png" sizes="256x256" href="{% static 'img/icons/pwa/pwa-256.png' %}" />
+  <link rel="icon" type="image/png" sizes="384x384" href="{% static 'img/icons/pwa/pwa-384.png' %}" />
+  <link rel="icon" type="image/png" sizes="512x512" href="{% static 'img/icons/pwa/pwa-512.png' %}" />
+  
+  <!-- Android Icons (for Chrome/Android) -->
+  <link rel="icon" type="image/png" sizes="48x48" href="{% static 'img/icons/android/mipmap-mdpi.png' %}" />
+  <link rel="icon" type="image/png" sizes="72x72" href="{% static 'img/icons/android/mipmap-hdpi.png' %}" />
+  <link rel="icon" type="image/png" sizes="96x96" href="{% static 'img/icons/android/mipmap-xhdpi.png' %}" />
+  <link rel="icon" type="image/png" sizes="144x144" href="{% static 'img/icons/android/mipmap-xxhdpi.png' %}" />
+  <link rel="icon" type="image/png" sizes="192x192" href="{% static 'img/icons/android/mipmap-xxxhdpi.png' %}" />
   
   <!-- Apply dark mode immediately to prevent flash -->
   <script>
@@ -162,6 +198,17 @@
   
   <!-- Additional custom styles -->
   <style>
+    /* Prevent horizontal overflow */
+    html, body {
+      overflow-x: hidden;
+      max-width: 100%;
+    }
+    
+    /* Ensure all containers respect viewport width */
+    * {
+      box-sizing: border-box;
+    }
+    
     /* Sidebar animation */
     .sidebar-transition {
       transition: transform 0.3s ease-in-out;
@@ -342,7 +389,7 @@
     });
   </script>
 </head>
-<body class="font-outfit bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
+<body class="font-outfit bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 overflow-x-hidden">
   
   {% if user.is_authenticated %}
     <!-- Dashboard Layout -->
@@ -350,41 +397,40 @@
       <!-- Landing Page Layout - No Sidebar, Full Width -->
       <div class="flex flex-col min-h-screen">
         <!-- Navbar for Landing Page (Authenticated) -->
-        <nav class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-50">
+        <nav class="bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm border-b border-gray-200/50 dark:border-gray-700/50 sticky top-0 z-50 shadow-sm">
           <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between items-center h-16">
               <div class="flex items-center">
-                <a href="{% url 'plans:dashboard' %}" class="flex items-center space-x-2">
-                  <img src="{% static 'img/logo.png' %}" alt="Chase The Zones" class="h-8 w-auto">
-                  <span class="text-xl font-bold text-gray-900 dark:text-white">Chase The Zones</span>
+                <a href="{% url 'plans:dashboard' %}" class="flex items-center group transition-opacity hover:opacity-90">
+                  <img src="{% static 'img/logo.png' %}" alt="Chase The Zones" class="h-10 w-auto transition-transform group-hover:scale-105">
                 </a>
-                <div class="hidden md:flex ml-10 space-x-4">
-                  <a href="{% url 'plans:landing' %}" class="px-3 py-2 text-sm font-medium {% if request.resolver_match.url_name == 'landing' %}text-primary font-semibold{% else %}text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white{% endif %}">Home</a>
-                  <a href="{% url 'plans:exercise_list' %}" class="px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white">Exercises</a>
-                  <a href="{% url 'tracker:weekly_plans' %}" class="px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white">My Plans</a>
-                  <a href="{% url 'workouts:history' %}" class="px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white">Workouts</a>
+                <div class="hidden md:flex ml-10 space-x-1">
+                  <a href="{% url 'plans:landing' %}" class="px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 {% if request.resolver_match.url_name == 'landing' %}text-primary bg-primary/10 dark:bg-primary/20 font-semibold{% else %}text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-800{% endif %}">Home</a>
+                  <a href="{% url 'plans:exercise_list' %}" class="px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-800">Exercises</a>
+                  <a href="{% url 'tracker:weekly_plans' %}" class="px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-800">My Plans</a>
+                  <a href="{% url 'workouts:history' %}" class="px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-800">Workouts</a>
                 </div>
               </div>
-              <div class="flex items-center space-x-4">
+              <div class="flex items-center space-x-3">
                 <!-- Mobile Menu Button -->
-                <button @click="sidebarOpen = !sidebarOpen" class="md:hidden p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
+                <button @click="sidebarOpen = !sidebarOpen" class="md:hidden p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
                   <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
                   </svg>
                 </button>
                 <!-- Dark Mode Toggle -->
-                <button @click="darkMode = !darkMode" class="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200" title="Toggle dark mode">
-                  <svg x-show="!darkMode" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <button @click="darkMode = !darkMode" class="p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors" title="Toggle dark mode">
+                  <svg x-show="!darkMode" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
                   </svg>
-                  <svg x-show="darkMode" x-cloak class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg x-show="darkMode" x-cloak class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
                   </svg>
                 </button>
                 <!-- User Menu -->
                 <div x-data="{ open: false }" class="relative">
-                  <button @click="open = !open" class="flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
-                    <div class="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center font-semibold text-sm">
+                  <button @click="open = !open" class="flex items-center space-x-2 p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                    <div class="w-9 h-9 rounded-full bg-primary text-white flex items-center justify-center font-semibold text-sm shadow-sm">
                       {% if user.profile.full_name %}
                         {% with name=user.profile.full_name %}
                           {{ name|first|upper }}{% if " " in name %}{{ name|slice:"-1:"|first|upper }}{% endif %}
@@ -393,7 +439,7 @@
                         {{ user.email|slice:":2"|upper }}
                       {% endif %}
                     </div>
-                    <svg class="w-4 h-4 text-gray-500 dark:text-gray-400 hidden md:block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="w-4 h-4 text-gray-500 dark:text-gray-400 hidden md:block transition-transform" :class="open ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                     </svg>
                   </button>
@@ -425,13 +471,13 @@
               </div>
             </div>
             <!-- Mobile Menu -->
-            <div x-show="sidebarOpen" @click.away="sidebarOpen = false" x-cloak class="md:hidden border-t border-gray-200 dark:border-gray-700 py-4">
+            <div x-show="sidebarOpen" @click.away="sidebarOpen = false" x-cloak class="md:hidden border-t border-gray-200/50 dark:border-gray-700/50 py-3 bg-gray-50/50 dark:bg-gray-900/50">
               <div class="space-y-1 px-2">
-                <a href="{% url 'plans:landing' %}" class="block px-3 py-2 text-sm font-medium {% if request.resolver_match.url_name == 'landing' %}text-primary font-semibold{% else %}text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white{% endif %}">Home</a>
-                <a href="{% url 'plans:exercise_list' %}" class="block px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white">Exercises</a>
-                <a href="{% url 'tracker:weekly_plans' %}" class="block px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white">My Plans</a>
-                <a href="{% url 'workouts:history' %}" class="block px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white">Workouts</a>
-                <a href="{% url 'plans:dashboard' %}" class="block px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white">Dashboard</a>
+                <a href="{% url 'plans:landing' %}" class="block px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 {% if request.resolver_match.url_name == 'landing' %}text-primary bg-primary/10 dark:bg-primary/20 font-semibold{% else %}text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-800{% endif %}">Home</a>
+                <a href="{% url 'plans:exercise_list' %}" class="block px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-800">Exercises</a>
+                <a href="{% url 'tracker:weekly_plans' %}" class="block px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-800">My Plans</a>
+                <a href="{% url 'workouts:history' %}" class="block px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-800">Workouts</a>
+                <a href="{% url 'plans:dashboard' %}" class="block px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-800">Dashboard</a>
               </div>
             </div>
           </div>
@@ -699,44 +745,47 @@
   
   {% if not user.is_authenticated %}
     <!-- Non-authenticated Layout -->
-    <nav class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+    <nav class="bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm border-b border-gray-200/50 dark:border-gray-700/50 shadow-sm">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="flex justify-between h-16">
+        <div class="flex justify-between items-center h-16">
           <div class="flex items-center">
-            <a href="{% url 'plans:dashboard' %}" class="flex items-center space-x-2">
-              <img src="{% static 'img/logo.png' %}" alt="Chase The Zones" class="h-8 w-auto">
-              <span class="text-xl font-bold text-gray-900 dark:text-white">Chase The Zones</span>
+            <a href="{% url 'plans:dashboard' %}" class="flex items-center group transition-opacity hover:opacity-90">
+              <img src="{% static 'img/logo.png' %}" alt="Chase The Zones" class="h-10 w-auto transition-transform group-hover:scale-105">
             </a>
-            <div class="hidden md:flex ml-10 space-x-4">
-              <a href="{% url 'plans:landing' %}" class="px-3 py-2 text-sm font-medium {% if request.resolver_match.url_name == 'landing' %}text-primary font-semibold{% else %}text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white{% endif %}">Home</a>
-              <a href="{% url 'plans:features' %}" class="px-3 py-2 text-sm font-medium {% if request.resolver_match.url_name == 'features' %}text-primary font-semibold{% else %}text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white{% endif %}">Features</a>
+            <div class="hidden md:flex ml-10 space-x-1">
+              <a href="{% url 'plans:landing' %}" class="px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 {% if request.resolver_match.url_name == 'landing' %}text-primary bg-primary/10 dark:bg-primary/20 font-semibold{% else %}text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-800{% endif %}">Home</a>
+              <a href="{% url 'plans:how_it_works' %}" class="px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 {% if request.resolver_match.url_name == 'how_it_works' %}text-primary bg-primary/10 dark:bg-primary/20 font-semibold{% else %}text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-800{% endif %}">How It Works</a>
+              <a href="{% url 'plans:features' %}" class="px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 {% if request.resolver_match.url_name == 'features' %}text-primary bg-primary/10 dark:bg-primary/20 font-semibold{% else %}text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-800{% endif %}">Features</a>
+              <a href="{% url 'plans:about' %}" class="px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 {% if request.resolver_match.url_name == 'about' %}text-primary bg-primary/10 dark:bg-primary/20 font-semibold{% else %}text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-800{% endif %}">About</a>
             </div>
             <!-- Mobile Menu Button -->
-            <button @click="sidebarOpen = !sidebarOpen" class="md:hidden p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
+            <button @click="sidebarOpen = !sidebarOpen" class="md:hidden p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
               </svg>
             </button>
           </div>
-          <div class="flex items-center space-x-4">
+          <div class="flex items-center space-x-3">
             <!-- Dark Mode Toggle -->
-            <button @click="darkMode = !darkMode" class="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200" title="Toggle dark mode">
-              <svg x-show="!darkMode" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <button @click="darkMode = !darkMode" class="p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors" title="Toggle dark mode">
+              <svg x-show="!darkMode" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
               </svg>
-              <svg x-show="darkMode" x-cloak class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg x-show="darkMode" x-cloak class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
               </svg>
             </button>
-            <a href="{% url 'login' %}" class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white">Login</a>
-            <a href="{% url 'register' %}" class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors">Register</a>
+            <a href="{% url 'login' %}" class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-primary rounded-lg transition-all duration-200 hover:bg-gray-100 dark:hover:bg-gray-800">Login</a>
+            <a href="{% url 'register' %}" class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-all duration-200 shadow-sm hover:shadow-md">Register</a>
           </div>
         </div>
         <!-- Mobile Menu for Non-Authenticated -->
-        <div x-show="sidebarOpen" @click.away="sidebarOpen = false" x-cloak class="md:hidden border-t border-gray-200 dark:border-gray-700 py-4">
+        <div x-show="sidebarOpen" @click.away="sidebarOpen = false" x-cloak class="md:hidden border-t border-gray-200/50 dark:border-gray-700/50 py-3 bg-gray-50/50 dark:bg-gray-900/50">
           <div class="space-y-1 px-2">
-            <a href="{% url 'plans:landing' %}" class="block px-3 py-2 text-sm font-medium {% if request.resolver_match.url_name == 'landing' %}text-primary font-semibold{% else %}text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white{% endif %}">Home</a>
-            <a href="{% url 'plans:features' %}" class="block px-3 py-2 text-sm font-medium {% if request.resolver_match.url_name == 'features' %}text-primary font-semibold{% else %}text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white{% endif %}">Features</a>
+            <a href="{% url 'plans:landing' %}" class="block px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 {% if request.resolver_match.url_name == 'landing' %}text-primary bg-primary/10 dark:bg-primary/20 font-semibold{% else %}text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-800{% endif %}">Home</a>
+            <a href="{% url 'plans:how_it_works' %}" class="block px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 {% if request.resolver_match.url_name == 'how_it_works' %}text-primary bg-primary/10 dark:bg-primary/20 font-semibold{% else %}text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-800{% endif %}">How It Works</a>
+            <a href="{% url 'plans:features' %}" class="block px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 {% if request.resolver_match.url_name == 'features' %}text-primary bg-primary/10 dark:bg-primary/20 font-semibold{% else %}text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-800{% endif %}">Features</a>
+            <a href="{% url 'plans:about' %}" class="block px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 {% if request.resolver_match.url_name == 'about' %}text-primary bg-primary/10 dark:bg-primary/20 font-semibold{% else %}text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-800{% endif %}">About</a>
           </div>
         </div>
       </div>

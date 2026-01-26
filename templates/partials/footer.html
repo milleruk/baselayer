@@ -52,13 +52,22 @@
           <h3 class="text-white font-bold uppercase text-xs mb-3 sm:mb-4 tracking-wide">RESOURCES</h3>
           <ul class="space-y-2">
             <li>
-              <a href="{% url 'plans:landing' %}#about" class="text-gray-400 hover:text-gray-200 transition-colors text-sm block">About</a>
+              <a href="{% url 'plans:about' %}" class="text-gray-400 hover:text-gray-200 transition-colors text-sm block">About</a>
+            </li>
+            <li>
+              <a href="{% url 'plans:how_it_works' %}" class="text-gray-400 hover:text-gray-200 transition-colors text-sm block">How It Works</a>
             </li>
             <li>
               <a href="{% url 'plans:features' %}" class="text-gray-400 hover:text-gray-200 transition-colors text-sm block">Features</a>
             </li>
             <li>
+              <a href="{% url 'plans:faq' %}" class="text-gray-400 hover:text-gray-200 transition-colors text-sm block">FAQ</a>
+            </li>
+            <li>
               <a href="{% url 'plans:guide' %}" class="text-gray-400 hover:text-gray-200 transition-colors text-sm block">Help & Guide</a>
+            </li>
+            <li>
+              <a href="{% url 'plans:contact' %}" class="text-gray-400 hover:text-gray-200 transition-colors text-sm block">Contact</a>
             </li>
             <li>
               <a href="{% url 'plans:privacy_policy' %}" class="text-gray-400 hover:text-gray-200 transition-colors text-sm block">Privacy Policy</a>
@@ -96,17 +105,21 @@
   </footer>
 {% else %}
   <!-- Simple Footer for Other Pages - Nested in Content -->
-  <footer class="bg-gray-900 dark:bg-gray-900 text-white py-4 px-0 -mx-6 -mb-6 mt-6 border-t border-gray-800">
+  <footer class="bg-gray-900 dark:bg-gray-900 text-white py-4 px-0 mx-0 -mb-6 mt-6 border-t border-gray-800">
     <div class="px-4 sm:px-6 lg:px-8">
       <div class="flex flex-col md:flex-row justify-between items-center gap-4 text-sm">
         <div class="text-gray-400">
           © {% now "Y" %} ChaseTheZones. All rights reserved.
         </div>
-        <div class="flex gap-6 text-gray-400">
+        <div class="flex flex-wrap gap-4 text-gray-400">
           <a href="{% url 'plans:landing' %}" class="hover:text-gray-200 transition-colors">Home</a>
+          <a href="{% url 'plans:how_it_works' %}" class="hover:text-gray-200 transition-colors">How It Works</a>
+          <a href="{% url 'plans:about' %}" class="hover:text-gray-200 transition-colors">About</a>
+          <a href="{% url 'plans:faq' %}" class="hover:text-gray-200 transition-colors">FAQ</a>
+          <a href="{% url 'plans:contact' %}" class="hover:text-gray-200 transition-colors">Contact</a>
           <a href="{% url 'plans:guide' %}" class="hover:text-gray-200 transition-colors">Guide</a>
-          <a href="{% url 'plans:privacy_policy' %}" class="hover:text-gray-200 transition-colors">Privacy Policy</a>
-          <a href="{% url 'plans:terms_and_conditions' %}" class="hover:text-gray-200 transition-colors">Terms of Use</a>
+          <a href="{% url 'plans:privacy_policy' %}" class="hover:text-gray-200 transition-colors">Privacy</a>
+          <a href="{% url 'plans:terms_and_conditions' %}" class="hover:text-gray-200 transition-colors">Terms</a>
         </div>
       </div>
     </div>

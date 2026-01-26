@@ -1,0 +1,185 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}FAQ - Chase The Zones{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 text-white py-16 lg:py-24">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="text-center">
+      <h1 class="text-4xl md:text-5xl lg:text-6xl font-extrabold mb-6">
+        Frequently Asked Questions
+      </h1>
+      <p class="text-xl md:text-2xl text-gray-300 dark:text-gray-400 max-w-3xl mx-auto">
+        Find answers to common questions about Chase The Zones
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ Section -->
+<section class="py-16 lg:py-24 bg-white dark:bg-gray-900">
+  <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="space-y-6">
+      
+      <!-- Getting Started -->
+      <div>
+        <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Getting Started</h2>
+        <div class="space-y-4">
+          <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">How do I get started with Chase The Zones?</h3>
+            <p class="text-gray-600 dark:text-gray-400">
+              Simply <a href="{% url 'register' %}" class="text-primary hover:underline">create an account</a> and connect your Peloton account. Once connected, you can start generating weekly plans that integrate pelvic floor exercises with your Power Zone and running training.
+            </p>
+          </div>
+          
+          <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">Do I need a Peloton account to use Chase The Zones?</h3>
+            <p class="text-gray-600 dark:text-gray-400">
+              While Peloton integration provides the best experience by automatically syncing your workouts and generating plans around your schedule, you can still use the platform to browse exercises and create manual plans without a Peloton connection.
+            </p>
+          </div>
+          
+          <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">Is Chase The Zones free to use?</h3>
+            <p class="text-gray-600 dark:text-gray-400">
+              Yes, Chase The Zones is currently free to use. We're committed to making pelvic floor health accessible to all athletes.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Peloton Integration -->
+      <div>
+        <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6 mt-12">Peloton Integration</h2>
+        <div class="space-y-4">
+          <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">How do I connect my Peloton account?</h3>
+            <p class="text-gray-600 dark:text-gray-400">
+              Go to your <a href="{% url 'profile' %}" class="text-primary hover:underline">Profile</a> page and click "Connect Peloton". You'll be asked to log in with your Peloton credentials. Your connection is secure and encrypted.
+            </p>
+          </div>
+          
+          <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">How often does my Peloton data sync?</h3>
+            <p class="text-gray-600 dark:text-gray-400">
+              Your Peloton data syncs automatically when you connect, and then periodically in the background. You can also manually trigger a sync from your profile page if needed.
+            </p>
+          </div>
+          
+          <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">Is my Peloton data secure?</h3>
+            <p class="text-gray-600 dark:text-gray-400">
+              Yes, your Peloton connection credentials are encrypted and stored securely. We only access the data necessary to provide our services and never share your information with third parties. See our <a href="{% url 'plans:privacy_policy' %}" class="text-primary hover:underline">Privacy Policy</a> for more details.
+            </p>
+          </div>
+          
+          <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">What Peloton data does Chase The Zones access?</h3>
+            <p class="text-gray-600 dark:text-gray-400">
+              We access your workout history, class details, performance metrics (output, heart rate, distance, etc.), and your Peloton profile information. This data is used to generate personalized training plans and track your progress.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Weekly Plans -->
+      <div>
+        <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6 mt-12">Weekly Plans & Exercises</h2>
+        <div class="space-y-4">
+          <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">How are weekly plans generated?</h3>
+            <p class="text-gray-600 dark:text-gray-400">
+              Our intelligent system analyzes your Peloton workout schedule and automatically generates a weekly plan that strategically places pelvic floor exercises around your rides and runs. The system considers recovery time, workout intensity, and optimal timing for pelvic floor exercises.
+            </p>
+          </div>
+          
+          <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">Can I customize my weekly plan?</h3>
+            <p class="text-gray-600 dark:text-gray-400">
+              Yes! You can edit any weekly plan to add, remove, or reschedule exercises. The platform gives you full control while providing intelligent suggestions based on your training schedule.
+            </p>
+          </div>
+          
+          <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">What types of exercises are included?</h3>
+            <p class="text-gray-600 dark:text-gray-400">
+              Our exercise library includes Kegel exercises, mobility work, yoga poses, and other pelvic floor strengthening exercises. Each exercise includes detailed descriptions, proper form cues, and video demonstrations when available. Browse the full <a href="{% url 'plans:exercise_list' %}" class="text-primary hover:underline">Exercise Library</a> to see all available exercises.
+            </p>
+          </div>
+          
+          <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">How do I track my progress?</h3>
+            <p class="text-gray-600 dark:text-gray-400">
+              Mark exercises as complete in your weekly plan, and view your progress in the <a href="{% url 'plans:metrics' %}" class="text-primary hover:underline">Metrics</a> page. You can see completion rates, points earned, and track improvements over time.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Challenges -->
+      <div>
+        <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6 mt-12">Challenges & Teams</h2>
+        <div class="space-y-4">
+          <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">What are challenges?</h3>
+            <p class="text-gray-600 dark:text-gray-400">
+              Challenges are multi-week progressive programmes that combine Power Zone training with pelvic floor exercises. They provide structure, motivation, and a clear path to improvement over several weeks.
+            </p>
+          </div>
+          
+          <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">Can I join a team?</h3>
+            <p class="text-gray-600 dark:text-gray-400">
+              Yes! Many challenges support team participation, allowing you to compete and collaborate with other athletes. Team leaders can create and manage teams for their challenges.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Technical -->
+      <div>
+        <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6 mt-12">Technical Questions</h2>
+        <div class="space-y-4">
+          <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">What browsers are supported?</h3>
+            <p class="text-gray-600 dark:text-gray-400">
+              Chase The Zones works best on modern browsers including Chrome, Firefox, Safari, and Edge. We recommend using the latest version of your browser for the best experience.
+            </p>
+          </div>
+          
+          <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">Is there a mobile app?</h3>
+            <p class="text-gray-600 dark:text-gray-400">
+              Chase The Zones is a Progressive Web App (PWA), which means you can install it on your mobile device for an app-like experience. The platform is fully responsive and works great on phones and tablets.
+            </p>
+          </div>
+          
+          <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">I'm having trouble connecting my Peloton account. What should I do?</h3>
+            <p class="text-gray-600 dark:text-gray-400">
+              First, make sure you're using the correct Peloton username and password. If you're still having issues, try disconnecting and reconnecting. If problems persist, please <a href="{% url 'plans:contact' %}" class="text-primary hover:underline">contact support</a>.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Still Have Questions -->
+      <div class="mt-12 bg-primary/10 dark:bg-primary/20 rounded-lg p-8 border border-primary/20 dark:border-primary/30">
+        <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4">Still Have Questions?</h2>
+        <p class="text-gray-600 dark:text-gray-400 mb-6">
+          Can't find the answer you're looking for? We're here to help!
+        </p>
+        <a href="{% url 'plans:contact' %}" class="inline-flex items-center px-6 py-3 bg-primary text-white font-semibold rounded-lg hover:bg-primary-dark transition-colors">
+          Contact Support
+          <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+          </svg>
+        </a>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+{% endblock %}
