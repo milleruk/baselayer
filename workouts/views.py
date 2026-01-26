@@ -682,8 +682,7 @@ def class_detail(request, pk):
                 })
             
             # Process segments to create chart segments
-            # Offset by 60 seconds because Peloton classes have a 60-second warm up before cues start
-            WARM_UP_OFFSET = 60
+            # Use segments as-is from Peloton API (they already include full class duration)
             chart_segments = []
             for i, segment in enumerate(segments):
                 zone_num = segment.get('zone', 1)  # Power zone 1-7
@@ -695,8 +694,15 @@ def class_detail(request, pk):
                     next_segment = segments[i + 1]
                     end = next_segment.get('start', start + 60)  # Default to 60 seconds if no next segment
                 elif start == end:
-                    # Last segment with start==end, use ride duration
-                    end = start + 60  # Default to 60 seconds
+                    # Last segment with start==end, extend to class duration
+                    end = total_duration
+                
+                # Ensure end doesn't exceed class duration
+                end = min(end, total_duration)
+                
+                # For the last segment, ensure it extends to exactly the class duration
+                if i == len(segments) - 1:
+                    end = total_duration
                 
                 duration = end - start
                 
@@ -707,22 +713,21 @@ def class_detail(request, pk):
                 # Clamp zone to 1-7 range (power zones are 1-7, not 0-6)
                 chart_zone = max(1, min(7, int(zone_num)))
                 
-                # Add 60-second offset to align with actual class start (warm up before cues)
                 chart_segments.append({
                     "duration": duration,
                     "zone": chart_zone,  # Power zones are 1-7
-                    "start": start + WARM_UP_OFFSET,
-                    "end": end + WARM_UP_OFFSET,
+                    "start": start,
+                    "end": end,
                 })
             
             if chart_segments:
-                # Add 60 seconds to total duration to account for warm up offset
+                # Use exact class duration (no offset)
                 power_zone_chart = {
                     'chart_data': {
                         'type': 'power_zone',
                         'segments': chart_segments,
                         'zones': chart_zones,
-                        'total_duration': total_duration + 60,  # Add 60 seconds for warm up offset
+                        'total_duration': total_duration,  # Exact class duration
                     }
                 }
         
@@ -770,13 +775,24 @@ def class_detail(request, pk):
                     })
                 
                 # Process target metrics to create segments
-                # Offset by 60 seconds because Peloton classes have a 60-second warm up before cues start
-                WARM_UP_OFFSET = 60
+                # Use segments as-is from Peloton API (they already include full class duration)
                 chart_segments = []
-                for metric in target_metrics_list:
+                for idx, metric in enumerate(target_metrics_list):
                     if 'offsets' in metric and 'metrics' in metric:
                         start_time = metric['offsets']['start']
                         end_time = metric['offsets']['end']
+                        duration = end_time - start_time
+                        
+                        if duration <= 0:
+                            continue
+                        
+                        # Ensure end doesn't exceed class duration
+                        end_time = min(end_time, total_duration)
+                        
+                        # For the last segment, ensure it extends to exactly the class duration
+                        if idx == len(target_metrics_list) - 1:
+                            end_time = total_duration
+                        
                         duration = end_time - start_time
                         
                         if duration <= 0:
@@ -793,23 +809,22 @@ def class_detail(request, pk):
                         # Clamp to 0-6 range
                         pace_level = max(0, min(6, int(pace_intensity)))
                         
-                        # Add 60-second offset to align with actual class start (warm up before cues)
                         chart_segments.append({
                             "duration": duration,
                             "zone": pace_level,  # Use 'zone' to match reference format
                             "pace_level": pace_level,
-                            "start": start_time + WARM_UP_OFFSET,
-                            "end": end_time + WARM_UP_OFFSET,
+                            "start": start_time,
+                            "end": end_time,
                         })
                 
                 if chart_segments:
-                    # Add 60 seconds to total duration to account for warm up offset
+                    # Use exact class duration (no offset)
                     pace_chart = {
                         'chart_data': {
                             'type': 'pace_target',
                             'segments': chart_segments,
                             'zones': chart_zones,
-                            'total_duration': total_duration + 60,  # Add 60 seconds for warm up offset
+                            'total_duration': total_duration,  # Exact class duration
                         }
                     }
         
@@ -841,8 +856,7 @@ def class_detail(request, pk):
                 # Build chart_data structure matching reference template (fallback method)
                 # Segments with zone/pace_level (0-6) and duration
                 # Note: get_pace_segments returns zones 1-7, but chart expects 0-6
-                # Offset by 60 seconds because Peloton classes have a 60-second warm up before cues start
-                WARM_UP_OFFSET = 60
+                # Use segments as-is from Peloton API (they already include full class duration)
                 chart_segments = []
                 for i, segment in enumerate(segments):
                     zone_num = segment.get('zone', 1)  # Pace intensity from get_pace_segments (1-7)
@@ -855,8 +869,15 @@ def class_detail(request, pk):
                         next_segment = segments[i + 1]
                         end = next_segment.get('start', start + 60)  # Default to 60 seconds if no next segment
                     elif start == end:
-                        # Last segment with start==end, use ride duration
-                        end = start + 60  # Default to 60 seconds
+                        # Last segment with start==end, extend to class duration
+                        end = total_duration
+                    
+                    # Ensure end doesn't exceed class duration
+                    end = min(end, total_duration)
+                    
+                    # For the last segment, ensure it extends to exactly the class duration
+                    if i == len(segments) - 1:
+                        end = total_duration
                     
                     duration = end - start
                     
@@ -868,13 +889,12 @@ def class_detail(request, pk):
                     chart_zone = zone_num - 1 if zone_num > 0 else 0
                     chart_zone = max(0, min(6, chart_zone))  # Clamp to 0-6
                     
-                    # Add 60-second offset to align with actual class start (warm up before cues)
                     chart_segments.append({
                         'zone': chart_zone,  # 0-6 for chart
                         'pace_level': chart_zone,  # Same as zone for pace target
                         'duration': duration,
-                        'start': start + WARM_UP_OFFSET,
-                        'end': end + WARM_UP_OFFSET,
+                        'start': start,
+                        'end': end,
                         'zone_name': zone_name,
                     })
                 
@@ -891,13 +911,13 @@ def class_detail(request, pk):
                     })
                 
                 total_duration = ride.duration_seconds
-                # Add 60 seconds to total duration to account for warm up offset
+                # Use exact class duration (no offset)
                 pace_chart = {
                     'chart_data': {
                         'type': 'pace_target',
                         'segments': chart_segments,
                         'zones': chart_zones,
-                        'total_duration': total_duration + 60,  # Add 60 seconds for warm up offset
+                        'total_duration': total_duration,  # Exact class duration
                     }
                 }
         
