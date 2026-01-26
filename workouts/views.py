@@ -7,7 +7,9 @@ from django.utils.safestring import mark_safe
 from django.contrib import messages
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
-from datetime import date, datetime
+from datetime import date, datetime, timezone as dt_timezone
+# Use datetime.timezone.utc (recommended for Django 4.2+, required for Django 5.0+)
+UTC = dt_timezone.utc
 import json
 
 from .models import Workout, WorkoutType, Instructor, RideDetail, WorkoutDetails, Playlist
@@ -1839,9 +1841,9 @@ def sync_workouts(request):
             # But make it explicitly UTC-aware for safety
             if connection.last_sync_at.tzinfo is None:
                 # If somehow timezone-naive, assume UTC
-                last_sync_utc = timezone.make_aware(connection.last_sync_at, timezone.utc)
+                last_sync_utc = timezone.make_aware(connection.last_sync_at, UTC)
             else:
-                last_sync_utc = connection.last_sync_at.astimezone(timezone.utc)
+                last_sync_utc = connection.last_sync_at.astimezone(UTC)
             
             sync_cutoff_timestamp = last_sync_utc.timestamp()
             logger.info(f"Starting INCREMENTAL sync for user {request.user.email}, Peloton ID: {peloton_user_id}")
@@ -1949,9 +1951,9 @@ def sync_workouts(request):
                             dt = datetime.fromisoformat(dt_str)
                             # If timezone-naive, assume UTC
                             if dt.tzinfo is None:
-                                dt = timezone.make_aware(dt, timezone.utc)
+                                dt = timezone.make_aware(dt, UTC)
                             else:
-                                dt = dt.astimezone(timezone.utc)
+                                dt = dt.astimezone(UTC)
                             workout_timestamp = dt.timestamp()
                         except Exception as e:
                             logger.debug(f"Could not parse created_at '{created_at}': {e}")
@@ -1969,9 +1971,9 @@ def sync_workouts(request):
                             dt = datetime.fromisoformat(dt_str)
                             # If timezone-naive, assume UTC
                             if dt.tzinfo is None:
-                                dt = timezone.make_aware(dt, timezone.utc)
+                                dt = timezone.make_aware(dt, UTC)
                             else:
-                                dt = dt.astimezone(timezone.utc)
+                                dt = dt.astimezone(UTC)
                             workout_timestamp = dt.timestamp()
                         except Exception as e:
                             logger.debug(f"Could not parse start_time '{start_time}': {e}")
@@ -1982,16 +1984,16 @@ def sync_workouts(request):
                 if start_time:
                     if isinstance(start_time, (int, float)):
                         # Unix timestamp - convert to UTC datetime then date
-                        dt_utc = datetime.fromtimestamp(start_time, tz=timezone.utc)
+                        dt_utc = datetime.fromtimestamp(start_time, tz=UTC)
                         completed_date = dt_utc.date()
                     else:
                         try:
                             dt_str = str(start_time).replace('Z', '+00:00')
                             dt = datetime.fromisoformat(dt_str)
                             if dt.tzinfo is None:
-                                dt = timezone.make_aware(dt, timezone.utc)
+                                dt = timezone.make_aware(dt, UTC)
                             else:
-                                dt = dt.astimezone(timezone.utc)
+                                dt = dt.astimezone(UTC)
                             completed_date = dt.date()
                         except:
                             completed_date = timezone.now().date()
@@ -2014,7 +2016,7 @@ def sync_workouts(request):
                         # If we've seen several older workouts in a row, we've likely passed the cutoff
                         # (allowing for some clock skew or edge cases where timestamps might be slightly off)
                         if workouts_older_than_sync >= 5:
-                            cutoff_dt = datetime.fromtimestamp(sync_cutoff_timestamp, tz=timezone.utc)
+                            cutoff_dt = datetime.fromtimestamp(sync_cutoff_timestamp, tz=UTC)
                             logger.info(f"Reached workouts older than last sync ({cutoff_dt} UTC). Stopping sync early.")
                             logger.info(f"  - Processed {total_processed} workouts before cutoff")
                             logger.info(f"  - Cutoff timestamp: {sync_cutoff_timestamp} (UTC)")
