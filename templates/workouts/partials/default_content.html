@@ -1,0 +1,166 @@
+{% load playlist_filters %}
+
+<!-- Default Content for Non-Interactive Classes -->
+{% if target_metrics and target_metrics.type != 'pace' %}
+  <!-- Main Graph Section for Power Zone and other classes -->
+  <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 sm:p-6 shadow-sm mb-6">
+    <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Target Zones</h2>
+    <div style="height: 300px;" class="sm:h-[400px]">
+      <canvas id="classTargetChart"></canvas>
+    </div>
+  </div>
+{% endif %}
+
+<!-- Information Cards -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 mb-6">
+  <!-- Class Info Card -->
+  <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 sm:p-6 shadow-sm">
+    <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Class Info</h3>
+    <div class="space-y-3">
+      <div>
+        <div class="text-sm text-gray-600 dark:text-gray-400 mb-1">Discipline</div>
+        <div class="text-lg font-bold text-gray-900 dark:text-white">{{ ride.workout_type.name|default:ride.fitness_discipline_display_name }}</div>
+      </div>
+      {% if ride.class_type %}
+        <div>
+          <div class="text-sm text-gray-600 dark:text-gray-400 mb-1">Type</div>
+          <div class="text-lg font-bold text-gray-900 dark:text-white">{{ ride.get_class_type_display|default:ride.class_type|title }}</div>
+        </div>
+      {% endif %}
+      {% if tss %}
+        <div>
+          <div class="text-sm text-gray-600 dark:text-gray-400 mb-1">TSS</div>
+          <div class="text-lg font-bold text-gray-900 dark:text-white">{{ tss|floatformat:0 }}</div>
+        </div>
+      {% endif %}
+      {% if if_value %}
+        <div>
+          <div class="text-sm text-gray-600 dark:text-gray-400 mb-1">IF (Intensity Factor)</div>
+          <div class="text-lg font-bold text-gray-900 dark:text-white">{{ if_value }}</div>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+  
+  <!-- Instructor Card -->
+  <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 sm:p-6 shadow-sm">
+    <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Instructor</h3>
+    {% if ride.instructor %}
+      <div class="flex items-center gap-3">
+        {% if ride.instructor.image_url %}
+          <img src="{{ ride.instructor.image_url }}" alt="{{ ride.instructor.name }}" class="w-12 h-12 rounded-full">
+        {% else %}
+          <div class="w-12 h-12 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center">
+            <span class="text-gray-600 dark:text-gray-400 text-xl">👤</span>
+          </div>
+        {% endif %}
+        <div class="text-lg font-semibold text-gray-900 dark:text-white">{{ ride.instructor.name }}</div>
+      </div>
+    {% else %}
+      <div class="text-gray-600 dark:text-gray-400">No instructor information</div>
+    {% endif %}
+  </div>
+  
+  <!-- Zone Distribution Card (if available) -->
+  {% if zone_distribution %}
+    <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 sm:p-6 shadow-sm">
+      <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Zone Distribution</h3>
+      <div class="space-y-2">
+        {% for zone_info in zone_distribution %}
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              {% if ride.class_type == 'power_zone' or ride.is_power_zone_class %}
+                {% if zone_info.zone == 1 %}
+                  <div class="w-4 h-4 rounded" style="background-color: #9333ea;"></div>
+                {% elif zone_info.zone == 2 %}
+                  <div class="w-4 h-4 rounded" style="background-color: #3b82f6;"></div>
+                {% elif zone_info.zone == 3 %}
+                  <div class="w-4 h-4 rounded" style="background-color: #10b981;"></div>
+                {% elif zone_info.zone == 4 %}
+                  <div class="w-4 h-4 rounded" style="background-color: #eab308;"></div>
+                {% elif zone_info.zone == 5 %}
+                  <div class="w-4 h-4 rounded" style="background-color: #f97316;"></div>
+                {% elif zone_info.zone == 6 %}
+                  <div class="w-4 h-4 rounded" style="background-color: #ef4444;"></div>
+                {% elif zone_info.zone == 7 %}
+                  <div class="w-4 h-4 rounded" style="background-color: #ec4899;"></div>
+                {% endif %}
+                <span class="text-sm text-gray-700 dark:text-gray-300">Zone {{ zone_info.zone }}</span>
+              {% else %}
+                {% if zone_info.zone == 'max' %}
+                  <div class="w-4 h-4 rounded" style="background-color: #fa5252;"></div>
+                {% elif zone_info.zone == 'very_hard' %}
+                  <div class="w-4 h-4 rounded" style="background-color: #f76707;"></div>
+                {% elif zone_info.zone == 'hard' %}
+                  <div class="w-4 h-4 rounded" style="background-color: #ff922b;"></div>
+                {% elif zone_info.zone == 'challenging' %}
+                  <div class="w-4 h-4 rounded" style="background-color: #0ca678;"></div>
+                {% elif zone_info.zone == 'moderate' %}
+                  <div class="w-4 h-4 rounded" style="background-color: #228be6;"></div>
+                {% elif zone_info.zone == 'easy' %}
+                  <div class="w-4 h-4 rounded" style="background-color: #4c6ef5;"></div>
+                {% elif zone_info.zone == 'recovery' %}
+                  <div class="w-4 h-4 rounded" style="background-color: #6f42c1;"></div>
+                {% endif %}
+                <span class="text-sm text-gray-700 dark:text-gray-300">{{ zone_info.zone_display|default:zone_info.zone }}</span>
+              {% endif %}
+            </div>
+            <div class="text-sm text-gray-600 dark:text-gray-400">
+              {{ zone_info.time_str }} ({{ zone_info.percentage }}%)
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  {% endif %}
+  
+  <!-- Class Details Card -->
+  {% if class_sections %}
+    <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 sm:p-6 shadow-sm">
+      <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">CLASS DETAILS</h3>
+      <div class="space-y-2">
+        {% for section_key, section in class_sections.items %}
+          <div class="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+            <button 
+              type="button"
+              class="w-full flex items-center justify-between p-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors section-toggle"
+              data-section="{{ section_key }}"
+              aria-expanded="false">
+              <div class="flex items-center gap-3">
+                <span class="text-lg">{{ section.icon }}</span>
+                <span class="text-sm font-medium text-gray-900 dark:text-white">{{ section.name }}</span>
+              </div>
+              <div class="flex items-center gap-3">
+                <span class="text-sm text-gray-600 dark:text-gray-400">
+                  {{ section.duration|format_duration_seconds }}
+                </span>
+                <svg class="w-4 h-4 text-gray-400 transition-transform section-chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                </svg>
+              </div>
+            </button>
+            
+            <div class="section-content hidden border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50">
+              <div class="p-4 space-y-3">
+                {% if section.description %}
+                  <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">{{ section.description }}</p>
+                {% endif %}
+                
+                {% if section.segments %}
+                  <div class="space-y-2">
+                    {% for segment in section.segments %}
+                      <div class="flex items-center justify-between p-2 bg-white dark:bg-gray-800 rounded">
+                        <span class="text-sm text-gray-700 dark:text-gray-300">{{ segment.name }}</span>
+                        <span class="text-sm text-gray-600 dark:text-gray-400">{{ segment.duration_str }}</span>
+                      </div>
+                    {% endfor %}
+                  </div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  {% endif %}
+</div>

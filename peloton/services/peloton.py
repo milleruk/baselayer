@@ -496,6 +496,24 @@ class PelotonClient:
 
     def fetch_ride_details(self, ride_id: str) -> Dict[str, Any]:
         return self._get(f"/api/ride/{ride_id}/details")
+    
+    def fetch_playlist(self, ride_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Fetch music playlist for a ride/class.
+        Returns playlist data including songs, artists, and albums.
+        Returns None if playlist doesn't exist (404) - this is normal for some class types.
+        Raises PelotonAPIError for other errors.
+        """
+        try:
+            return self._get(f"/api/ride/{ride_id}/playlist")
+        except PelotonAPIError as e:
+            # If it's a 404, return None (class doesn't have a playlist - normal for yoga, meditation, etc.)
+            error_str = str(e)
+            if '404' in error_str or 'Not Found' in error_str:
+                logger.debug(f"Playlist not found for ride_id {ride_id} (404) - this is normal for some class types")
+                return None
+            # Re-raise other errors
+            raise
 
     def fetch_user(self, user_id: str) -> Dict[str, Any]:
         return self._get(f"/api/user/{user_id}")
@@ -515,6 +533,20 @@ class PelotonClient:
         """Fetch instructor details by instructor ID."""
         return self._get(f"/api/instructor/{instructor_id}")
 
+    def fetch_ride_filters(self, library_type: str = "on_demand") -> Dict[str, Any]:
+        """
+        Fetch ride/class filters from Peloton API.
+        Returns filter options including class types, instructors, durations, etc.
+        
+        Args:
+            library_type: Type of library to get filters for. Common values:
+                - "on_demand" (default): On-demand classes
+                - "live": Live classes
+                - "archived": Archived classes
+        """
+        params = {"library_type": library_type}
+        return self._get("/api/ride/filters", params=params)
+    
     def fetch_all_instructors(self, limit: int = 20, page: int = 0) -> Dict[str, Any]:
         """Fetch instructors from Peloton API with pagination support."""
         params = {"page": page, "limit": limit}

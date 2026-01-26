@@ -12,89 +12,123 @@
 <!-- Top Section: Personal Records and This Month -->
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
   <!-- Personal Records -->
-  <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
-    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-      <h2 class="text-xl font-bold text-gray-900 dark:text-white">Personal Records</h2>
+  <div class="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-lg">
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+      <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Personal Records</h2>
       <div class="flex gap-2">
-        <button class="px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors" data-period="1">1 Month</button>
-        <button class="px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors" data-period="2">2 Months</button>
-        <button class="px-3 py-1.5 text-xs font-medium text-white bg-primary rounded-lg" data-period="3">3 Months</button>
+        <button class="px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 bg-transparent rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors pr-period-btn" data-period="1">1 Month</button>
+        <button class="px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 bg-transparent rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors pr-period-btn" data-period="2">2 Months</button>
+        <button class="px-4 py-2 text-sm font-medium text-gray-900 dark:text-gray-900 bg-yellow-400 dark:bg-yellow-400 rounded-lg pr-period-btn active" data-period="3">3 Months</button>
       </div>
     </div>
-    <div class="grid grid-cols-5 gap-4 mb-4">
-      <div class="text-center p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-        <div class="text-xs text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-2">1 MIN POWER</div>
-        <div class="text-xl font-bold text-purple-600 dark:text-purple-400">266 W</div>
+    
+    <div class="grid grid-cols-5 gap-4 mb-6">
+      <div class="text-center">
+        <div class="inline-block px-4 py-2 bg-purple-600 dark:bg-purple-600 rounded-lg mb-3 transform rotate-[-2deg] shadow-md">
+          <div class="text-xs font-bold text-white uppercase tracking-wide transform rotate-[2deg]">1 MIN POWER</div>
+        </div>
+        <div class="text-3xl font-bold text-gray-900 dark:text-white mb-1 pr-value" data-interval="1min">—</div>
+        <div class="text-sm text-gray-600 dark:text-gray-400 font-medium">W</div>
       </div>
-      <div class="text-center p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-        <div class="text-xs text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-2">3 MIN POWER</div>
-        <div class="text-xl font-bold text-purple-600 dark:text-purple-400">230 W</div>
+      <div class="text-center">
+        <div class="inline-block px-4 py-2 bg-purple-600 dark:bg-purple-600 rounded-lg mb-3 transform rotate-[1deg] shadow-md">
+          <div class="text-xs font-bold text-white uppercase tracking-wide transform rotate-[-1deg]">3 MIN POWER</div>
+        </div>
+        <div class="text-3xl font-bold text-gray-900 dark:text-white mb-1 pr-value" data-interval="3min">—</div>
+        <div class="text-sm text-gray-600 dark:text-gray-400 font-medium">W</div>
       </div>
-      <div class="text-center p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-        <div class="text-xs text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-2">5 MIN POWER</div>
-        <div class="text-xl font-bold text-purple-600 dark:text-purple-400">222 W</div>
+      <div class="text-center">
+        <div class="inline-block px-4 py-2 bg-purple-600 dark:bg-purple-600 rounded-lg mb-3 shadow-md">
+          <div class="text-xs font-bold text-white uppercase tracking-wide">5 MIN POWER</div>
+        </div>
+        <div class="text-3xl font-bold text-gray-900 dark:text-white mb-1 pr-value" data-interval="5min">—</div>
+        <div class="text-sm text-gray-600 dark:text-gray-400 font-medium">W</div>
       </div>
-      <div class="text-center p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-        <div class="text-xs text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-2">10 MIN POWER</div>
-        <div class="text-xl font-bold text-purple-600 dark:text-purple-400">202 W</div>
+      <div class="text-center">
+        <div class="inline-block px-4 py-2 bg-purple-600 dark:bg-purple-600 rounded-lg mb-3 transform rotate-[-1deg] shadow-md">
+          <div class="text-xs font-bold text-white uppercase tracking-wide transform rotate-[1deg]">10 MIN POWER</div>
+        </div>
+        <div class="text-3xl font-bold text-gray-900 dark:text-white mb-1 pr-value" data-interval="10min">—</div>
+        <div class="text-sm text-gray-600 dark:text-gray-400 font-medium">W</div>
       </div>
-      <div class="text-center p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-        <div class="text-xs text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-2">20 MIN POWER</div>
-        <div class="text-xl font-bold text-purple-600 dark:text-purple-400">197 W</div>
+      <div class="text-center">
+        <div class="inline-block px-4 py-2 bg-purple-600 dark:bg-purple-600 rounded-lg mb-3 transform rotate-[2deg] shadow-md">
+          <div class="text-xs font-bold text-white uppercase tracking-wide transform rotate-[-2deg]">20 MIN POWER</div>
+        </div>
+        <div class="text-3xl font-bold text-gray-900 dark:text-white mb-1 pr-value" data-interval="20min">—</div>
+        <div class="text-sm text-gray-600 dark:text-gray-400 font-medium">W</div>
       </div>
     </div>
+    
     <div class="p-4 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-600 dark:text-gray-400">
       Your best power outputs across different time intervals.
     </div>
   </div>
 
   <!-- This Month -->
-  <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
-    <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-6">This Month</h2>
-    <div class="flex items-center gap-4 mb-6">
-      <span class="text-sm text-gray-600 dark:text-gray-400">Discipline:</span>
+  <div class="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 shadow-lg">
+    <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-3">This Month</h2>
+    <div class="flex items-center gap-3 mb-4">
+      <span class="text-sm text-gray-600 dark:text-gray-400 font-medium">Discipline:</span>
       <div class="flex gap-2">
-        <button class="px-3 py-1.5 text-xs font-medium text-white bg-primary rounded-lg">Cycling</button>
-        <button class="px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">Tread</button>
+        <button class="px-3 py-1.5 text-xs font-medium text-white bg-primary rounded-lg month-discipline-btn active" data-discipline="cycling">Cycling</button>
+        <button class="px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors month-discipline-btn" data-discipline="running">Tread</button>
       </div>
     </div>
-    <div class="space-y-6">
-      <div>
-        <div class="text-xs text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-2">Distance</div>
-        <div class="flex justify-between">
-          <div>
-            <div class="text-xl font-bold text-gray-900 dark:text-white">28</div>
-            <div class="text-xs text-gray-600 dark:text-gray-400">Monthly</div>
+    <div class="border-t border-gray-200 dark:border-gray-700 pt-3 space-y-3">
+      <!-- Distance -->
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span class="text-sm font-semibold text-gray-700 dark:text-gray-300">Distance</span>
+        </div>
+        <div class="flex items-center gap-6">
+          <div class="text-right">
+            <div class="text-xs text-gray-500 dark:text-gray-400">Monthly</div>
+            <div class="text-sm font-semibold text-gray-900 dark:text-white month-distance cycling-data">{{ cycling_monthly_distance|floatformat:1 }}</div>
+            <div class="text-sm font-semibold text-gray-900 dark:text-white month-distance running-data hidden">{{ running_monthly_distance|floatformat:1 }}</div>
           </div>
-          <div>
-            <div class="text-xl font-bold text-gray-900 dark:text-white">28</div>
-            <div class="text-xs text-gray-600 dark:text-gray-400">Yearly</div>
+          <div class="text-right">
+            <div class="text-xs text-gray-500 dark:text-gray-400">Yearly</div>
+            <div class="text-sm font-semibold text-gray-700 dark:text-gray-300 year-distance cycling-data">{{ cycling_yearly_distance|floatformat:1 }}</div>
+            <div class="text-sm font-semibold text-gray-700 dark:text-gray-300 year-distance running-data hidden">{{ running_yearly_distance|floatformat:1 }}</div>
           </div>
         </div>
       </div>
-      <div>
-        <div class="text-xs text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-2">Output</div>
-        <div class="flex justify-between">
-          <div>
-            <div class="text-xl font-bold text-gray-900 dark:text-white">740</div>
-            <div class="text-xs text-gray-600 dark:text-gray-400">Monthly</div>
+      
+      <!-- Output -->
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span class="text-sm font-semibold text-gray-700 dark:text-gray-300">Output</span>
+        </div>
+        <div class="flex items-center gap-6">
+          <div class="text-right">
+            <div class="text-xs text-gray-500 dark:text-gray-400">Monthly</div>
+            <div class="text-sm font-semibold text-gray-900 dark:text-white month-output cycling-data">{{ cycling_monthly_output|floatformat:0 }}</div>
+            <div class="text-sm font-semibold text-gray-900 dark:text-white month-output running-data hidden">{{ running_monthly_output|floatformat:0 }}</div>
           </div>
-          <div>
-            <div class="text-xl font-bold text-gray-900 dark:text-white">740</div>
-            <div class="text-xs text-gray-600 dark:text-gray-400">Yearly</div>
+          <div class="text-right">
+            <div class="text-xs text-gray-500 dark:text-gray-400">Yearly</div>
+            <div class="text-sm font-semibold text-gray-700 dark:text-gray-300 year-output cycling-data">{{ cycling_yearly_output|floatformat:0 }}</div>
+            <div class="text-sm font-semibold text-gray-700 dark:text-gray-300 year-output running-data hidden">{{ running_yearly_output|floatformat:0 }}</div>
           </div>
         </div>
       </div>
-      <div>
-        <div class="text-xs text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-2">TSS</div>
-        <div class="flex justify-between">
-          <div>
-            <div class="text-xl font-bold text-gray-900 dark:text-white">78</div>
-            <div class="text-xs text-gray-600 dark:text-gray-400">Monthly</div>
+      
+      <!-- TSS -->
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span class="text-sm font-semibold text-gray-700 dark:text-gray-300">TSS</span>
+        </div>
+        <div class="flex items-center gap-6">
+          <div class="text-right">
+            <div class="text-xs text-gray-500 dark:text-gray-400">Monthly</div>
+            <div class="text-sm font-semibold text-gray-900 dark:text-white month-tss cycling-data">{{ cycling_monthly_tss|floatformat:0 }}</div>
+            <div class="text-sm font-semibold text-gray-900 dark:text-white month-tss running-data hidden">{{ running_monthly_tss|floatformat:0 }}</div>
           </div>
-          <div>
-            <div class="text-xl font-bold text-gray-900 dark:text-white">78</div>
-            <div class="text-xs text-gray-600 dark:text-gray-400">Yearly</div>
+          <div class="text-right">
+            <div class="text-xs text-gray-500 dark:text-gray-400">Yearly</div>
+            <div class="text-sm font-semibold text-gray-700 dark:text-gray-300 year-tss cycling-data">{{ cycling_yearly_tss|floatformat:0 }}</div>
+            <div class="text-sm font-semibold text-gray-700 dark:text-gray-300 year-tss running-data hidden">{{ running_yearly_tss|floatformat:0 }}</div>
           </div>
         </div>
       </div>
@@ -103,7 +137,7 @@
 </div>
 
 <!-- Achievements & Milestones Section -->
-<div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm mb-8">
+<div class="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-lg mb-8">
   <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
     <h2 class="text-xl font-bold text-gray-900 dark:text-white">Achievements & Milestones</h2>
     <div class="flex gap-2">
@@ -116,25 +150,24 @@
     {% if fully_completed_challenges %}
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {% for challenge_instance in fully_completed_challenges %}
-          <div class="text-center p-6 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
+          <div class="text-center p-6 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50 shadow-md hover:shadow-lg transition-shadow">
             {% if challenge_instance.challenge.image %}
-              <div class="w-20 h-20 mx-auto mb-4 rounded-lg bg-cover bg-center" style="background-image: url('{{ challenge_instance.challenge.image.url }}');"></div>
+              <div class="w-24 h-24 mx-auto mb-4 rounded-xl bg-cover bg-center shadow-lg" style="background-image: url('{{ challenge_instance.challenge.image.url }}');"></div>
             {% else %}
-              <div class="w-20 h-20 mx-auto mb-4 rounded-lg bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center text-3xl">
-                🏆
+              <div class="w-24 h-24 mx-auto mb-4 rounded-xl bg-gray-200 dark:bg-gray-600 flex items-center justify-center">
+                <span class="text-4xl">🏆</span>
               </div>
             {% endif %}
-            <div class="font-bold text-gray-900 dark:text-white mb-2">{{ challenge_instance.challenge.name }}</div>
-            <div class="text-sm text-gray-600 dark:text-gray-400">
+            <div class="font-bold text-gray-900 dark:text-white mb-2 text-lg">{{ challenge_instance.challenge.name }}</div>
+            <div class="text-sm text-gray-600 dark:text-gray-400 bg-white dark:bg-gray-800 rounded-lg px-3 py-1 inline-block">
               Earned {% if challenge_instance.completed_at %}{{ challenge_instance.completed_at|date:"d/m/Y" }}{% else %}{{ challenge_instance.started_at|date:"d/m/Y" }}{% endif %}
             </div>
           </div>
         {% endfor %}
       </div>
     {% else %}
-      <div class="text-center py-12">
-        <div class="text-5xl mb-4">🏆</div>
-        <p class="text-gray-600 dark:text-gray-400">No achievements yet. Complete challenges to earn badges!</p>
+      <div class="text-center py-12 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
+        <p class="text-gray-600 dark:text-gray-400 font-medium">No achievements yet. Complete challenges to earn badges!</p>
       </div>
     {% endif %}
   </div>
@@ -164,13 +197,28 @@
                   <div class="text-xs text-gray-700 dark:text-gray-300">{{ threshold }}+ {{ milestone_category.name }} workouts</div>
                 </div>
               {% else %}
-                <div class="text-center p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-                  <div class="w-12 h-12 mx-auto mb-2 rounded-full bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center text-xs font-bold text-yellow-800 dark:text-yellow-200">
-                    {{ threshold }}+
+                {% if milestone_category.next_milestone == threshold and milestone_category.progress_percentage > 0 %}
+                  <div class="text-center p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg relative overflow-hidden">
+                    <!-- Progress background -->
+                    <div class="absolute inset-0 bg-green-100 dark:bg-green-900/20" style="width: {{ milestone_category.progress_percentage }}%;"></div>
+                    <div class="relative z-10">
+                      <div class="w-12 h-12 mx-auto mb-2 rounded-full bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center text-xs font-bold text-yellow-800 dark:text-yellow-200">
+                        {{ threshold }}+
+                      </div>
+                      <div class="text-xs text-gray-600 dark:text-gray-400 mb-1">Not Completed</div>
+                      <div class="text-xs text-gray-700 dark:text-gray-300 mb-1">{{ threshold }}+ {{ milestone_category.name }} workouts</div>
+                      <div class="text-xs text-green-600 dark:text-green-400 font-semibold">{{ milestone_category.progress_percentage }}%</div>
+                    </div>
                   </div>
-                  <div class="text-xs text-gray-600 dark:text-gray-400 mb-1">Not Completed</div>
-                  <div class="text-xs text-gray-700 dark:text-gray-300">{{ threshold }}+ {{ milestone_category.name }} workouts</div>
-                </div>
+                {% else %}
+                  <div class="text-center p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                    <div class="w-12 h-12 mx-auto mb-2 rounded-full bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center text-xs font-bold text-yellow-800 dark:text-yellow-200">
+                      {{ threshold }}+
+                    </div>
+                    <div class="text-xs text-gray-600 dark:text-gray-400 mb-1">Not Completed</div>
+                    <div class="text-xs text-gray-700 dark:text-gray-300">{{ threshold }}+ {{ milestone_category.name }} workouts</div>
+                  </div>
+                {% endif %}
               {% endif %}
             {% endfor %}
           </div>
@@ -180,36 +228,35 @@
   </div>
 </div>
 
-<!-- Power to Weight, Time in Zones, Average Heartbeat -->
-<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+<!-- Power to Weight and Average Heartbeat -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
   <!-- Power to Weight -->
-  <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
+  <div class="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-lg">
     <div class="flex justify-between items-center mb-4">
       <h3 class="text-lg font-bold text-gray-900 dark:text-white">Power to Weight</h3>
-      <span class="text-gray-500 dark:text-gray-400 cursor-pointer">ℹ️</span>
     </div>
     <div class="flex gap-2 mb-4">
-      <button class="px-3 py-1.5 text-xs font-medium text-white bg-primary rounded-lg pw-activity-btn active" data-activity="cycling">Cycling</button>
-      <button class="px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors pw-activity-btn" data-activity="tread">Tread</button>
+      <button class="px-4 py-2 text-xs font-medium text-white bg-primary rounded-lg pw-activity-btn active" data-activity="cycling">Cycling</button>
+      <button class="px-4 py-2 text-xs font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors pw-activity-btn" data-activity="tread">Tread</button>
     </div>
     
     <!-- Current Values -->
     {% if current_cycling_pw %}
       <div id="pw-cycling-current" class="mb-4">
-        <div class="text-sm text-gray-600 dark:text-gray-400 mb-2">Current cycling:</div>
-        <div class="px-3 py-2 text-green-800 dark:text-green-200 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg font-bold inline-block">
+        <div class="text-sm text-gray-600 dark:text-gray-400 mb-2 font-medium">Current cycling:</div>
+        <div class="px-4 py-3 text-white bg-primary rounded-lg font-bold text-lg inline-block">
           {{ current_cycling_pw }} W/kg
         </div>
       </div>
     {% endif %}
     <div id="pw-tread-current" class="mb-4" style="display: none;">
       {% if current_tread_pw %}
-        <div class="text-sm text-gray-600 dark:text-gray-400 mb-2">Current tread:</div>
-        <div class="px-3 py-2 text-green-800 dark:text-green-200 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg font-bold inline-block">
+        <div class="text-sm text-gray-600 dark:text-gray-400 mb-2 font-medium">Current tread:</div>
+        <div class="px-4 py-3 text-white bg-primary rounded-lg font-bold text-lg inline-block">
           {{ current_tread_pw }} W/kg
         </div>
       {% else %}
-        <div class="text-center py-4 text-gray-600 dark:text-gray-400">
+        <div class="text-center py-4 text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
           <div class="text-sm">No tread FTP data available. Add tread FTP entries to see power-to-weight ratio.</div>
         </div>
       {% endif %}
@@ -292,34 +339,66 @@
     </div>
   </div>
 
-  <!-- Time in Zones -->
-  <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
-    <div class="flex justify-between items-center mb-4">
-      <h3 class="text-lg font-bold text-gray-900 dark:text-white">Time in Zones</h3>
-      <a href="#" class="text-sm text-primary hover:text-primary-dark">View Details</a>
-    </div>
-    <div class="flex gap-2 mb-4">
-      <button class="px-3 py-1.5 text-xs font-medium text-white bg-primary rounded-lg">Monthly</button>
-      <button class="px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">Yearly</button>
-    </div>
-    <div class="text-center py-8 text-gray-600 dark:text-gray-400">
-      <div class="text-4xl mb-2">📊</div>
-      <div class="text-sm">Zone distribution chart will appear here once Peloton data is connected.</div>
-    </div>
-  </div>
-
   <!-- Average Heartbeat -->
-  <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
-    <div class="flex justify-between items-center mb-4">
-      <h3 class="text-lg font-bold text-gray-900 dark:text-white">Average Heartbeat</h3>
+  <div class="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-lg">
+    <div class="flex justify-between items-center mb-6">
+      <h3 class="text-lg font-bold text-gray-900 dark:text-white">Average Heart Rate</h3>
       <div class="flex items-center gap-2">
-        <span class="text-gray-500 dark:text-gray-400 cursor-pointer">ℹ️</span>
-        <a href="#" class="text-sm text-primary hover:text-primary-dark">View Details</a>
+        <a href="{% url 'workouts:history' %}" class="text-sm text-primary hover:text-primary-dark font-medium">View Details →</a>
       </div>
     </div>
-    <div class="text-xs text-gray-600 dark:text-gray-400">
-      Heart rate data will appear here once Peloton integration is connected.
+    
+    <div class="flex items-center gap-4 mb-6">
+      <span class="text-sm text-gray-600 dark:text-gray-400 font-medium">Period:</span>
+      <div class="flex gap-2">
+        <button class="px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors hr-period-btn" data-period="1">1M</button>
+        <button class="px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors hr-period-btn" data-period="2">2M</button>
+        <button class="px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors hr-period-btn" data-period="3">3M</button>
+        <button class="px-3 py-1.5 text-xs font-medium text-white bg-primary rounded-lg hr-period-btn active" data-period="0">This Month</button>
+      </div>
     </div>
+    
+    {% if hr_this_month.overall or hr_1m.overall or hr_2m.overall or hr_3m.overall %}
+      <div class="space-y-4">
+        <!-- Workout Type Breakdown -->
+        <div class="space-y-3">
+          <div class="flex items-center justify-between bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 border border-gray-200 dark:border-gray-700 hr-cycling-row" {% if not hr_this_month.Cycling and not hr_1m.Cycling and not hr_2m.Cycling and not hr_3m.Cycling %}style="display: none;"{% endif %}>
+            <span class="text-sm font-semibold text-gray-700 dark:text-gray-300">Cycling</span>
+            <div class="px-4 py-2 bg-primary rounded-full">
+              <span class="text-base font-bold text-white hr-value cycling-hr">{{ hr_this_month.Cycling|default:"—" }}</span>
+              <span class="text-xs text-white/90 ml-1">bpm</span>
+            </div>
+          </div>
+          <div class="flex items-center justify-between bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 border border-gray-200 dark:border-gray-700 hr-tread-row" {% if not hr_this_month.Tread and not hr_1m.Tread and not hr_2m.Tread and not hr_3m.Tread %}style="display: none;"{% endif %}>
+            <span class="text-sm font-semibold text-gray-700 dark:text-gray-300">Tread</span>
+            <div class="px-4 py-2 bg-primary rounded-full">
+              <span class="text-base font-bold text-white hr-value tread-hr">{{ hr_this_month.Tread|default:"—" }}</span>
+              <span class="text-xs text-white/90 ml-1">bpm</span>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Separator -->
+        <div class="border-t border-gray-200 dark:border-gray-700 my-4"></div>
+        
+        <!-- Overall Average -->
+        <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+          <div class="text-xs text-gray-600 dark:text-gray-400 mb-2 font-medium hr-period-label">This Month</div>
+          <div class="flex items-center gap-3">
+            <span class="text-base font-semibold text-gray-700 dark:text-gray-300">Overall Average:</span>
+            <div class="flex items-baseline gap-1">
+              <span class="text-3xl font-bold text-gray-900 dark:text-white hr-overall">{{ hr_this_month.overall|default:"—" }}</span>
+              <span class="text-sm text-gray-600 dark:text-gray-400 font-medium">bpm</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    {% else %}
+      <div class="text-center py-8 text-gray-600 dark:text-gray-400">
+        <div class="text-4xl mb-2">❤️</div>
+        <div class="text-sm">Heart rate data will appear here once workouts with heart rate are synced.</div>
+      </div>
+    {% endif %}
   </div>
 </div>
 
@@ -398,15 +477,226 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   });
   
-  // Time period buttons
-  document.querySelectorAll('[data-period]').forEach(btn => {
+  // Personal Records period buttons
+  const prData = {
+    1: {{ personal_records_1m|safe }},
+    2: {{ personal_records_2m|safe }},
+    3: {{ personal_records_3m|safe }}
+  };
+  
+  let prChart = null;
+  
+  function updatePersonalRecords(period) {
+    const records = prData[period] || {};
+    const intervals = ['1min', '3min', '5min', '10min', '20min'];
+    const labels = ['1 Min', '3 Min', '5 Min', '10 Min', '20 Min'];
+    const values = intervals.map(i => records[i] || 0);
+    
+    // Update text values
+    document.querySelectorAll('.pr-value').forEach(el => {
+      const interval = el.dataset.interval;
+      const value = records[interval] || 0;
+      el.textContent = value > 0 ? value : '—';
+      // Update the "W" label visibility
+      const wLabel = el.nextElementSibling;
+      if (wLabel && value > 0) {
+        wLabel.style.display = 'block';
+      } else if (wLabel) {
+        wLabel.style.display = 'none';
+      }
+    });
+    
+    // Update chart
+    if (prChart) {
+      prChart.data.datasets[0].data = values;
+      prChart.update('none');
+    }
+  }
+  
+  // Initialize Personal Records Chart
+  const prCtx = document.getElementById('personalRecordsChart');
+  if (prCtx) {
+    const isDark = document.documentElement.classList.contains('dark');
+    const textColor = isDark ? 'rgba(255, 255, 255, 0.8)' : 'rgba(0, 0, 0, 0.8)';
+    const gridColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)';
+    
+    const initialData = prData[3] || {};
+    const intervals = ['1min', '3min', '5min', '10min', '20min'];
+    const labels = ['1 Min', '3 Min', '5 Min', '10 Min', '20 Min'];
+    const initialValues = intervals.map(i => initialData[i] || 0);
+    
+    prChart = new Chart(prCtx, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Power (W)',
+          data: initialValues,
+          backgroundColor: 'rgba(59, 130, 246, 0.7)',
+          borderColor: 'rgb(59, 130, 246)',
+          borderWidth: 2,
+          borderRadius: 8,
+          borderSkipped: false,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: false
+          },
+          tooltip: {
+            backgroundColor: isDark ? 'rgba(31, 41, 55, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+            titleColor: textColor,
+            bodyColor: textColor,
+            borderColor: isDark ? 'rgba(75, 85, 99, 1)' : 'rgba(229, 231, 235, 1)',
+            borderWidth: 1,
+            padding: 12,
+            callbacks: {
+              label: function(context) {
+                return context.parsed.y > 0 ? context.parsed.y + ' W' : 'No data';
+              }
+            }
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: {
+              color: textColor,
+              font: {
+                size: 11
+              }
+            },
+            grid: {
+              color: gridColor
+            }
+          },
+          x: {
+            ticks: {
+              color: textColor,
+              font: {
+                size: 11
+              }
+            },
+            grid: {
+              display: false
+            }
+          }
+        }
+      }
+    });
+  }
+  
+  document.querySelectorAll('.pr-period-btn').forEach(btn => {
     btn.addEventListener('click', function() {
-      this.parentElement.querySelectorAll('[data-period]').forEach(b => {
-        b.classList.remove('bg-primary', 'text-white');
+      const period = parseInt(this.dataset.period);
+      this.parentElement.querySelectorAll('.pr-period-btn').forEach(b => {
+        b.classList.remove('bg-yellow-400', 'dark:bg-yellow-400', 'text-gray-900', 'dark:text-gray-900', 'active');
+        b.classList.add('bg-transparent', 'text-gray-600', 'dark:text-gray-400');
+      });
+      this.classList.add('bg-yellow-400', 'dark:bg-yellow-400', 'text-gray-900', 'dark:text-gray-900', 'active');
+      this.classList.remove('bg-transparent', 'text-gray-600', 'dark:text-gray-400');
+      updatePersonalRecords(period);
+    });
+  });
+  
+  // Initialize with 3 months (default)
+  updatePersonalRecords(3);
+  
+  // Heart Rate period buttons
+  const hrData = {
+    0: {{ hr_this_month|safe }},
+    1: {{ hr_1m|safe }},
+    2: {{ hr_2m|safe }},
+    3: {{ hr_3m|safe }}
+  };
+  
+  const periodLabels = {
+    0: 'This Month',
+    1: '1 Month',
+    2: '2 Months',
+    3: '3 Months'
+  };
+  
+  function updateHeartRate(period) {
+    const data = hrData[period] || {};
+    const label = periodLabels[period] || 'This Month';
+    
+    // Update cycling HR
+    const cyclingHr = document.querySelector('.cycling-hr');
+    if (cyclingHr) {
+      const value = data.Cycling || 0;
+      cyclingHr.textContent = value > 0 ? value : '—';
+      // Show/hide cycling row based on data
+      const cyclingRow = document.querySelector('.hr-cycling-row');
+      if (cyclingRow) {
+        cyclingRow.style.display = value > 0 ? 'flex' : 'none';
+      }
+    }
+    
+    // Update tread HR
+    const treadHr = document.querySelector('.tread-hr');
+    if (treadHr) {
+      const value = data.Tread || 0;
+      treadHr.textContent = value > 0 ? value : '—';
+      // Show/hide tread row based on data
+      const treadRow = document.querySelector('.hr-tread-row');
+      if (treadRow) {
+        treadRow.style.display = value > 0 ? 'flex' : 'none';
+      }
+    }
+    
+    // Update overall HR
+    const overallHr = document.querySelector('.hr-overall');
+    if (overallHr) {
+      const value = data.overall || 0;
+      overallHr.textContent = value > 0 ? value : '—';
+    }
+    
+    // Update period label
+    const periodLabel = document.querySelector('.hr-period-label');
+    if (periodLabel) {
+      periodLabel.textContent = label;
+    }
+  }
+  
+  document.querySelectorAll('.hr-period-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const period = parseInt(this.dataset.period);
+      this.parentElement.querySelectorAll('.hr-period-btn').forEach(b => {
+        b.classList.remove('bg-primary', 'text-white', 'active');
         b.classList.add('bg-gray-100', 'dark:bg-gray-700', 'text-gray-700', 'dark:text-gray-300');
       });
-      this.classList.add('bg-primary', 'text-white');
+      this.classList.add('bg-primary', 'text-white', 'active');
       this.classList.remove('bg-gray-100', 'dark:bg-gray-700', 'text-gray-700', 'dark:text-gray-300');
+      updateHeartRate(period);
+    });
+  });
+  
+  // Initialize with "This Month" (default)
+  updateHeartRate(0);
+  
+  // This Month discipline buttons
+  document.querySelectorAll('.month-discipline-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const discipline = this.dataset.discipline;
+      this.parentElement.querySelectorAll('.month-discipline-btn').forEach(b => {
+        b.classList.remove('bg-primary', 'text-white', 'active');
+        b.classList.add('bg-gray-100', 'dark:bg-gray-700', 'text-gray-700', 'dark:text-gray-300');
+      });
+      this.classList.add('bg-primary', 'text-white', 'active');
+      this.classList.remove('bg-gray-100', 'dark:bg-gray-700', 'text-gray-700', 'dark:text-gray-300');
+      
+      // Show/hide values based on discipline
+      if (discipline === 'cycling') {
+        document.querySelectorAll('.cycling-data').forEach(el => el.classList.remove('hidden'));
+        document.querySelectorAll('.running-data').forEach(el => el.classList.add('hidden'));
+      } else {
+        document.querySelectorAll('.cycling-data').forEach(el => el.classList.add('hidden'));
+        document.querySelectorAll('.running-data').forEach(el => el.classList.remove('hidden'));
+      }
     });
   });
   

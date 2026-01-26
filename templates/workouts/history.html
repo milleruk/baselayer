@@ -12,29 +12,44 @@
 {% if peloton_connection %}
   <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm mb-6">
     <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-      <div class="flex items-start gap-4">
+      <div class="flex items-start gap-4 flex-1">
         <div class="w-3 h-3 rounded-full mt-1 bg-green-500"></div>
-        <div>
+        <div class="flex-1">
           <div class="font-semibold text-gray-900 dark:text-white mb-1">
             Connected to Peloton
           </div>
-          <div class="text-sm text-gray-600 dark:text-gray-400">
+          <div class="text-sm text-gray-600 dark:text-gray-400 mb-2">
             Your Peloton account is connected. Click "Sync Workouts" to import your workout history.
           </div>
           {% if peloton_connection.last_sync_at %}
-            <div class="text-xs text-gray-500 dark:text-gray-500 mt-1">
-              Last sync: {{ peloton_connection.last_sync_at|date:"M d, Y g:i A" }}
+            <div class="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+              <span>Last sync: <strong>{{ peloton_connection.last_sync_at|date:"M d, Y g:i A" }}</strong></span>
+              <span class="text-gray-400">•</span>
+              <span>Next sync will be incremental</span>
             </div>
           {% elif request.user.profile.peloton_last_synced_at %}
-            <div class="text-xs text-gray-500 dark:text-gray-500 mt-1">
-              Last sync: {{ request.user.profile.peloton_last_synced_at|date:"M d, Y g:i A" }}
+            <div class="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+              <span>Last sync: <strong>{{ request.user.profile.peloton_last_synced_at|date:"M d, Y g:i A" }}</strong></span>
+            </div>
+          {% else %}
+            <div class="flex items-center gap-2 text-xs text-blue-600 dark:text-blue-400">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+              <span>First sync will import all your workout history</span>
             </div>
           {% endif %}
         </div>
       </div>
       <form method="post" action="{% url 'workouts:sync' %}" id="sync-workouts-form">
         {% csrf_token %}
-        <button type="submit" id="sync-workouts-btn" class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+        <button type="submit" id="sync-workouts-btn" class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap">
           <span id="sync-btn-text">Sync Workouts</span>
           <span id="sync-btn-spinner" class="hidden inline-block ml-2">
             <svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -67,7 +82,7 @@
 <!-- Filters and Search -->
 <div class="mb-6 space-y-4">
   <!-- Search Bar -->
-  <form method="get" action="{% url 'workouts:history' %}" class="flex gap-3">
+  <form method="get" action="{% url 'workouts:history' %}" class="flex flex-col sm:flex-row gap-3">
     <div class="flex-1 relative">
       <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
         <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -79,7 +94,7 @@
     </div>
     
     <!-- Filter Dropdowns -->
-    <div class="flex gap-2">
+    <div class="flex flex-wrap gap-2">
       <!-- TSS Filter -->
       <div class="relative">
         <input type="number" name="tss" value="{{ tss_filter }}" placeholder="TSS" min="0" step="0.1"
@@ -87,9 +102,9 @@
       </div>
       
       <!-- Instructor Filter -->
-      <div class="relative">
-        <select name="instructor" onchange="this.form.submit()" 
-                class="appearance-none bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 pr-8 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent cursor-pointer">
+      <div class="relative min-w-[140px]">
+        <select name="instructor" 
+                class="w-full appearance-none bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 pr-8 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent cursor-pointer text-sm filter-select">
           <option value="">Add Instructor</option>
           {% for instructor in instructors %}
             <option value="{{ instructor.id }}" {% if instructor_filter == instructor.id|stringformat:"s" %}selected{% endif %}>
@@ -105,9 +120,9 @@
       </div>
       
       <!-- Duration Filter -->
-      <div class="relative">
-        <select name="duration" onchange="this.form.submit()" 
-                class="appearance-none bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 pr-8 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent cursor-pointer">
+      <div class="relative min-w-[120px]">
+        <select name="duration" 
+                class="w-full appearance-none bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 pr-8 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent cursor-pointer text-sm filter-select">
           <option value="">Add Duration</option>
           {% for duration in durations %}
             <option value="{{ duration }}" {% if duration_filter == duration|stringformat:"s" %}selected{% endif %}>
@@ -127,24 +142,24 @@
         <input type="hidden" name="type" value="{{ workout_type_filter }}">
       {% endif %}
       
-      <button type="submit" class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors">
+      <button type="submit" id="filter-submit-btn" class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors whitespace-nowrap">
         Search
       </button>
     </div>
   </form>
   
   <!-- Workout Type Tabs -->
-  <div class="flex gap-1 border-b border-gray-200 dark:border-gray-700">
-    <a href="?{% if search_query %}search={{ search_query }}&{% endif %}{% if instructor_filter %}instructor={{ instructor_filter }}&{% endif %}{% if duration_filter %}duration={{ duration_filter }}&{% endif %}{% if tss_filter %}tss={{ tss_filter }}{% endif %}" 
-       class="px-4 py-2 text-sm font-medium {% if not workout_type_filter %}text-primary border-b-2 border-primary{% else %}text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white{% endif %} transition-colors">
+  <div class="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+    <div class="flex gap-1 border-b border-gray-200 dark:border-gray-700 min-w-max sm:min-w-0">
+    <a href="#" data-type="" class="workout-type-tab px-4 py-2 text-sm font-medium {% if not workout_type_filter %}text-primary border-b-2 border-primary{% else %}text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white{% endif %} transition-colors">
       All
     </a>
     {% for workout_type in workout_types %}
-      <a href="?type={{ workout_type.slug }}{% if search_query %}&search={{ search_query }}{% endif %}{% if instructor_filter %}&instructor={{ instructor_filter }}{% endif %}{% if duration_filter %}&duration={{ duration_filter }}{% endif %}{% if tss_filter %}&tss={{ tss_filter }}{% endif %}" 
-         class="px-4 py-2 text-sm font-medium {% if workout_type_filter == workout_type.slug %}text-primary border-b-2 border-primary{% else %}text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white{% endif %} transition-colors">
+      <a href="#" data-type="{{ workout_type.slug }}" class="workout-type-tab px-4 py-2 text-sm font-medium {% if workout_type_filter == workout_type.slug %}text-primary border-b-2 border-primary{% else %}text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white{% endif %} transition-colors">
         {{ workout_type.name }}
       </a>
     {% endfor %}
+    </div>
   </div>
   
   <!-- Active Filters Display -->
@@ -184,13 +199,14 @@
 </div>
 
 <!-- Workout Count and Pagination Info -->
-{% if workouts %}
-  <div class="mb-4 text-sm text-gray-600 dark:text-gray-400">
+<div id="workout-count-info" class="mb-4 text-sm text-gray-600 dark:text-gray-400">
+  {% if workouts %}
     Showing {{ workouts.start_index }} - {{ workouts.end_index }} of {{ total_workouts }} workout{{ total_workouts|pluralize }}
-  </div>
-{% endif %}
+  {% endif %}
+</div>
 
 <!-- Workout List (Card Layout) -->
+<div id="workout-list-container">
 {% if workouts %}
   <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
     {% for workout in workouts %}
@@ -417,8 +433,7 @@
     </div>
     <nav class="flex items-center gap-2 flex-wrap justify-center">
       {% if workouts.has_previous %}
-        <a href="?page={{ workouts.previous_page_number }}{% if workout_type_filter %}&type={{ workout_type_filter }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}{% if instructor_filter %}&instructor={{ instructor_filter }}{% endif %}{% if duration_filter %}&duration={{ duration_filter }}{% endif %}{% if tss_filter %}&tss={{ tss_filter }}{% endif %}" 
-           class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+        <a href="#" data-page="{{ workouts.previous_page_number }}" class="pagination-link px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
           ← Previous
         </a>
       {% else %}
@@ -434,13 +449,11 @@
             {{ num }}
           </span>
         {% elif num > workouts.number|add:'-3' and num < workouts.number|add:'3' %}
-          <a href="?page={{ num }}{% if workout_type_filter %}&type={{ workout_type_filter }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}{% if instructor_filter %}&instructor={{ instructor_filter }}{% endif %}{% if duration_filter %}&duration={{ duration_filter }}{% endif %}{% if tss_filter %}&tss={{ tss_filter }}{% endif %}" 
-             class="px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+          <a href="#" data-page="{{ num }}" class="pagination-link px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
             {{ num }}
           </a>
         {% elif num == 1 or num == workouts.paginator.num_pages %}
-          <a href="?page={{ num }}{% if workout_type_filter %}&type={{ workout_type_filter }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}{% if instructor_filter %}&instructor={{ instructor_filter }}{% endif %}{% if duration_filter %}&duration={{ duration_filter }}{% endif %}{% if tss_filter %}&tss={{ tss_filter }}{% endif %}" 
-             class="px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+          <a href="#" data-page="{{ num }}" class="pagination-link px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
             {{ num }}
           </a>
         {% elif num == workouts.number|add:'-4' or num == workouts.number|add:'4' %}
@@ -449,8 +462,7 @@
       {% endfor %}
       
       {% if workouts.has_next %}
-        <a href="?page={{ workouts.next_page_number }}{% if workout_type_filter %}&type={{ workout_type_filter }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}{% if instructor_filter %}&instructor={{ instructor_filter }}{% endif %}{% if duration_filter %}&duration={{ duration_filter }}{% endif %}{% if tss_filter %}&tss={{ tss_filter }}{% endif %}" 
-           class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+        <a href="#" data-page="{{ workouts.next_page_number }}" class="pagination-link px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
           Next →
         </a>
       {% else %}
@@ -461,6 +473,8 @@
     </nav>
   </div>
 {% endif %}
+</div>
+</div>
 
 {% if not workouts %}
   <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-12 text-center">
@@ -477,6 +491,241 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+  // AJAX Filter Handling
+  const filterForm = document.querySelector('form[action="{% url 'workouts:history' %}"]');
+  const workoutListContainer = document.getElementById('workout-list-container');
+  const workoutCountInfo = document.getElementById('workout-count-info');
+  const paginationContainer = document.getElementById('pagination-container');
+  
+  function updateFilters() {
+    if (!filterForm) return;
+    
+    const formData = new FormData(filterForm);
+    const params = new URLSearchParams();
+    
+    // Add all form fields to params
+    for (const [key, value] of formData.entries()) {
+      if (value) {
+        params.append(key, value);
+      }
+    }
+    
+    // Update URL without reload
+    const newUrl = '{% url "workouts:history" %}?' + params.toString();
+    window.history.pushState({}, '', newUrl);
+    
+    // Show loading state
+    if (workoutListContainer) {
+      workoutListContainer.innerHTML = '<div class="text-center py-12"><div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>';
+    }
+    
+    // Fetch filtered results
+    fetch(newUrl, {
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+      }
+    })
+    .then(response => response.text())
+    .then(html => {
+      // Parse the HTML response
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
+      
+      // Extract the workout list
+      const newWorkoutList = doc.getElementById('workout-list-container');
+      const newCountInfo = doc.getElementById('workout-count-info');
+      const newPagination = doc.getElementById('pagination-container');
+      
+      // Update the DOM
+      if (newWorkoutList && workoutListContainer) {
+        workoutListContainer.innerHTML = newWorkoutList.innerHTML;
+      }
+      if (newCountInfo && workoutCountInfo) {
+        workoutCountInfo.innerHTML = newCountInfo.innerHTML;
+      }
+      if (newPagination && paginationContainer) {
+        paginationContainer.innerHTML = newPagination.innerHTML;
+      }
+      
+      // Re-initialize any event listeners that might be needed
+      initializeFilterListeners();
+      
+      // Scroll to top of results
+      workoutListContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    })
+    .catch(error => {
+      console.error('Filter error:', error);
+      // Fallback to page reload on error
+      window.location.href = newUrl;
+    });
+  }
+  
+  function updateFiltersWithPage(page) {
+    if (!filterForm) return;
+    
+    const formData = new FormData(filterForm);
+    const params = new URLSearchParams();
+    
+    // Add all form fields to params
+    for (const [key, value] of formData.entries()) {
+      if (value) {
+        params.append(key, value);
+      }
+    }
+    
+    // Add page number
+    if (page) {
+      params.set('page', page);
+    }
+    
+    // Update URL without reload
+    const newUrl = '{% url "workouts:history" %}?' + params.toString();
+    window.history.pushState({}, '', newUrl);
+    
+    // Show loading state
+    if (workoutListContainer) {
+      workoutListContainer.innerHTML = '<div class="text-center py-12"><div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>';
+    }
+    
+    // Fetch filtered results
+    fetch(newUrl, {
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+      }
+    })
+    .then(response => response.text())
+    .then(html => {
+      // Parse the HTML response
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
+      
+      // Extract the workout list
+      const newWorkoutList = doc.getElementById('workout-list-container');
+      const newCountInfo = doc.getElementById('workout-count-info');
+      const newPagination = doc.getElementById('pagination-container');
+      
+      // Update the DOM
+      if (newWorkoutList && workoutListContainer) {
+        workoutListContainer.innerHTML = newWorkoutList.innerHTML;
+      }
+      if (newCountInfo && workoutCountInfo) {
+        workoutCountInfo.innerHTML = newCountInfo.innerHTML;
+      }
+      if (newPagination && paginationContainer) {
+        paginationContainer.innerHTML = newPagination.innerHTML;
+      }
+      
+      // Re-initialize any event listeners that might be needed
+      initializeFilterListeners();
+      
+      // Scroll to top of results
+      workoutListContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    })
+    .catch(error => {
+      console.error('Filter error:', error);
+      // Fallback to page reload on error
+      window.location.href = newUrl;
+    });
+  }
+  
+  function initializeFilterListeners() {
+    // Filter form submission
+    if (filterForm) {
+      filterForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        updateFilters();
+      });
+    }
+    
+    // Filter select changes
+    const filterSelects = document.querySelectorAll('.filter-select');
+    filterSelects.forEach(select => {
+      select.addEventListener('change', function() {
+        updateFilters();
+      });
+    });
+    
+    // Workout type tabs
+    const workoutTypeTabs = document.querySelectorAll('.workout-type-tab');
+    workoutTypeTabs.forEach(tab => {
+      tab.addEventListener('click', function(e) {
+        e.preventDefault();
+        const type = this.getAttribute('data-type');
+        const typeInput = filterForm.querySelector('input[name="type"]');
+        if (typeInput) {
+          typeInput.value = type;
+        } else if (type) {
+          const input = document.createElement('input');
+          input.type = 'hidden';
+          input.name = 'type';
+          input.value = type;
+          filterForm.appendChild(input);
+        } else {
+          const existingInput = filterForm.querySelector('input[name="type"]');
+          if (existingInput) {
+            existingInput.remove();
+          }
+        }
+        updateFilters();
+      });
+    });
+    
+    // Pagination links
+    const paginationLinks = document.querySelectorAll('.pagination-link');
+    paginationLinks.forEach(link => {
+      link.addEventListener('click', function(e) {
+        e.preventDefault();
+        const page = this.getAttribute('data-page');
+        updateFiltersWithPage(page);
+      });
+    });
+    
+    // Active filter removal links
+    const filterRemoveLinks = document.querySelectorAll('a[href^="?"]');
+    filterRemoveLinks.forEach(link => {
+      if (link.textContent === '×') {
+        link.addEventListener('click', function(e) {
+          e.preventDefault();
+          const url = new URL(this.href, window.location.origin);
+          const params = new URLSearchParams(url.search);
+          
+          // Update form with new params
+          params.forEach((value, key) => {
+            const input = filterForm.querySelector(`[name="${key}"]`);
+            if (input) {
+              input.value = value;
+            } else {
+              const newInput = document.createElement('input');
+              newInput.type = 'hidden';
+              newInput.name = key;
+              newInput.value = value;
+              filterForm.appendChild(newInput);
+            }
+          });
+          
+          // Remove params that aren't in the URL
+          Array.from(filterForm.elements).forEach(element => {
+            if (element.name && !params.has(element.name)) {
+              if (element.type === 'hidden' || (element.tagName === 'SELECT' && !element.value)) {
+                element.remove();
+              } else if (element.tagName === 'SELECT') {
+                element.value = '';
+              } else if (element.tagName === 'INPUT') {
+                element.value = '';
+              }
+            }
+          });
+          
+          updateFilters();
+        });
+      }
+    });
+  }
+  
+  // Initialize filter listeners
+  initializeFilterListeners();
+  
+  // Sync form handling
   const syncForm = document.getElementById('sync-workouts-form');
   const syncBtn = document.getElementById('sync-workouts-btn');
   const syncBtnText = document.getElementById('sync-btn-text');
@@ -530,7 +779,13 @@ document.addEventListener('DOMContentLoaded', function() {
         if (data) {
           // If we got JSON back, show status
           if (data.status === 'success') {
-            syncStatusMessage.textContent = data.message || 'Sync completed successfully!';
+            let message = data.message || 'Sync completed successfully!';
+            // Add sync type to message if available
+            if (data.sync_type) {
+              const syncTypeText = data.sync_type === 'full' ? 'Full sync' : 'Incremental sync';
+              message += ` (${syncTypeText})`;
+            }
+            syncStatusMessage.textContent = message;
             syncStatusMessage.className = 'mt-2 text-sm text-green-600 dark:text-green-400';
             // Reload page after a delay to show updated workouts
             setTimeout(() => {

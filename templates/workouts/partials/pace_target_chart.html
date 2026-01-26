@@ -1,0 +1,2541 @@
+{% load static %}
+
+<!-- Interactive Workout Player -->
+{% if chart_data and chart_data.zones %}
+<div class="workout-player-section">
+  <!-- Workout Header -->
+  <div class="workout-header">
+    <div class="workout-info">
+      <p class="workout-instructor-label">Instructor name: <span class="workout-instructor-name">{% if ride.instructor %}{{ ride.instructor.name }}{% elif ride.instructor_name %}{{ ride.instructor_name }}{% else %}N/A{% endif %}</span></p>
+      <p class="workout-output">Pace Target</p>
+    </div>
+    <div class="workout-controls">
+      <div class="pace-level-control">
+        <label for="pace-level-select">Pace Level:</label>
+        <select id="pace-level-select" class="pace-level-select">
+          <option value="1" {% if user_pace_level == 1 %}selected{% endif %}>Level 1</option>
+          <option value="2" {% if user_pace_level == 2 %}selected{% endif %}>Level 2</option>
+          <option value="3" {% if user_pace_level == 3 %}selected{% endif %}>Level 3</option>
+          <option value="4" {% if user_pace_level == 4 %}selected{% endif %}>Level 4</option>
+          <option value="5" {% if user_pace_level == 5 or not user_pace_level %}selected{% endif %}>Level 5</option>
+          <option value="6" {% if user_pace_level == 6 %}selected{% endif %}>Level 6</option>
+          <option value="7" {% if user_pace_level == 7 %}selected{% endif %}>Level 7</option>
+          <option value="8" {% if user_pace_level == 8 %}selected{% endif %}>Level 8</option>
+          <option value="9" {% if user_pace_level == 9 %}selected{% endif %}>Level 9</option>
+          <option value="10" {% if user_pace_level == 10 %}selected{% endif %}>Level 10</option>
+        </select>
+      </div>
+      <button id="play-pause-btn" class="play-btn">▶</button>
+      <button id="fullscreen-btn" class="fullscreen-btn" title="Fullscreen view">⛶</button>
+      <div class="progress-controls">
+        <label class="progress-label">
+          <input type="checkbox" id="show-progress" checked> Show time into interval
+        </label>
+        <label class="sound-label">
+          <input type="checkbox" id="sound-toggle" checked> Sound on
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <!-- Current Status -->
+  <div class="workout-status">
+    <div class="status-item">
+      <span class="status-label">Time Left</span>
+      <span id="time-left" class="status-value">{% widthratio ride.duration_seconds 60 1 %}:00</span>
+    </div>
+    <div class="status-item">
+      <span class="status-label">Interval Time</span>
+      <span id="interval-time" class="status-value">00:00</span>
+    </div>
+    <div class="status-item">
+      <span class="status-label">Target</span>
+      <span id="current-target" class="status-value">Loading...</span>
+    </div>
+  </div>
+  
+  <!-- Countdown Display -->
+  <div id="countdown-display" class="countdown-display" style="display: none;">
+    <div class="countdown-number">10</div>
+    <div class="countdown-label">Starting in...</div>
+  </div>
+  
+  <!-- Fullscreen Overlay -->
+  <div id="fullscreen-overlay" class="fullscreen-overlay" style="display: none;">
+    <div class="fullscreen-content">
+      <button id="exit-fullscreen-btn" class="exit-fullscreen-btn" title="Exit fullscreen">✕</button>
+      
+      <!-- Fullscreen Status -->
+      <div class="fullscreen-status">
+        <div class="fullscreen-status-item">
+          <span class="fullscreen-status-label">Time Left</span>
+          <span id="fullscreen-time-left" class="fullscreen-status-value">{% widthratio ride.duration_seconds 60 1 %}:00</span>
+        </div>
+        <div class="fullscreen-status-item">
+          <span class="fullscreen-status-label">Interval Time</span>
+          <span id="fullscreen-interval-time" class="fullscreen-status-value">00:00</span>
+        </div>
+        <div class="fullscreen-status-item">
+          <span class="fullscreen-status-label">Target</span>
+          <span id="fullscreen-current-target" class="fullscreen-status-value">Loading...</span>
+        </div>
+      </div>
+      
+      <!-- Fullscreen Chart -->
+      <div class="fullscreen-chart-container">
+        <canvas id="fullscreen-class-plan-chart"></canvas>
+        <div id="fullscreen-classPlanReadout" class="fullscreen-chart-readout"></div>
+      </div>
+      
+      <!-- Fullscreen Controls -->
+      <div class="fullscreen-controls">
+        <div class="fullscreen-pace-level-control">
+          <label for="fullscreen-pace-level-select">Pace Level:</label>
+          <select id="fullscreen-pace-level-select" class="pace-level-select">
+            <option value="1" {% if user_pace_level == 1 %}selected{% endif %}>Level 1</option>
+            <option value="2" {% if user_pace_level == 2 %}selected{% endif %}>Level 2</option>
+            <option value="3" {% if user_pace_level == 3 %}selected{% endif %}>Level 3</option>
+            <option value="4" {% if user_pace_level == 4 %}selected{% endif %}>Level 4</option>
+            <option value="5" {% if user_pace_level == 5 or not user_pace_level %}selected{% endif %}>Level 5</option>
+            <option value="6" {% if user_pace_level == 6 %}selected{% endif %}>Level 6</option>
+            <option value="7" {% if user_pace_level == 7 %}selected{% endif %}>Level 7</option>
+            <option value="8" {% if user_pace_level == 8 %}selected{% endif %}>Level 8</option>
+            <option value="9" {% if user_pace_level == 9 %}selected{% endif %}>Level 9</option>
+            <option value="10" {% if user_pace_level == 10 %}selected{% endif %}>Level 10</option>
+          </select>
+        </div>
+        <button id="fullscreen-play-pause-btn" class="fullscreen-play-btn">▶</button>
+        <div class="fullscreen-progress-controls">
+          <label class="progress-label">
+            <input type="checkbox" id="fullscreen-show-progress" checked> Show time into interval
+          </label>
+          <label class="sound-label">
+            <input type="checkbox" id="fullscreen-sound-toggle" checked> Sound on
+          </label>
+        </div>
+      </div>
+      
+      <!-- Fullscreen Slider -->
+      <div class="fullscreen-slider-container">
+        <div class="fullscreen-slider-wrapper">
+          <input type="range" id="fullscreen-progress-slider" min="0" max="100" value="0" class="fullscreen-progress-slider">
+          <div id="fullscreen-slider-tooltip" class="slider-tooltip">0:00</div>
+        </div>
+        <div class="fullscreen-slider-labels">
+          <span>0:00</span>
+          <span id="fullscreen-slider-current-time">0:00</span>
+          <span>{% widthratio ride.duration_seconds 60 1 %}:00</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Chart.js Chart -->
+  <div class="interactive-chart-section">
+    <div class="pace-target-chart">
+      <canvas id="class-plan-chart"></canvas>
+      <div id="classPlanReadout" class="chart-readout"></div>
+    </div>
+    {{ chart_data|json_script:"chart-data" }}
+    
+    <!-- Progress Slider -->
+    <div class="progress-slider-container">
+      <div class="slider-wrapper">
+        <input type="range" id="progress-slider" min="0" max="100" value="0" class="progress-slider">
+        <div id="slider-tooltip" class="slider-tooltip">0:00</div>
+      </div>
+      <div class="slider-labels">
+        <span>0:00</span>
+        <span id="slider-current-time">0:00</span>
+        <span>{% widthratio ride.duration_seconds 60 1 %}:00</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endif %}
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Chart.js Implementation with Slider Integration
+    (function() {
+        const chartDataScript = document.getElementById('chart-data');
+        if (!chartDataScript) return;
+        
+        const chartData = JSON.parse(chartDataScript.textContent || '{}');
+        console.log('Chart data:', chartData);
+        if (!chartData.segments || !chartData.zones) {
+            console.log('Missing chart data - segments:', chartData.segments, 'zones:', chartData.zones);
+            return;
+        }
+        
+        // Get ride length from chart data or fallback
+        const rideLength = chartData.total_duration || 0;
+        
+        // Convert segments to time series data - show ACTUAL class plan pace targets
+        const timePoints = [];
+        const targetSeries = [];
+        let segmentTime = 0;
+        
+        chartData.segments.forEach(segment => {
+            const duration = segment.duration;
+            // Use the actual class plan pace intensity (0-6) from target_metrics_data
+            let target = segment.zone || segment.pace_level;
+            
+            // Debug the segment structure
+            console.log('Raw segment:', segment);
+            console.log('Class plan pace intensity:', target);
+            
+            // For running charts, ensure target is within 0-6 range (actual class plan)
+            if (chartData.type === 'pace_target') {
+                // If target is undefined/null, default to Recovery (0)
+                if (target === undefined || target === null || isNaN(target)) {
+                    target = 0;
+                    console.log('Defaulting to Recovery (0) for segment');
+                } else {
+                    target = Math.max(0, Math.min(6, target));
+                }
+            }
+            
+            console.log('Class plan target (pace intensity):', target);
+            
+            // Add time points for this segment, ensuring continuous coverage
+            for (let i = 0; i < duration && (segmentTime + i) < rideLength; i += 10) { // Every 10 seconds
+                timePoints.push(segmentTime + i);
+                targetSeries.push(target); // This is the ACTUAL class plan pace intensity
+            }
+            segmentTime += duration;
+        });
+        
+        // Ensure we have a final point at the exact ride length
+        if (rideLength > 0 && (timePoints.length === 0 || timePoints[timePoints.length - 1] < rideLength)) {
+            timePoints.push(rideLength);
+            targetSeries.push(targetSeries[targetSeries.length - 1] || 0); // Use last zone or default to Recovery (0)
+        }
+        
+        // Ensure we have points every 10 seconds up to the total duration
+        if (rideLength > 0) {
+            const lastPoint = timePoints[timePoints.length - 1] || 0;
+            for (let time = lastPoint + 10; time <= rideLength; time += 10) {
+                timePoints.push(time);
+                targetSeries.push(targetSeries[targetSeries.length - 1] || 1);
+            }
+        }
+        
+        // Calculate total duration - use ride length as authoritative source
+        const totalDuration = rideLength || (timePoints.length > 0 ? timePoints[timePoints.length - 1] : 0);
+        console.log('Time series generated:', { timePoints: timePoints.length, totalDuration, rideLength });
+        
+        // Create zone bands for background - contiguous bands with no gaps
+        const zoneBands = chartData.zones.map((zone, index) => {
+            // Make recovery band (index 0) much bigger to match reference
+            if (index === 0) {
+                return {
+                    label: zone.name,
+                    lower: -1.5,  // Much bigger recovery band
+                    upper: 0.5,   // Contiguous with next band
+                    color: zone.color
+                };
+            } else {
+                return {
+                    label: zone.name,
+                    lower: index - 0.5,  // Contiguous bands
+                    upper: index + 0.5,
+                    color: zone.color
+                };
+            }
+        });
+        
+        // Zone band plugin
+        const bandPlugin = {
+            id: 'zoneBands',
+            beforeDatasetsDraw(chart, args, opts) {
+                const {ctx, chartArea, scales} = chart;
+                if (!opts || !Array.isArray(opts.bands)) return;
+                const toY = (zone) => scales.y.getPixelForValue(zone);
+                ctx.save();
+                (opts.bands || []).forEach(b => {
+                    const yTop = toY(b.upper ?? 6);
+                    const yBot = toY(b.lower ?? 1);
+                    if (yTop == null || yBot == null) return;
+                    ctx.fillStyle = b.color;
+                    ctx.globalAlpha = 0.18;
+                    ctx.fillRect(chartArea.left, yTop, chartArea.right - chartArea.left, yBot - yTop);
+                });
+                ctx.restore();
+            }
+        };
+        
+        // Progress line plugin
+        const progressLinePlugin = {
+            id: 'progressLine',
+            afterDatasetsDraw(chart, args, opts) {
+                const {ctx, chartArea, scales} = chart;
+                if (!opts || opts.currentTime === undefined) return;
+                
+                const x = scales.x.getPixelForValue(opts.currentTime);
+                if (x < chartArea.left || x > chartArea.right) return;
+                
+                ctx.save();
+                ctx.strokeStyle = '#00ff00';
+                ctx.lineWidth = 3;
+                ctx.shadowColor = '#00ff00';
+                ctx.shadowBlur = 10;
+                ctx.beginPath();
+                ctx.moveTo(x, chartArea.top);
+                ctx.lineTo(x, chartArea.bottom);
+                ctx.stroke();
+                ctx.restore();
+            }
+        };
+        
+        // Function to get pace value for a given level (defined before tooltip)
+        function getPaceForLevel(classPlanIntensity, userLevel = 5) {
+            // Convert class plan pace intensity (0-6) to min/mi based on user's selected level (1-10)
+            // Uses PaceTarget model pace ranges directly
+            
+            // Map class plan intensity (0-6) to intensity labels
+            const intensityLabels = ['Recovery', 'Easy', 'Moderate', 'Challenging', 'Hard', 'Very Hard', 'Max'];
+            const label = intensityLabels[classPlanIntensity] || 'Moderate';
+            
+            // Pace ranges from PaceTarget model for each user level (1-10)
+            // Level 1 = slowest (highest min/mile), Level 10 = fastest (lowest min/mile)
+            // Values are in decimal minutes per mile (e.g., 18.183 = 18:11 min/mile)
+            const paceRangesByLevel = {
+                1: {
+                    "Recovery": [20.0, 60.0],      // 20:00 - 60:00 min/mile
+                    "Easy": [18.183, 20.0],         // 18:11 - 20:00 min/mile
+                    "Moderate": [16.667, 18.183],   // 16:40 - 18:11 min/mile
+                    "Challenging": [15.0, 16.667],  // 15:00 - 16:40 min/mile
+                    "Hard": [13.633, 15.0],         // 13:38 - 15:00 min/mile
+                    "Very Hard": [12.25, 13.633],   // 12:15 - 13:38 min/mile
+                    "Max": [4.8, 12.25]             // 4:48 - 12:15 min/mile
+                },
+                2: {
+                    "Recovery": [18.75, 60.0],      // 18:45 - 60:00 min/mile
+                    "Easy": [16.667, 18.75],        // 16:40 - 18:45 min/mile
+                    "Moderate": [15.383, 16.667],   // 15:23 - 16:40 min/mile
+                    "Challenging": [13.95, 15.383], // 13:57 - 15:23 min/mile
+                    "Hard": [12.767, 13.95],        // 12:46 - 13:57 min/mile
+                    "Very Hard": [11.533, 12.767],  // 11:32 - 12:46 min/mile
+                    "Max": [4.8, 11.533]            // 4:48 - 11:32 min/mile
+                },
+                3: {
+                    "Recovery": [17.133, 60.0],    // 17:08 - 60:00 min/mile
+                    "Easy": [15.383, 17.133],       // 15:23 - 17:08 min/mile
+                    "Moderate": [14.283, 15.383],   // 14:17 - 15:23 min/mile
+                    "Challenging": [13.05, 14.283], // 13:03 - 14:17 min/mile
+                    "Hard": [11.767, 13.05],        // 11:46 - 13:03 min/mile
+                    "Very Hard": [10.717, 11.767],   // 10:43 - 11:46 min/mile
+                    "Max": [4.8, 10.717]            // 4:48 - 10:43 min/mile
+                },
+                4: {
+                    "Recovery": [16.217, 60.0],     // 16:13 - 60:00 min/mile
+                    "Easy": [15.217, 16.217],       // 15:13 - 16:13 min/mile
+                    "Moderate": [13.333, 15.217],   // 13:20 - 15:13 min/mile
+                    "Challenging": [12.0, 13.333],  // 12:00 - 13:20 min/mile
+                    "Hard": [11.117, 12.0],         // 11:07 - 12:00 min/mile
+                    "Very Hard": [9.833, 11.117],   // 9:50 - 11:07 min/mile
+                    "Max": [4.8, 9.833]             // 4:48 - 9:50 min/mile
+                },
+                5: {
+                    "Recovery": [15.217, 60.0],     // 15:13 - 60:00 min/mile
+                    "Easy": [13.333, 15.217],       // 13:20 - 15:13 min/mile
+                    "Moderate": [12.25, 13.333],    // 12:15 - 13:20 min/mile
+                    "Challenging": [11.117, 12.25], // 11:07 - 12:15 min/mile
+                    "Hard": [10.0, 11.117],         // 10:00 - 11:07 min/mile
+                    "Very Hard": [9.083, 10.0],     // 9:05 - 10:00 min/mile
+                    "Max": [4.8, 9.083]             // 4:48 - 9:05 min/mile
+                },
+                6: {
+                    "Recovery": [13.333, 60.0],        // 13:20 - 60:00 min/mile
+                    "Easy": [12.25, 13.333],        // 12:15 - 13:20 min/mile
+                    "Moderate": [11.117, 12.25],    // 11:07 - 12:15 min/mile
+                    "Challenging": [10.0, 11.117],  // 10:00 - 11:07 min/mile
+                    "Hard": [9.083, 10.0],          // 9:05 - 10:00 min/mile
+                    "Very Hard": [8.217, 9.083],    // 8:13 - 9:05 min/mile
+                    "Max": [4.8, 8.217]             // 4:48 - 8:13 min/mile
+                },
+                7: {
+                    "Recovery": [12.0, 60.0],       // 12:00 - 60:00 min/mile
+                    "Easy": [10.9, 12.0],           // 10:54 - 12:00 min/mile
+                    "Moderate": [10.0, 10.9],       // 10:00 - 10:54 min/mile
+                    "Challenging": [8.95, 10.0],    // 8:57 - 10:00 min/mile
+                    "Hard": [8.217, 8.95],          // 8:13 - 8:57 min/mile
+                    "Very Hard": [7.4, 8.217],      // 7:24 - 8:13 min/mile
+                    "Max": [4.8, 7.4]               // 4:48 - 7:24 min/mile
+                },
+                8: {
+                    "Recovery": [10.5, 60.0],       // 10:30 - 60:00 min/mile
+                    "Easy": [9.683, 10.5],          // 9:41 - 10:30 min/mile
+                    "Moderate": [8.817, 9.683],     // 8:49 - 9:41 min/mile
+                    "Challenging": [8.0, 8.817],    // 8:00 - 8:49 min/mile
+                    "Hard": [7.317, 8.0],           // 7:19 - 8:00 min/mile
+                    "Very Hard": [6.583, 7.317],    // 6:35 - 7:19 min/mile
+                    "Max": [4.8, 6.583]             // 4:48 - 6:35 min/mile
+                },
+                9: {
+                    "Recovery": [9.217, 60.0],      // 9:13 - 60:00 min/mile
+                    "Easy": [8.333, 9.217],         // 8:20 - 9:13 min/mile
+                    "Moderate": [7.7, 8.333],        // 7:42 - 8:20 min/mile
+                    "Challenging": [6.983, 7.7],    // 6:59 - 7:42 min/mile
+                    "Hard": [6.383, 6.983],         // 6:23 - 6:59 min/mile
+                    "Very Hard": [5.767, 6.383],   // 5:46 - 6:23 min/mile
+                    "Max": [4.8, 5.767]             // 4:48 - 5:46 min/mile
+                },
+                10: {
+                    "Recovery": [7.9, 60.0],        // 7:54 - 60:00 min/mile
+                    "Easy": [7.15, 7.9],           // 7:09 - 7:54 min/mile
+                    "Moderate": [6.667, 7.15],      // 6:40 - 7:09 min/mile
+                    "Challenging": [6.0, 6.667],    // 6:00 - 6:40 min/mile
+                    "Hard": [5.5, 6.0],            // 5:30 - 6:00 min/mile
+                    "Very Hard": [4.917, 5.5],      // 4:55 - 5:30 min/mile
+                    "Max": [4.8, 4.917]             // 4:48 - 4:55 min/mile
+                }
+            };
+            
+            // Clamp user level to valid range
+            const clampedLevel = Math.max(1, Math.min(10, userLevel));
+            const levelRanges = paceRangesByLevel[clampedLevel] || paceRangesByLevel[5];
+            
+            // Get the range for the current intensity
+            const range = levelRanges[label] || levelRanges['Moderate'];
+            const [minPace, maxPace] = range;
+            
+            // Use middle of the range
+            const pace = (minPace + maxPace) / 2;
+            const minutes = Math.floor(pace);
+            const seconds = Math.round((pace - minutes) * 60);
+            
+            return {
+                pace: `${minutes}:${seconds.toString().padStart(2, '0')}`,
+                label: label,
+                classPlanIntensity: classPlanIntensity
+            };
+        }
+        
+        // External tooltip - create custom tooltip element
+        const readout = document.getElementById('classPlanReadout');
+        const chartContainer = document.querySelector('.pace-target-chart');
+        let customTooltip = null;
+        
+        // Create custom tooltip element if it doesn't exist
+        if (chartContainer && !document.getElementById('chart-hover-tooltip')) {
+            customTooltip = document.createElement('div');
+            customTooltip.id = 'chart-hover-tooltip';
+            customTooltip.style.cssText = 'position: absolute; background: rgba(0, 0, 0, 0.9); color: white; padding: 0.5rem 0.75rem; border-radius: 6px; font-size: 0.875rem; font-weight: 600; pointer-events: none; z-index: 1000; display: none; white-space: nowrap;';
+            chartContainer.style.position = 'relative';
+            chartContainer.appendChild(customTooltip);
+        } else if (document.getElementById('chart-hover-tooltip')) {
+            customTooltip = document.getElementById('chart-hover-tooltip');
+        }
+        
+        const externalTooltip = (ctx) => {
+            const {tooltip, chart} = ctx;
+            const dataPoint = tooltip.dataPoints?.[0]?.raw;
+            
+            if (tooltip.opacity === 0 || !dataPoint) {
+                if (readout) readout.textContent = '';
+                if (customTooltip) customTooltip.style.display = 'none';
+                return;
+            }
+            
+            const time = dataPoint.x;
+            const target = dataPoint.y;
+            const minutes = Math.floor(time / 60);
+            const seconds = Math.floor(time % 60);
+            const timeString = `${minutes}:${seconds.toString().padStart(2,'0')}`;
+            
+            if (chartData.type === 'pace_target') {
+                // Get user pace level from select
+                const paceLevelSelect = document.getElementById('pace-level-select');
+                const userLevel = parseInt(paceLevelSelect?.value || '{{ user_pace_level|default:5 }}') || 5;
+                
+                // Calculate pace based on zone and user level
+                const zoneNum = Math.round(target);
+                const paceInfo = getPaceForLevel(zoneNum, userLevel);
+                
+                // Update readout (top-right corner)
+                if (readout) {
+                    readout.textContent = `${timeString} • ${paceInfo.label}`;
+                }
+                
+                // Update custom tooltip (near cursor)
+                if (customTooltip && chart) {
+                    const canvasPosition = chart.canvas.getBoundingClientRect();
+                    const chartArea = chart.chartArea;
+                    const x = canvasPosition.left + chartArea.left + (chart.scales.x.getPixelForValue(time) - chartArea.left);
+                    const y = canvasPosition.top + chartArea.top + (chart.scales.y.getPixelForValue(target) - chartArea.top);
+                    
+                    customTooltip.innerHTML = `${timeString}<br>Target: ${paceInfo.pace} /mi`;
+                    customTooltip.style.display = 'block';
+                    customTooltip.style.left = (x + 10) + 'px';
+                    customTooltip.style.top = (y - 10) + 'px';
+                }
+            } else {
+                if (readout) {
+                    readout.textContent = `${timeString} • Zone ${target}`;
+                }
+                if (customTooltip) customTooltip.style.display = 'none';
+            }
+        };
+        
+        // Create the chart
+        const ctx2d = document.getElementById('class-plan-chart').getContext('2d');
+        console.log('Creating chart with data points:', timePoints.length);
+        console.log('Time points range:', timePoints[0], 'to', timePoints[timePoints.length-1]);
+        console.log('Total duration:', totalDuration);
+        
+        // Use line chart for both cycling and running
+        chartDataConfig = {
+            type: 'line',
+            data: {
+                datasets: [{
+                    label: chartData.type === 'pace_target' ? 'Target Pace Level' : 'Target Zone',
+                    data: timePoints.map((time, index) => ({ x: time, y: targetSeries[index] })),
+                    borderWidth: 3,
+                    pointRadius: 0,
+                    borderColor: '#5b7cfa',
+                    backgroundColor: 'rgba(91, 124, 250, 0.1)',
+                    fill: true,
+                    tension: 0.1
+                }]
+            }
+        };
+        
+        const chartConfig = {
+            ...chartDataConfig,
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { enabled: false, external: externalTooltip },
+                    zoneBands: { bands: zoneBands },
+                    progressLine: { currentTime: 0 }
+                },
+                scales: {
+                    x: {
+                        type: 'linear',
+                        min: 0,
+                        max: totalDuration,
+                        grid: { 
+                            color: document.documentElement.classList.contains('dark') 
+                                ? 'rgba(255,255,255,0.06)' 
+                                : 'rgba(0,0,0,0.05)' 
+                        },
+                        ticks: {
+                            autoSkip: true,
+                            maxTicksLimit: 9,
+                            color: document.documentElement.classList.contains('dark')
+                                ? 'rgba(255,255,255,0.7)'
+                                : 'rgba(0,0,0,0.7)',
+                            callback: (value) => {
+                                const minutes = Math.floor(value / 60);
+                                const seconds = Math.floor(value % 60);
+                                return `${minutes}:${seconds.toString().padStart(2,'0')}`;
+                            }
+                        }
+                    },
+                    y: {
+                        min: -1.5,
+                        max: 6.5,
+                        title: { 
+                            display: true, 
+                            text: chartData.type === 'pace_target' ? 'Pace Level' : 'Zone',
+                            color: document.documentElement.classList.contains('dark')
+                                ? 'rgba(255,255,255,0.7)'
+                                : 'rgba(0,0,0,0.7)'
+                        },
+                        grid: { 
+                            color: document.documentElement.classList.contains('dark') 
+                                ? 'rgba(255,255,255,0.06)' 
+                                : 'rgba(0,0,0,0.05)' 
+                        },
+                        ticks: { 
+                            stepSize: 1,
+                            maxTicksLimit: 8,  // Show all 7 pace levels plus recovery
+                            color: document.documentElement.classList.contains('dark')
+                                ? 'rgba(255,255,255,0.7)'
+                                : 'rgba(0,0,0,0.7)',
+                            callback: (v) => {
+                                if (chartData.type === 'pace_target') {
+                                    const level = Math.round(v);
+                                    // Only show labels for valid levels (0-6)
+                                    if (level < 0 || level > 6) return '';
+                                    const paceLabels = {
+                                        0: 'Recovery',
+                                        1: 'Easy', 
+                                        2: 'Moderate',
+                                        3: 'Challenging',
+                                        4: 'Hard',
+                                        5: 'Very Hard',
+                                        6: 'Max'
+                                    };
+                                    return paceLabels[level] || '';
+                                } else {
+                                    return `Zone ${Math.round(v)}`;
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            plugins: [bandPlugin, progressLinePlugin]
+        };
+        
+        const chart = new Chart(ctx2d, chartConfig);
+        
+        // Slider integration
+        const progressSlider = document.getElementById('progress-slider');
+        const playPauseBtn = document.getElementById('play-pause-btn');
+        const timeLeftEl = document.getElementById('time-left');
+        const intervalTimeEl = document.getElementById('interval-time');
+        const currentTargetEl = document.getElementById('current-target');
+        const paceLevelSelect = document.getElementById('pace-level-select');
+        
+        let isPlaying = false;
+        let chartCurrentTime = 0;
+        let animationId = null;
+        let startTime = null;
+        let pausedTime = 0;
+        let lastUpdateTime = 0;
+        let lastSegmentIndex = -1;
+        let countdownBeepTimes = new Set(); // Track when we've already beeped for countdown
+        let hasStarted = false; // Track if workout has started (for initial countdown)
+        let countdownInterval = null; // Track countdown interval
+        
+        // Audio for beeps
+        let countdownAudio = null;
+        let intervalChangeAudio = null;
+        
+        function initAudio() {
+            // Get static URL for the audio file
+            const audioUrl = '{% static "media/short-beep-countdown.mp3" %}';
+            
+            if (!countdownAudio) {
+                try {
+                    countdownAudio = new Audio(audioUrl);
+                    countdownAudio.volume = 0.7;
+                    countdownAudio.preload = 'auto';
+                } catch (e) {
+                    console.warn('Error loading countdown audio:', e);
+                }
+            }
+            if (!intervalChangeAudio) {
+                try {
+                    intervalChangeAudio = new Audio(audioUrl);
+                    intervalChangeAudio.volume = 0.7;
+                    intervalChangeAudio.preload = 'auto';
+                } catch (e) {
+                    console.warn('Error loading interval change audio:', e);
+                }
+            }
+        }
+        
+        function playCountdownAudio() {
+            const soundToggle = document.getElementById('sound-toggle');
+            if (!soundToggle || !soundToggle.checked) {
+                return; // Sound is disabled
+            }
+            
+            // Use the MP3 file for countdown (starts 3 seconds before interval change)
+            if (countdownAudio) {
+                try {
+                    // Reset to beginning if already playing
+                    countdownAudio.currentTime = 0;
+                    countdownAudio.play().catch(e => {
+                        console.warn('Error playing countdown audio:', e);
+                    });
+                } catch (e) {
+                    console.warn('Error playing countdown audio:', e);
+                }
+            }
+        }
+        
+        function playBeep(frequency = 800, duration = 100, type = 'sine') {
+            const soundToggle = document.getElementById('sound-toggle');
+            if (!soundToggle || !soundToggle.checked) {
+                return; // Sound is disabled
+            }
+            
+            // Fallback to Web Audio API for countdown beeps
+            try {
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.frequency.value = frequency;
+                oscillator.type = type;
+                
+                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration / 1000);
+                
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + duration / 1000);
+            } catch (e) {
+                console.warn('Error playing beep:', e);
+            }
+        }
+        
+        function startCountdown(callback) {
+            const soundToggle = document.getElementById('sound-toggle');
+            const soundEnabled = soundToggle && soundToggle.checked;
+            
+            let countdown = 10;
+            const countdownDisplay = document.getElementById('countdown-display');
+            const countdownNumber = countdownDisplay ? countdownDisplay.querySelector('.countdown-number') : null;
+            
+            // Show countdown display if it exists
+            if (countdownDisplay) {
+                countdownDisplay.style.display = 'block';
+                if (countdownNumber) {
+                    countdownNumber.textContent = countdown;
+                }
+            }
+            
+            // Play initial beep
+            if (soundEnabled) {
+                playBeep(600, 100, 'sine');
+            }
+            
+            countdownInterval = setInterval(() => {
+                countdown--;
+                
+                // Update display
+                if (countdownNumber) {
+                    countdownNumber.textContent = countdown;
+                }
+                
+                // Play beep for each second
+                if (soundEnabled && countdown > 0) {
+                    playBeep(600, 100, 'sine');
+                }
+                
+                // When countdown reaches 0, start the workout
+                if (countdown <= 0) {
+                    clearInterval(countdownInterval);
+                    countdownInterval = null;
+                    
+                    // Hide countdown display
+                    if (countdownDisplay) {
+                        countdownDisplay.style.display = 'none';
+                    }
+                    
+                    // Play final beep (higher pitch)
+                    if (soundEnabled) {
+                        playBeep(1000, 200, 'sine');
+                    }
+                    
+                    // Start the workout
+                    hasStarted = true;
+                    callback();
+                }
+            }, 1000);
+        }
+        
+        function getSegmentIndex(time) {
+            let segmentTime = 0;
+            for (let i = 0; i < chartData.segments.length; i++) {
+                const segment = chartData.segments[i];
+                const segmentEnd = segmentTime + segment.duration;
+                if (time >= segmentTime && time < segmentEnd) {
+                    return i;
+                }
+                segmentTime = segmentEnd;
+            }
+            return chartData.segments.length - 1; // Return last segment if at end
+        }
+        
+        function checkIntervalChangeAndCountdown() {
+            if (!chartData || !chartData.segments || chartData.segments.length === 0) return;
+            
+            const currentSegment = getCurrentSegment(chartCurrentTime);
+            if (!currentSegment) return;
+            
+            const currentSegmentIndex = getSegmentIndex(chartCurrentTime);
+            const timeRemainingInSegment = currentSegment.endTime - chartCurrentTime;
+            
+            // Start countdown audio 3 seconds before interval change
+            if (timeRemainingInSegment > 0 && timeRemainingInSegment <= 3) {
+                const beepKey = `${currentSegmentIndex}-countdown`;
+                
+                // Only play once per segment (when we first hit 3 seconds remaining)
+                if (!countdownBeepTimes.has(beepKey) && timeRemainingInSegment <= 3 && timeRemainingInSegment > 2.9) {
+                    playCountdownAudio();
+                    countdownBeepTimes.add(beepKey);
+                }
+            }
+            
+            // Check for interval change (track segment changes)
+            if (currentSegmentIndex !== lastSegmentIndex) {
+                lastSegmentIndex = currentSegmentIndex;
+                countdownBeepTimes.clear(); // Reset countdown tracking for new segment
+            }
+        }
+        
+        function updateProgress() {
+            if (totalDuration === 0) return;
+            
+            const progress = (chartCurrentTime / totalDuration) * 100;
+            progressSlider.value = Math.round(progress * 100) / 100; // Round to 2 decimal places
+            
+            // Update slider current time display
+            const sliderCurrentTime = document.getElementById('slider-current-time');
+            if (sliderCurrentTime) {
+                const minutes = Math.floor(chartCurrentTime / 60);
+                const seconds = Math.floor(chartCurrentTime % 60);
+                sliderCurrentTime.textContent = minutes + ':' + String(seconds).padStart(2, '0');
+            }
+            
+            // Update time displays
+            const timeLeft = Math.max(0, totalDuration - chartCurrentTime);
+            const minutesLeft = Math.floor(timeLeft / 60);
+            const secondsLeft = Math.floor(timeLeft % 60);
+            timeLeftEl.textContent = minutesLeft + ':' + String(secondsLeft).padStart(2, '0');
+            
+            // Debug logging
+            console.log(`Total Duration: ${totalDuration}, Current Time: ${chartCurrentTime}, Time Left: ${timeLeft}`);
+            
+            // Update interval time - show time within current segment, not total elapsed time
+            const currentSegment = getCurrentSegment(chartCurrentTime);
+            const showProgressCheckbox = document.getElementById('show-progress');
+            const showProgressUp = showProgressCheckbox ? showProgressCheckbox.checked : true;
+            
+            let intervalTime;
+            if (currentSegment) {
+                if (showProgressUp) {
+                    intervalTime = chartCurrentTime - currentSegment.startTime;
+                } else {
+                    intervalTime = currentSegment.endTime - chartCurrentTime;
+                }
+            } else {
+                intervalTime = 0;
+            }
+            
+            const intervalMinutes = Math.floor(Math.max(0, intervalTime) / 60);
+            const intervalSeconds = Math.floor(Math.max(0, intervalTime) % 60);
+            intervalTimeEl.textContent = intervalMinutes + ':' + String(intervalSeconds).padStart(2, '0');
+            
+            // Update current target - use the same logic as chart tooltip
+            const currentTarget = getCurrentTarget(chartCurrentTime);
+            if (currentTarget !== null && currentTarget !== undefined) {
+                if (chartData.type === 'pace_target') {
+                    // For running, convert class plan intensity to min/mi based on user's level
+                    const userLevel = parseInt(paceLevelSelect.value) || 5;
+                    const paceInfo = getPaceForLevel(currentTarget, userLevel);
+                    currentTargetEl.textContent = `${paceInfo.pace} @ ${paceInfo.label}`;
+                    
+                    // Debug logging to match chart tooltip
+                    console.log(`Chart Current Time: ${chartCurrentTime}, Current Target: ${currentTarget}, Pace Info:`, paceInfo);
+                } else {
+                    // For cycling, show power target
+                    const ftp = parseInt(ftpInput?.value || 250) || 250;
+                    const targetOutput = Math.round(ftp * getZonePercentage(currentTarget));
+                    currentTargetEl.textContent = String(targetOutput) + ' @ Zone ' + currentTarget;
+                }
+            } else {
+                // Fallback if no target found
+                currentTargetEl.textContent = 'Loading...';
+            }
+            
+            // Debug logging for timing
+            console.log(`Current Segment:`, currentSegment);
+            console.log(`Interval Time: ${intervalMinutes}:${String(intervalSeconds).padStart(2, '0')}, Chart Current Time: ${chartCurrentTime}`);
+            
+            // Update chart progress line
+            chart.options.plugins.progressLine.currentTime = chartCurrentTime;
+            console.log(`Setting progress line to: ${chartCurrentTime} seconds (${Math.floor(chartCurrentTime/60)}:${Math.floor(chartCurrentTime%60).toString().padStart(2,'0')})`);
+            chart.update('none');
+            
+            // Update fullscreen display if active
+            if (typeof updateFullscreenDisplay === 'function') {
+                updateFullscreenDisplay();
+                updateFullscreenPlayButton();
+            }
+            
+            // Check for interval changes and countdown beeps (only when playing)
+            if (isPlaying) {
+                checkIntervalChangeAndCountdown();
+            } else {
+                // When not playing (scrubbing), still track segment changes but don't beep
+                const currentSegmentIndex = getSegmentIndex(chartCurrentTime);
+                if (currentSegmentIndex !== lastSegmentIndex) {
+                    lastSegmentIndex = currentSegmentIndex;
+                    countdownBeepTimes.clear();
+                }
+            }
+        }
+        
+        function getCurrentTarget(time) {
+            let segmentTime = 0;
+            for (const segment of chartData.segments) {
+                const segmentEnd = segmentTime + segment.duration;
+                if (time >= segmentTime && time < segmentEnd) {
+                    // Handle both power zones (cycling) and pace levels (running)
+                    return segment.zone || segment.pace_level;
+                }
+                segmentTime = segmentEnd;
+            }
+            return 1; // Default to Zone/Level 1
+        }
+        
+        function getCurrentSegment(time) {
+            let segmentTime = 0;
+            for (const segment of chartData.segments) {
+                const segmentEnd = segmentTime + segment.duration;
+                if (time >= segmentTime && time < segmentEnd) {
+                    return {
+                        ...segment,
+                        startTime: segmentTime,
+                        endTime: segmentEnd
+                    };
+                }
+                segmentTime = segmentEnd;
+            }
+            return null; // No segment found
+        }
+        
+        function getZonePercentage(zone) {
+            const zonePercentages = {
+                1: 0.55,  // Zone 1: 55% of FTP
+                2: 0.75,  // Zone 2: 75% of FTP
+                3: 0.90,  // Zone 3: 90% of FTP
+                4: 1.05,  // Zone 4: 105% of FTP
+                5: 1.20,  // Zone 5: 120% of FTP
+                6: 1.50,  // Zone 6: 150% of FTP
+            };
+            return zonePercentages[zone] || 0.90;
+        }
+        
+        function play() {
+            if (totalDuration === 0) return;
+            
+            // If workout hasn't started and we're at the beginning, do countdown
+            if (!hasStarted && chartCurrentTime === 0) {
+                startCountdown(() => {
+                    // This callback runs after countdown completes
+                    isPlaying = true;
+                    playPauseBtn.textContent = '⏸';
+                    playPauseBtn.classList.add('paused');
+                    
+                    // Record start time for accurate timing
+                    startTime = Date.now();
+                    
+                    function animate() {
+                        if (!isPlaying) return;
+                        
+                        // Calculate elapsed time accurately
+                        const elapsed = (Date.now() - startTime) / 1000;
+                        chartCurrentTime = Math.min(elapsed, totalDuration);
+                        
+                        // Throttle updates to every 100ms for smoother performance
+                        const now = Date.now();
+                        if (now - lastUpdateTime >= 100) {
+                            updateProgress();
+                            lastUpdateTime = now;
+                        }
+                        
+                        if (chartCurrentTime >= totalDuration) {
+                            pause();
+                            return;
+                        }
+                        
+                        // Use requestAnimationFrame for smoother updates
+                        animationId = requestAnimationFrame(animate);
+                    }
+                    
+                    animate();
+                });
+                return; // Exit early, countdown will start the workout
+            }
+            
+            // Resume playback (workout already started)
+            isPlaying = true;
+            playPauseBtn.textContent = '⏸';
+            playPauseBtn.classList.add('paused');
+            
+            // Record start time for accurate timing
+            startTime = Date.now() - (chartCurrentTime * 1000);
+            
+            function animate() {
+                if (!isPlaying) return;
+                
+                // Calculate elapsed time accurately
+                const elapsed = (Date.now() - startTime) / 1000;
+                chartCurrentTime = Math.min(elapsed, totalDuration);
+                
+                // Throttle updates to every 100ms for smoother performance
+                const now = Date.now();
+                if (now - lastUpdateTime >= 100) {
+                    updateProgress();
+                    lastUpdateTime = now;
+                }
+                
+                if (chartCurrentTime >= totalDuration) {
+                    pause();
+                    return;
+                }
+                
+                // Use requestAnimationFrame for smoother updates
+                animationId = requestAnimationFrame(animate);
+            }
+            
+            animate();
+        }
+        
+        function pause() {
+            isPlaying = false;
+            playPauseBtn.textContent = '▶';
+            playPauseBtn.classList.remove('paused');
+            
+            // Cancel countdown if it's running
+            if (countdownInterval) {
+                clearInterval(countdownInterval);
+                countdownInterval = null;
+                const countdownDisplay = document.getElementById('countdown-display');
+                if (countdownDisplay) {
+                    countdownDisplay.style.display = 'none';
+                }
+            }
+            
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+                animationId = null;
+            }
+        }
+        
+        // Event listeners
+        playPauseBtn.addEventListener('click', function() {
+            if (isPlaying) {
+                pause();
+            } else {
+                play();
+            }
+        });
+        
+        const sliderTooltip = document.getElementById('slider-tooltip');
+        const sliderCurrentTime = document.getElementById('slider-current-time');
+        
+        function updateSliderTooltip(value) {
+            if (!sliderTooltip || !sliderCurrentTime) return;
+            
+            const time = (value / 100) * totalDuration;
+            const minutes = Math.floor(time / 60);
+            const seconds = Math.floor(time % 60);
+            const timeString = minutes + ':' + String(seconds).padStart(2, '0');
+            
+            sliderTooltip.textContent = timeString;
+            sliderCurrentTime.textContent = timeString;
+            
+            const percentage = (value / 100);
+            sliderTooltip.style.left = (percentage * 100) + '%';
+        }
+        
+        progressSlider.addEventListener('input', function() {
+            const progress = parseFloat(this.value);
+            chartCurrentTime = (progress / 100) * totalDuration;
+            
+            updateSliderTooltip(progress);
+            
+            // Update start time to maintain sync when manually scrubbing
+            if (isPlaying) {
+                startTime = Date.now() - (chartCurrentTime * 1000);
+            }
+            
+            updateProgress();
+        });
+        
+        // Show tooltip on hover and update position
+        progressSlider.addEventListener('mousemove', function(e) {
+            if (!sliderTooltip) return;
+            
+            const rect = this.getBoundingClientRect();
+            const percentage = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
+            const time = (percentage / 100) * totalDuration;
+            const minutes = Math.floor(time / 60);
+            const seconds = Math.floor(time % 60);
+            const timeString = minutes + ':' + String(seconds).padStart(2, '0');
+            
+            sliderTooltip.textContent = timeString;
+            sliderTooltip.style.left = percentage + '%';
+        });
+        
+        progressSlider.addEventListener('mouseenter', function() {
+            if (sliderTooltip) {
+                sliderTooltip.style.opacity = '1';
+            }
+        });
+        
+        progressSlider.addEventListener('mouseleave', function() {
+            if (sliderTooltip && document.activeElement !== progressSlider) {
+                sliderTooltip.style.opacity = '0';
+            }
+        });
+        
+        progressSlider.addEventListener('keydown', function(e) {
+            const step = 1; // 1% step
+            let newValue = parseFloat(this.value);
+            
+            if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') {
+                e.preventDefault();
+                newValue = Math.max(0, newValue - step);
+                this.value = newValue;
+                this.dispatchEvent(new Event('input'));
+            } else if (e.key === 'ArrowRight' || e.key === 'ArrowUp') {
+                e.preventDefault();
+                newValue = Math.min(100, newValue + step);
+                this.value = newValue;
+                this.dispatchEvent(new Event('input'));
+            } else if (e.key === 'Home') {
+                e.preventDefault();
+                this.value = 0;
+                this.dispatchEvent(new Event('input'));
+            } else if (e.key === 'End') {
+                e.preventDefault();
+                this.value = 100;
+                this.dispatchEvent(new Event('input'));
+            }
+        });
+        
+        // Function to get pace value for a given level (duplicate - keeping for backward compatibility)
+        function getPaceForLevelDuplicate(classPlanIntensity, userLevel = 5) {
+            // Convert class plan pace intensity (0-6) to min/mi based on user's selected level (1-10)
+            // Uses PaceTarget model pace ranges directly
+            
+            // Map class plan intensity (0-6) to intensity labels
+            const intensityLabels = ['Recovery', 'Easy', 'Moderate', 'Challenging', 'Hard', 'Very Hard', 'Max'];
+            const label = intensityLabels[classPlanIntensity] || 'Moderate';
+            
+            // Pace ranges from PaceTarget model for each user level (1-10)
+            // Level 1 = slowest (highest min/mile), Level 10 = fastest (lowest min/mile)
+            // Values are in decimal minutes per mile (e.g., 18.183 = 18:11 min/mile)
+            const paceRangesByLevel = {
+                1: {
+                    "Recovery": [20.0, 60.0],      // 20:00 - 60:00 min/mile
+                    "Easy": [18.183, 20.0],         // 18:11 - 20:00 min/mile
+                    "Moderate": [16.667, 18.183],   // 16:40 - 18:11 min/mile
+                    "Challenging": [15.0, 16.667],  // 15:00 - 16:40 min/mile
+                    "Hard": [13.633, 15.0],         // 13:38 - 15:00 min/mile
+                    "Very Hard": [12.25, 13.633],   // 12:15 - 13:38 min/mile
+                    "Max": [4.8, 12.25]             // 4:48 - 12:15 min/mile
+                },
+                2: {
+                    "Recovery": [18.75, 60.0],      // 18:45 - 60:00 min/mile
+                    "Easy": [16.667, 18.75],        // 16:40 - 18:45 min/mile
+                    "Moderate": [15.383, 16.667],   // 15:23 - 16:40 min/mile
+                    "Challenging": [13.95, 15.383], // 13:57 - 15:23 min/mile
+                    "Hard": [12.767, 13.95],        // 12:46 - 13:57 min/mile
+                    "Very Hard": [11.533, 12.767],  // 11:32 - 12:46 min/mile
+                    "Max": [4.8, 11.533]            // 4:48 - 11:32 min/mile
+                },
+                3: {
+                    "Recovery": [17.133, 60.0],    // 17:08 - 60:00 min/mile
+                    "Easy": [15.383, 17.133],       // 15:23 - 17:08 min/mile
+                    "Moderate": [14.283, 15.383],   // 14:17 - 15:23 min/mile
+                    "Challenging": [13.05, 14.283], // 13:03 - 14:17 min/mile
+                    "Hard": [11.767, 13.05],        // 11:46 - 13:03 min/mile
+                    "Very Hard": [10.717, 11.767],   // 10:43 - 11:46 min/mile
+                    "Max": [4.8, 10.717]            // 4:48 - 10:43 min/mile
+                },
+                4: {
+                    "Recovery": [16.217, 60.0],     // 16:13 - 60:00 min/mile
+                    "Easy": [15.217, 16.217],       // 15:13 - 16:13 min/mile
+                    "Moderate": [13.333, 15.217],   // 13:20 - 15:13 min/mile
+                    "Challenging": [12.0, 13.333],  // 12:00 - 13:20 min/mile
+                    "Hard": [11.117, 12.0],         // 11:07 - 12:00 min/mile
+                    "Very Hard": [9.833, 11.117],   // 9:50 - 11:07 min/mile
+                    "Max": [4.8, 9.833]             // 4:48 - 9:50 min/mile
+                },
+                5: {
+                    "Recovery": [15.217, 60.0],     // 15:13 - 60:00 min/mile
+                    "Easy": [13.333, 15.217],       // 13:20 - 15:13 min/mile
+                    "Moderate": [12.25, 13.333],    // 12:15 - 13:20 min/mile
+                    "Challenging": [11.117, 12.25], // 11:07 - 12:15 min/mile
+                    "Hard": [10.0, 11.117],         // 10:00 - 11:07 min/mile
+                    "Very Hard": [9.083, 10.0],     // 9:05 - 10:00 min/mile
+                    "Max": [4.8, 9.083]             // 4:48 - 9:05 min/mile
+                },
+                6: {
+                    "Recovery": [13.333, 60.0],        // 13:20 - 60:00 min/mile
+                    "Easy": [12.25, 13.333],        // 12:15 - 13:20 min/mile
+                    "Moderate": [11.117, 12.25],    // 11:07 - 12:15 min/mile
+                    "Challenging": [10.0, 11.117],  // 10:00 - 11:07 min/mile
+                    "Hard": [9.083, 10.0],          // 9:05 - 10:00 min/mile
+                    "Very Hard": [8.217, 9.083],    // 8:13 - 9:05 min/mile
+                    "Max": [4.8, 8.217]             // 4:48 - 8:13 min/mile
+                },
+                7: {
+                    "Recovery": [12.0, 60.0],       // 12:00 - 60:00 min/mile
+                    "Easy": [10.9, 12.0],           // 10:54 - 12:00 min/mile
+                    "Moderate": [10.0, 10.9],       // 10:00 - 10:54 min/mile
+                    "Challenging": [8.95, 10.0],    // 8:57 - 10:00 min/mile
+                    "Hard": [8.217, 8.95],          // 8:13 - 8:57 min/mile
+                    "Very Hard": [7.4, 8.217],      // 7:24 - 8:13 min/mile
+                    "Max": [4.8, 7.4]               // 4:48 - 7:24 min/mile
+                },
+                8: {
+                    "Recovery": [10.5, 60.0],       // 10:30 - 60:00 min/mile
+                    "Easy": [9.683, 10.5],          // 9:41 - 10:30 min/mile
+                    "Moderate": [8.817, 9.683],     // 8:49 - 9:41 min/mile
+                    "Challenging": [8.0, 8.817],    // 8:00 - 8:49 min/mile
+                    "Hard": [7.317, 8.0],           // 7:19 - 8:00 min/mile
+                    "Very Hard": [6.583, 7.317],    // 6:35 - 7:19 min/mile
+                    "Max": [4.8, 6.583]             // 4:48 - 6:35 min/mile
+                },
+                9: {
+                    "Recovery": [9.217, 60.0],      // 9:13 - 60:00 min/mile
+                    "Easy": [8.333, 9.217],         // 8:20 - 9:13 min/mile
+                    "Moderate": [7.7, 8.333],       // 7:42 - 8:20 min/mile
+                    "Challenging": [6.983, 7.7],    // 6:59 - 7:42 min/mile
+                    "Hard": [6.383, 6.983],         // 6:23 - 6:59 min/mile
+                    "Very Hard": [5.767, 6.383],   // 5:46 - 6:23 min/mile
+                    "Max": [4.8, 5.767]             // 4:48 - 5:46 min/mile
+                },
+                10: {
+                    "Recovery": [7.9, 60.0],        // 7:54 - 60:00 min/mile
+                    "Easy": [7.15, 7.9],           // 7:09 - 7:54 min/mile
+                    "Moderate": [6.667, 7.15],      // 6:40 - 7:09 min/mile
+                    "Challenging": [6.0, 6.667],    // 6:00 - 6:40 min/mile
+                    "Hard": [5.5, 6.0],            // 5:30 - 6:00 min/mile
+                    "Very Hard": [4.917, 5.5],      // 4:55 - 5:30 min/mile
+                    "Max": [4.8, 4.917]             // 4:48 - 4:55 min/mile
+                }
+            };
+            
+            // Clamp user level to valid range
+            const clampedLevel = Math.max(1, Math.min(10, userLevel));
+            const levelRanges = paceRangesByLevel[clampedLevel] || paceRangesByLevel[5];
+            
+            // Get the range for the current intensity
+            const range = levelRanges[label] || levelRanges['Moderate'];
+            const [minPace, maxPace] = range;
+            
+            // Use middle of the range
+            const pace = (minPace + maxPace) / 2;
+            const minutes = Math.floor(pace);
+            const seconds = Math.round((pace - minutes) * 60);
+            
+            return {
+                pace: `${minutes}:${seconds.toString().padStart(2, '0')} min/mi`,
+                label: label,
+                classPlanIntensity: classPlanIntensity
+            };
+        }
+
+        paceLevelSelect.addEventListener('change', function() {
+            // Update the target display based on user's selected level
+            const selectedLevel = parseInt(this.value);
+            console.log('User selected level:', selectedLevel);
+            
+            // Get current class plan intensity from the chart data
+            const currentIntensity = getCurrentClassPlanIntensity();
+            console.log('Current class plan intensity:', currentIntensity);
+            
+            // Convert class plan intensity to min/mi based on user's level
+            const paceInfo = getPaceForLevel(currentIntensity, selectedLevel);
+            currentTargetEl.textContent = `${paceInfo.pace} @ ${paceInfo.label}`;
+        });
+        
+        // Function to get current class plan intensity from chart data
+        function getCurrentClassPlanIntensity() {
+            // Get the current intensity from the chart data at the current time
+            const currentTarget = getCurrentTarget(chartCurrentTime);
+            return currentTarget || 2; // Default to Moderate if not found
+        }
+        
+        // Set initial target based on class plan data
+        if (chartData.type === 'pace_target' && chartData.segments && chartData.segments.length > 0) {
+            // Get the first segment's pace intensity (class plan)
+            const firstSegment = chartData.segments[0];
+            const classPlanIntensity = firstSegment.zone || firstSegment.pace_level || 0;
+            const userLevel = parseInt(paceLevelSelect.value) || 5;
+            
+            // Convert to min/mi based on user's level
+            const paceInfo = getPaceForLevel(classPlanIntensity, userLevel);
+            currentTargetEl.textContent = `${paceInfo.pace} @ ${paceInfo.label}`;
+            
+            console.log('Initial target set:', {
+                classPlanIntensity,
+                userLevel,
+                paceInfo
+            });
+            
+            // Debug: Check final segments
+            console.log('All segments:', chartData.segments);
+            const lastSegment = chartData.segments[chartData.segments.length - 1];
+            console.log('Last segment:', lastSegment);
+            console.log('Total duration from chart data:', chartData.total_duration);
+        }
+        
+        // Initialize segment tracking
+        if (chartData && chartData.segments && chartData.segments.length > 0) {
+            lastSegmentIndex = getSegmentIndex(0);
+        }
+        
+        // Initialize audio on user interaction (required by browsers)
+        document.addEventListener('click', function() {
+            initAudio();
+        }, { once: true });
+        
+        // Fullscreen functionality
+        const fullscreenBtn = document.getElementById('fullscreen-btn');
+        const fullscreenOverlay = document.getElementById('fullscreen-overlay');
+        const exitFullscreenBtn = document.getElementById('exit-fullscreen-btn');
+        let fullscreenChart = null;
+        
+        function enterFullscreen() {
+            if (!fullscreenOverlay) return;
+            
+            fullscreenOverlay.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+            
+            // Sync values from main controls
+            const fullscreenPaceLevelSelect = document.getElementById('fullscreen-pace-level-select');
+            const fullscreenShowProgress = document.getElementById('fullscreen-show-progress');
+            const fullscreenSoundToggle = document.getElementById('fullscreen-sound-toggle');
+            
+            if (fullscreenPaceLevelSelect) fullscreenPaceLevelSelect.value = paceLevelSelect.value;
+            if (fullscreenShowProgress) fullscreenShowProgress.checked = document.getElementById('show-progress')?.checked ?? true;
+            if (fullscreenSoundToggle) fullscreenSoundToggle.checked = document.getElementById('sound-toggle')?.checked ?? true;
+            
+            // Create fullscreen chart
+            setTimeout(() => {
+                createFullscreenChart();
+            }, 100);
+        }
+        
+        function exitFullscreen() {
+            if (!fullscreenOverlay) return;
+            
+            fullscreenOverlay.style.display = 'none';
+            document.body.style.overflow = '';
+            
+            // Destroy fullscreen chart
+            if (fullscreenChart) {
+                fullscreenChart.destroy();
+                fullscreenChart = null;
+            }
+            
+            // Sync values back to main controls
+            const fullscreenPaceLevelSelect = document.getElementById('fullscreen-pace-level-select');
+            const fullscreenShowProgress = document.getElementById('fullscreen-show-progress');
+            const fullscreenSoundToggle = document.getElementById('fullscreen-sound-toggle');
+            
+            if (fullscreenPaceLevelSelect && paceLevelSelect) paceLevelSelect.value = fullscreenPaceLevelSelect.value;
+            if (fullscreenShowProgress) {
+                const showProgressCheckbox = document.getElementById('show-progress');
+                if (showProgressCheckbox) showProgressCheckbox.checked = fullscreenShowProgress.checked;
+            }
+            if (fullscreenSoundToggle) {
+                const soundToggle = document.getElementById('sound-toggle');
+                if (soundToggle) soundToggle.checked = fullscreenSoundToggle.checked;
+            }
+        }
+        
+        function createFullscreenChart() {
+            const fullscreenCtx = document.getElementById('fullscreen-class-plan-chart');
+            if (!fullscreenCtx || fullscreenChart) return;
+            
+            // Get the chart configuration from the main chart
+            if (!chart) {
+                console.warn('Main chart not initialized yet');
+                return;
+            }
+            
+            // Rebuild chart config for fullscreen (same as main chart)
+            const fullscreenChartConfig = {
+                ...chartConfig,
+                options: {
+                    ...chartConfig.options,
+                    maintainAspectRatio: false,
+                    responsive: true
+                }
+            };
+            
+            // Create the fullscreen chart
+            fullscreenChart = new Chart(fullscreenCtx, fullscreenChartConfig);
+            
+            // Sync fullscreen chart with main chart
+            const fullscreenProgressSlider = document.getElementById('fullscreen-progress-slider');
+            const fullscreenPlayPauseBtn = document.getElementById('fullscreen-play-pause-btn');
+            const fullscreenPaceLevelSelect = document.getElementById('fullscreen-pace-level-select');
+            const fullscreenShowProgress = document.getElementById('fullscreen-show-progress');
+            const fullscreenSoundToggle = document.getElementById('fullscreen-sound-toggle');
+            
+            // Sync play/pause
+            if (fullscreenPlayPauseBtn) {
+                fullscreenPlayPauseBtn.addEventListener('click', function() {
+                    if (isPlaying) {
+                        pause();
+                    } else {
+                        play();
+                    }
+                    updateFullscreenPlayButton();
+                });
+            }
+            
+            // Sync pace level select
+            if (fullscreenPaceLevelSelect) {
+                fullscreenPaceLevelSelect.addEventListener('change', function() {
+                    paceLevelSelect.value = this.value;
+                    updateProgress();
+                });
+            }
+            
+            // Sync show progress checkbox
+            if (fullscreenShowProgress) {
+                fullscreenShowProgress.addEventListener('change', function() {
+                    const showProgressCheckbox = document.getElementById('show-progress');
+                    if (showProgressCheckbox) showProgressCheckbox.checked = this.checked;
+                    updateProgress();
+                });
+            }
+            
+            // Sync sound toggle
+            if (fullscreenSoundToggle) {
+                fullscreenSoundToggle.addEventListener('change', function() {
+                    const soundToggle = document.getElementById('sound-toggle');
+                    if (soundToggle) soundToggle.checked = this.checked;
+                });
+            }
+            
+            // Sync slider
+            if (fullscreenProgressSlider) {
+                fullscreenProgressSlider.addEventListener('input', function() {
+                    progressSlider.value = this.value;
+                    progressSlider.dispatchEvent(new Event('input'));
+                });
+            }
+            
+            // Update fullscreen display
+            updateFullscreenDisplay();
+        }
+        
+        function updateFullscreenDisplay() {
+            if (!fullscreenOverlay || fullscreenOverlay.style.display === 'none') return;
+            
+            const fullscreenTimeLeft = document.getElementById('fullscreen-time-left');
+            const fullscreenIntervalTime = document.getElementById('fullscreen-interval-time');
+            const fullscreenCurrentTarget = document.getElementById('fullscreen-current-target');
+            const fullscreenProgressSlider = document.getElementById('fullscreen-progress-slider');
+            const fullscreenSliderCurrentTime = document.getElementById('fullscreen-slider-current-time');
+            
+            if (fullscreenTimeLeft) {
+                const timeLeft = Math.max(0, totalDuration - chartCurrentTime);
+                const minutesLeft = Math.floor(timeLeft / 60);
+                const secondsLeft = Math.floor(timeLeft % 60);
+                fullscreenTimeLeft.textContent = minutesLeft + ':' + String(secondsLeft).padStart(2, '0');
+            }
+            
+            if (fullscreenIntervalTime) {
+                const currentSegment = getCurrentSegment(chartCurrentTime);
+                const showProgressUp = document.getElementById('fullscreen-show-progress')?.checked ?? true;
+                
+                if (currentSegment) {
+                    if (showProgressUp) {
+                        const timeIntoInterval = chartCurrentTime - currentSegment.startTime;
+                        const intervalMinutes = Math.floor(timeIntoInterval / 60);
+                        const intervalSeconds = Math.floor(timeIntoInterval % 60);
+                        fullscreenIntervalTime.textContent = intervalMinutes + ':' + String(intervalSeconds).padStart(2, '0');
+                    } else {
+                        const timeRemaining = currentSegment.endTime - chartCurrentTime;
+                        const intervalMinutes = Math.floor(Math.max(0, timeRemaining) / 60);
+                        const intervalSeconds = Math.floor(Math.max(0, timeRemaining) % 60);
+                        fullscreenIntervalTime.textContent = intervalMinutes + ':' + String(intervalSeconds).padStart(2, '0');
+                    }
+                } else {
+                    fullscreenIntervalTime.textContent = '00:00';
+                }
+            }
+            
+            if (fullscreenCurrentTarget) {
+                const currentTarget = getCurrentTarget(chartCurrentTime);
+                if (currentTarget !== null && currentTarget !== undefined) {
+                    if (chartData.type === 'pace_target') {
+                        const userLevel = parseInt(document.getElementById('fullscreen-pace-level-select')?.value || paceLevelSelect.value) || 5;
+                        const paceInfo = getPaceForLevel(currentTarget, userLevel);
+                        fullscreenCurrentTarget.textContent = `${paceInfo.pace} @ ${paceInfo.label}`;
+                    } else {
+                        const ftp = parseInt(ftpInput?.value || 250) || 250;
+                        const targetOutput = Math.round(ftp * getZonePercentage(currentTarget));
+                        fullscreenCurrentTarget.textContent = String(targetOutput) + ' @ Zone ' + currentTarget;
+                    }
+                }
+            }
+            
+            if (fullscreenProgressSlider) {
+                const progress = (chartCurrentTime / totalDuration) * 100;
+                fullscreenProgressSlider.value = progress;
+                
+                if (fullscreenSliderCurrentTime) {
+                    const minutes = Math.floor(chartCurrentTime / 60);
+                    const seconds = Math.floor(chartCurrentTime % 60);
+                    fullscreenSliderCurrentTime.textContent = minutes + ':' + String(seconds).padStart(2, '0');
+                }
+            }
+            
+            if (fullscreenChart) {
+                fullscreenChart.options.plugins.progressLine.currentTime = chartCurrentTime;
+                fullscreenChart.update('none');
+            }
+        }
+        
+        function updateFullscreenPlayButton() {
+            const fullscreenPlayPauseBtn = document.getElementById('fullscreen-play-pause-btn');
+            if (fullscreenPlayPauseBtn) {
+                fullscreenPlayPauseBtn.textContent = isPlaying ? '⏸' : '▶';
+                fullscreenPlayPauseBtn.classList.toggle('paused', isPlaying);
+            }
+        }
+        
+        // Event listeners for fullscreen
+        if (fullscreenBtn) {
+            fullscreenBtn.addEventListener('click', enterFullscreen);
+        }
+        
+        if (exitFullscreenBtn) {
+            exitFullscreenBtn.addEventListener('click', exitFullscreen);
+        }
+        
+        // Close fullscreen on Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && fullscreenOverlay && fullscreenOverlay.style.display !== 'none') {
+                exitFullscreen();
+            }
+        });
+        
+        // Add show progress checkbox listener
+        const showProgressCheckbox = document.getElementById('show-progress');
+        if (showProgressCheckbox) {
+            showProgressCheckbox.addEventListener('change', function() {
+                updateProgress();
+            });
+        }
+        
+        // Initial setup
+        updateProgress();
+    })();
+});
+</script>
+
+<style>
+/* Interactive Workout Player */
+.workout-player-section {
+  background: rgb(31 41 55); /* dark:bg-gray-800 */
+  border: 1px solid rgb(55 65 81); /* dark:border-gray-700 */
+  border-radius: 12px;
+  padding: 1rem;
+  margin-bottom: 2rem;
+}
+
+@media (min-width: 640px) {
+  .workout-player-section {
+    padding: 2rem;
+  }
+}
+
+@media (prefers-color-scheme: light) {
+  .workout-player-section {
+    background: rgb(255 255 255); /* bg-white */
+    border: 1px solid rgb(229 231 235); /* border-gray-200 */
+  }
+}
+
+.dark .workout-player-section {
+  background: rgb(31 41 55); /* dark:bg-gray-800 */
+  border: 1px solid rgb(55 65 81); /* dark:border-gray-700 */
+}
+
+/* Workout Header */
+.workout-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border-subtle, rgba(255,255,255,0.1));
+}
+
+.workout-info {
+  flex: 1;
+}
+
+.workout-instructor-label {
+  color: rgb(17 24 39); /* text-gray-900 */
+  margin: 0 0 0.5rem 0;
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.dark .workout-instructor-label {
+  color: rgb(255 255 255); /* dark:text-white */
+}
+
+.workout-instructor-name {
+  color: rgb(17 24 39); /* text-gray-900 */
+  font-weight: 600;
+}
+
+.dark .workout-instructor-name {
+  color: rgb(255 255 255); /* dark:text-white */
+}
+
+.workout-output {
+  color: rgb(59 130 246); /* text-blue-500 */
+  font-weight: 600;
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+.workout-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+@media (min-width: 640px) {
+  .workout-controls {
+    gap: 1.5rem;
+  }
+}
+
+.pace-level-control {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.pace-level-control label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: rgb(17 24 39); /* text-gray-900 */
+}
+
+.dark .pace-level-control label {
+  color: rgb(255 255 255); /* dark:text-white */
+}
+
+.pace-level-select {
+  padding: 0.25rem 0.5rem;
+  border: 1px solid rgb(229 231 235); /* border-gray-200 */
+  border-radius: 6px;
+  background: rgb(255 255 255); /* bg-white */
+  color: rgb(17 24 39); /* text-gray-900 */
+  font-size: 0.875rem;
+}
+
+.dark .pace-level-select {
+  border: 1px solid rgb(55 65 81); /* dark:border-gray-700 */
+  background: rgb(31 41 55); /* dark:bg-gray-800 */
+  color: rgb(255 255 255); /* dark:text-white */
+}
+
+.play-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: rgb(16 185 129); /* bg-green-500 */
+  color: white;
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.play-btn:hover {
+  background: rgb(5 150 105); /* bg-green-600 */
+  transform: scale(1.05);
+}
+
+.play-btn.paused {
+  background: rgb(59 130 246); /* bg-blue-500 */
+}
+
+.fullscreen-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: white;
+  font-size: 1.25rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.fullscreen-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: scale(1.1);
+}
+
+.progress-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+@media (min-width: 640px) {
+  .progress-controls {
+    width: auto;
+  }
+}
+
+.progress-label, .sound-label {
+  font-size: 0.75rem;
+  color: rgb(107 114 128); /* text-gray-500 */
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.dark .progress-label, .dark .sound-label {
+  color: rgb(156 163 175); /* dark:text-gray-400 */
+}
+
+/* Workout Status */
+.workout-status {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  background: rgb(249 250 251); /* bg-gray-50 */
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 2rem;
+}
+
+@media (min-width: 640px) {
+  .workout-status {
+    flex-direction: row;
+    justify-content: space-around;
+    gap: 0;
+  }
+}
+
+.dark .workout-status {
+  background: rgb(31 41 55); /* dark:bg-gray-800 */
+}
+
+.status-item {
+  text-align: center;
+}
+
+.status-label {
+  display: block;
+  font-size: 0.75rem;
+  color: rgb(107 114 128); /* text-gray-500 */
+  margin-bottom: 0.25rem;
+}
+
+.dark .status-label {
+  color: rgb(156 163 175); /* dark:text-gray-400 */
+}
+
+.status-value {
+  display: block;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: rgb(17 24 39); /* text-gray-900 */
+}
+
+.dark .status-value {
+  color: rgb(255 255 255); /* dark:text-white */
+}
+
+/* Countdown Display */
+.countdown-display {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 10000;
+  background: rgba(0, 0, 0, 0.95);
+  border-radius: 20px;
+  padding: 2rem;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  border: 3px solid rgba(255, 255, 255, 0.2);
+  max-width: 90vw;
+}
+
+@media (min-width: 640px) {
+  .countdown-display {
+    padding: 3rem 4rem;
+  }
+}
+
+.countdown-number {
+  font-size: 4rem;
+  font-weight: 700;
+  color: #3b82f6;
+  line-height: 1;
+  margin-bottom: 1rem;
+  text-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
+}
+
+@media (min-width: 640px) {
+  .countdown-number {
+    font-size: 8rem;
+  }
+}
+
+.countdown-label {
+  font-size: 1rem;
+  color: rgba(255, 255, 255, 0.8);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+@media (min-width: 640px) {
+  .countdown-label {
+    font-size: 1.5rem;
+  }
+}
+
+/* Interactive Chart Section */
+.interactive-chart-section {
+  margin-bottom: 2rem;
+}
+
+.pace-target-chart {
+  position: relative;
+  height: 300px;
+  width: 100%;
+  background: rgb(249 250 251); /* bg-gray-50 */
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  margin-bottom: 1rem;
+}
+
+@media (min-width: 640px) {
+  .pace-target-chart {
+    height: 400px;
+  }
+}
+
+.dark .pace-target-chart {
+  background: rgb(17 24 39); /* dark:bg-gray-900 */
+}
+
+#class-plan-chart {
+  width: 100%;
+  height: 100%;
+}
+
+.chart-readout {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 0.375rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  pointer-events: none;
+  z-index: 10;
+  max-width: calc(100% - 1rem);
+  word-break: break-word;
+}
+
+@media (min-width: 640px) {
+  .chart-readout {
+    top: 1rem;
+    right: 1rem;
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    max-width: none;
+  }
+}
+
+/* Progress Slider */
+.progress-slider-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.slider-wrapper {
+  position: relative;
+  width: 100%;
+  padding: 1rem 0;
+}
+
+.progress-slider {
+  width: 100%;
+  height: 8px;
+  border-radius: 4px;
+  background: linear-gradient(to right, var(--accent-blue, #3b82f6) 0%, var(--accent-blue, #3b82f6) 0%, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.1) 100%);
+  outline: none;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.progress-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  cursor: grab;
+  border: 3px solid white;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.5), 0 2px 6px rgba(0, 0, 0, 0.3);
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.progress-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+  box-shadow: 0 6px 16px rgba(59, 130, 246, 0.7), 0 4px 8px rgba(0, 0, 0, 0.4);
+  background: linear-gradient(135deg, #2563eb, #1e40af);
+}
+
+.progress-slider::-webkit-slider-thumb:active {
+  cursor: grabbing;
+}
+
+.progress-slider::-moz-range-thumb {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  cursor: grab;
+  border: 3px solid white;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.5), 0 2px 6px rgba(0, 0, 0, 0.3);
+  -moz-appearance: none;
+  transition: all 0.2s ease;
+}
+
+.progress-slider::-moz-range-thumb:hover {
+  transform: scale(1.15);
+  box-shadow: 0 6px 16px rgba(59, 130, 246, 0.7), 0 4px 8px rgba(0, 0, 0, 0.4);
+}
+
+.progress-slider:focus::-webkit-slider-thumb {
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.3), 0 4px 12px rgba(59, 130, 246, 0.5), 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+.progress-slider:focus::-moz-range-thumb {
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.3), 0 4px 12px rgba(59, 130, 246, 0.5), 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+.slider-tooltip {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.9);
+  color: white;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  z-index: 10;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.slider-wrapper:hover .slider-tooltip,
+.progress-slider:active + .slider-tooltip {
+  opacity: 1;
+}
+
+.slider-labels {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.75rem;
+  color: rgb(107 114 128); /* text-gray-500 */
+  font-weight: 500;
+}
+
+.dark .slider-labels {
+  color: rgb(156 163 175); /* dark:text-gray-400 */
+}
+
+#slider-current-time {
+  color: rgb(59 130 246); /* text-blue-500 */
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+/* Fullscreen Overlay */
+.fullscreen-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgb(17 24 39); /* dark:bg-gray-900 */
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.fullscreen-content {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 2rem;
+  gap: 2rem;
+  position: relative;
+}
+
+.exit-fullscreen-btn {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  color: white;
+  font-size: 1.5rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  z-index: 10000;
+}
+
+.exit-fullscreen-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: scale(1.1);
+}
+
+.fullscreen-status {
+  display: flex;
+  justify-content: space-around;
+  gap: 2rem;
+  padding: 1.5rem;
+  background: rgb(31 41 55); /* dark:bg-gray-800 */
+  border-radius: 12px;
+  border: 1px solid rgb(55 65 81); /* dark:border-gray-700 */
+}
+
+.fullscreen-status-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+}
+
+.fullscreen-status-label {
+  font-size: 1rem;
+  color: rgba(255, 255, 255, 0.7);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.fullscreen-status-value {
+  font-size: 3rem;
+  font-weight: 700;
+  color: white;
+  line-height: 1;
+}
+
+.fullscreen-chart-container {
+  flex: 1;
+  position: relative;
+  min-height: 400px;
+  background: rgb(31 41 55); /* dark:bg-gray-800 */
+  border-radius: 12px;
+  border: 1px solid rgb(55 65 81); /* dark:border-gray-700 */
+  padding: 1rem;
+}
+
+#fullscreen-class-plan-chart {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.fullscreen-chart-readout {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 0.75rem 1.25rem;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.fullscreen-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2rem;
+  padding: 1.5rem;
+  background: rgb(31 41 55); /* dark:bg-gray-800 */
+  border-radius: 12px;
+  border: 1px solid rgb(55 65 81); /* dark:border-gray-700 */
+}
+
+.fullscreen-pace-level-control {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.fullscreen-pace-level-control label {
+  color: white;
+  font-weight: 500;
+}
+
+.fullscreen-pace-level-control select {
+  width: 120px;
+  padding: 0.5rem;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.fullscreen-play-btn {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #10b981, #059669);
+  border: none;
+  color: white;
+  font-size: 1.5rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+}
+
+.fullscreen-play-btn:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.6);
+}
+
+.fullscreen-play-btn.paused {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+}
+
+.fullscreen-progress-controls {
+  display: flex;
+  gap: 1.5rem;
+  align-items: center;
+}
+
+.fullscreen-progress-controls label {
+  color: white;
+  font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+
+.fullscreen-progress-controls input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+.fullscreen-slider-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.fullscreen-slider-wrapper {
+  position: relative;
+  width: 100%;
+  padding: 1rem 0;
+}
+
+.fullscreen-progress-slider {
+  width: 100%;
+  height: 12px;
+  border-radius: 6px;
+  background: linear-gradient(to right, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.1) 100%);
+  outline: none;
+  cursor: pointer;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.fullscreen-progress-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  cursor: grab;
+  border: 3px solid white;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.6), 0 2px 6px rgba(0, 0, 0, 0.4);
+  transition: all 0.2s ease;
+}
+
+.fullscreen-progress-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+  box-shadow: 0 6px 16px rgba(59, 130, 246, 0.8), 0 4px 8px rgba(0, 0, 0, 0.5);
+}
+
+.fullscreen-progress-slider::-webkit-slider-thumb:active {
+  cursor: grabbing;
+}
+
+.fullscreen-progress-slider::-moz-range-thumb {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  cursor: grab;
+  border: 3px solid white;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.6), 0 2px 6px rgba(0, 0, 0, 0.4);
+  -moz-appearance: none;
+}
+
+.fullscreen-slider-labels {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 1rem;
+  color: rgba(255, 255, 255, 0.8);
+  font-weight: 500;
+}
+
+#fullscreen-slider-current-time {
+  color: #3b82f6;
+  font-weight: 600;
+  font-size: 1.125rem;
+}
+
+/* Time in Pace Levels */
+.zones-summary {
+  background: rgb(249 250 251); /* bg-gray-50 */
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-top: 2rem;
+}
+
+.dark .zones-summary {
+  background: rgb(31 41 55); /* dark:bg-gray-800 */
+}
+
+.zones-summary h3 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: rgb(17 24 39); /* text-gray-900 */
+  margin: 0 0 1rem 0;
+}
+
+.dark .zones-summary h3 {
+  color: rgb(255 255 255); /* dark:text-white */
+}
+
+.zones-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 1rem;
+}
+
+.zone-item {
+  background: rgb(255 255 255); /* bg-white */
+  border-radius: 6px;
+  padding: 1rem;
+  text-align: center;
+  border: 1px solid rgb(229 231 235); /* border-gray-200 */
+}
+
+.dark .zone-item {
+  background: rgb(31 41 55); /* dark:bg-gray-800 */
+  border: 1px solid rgb(55 65 81); /* dark:border-gray-700 */
+}
+
+.zone-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: rgb(17 24 39); /* text-gray-900 */
+  margin-bottom: 0.5rem;
+}
+
+.dark .zone-label {
+  color: rgb(255 255 255); /* dark:text-white */
+}
+
+.zone-time {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: rgb(17 24 39); /* text-gray-900 */
+}
+
+.dark .zone-time {
+  color: rgb(255 255 255); /* dark:text-white */
+}
+
+/* Zone item colors for pace levels */
+.zone-item--l0 { border-left: 4px solid #6f42c1; } /* Recovery - Purple */
+.zone-item--l1 { border-left: 4px solid #4c6ef5; } /* Easy - Blue */
+.zone-item--l2 { border-left: 4px solid #228be6; } /* Moderate - Light Blue */
+.zone-item--l3 { border-left: 4px solid #0ca678; } /* Challenging - Green */
+.zone-item--l4 { border-left: 4px solid #ff922b; } /* Hard - Orange */
+.zone-item--l5 { border-left: 4px solid #f76707; } /* Very Hard - Dark Orange */
+.zone-item--l6 { border-left: 4px solid #fa5252; } /* Max - Red */
+
+/* Responsive Fullscreen Styles */
+@media (max-width: 768px) {
+  .fullscreen-content {
+    padding: 1rem;
+    gap: 1rem;
+  }
+  
+  .exit-fullscreen-btn {
+    top: 0.5rem;
+    right: 0.5rem;
+    width: 40px;
+    height: 40px;
+    font-size: 1.25rem;
+  }
+  
+  .fullscreen-status {
+    flex-direction: column;
+    gap: 1rem;
+    padding: 1rem;
+  }
+  
+  .fullscreen-status-item {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    padding: 0.75rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+  }
+  
+  .fullscreen-status-label {
+    font-size: 0.875rem;
+    margin: 0;
+  }
+  
+  .fullscreen-status-value {
+    font-size: 1.75rem;
+  }
+  
+  .fullscreen-chart-container {
+    min-height: 250px;
+    padding: 0.5rem;
+  }
+  
+  .fullscreen-controls {
+    flex-direction: column;
+    gap: 1rem;
+    padding: 1rem;
+  }
+  
+  .fullscreen-pace-level-control {
+    width: 100%;
+    justify-content: space-between;
+  }
+  
+  .fullscreen-pace-level-control select {
+    flex: 1;
+    max-width: 150px;
+  }
+  
+  .fullscreen-play-btn {
+    width: 56px;
+    height: 56px;
+    font-size: 1.25rem;
+  }
+  
+  .fullscreen-progress-controls {
+    flex-direction: column;
+    gap: 0.75rem;
+    width: 100%;
+  }
+  
+  .fullscreen-slider-container {
+    gap: 0.5rem;
+  }
+  
+  .fullscreen-slider-wrapper {
+    padding: 0.75rem 0;
+  }
+  
+  .fullscreen-progress-slider {
+    height: 10px;
+  }
+  
+  .fullscreen-progress-slider::-webkit-slider-thumb {
+    width: 28px;
+    height: 28px;
+  }
+  
+  .fullscreen-progress-slider::-moz-range-thumb {
+    width: 28px;
+    height: 28px;
+  }
+  
+  .fullscreen-slider-labels {
+    font-size: 0.875rem;
+  }
+  
+  #fullscreen-slider-current-time {
+    font-size: 1rem;
+  }
+  
+  .countdown-display {
+    padding: 2rem 2.5rem;
+  }
+  
+  .countdown-number {
+    font-size: 6rem;
+  }
+  
+  .countdown-label {
+    font-size: 1.25rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .fullscreen-content {
+    padding: 0.75rem;
+    gap: 0.75rem;
+  }
+  
+  .exit-fullscreen-btn {
+    top: 0.25rem;
+    right: 0.25rem;
+    width: 36px;
+    height: 36px;
+    font-size: 1rem;
+  }
+  
+  .fullscreen-status {
+    gap: 0.75rem;
+    padding: 0.75rem;
+  }
+  
+  .fullscreen-status-item {
+    padding: 0.5rem;
+  }
+  
+  .fullscreen-status-label {
+    font-size: 0.75rem;
+  }
+  
+  .fullscreen-status-value {
+    font-size: 1.5rem;
+  }
+  
+  .fullscreen-chart-container {
+    min-height: 200px;
+    padding: 0.25rem;
+  }
+  
+  .fullscreen-controls {
+    padding: 0.75rem;
+  }
+  
+  .fullscreen-pace-level-control label {
+    font-size: 0.875rem;
+  }
+  
+  .fullscreen-pace-level-control select {
+    font-size: 0.875rem;
+    padding: 0.375rem;
+  }
+  
+  .fullscreen-play-btn {
+    width: 48px;
+    height: 48px;
+    font-size: 1rem;
+  }
+  
+  .fullscreen-progress-controls {
+    gap: 0.5rem;
+  }
+  
+  .fullscreen-progress-controls label {
+    font-size: 0.75rem;
+  }
+  
+  .fullscreen-progress-controls input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+  }
+  
+  .fullscreen-slider-wrapper {
+    padding: 0.5rem 0;
+  }
+  
+  .fullscreen-progress-slider {
+    height: 8px;
+  }
+  
+  .fullscreen-progress-slider::-webkit-slider-thumb {
+    width: 24px;
+    height: 24px;
+  }
+  
+  .fullscreen-progress-slider::-moz-range-thumb {
+    width: 24px;
+    height: 24px;
+  }
+  
+  .fullscreen-slider-labels {
+    font-size: 0.75rem;
+  }
+  
+  #fullscreen-slider-current-time {
+    font-size: 0.875rem;
+  }
+  
+  .countdown-display {
+    padding: 1.5rem 2rem;
+  }
+  
+  .countdown-number {
+    font-size: 5rem;
+  }
+  
+  .countdown-label {
+    font-size: 1rem;
+  }
+}
+</style>

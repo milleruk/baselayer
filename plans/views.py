@@ -451,7 +451,204 @@ def metrics(request):
     # For now, we don't have tread FTP entries, so tread history will be empty
     pw_history_tread = []
     
-    # Calculate monthly stats (placeholder - will be replaced with Peloton data)
+    # Get Peloton workout data for Personal Records and monthly stats
+    from workouts.models import Workout, WorkoutDetails, WorkoutPerformanceData
+    from django.db.models import Max, Sum, Avg, Q
+    from django.core.exceptions import ObjectDoesNotExist
+    
+    all_workouts = Workout.objects.filter(user=request.user).select_related('ride_detail', 'details', 'ride_detail__workout_type')
+    
+    # Helper function to safely get workout details
+    def safe_get_details_value(workout, field_name, default=0):
+        """Safely get a value from workout.details, returning default if details don't exist"""
+        try:
+            details = workout.details
+            if details:
+                value = getattr(details, field_name, None)
+                return value if value is not None else default
+        except (WorkoutDetails.DoesNotExist, AttributeError, ObjectDoesNotExist):
+            pass
+        return default
+    
+    # Calculate Personal Records (1 min, 3 min, 5 min, 10 min, 20 min power)
+    # These are calculated from time-series performance data
+    def calculate_power_records(workouts, months=3):
+        """Calculate max power for different time intervals"""
+        cutoff_date = timezone.now().date() - timedelta(days=30 * months)
+        cycling_workouts = workouts.filter(
+            completed_date__gte=cutoff_date,
+            ride_detail__fitness_discipline__in=['cycling', 'ride']
+        ).prefetch_related('performance_data')
+        
+        records = {
+            '1min': 0,
+            '3min': 0,
+            '5min': 0,
+            '10min': 0,
+            '20min': 0,
+        }
+        
+        for workout in cycling_workouts:
+            try:
+                if not hasattr(workout, 'details') or not workout.details or not workout.details.total_output:
+                    continue
+            except (WorkoutDetails.DoesNotExist, AttributeError, ObjectDoesNotExist):
+                continue
+            
+            # Get time-series performance data
+            perf_data = list(workout.performance_data.filter(output__isnull=False).order_by('timestamp'))
+            if not perf_data:
+                continue
+            
+            # Convert to list of (timestamp, output) tuples
+            data_points = [(p.timestamp, p.output) for p in perf_data if p.output]
+            
+            if not data_points:
+                continue
+            
+            # Calculate rolling averages for different intervals
+            intervals = [60, 180, 300, 600, 1200]  # 1min, 3min, 5min, 10min, 20min in seconds
+            interval_keys = ['1min', '3min', '5min', '10min', '20min']
+            
+            for idx, interval_seconds in enumerate(intervals):
+                max_avg = 0
+                # Calculate rolling average for this interval
+                # Assuming 5-second intervals, we need interval_seconds // 5 data points
+                window_size = interval_seconds // 5
+                for i in range(len(data_points) - window_size + 1):
+                    window = data_points[i:i + window_size]
+                    if len(window) == window_size:
+                        avg_output = sum(p[1] for p in window) / len(window)
+                        max_avg = max(max_avg, avg_output)
+                
+                if max_avg > records[interval_keys[idx]]:
+                    records[interval_keys[idx]] = int(max_avg)
+        
+        return records
+    
+    # Calculate Personal Records for 1, 2, 3 months
+    personal_records_1m = calculate_power_records(all_workouts, months=1)
+    personal_records_2m = calculate_power_records(all_workouts, months=2)
+    personal_records_3m = calculate_power_records(all_workouts, months=3)
+    
+    # Calculate monthly stats (this month)
+    today = timezone.now().date()
+    month_start = today.replace(day=1)
+    this_month_workouts = all_workouts.filter(completed_date__gte=month_start)
+    
+    # This month stats by discipline
+    this_month_cycling = this_month_workouts.filter(ride_detail__fitness_discipline__in=['cycling', 'ride'])
+    this_month_running = this_month_workouts.filter(ride_detail__fitness_discipline__in=['running', 'run', 'walking'])
+    
+    # Cycling stats
+    cycling_monthly_distance = sum(
+        safe_get_details_value(w, 'distance') for w in this_month_cycling
+    ) or 0
+    cycling_monthly_output = sum(
+        safe_get_details_value(w, 'total_output') for w in this_month_cycling
+    ) or 0
+    cycling_monthly_tss = sum(
+        safe_get_details_value(w, 'tss') for w in this_month_cycling
+    ) or 0
+    
+    # Running stats
+    running_monthly_distance = sum(
+        safe_get_details_value(w, 'distance') for w in this_month_running
+    ) or 0
+    running_monthly_output = sum(
+        safe_get_details_value(w, 'total_output') for w in this_month_running
+    ) or 0
+    running_monthly_tss = sum(
+        safe_get_details_value(w, 'tss') for w in this_month_running
+    ) or 0
+    
+    # Yearly stats (all time)
+    cycling_yearly_workouts = all_workouts.filter(ride_detail__fitness_discipline__in=['cycling', 'ride'])
+    cycling_yearly_distance = sum(
+        safe_get_details_value(w, 'distance') for w in cycling_yearly_workouts
+    ) or 0
+    cycling_yearly_output = sum(
+        safe_get_details_value(w, 'total_output') for w in cycling_yearly_workouts
+    ) or 0
+    cycling_yearly_tss = sum(
+        safe_get_details_value(w, 'tss') for w in cycling_yearly_workouts
+    ) or 0
+    
+    running_yearly_workouts = all_workouts.filter(ride_detail__fitness_discipline__in=['running', 'run', 'walking'])
+    running_yearly_distance = sum(
+        safe_get_details_value(w, 'distance') for w in running_yearly_workouts
+    ) or 0
+    running_yearly_output = sum(
+        safe_get_details_value(w, 'total_output') for w in running_yearly_workouts
+    ) or 0
+    running_yearly_tss = sum(
+        safe_get_details_value(w, 'tss') for w in running_yearly_workouts
+    ) or 0
+    
+    # Calculate average heart rate by workout type and overall
+    def calculate_heart_rate_by_type(workouts, months=None):
+        """Calculate average heart rate by workout type"""
+        if months:
+            cutoff_date = timezone.now().date() - timedelta(days=30 * months)
+            workouts = workouts.filter(completed_date__gte=cutoff_date)
+        
+        # Get workouts with heart rate data
+        heart_rate_workouts = workouts.filter(details__avg_heart_rate__isnull=False).select_related('ride_detail', 'ride_detail__workout_type', 'details')
+        
+        # Group by workout type
+        hr_by_type = {}
+        total_hr_sum = 0
+        total_hr_count = 0
+        
+        for workout in heart_rate_workouts:
+            try:
+                hr = safe_get_details_value(workout, 'avg_heart_rate')
+                if hr > 0:
+                    # Determine workout type category
+                    if workout.ride_detail:
+                        fitness_discipline = workout.ride_detail.fitness_discipline or ''
+                        workout_type_name = workout.ride_detail.workout_type.name if workout.ride_detail.workout_type else ''
+                        
+                        # Map to display categories
+                        if fitness_discipline.lower() in ['cycling', 'ride'] or 'cycling' in workout_type_name.lower():
+                            category = 'Cycling'
+                        elif fitness_discipline.lower() in ['running', 'run', 'walking'] or 'running' in workout_type_name.lower() or 'tread' in workout_type_name.lower():
+                            category = 'Tread'
+                        else:
+                            # Skip other types for now (can add more later)
+                            continue
+                    else:
+                        continue
+                    
+                    if category not in hr_by_type:
+                        hr_by_type[category] = {'sum': 0, 'count': 0}
+                    
+                    hr_by_type[category]['sum'] += hr
+                    hr_by_type[category]['count'] += 1
+                    total_hr_sum += hr
+                    total_hr_count += 1
+            except (WorkoutDetails.DoesNotExist, AttributeError, ObjectDoesNotExist):
+                continue
+        
+        # Calculate averages
+        result = {}
+        for category, data in hr_by_type.items():
+            result[category] = int(data['sum'] / data['count']) if data['count'] > 0 else 0
+        
+        # Overall average
+        result['overall'] = int(total_hr_sum / total_hr_count) if total_hr_count > 0 else 0
+        
+        return result
+    
+    # Calculate heart rate for different time periods
+    hr_this_month = calculate_heart_rate_by_type(all_workouts, months=None)  # This month
+    hr_1m = calculate_heart_rate_by_type(all_workouts, months=1)
+    hr_2m = calculate_heart_rate_by_type(all_workouts, months=2)
+    hr_3m = calculate_heart_rate_by_type(all_workouts, months=3)
+    
+    # Legacy support - overall average
+    avg_heart_rate = hr_this_month.get('overall')
+    
     current_month = timezone.now().month
     current_year = timezone.now().year
     
@@ -471,7 +668,41 @@ def metrics(request):
         'current_tread_pw': current_tread_pw,
         'pw_history_cycling': pw_history_cycling,
         'pw_history_tread': pw_history_tread,
+        # Personal Records
+        'personal_records_1m': personal_records_1m,
+        'personal_records_2m': personal_records_2m,
+        'personal_records_3m': personal_records_3m,
+        # Monthly stats
+        'cycling_monthly_distance': cycling_monthly_distance,
+        'cycling_monthly_output': cycling_monthly_output,
+        'cycling_monthly_tss': cycling_monthly_tss,
+        'cycling_yearly_distance': cycling_yearly_distance,
+        'cycling_yearly_output': cycling_yearly_output,
+        'cycling_yearly_tss': cycling_yearly_tss,
+        'running_monthly_distance': running_monthly_distance,
+        'running_monthly_output': running_monthly_output,
+        'running_monthly_tss': running_monthly_tss,
+        'running_yearly_distance': running_yearly_distance,
+        'running_yearly_output': running_yearly_output,
+        'running_yearly_tss': running_yearly_tss,
+        # Heart rate
+        'avg_heart_rate': avg_heart_rate,
+        'hr_this_month': hr_this_month,
+        'hr_1m': hr_1m,
+        'hr_2m': hr_2m,
+        'hr_3m': hr_3m,
     }
+    
+    # Convert Personal Records to JSON for JavaScript
+    context['personal_records_1m'] = mark_safe(json.dumps(personal_records_1m))
+    context['personal_records_2m'] = mark_safe(json.dumps(personal_records_2m))
+    context['personal_records_3m'] = mark_safe(json.dumps(personal_records_3m))
+    
+    # Convert Heart Rate data to JSON for JavaScript
+    context['hr_this_month'] = mark_safe(json.dumps(hr_this_month))
+    context['hr_1m'] = mark_safe(json.dumps(hr_1m))
+    context['hr_2m'] = mark_safe(json.dumps(hr_2m))
+    context['hr_3m'] = mark_safe(json.dumps(hr_3m))
     
     # Calculate Peloton milestones
     peloton_milestones = []
@@ -493,11 +724,23 @@ def metrics(request):
         for category_info in categories:
             count = workout_counts.get(category_info['slug'], 0)
             achieved = []
+            next_milestone = None
+            progress_percentage = 0
             
-            # Check which milestones are achieved
-            for threshold in milestone_thresholds:
+            # Check which milestones are achieved and find next uncompleted milestone
+            for i, threshold in enumerate(milestone_thresholds):
                 if count >= threshold:
                     achieved.append(threshold)
+                else:
+                    # This is the next uncompleted milestone
+                    if next_milestone is None:
+                        next_milestone = threshold
+                        # Calculate progress: how far from previous milestone (or 0) to next milestone
+                        previous_threshold = milestone_thresholds[i - 1] if i > 0 else 0
+                        if next_milestone > previous_threshold:
+                            progress = (count - previous_threshold) / (next_milestone - previous_threshold)
+                            progress_percentage = min(100, max(0, int(progress * 100)))
+                    break
             
             peloton_milestones.append({
                 'name': category_info['name'],
@@ -505,6 +748,8 @@ def metrics(request):
                 'count': count,
                 'achieved': achieved,
                 'thresholds': milestone_thresholds,
+                'next_milestone': next_milestone,
+                'progress_percentage': progress_percentage,
             })
     else:
         # Default structure if no Peloton data
@@ -522,6 +767,8 @@ def metrics(request):
                 'count': 0,
                 'achieved': [],
                 'thresholds': [10, 50, 100, 500, 1000],
+                'next_milestone': 10,  # First milestone
+                'progress_percentage': 0,
             })
     
     context['peloton_milestones'] = peloton_milestones

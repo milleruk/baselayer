@@ -11,6 +11,7 @@ Chase The Zones is a full-stack web application that enables users to:
 - Monitor progress with detailed metrics and analytics
 - Integrate with Peloton workouts
 - Maintain workout history and completion tracking
+- Browse and explore Peloton class library with interactive previews
 
 ## 🏗️ Architecture
 
@@ -30,8 +31,9 @@ pelvicplanner/
 ├── accounts/          # User authentication and profiles
 ├── plans/             # Workout plan templates and exercise library
 ├── tracker/           # Challenge tracking and weekly plans
-├── workouts/          # Workout history and completion tracking
+├── workouts/          # Workout history and class library
 ├── config/            # Django project configuration
+├── docs/              # Documentation
 ├── templates/         # HTML templates
 ├── static/            # Static files (CSS, JS)
 ├── media/             # User-uploaded media files
@@ -103,6 +105,7 @@ pelvicplanner/
 - **Challenges**: Join and participate in fitness challenges
 - **Metrics**: Track progress with detailed analytics and charts
 - **Workout History**: View past workouts and completion records
+- **Class Library**: Browse and filter Peloton classes with interactive previews
 - **Profile Management**: Update user profile and settings
 - **Dark Mode**: Toggle between light and dark themes
 
@@ -174,6 +177,7 @@ python manage.py collectstatic
 - **WeeklyPlan**: User-specific weekly workout plans
 - **DailyPlanItem**: Individual workout items within a week
 - **Workout**: Completed workout records
+- **RideDetail**: Peloton class/ride template information
 
 ## 🌐 Deployment
 
@@ -199,6 +203,14 @@ CSRF_TRUSTED_ORIGINS = [
     "https://your-domain.com",
 ]
 ```
+
+## 📚 Documentation
+
+All detailed documentation is available in the `docs/` folder:
+
+- **[CLASS_LIBRARY.md](./CLASS_LIBRARY.md)** - Class library feature documentation
+- **[SYNC_STRATEGY.md](./SYNC_STRATEGY.md)** - Peloton workout sync strategy
+- **[peloton.md](./peloton.md)** - Peloton API integration details
 
 ## 🤝 Contributing
 

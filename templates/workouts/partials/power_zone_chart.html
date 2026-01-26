@@ -1,0 +1,2068 @@
+{% load static %}
+
+<!-- Interactive Workout Player -->
+{% if chart_data and chart_data.zones %}
+<div class="workout-player-section">
+  <!-- Workout Header -->
+  <div class="workout-header">
+    <div class="workout-info">
+      <p class="workout-instructor-label">Instructor name: <span class="workout-instructor-name">{% if ride.instructor %}{{ ride.instructor.name }}{% elif ride.instructor_name %}{{ ride.instructor_name }}{% else %}N/A{% endif %}</span></p>
+      <p class="workout-output">Power Zone</p>
+    </div>
+    <div class="workout-controls">
+      <div class="ftp-control">
+        <label for="ftp-input">FTP (W):</label>
+        <input type="number" id="ftp-input" class="ftp-input" value="{{ user_ftp|default:250 }}" min="100" max="500" step="5">
+      </div>
+      <button id="play-pause-btn" class="play-btn">▶</button>
+      <button id="fullscreen-btn" class="fullscreen-btn" title="Fullscreen view">⛶</button>
+      <div class="progress-controls">
+        <label class="progress-label">
+          <input type="checkbox" id="show-progress" checked> Show time into interval
+        </label>
+        <label class="sound-label">
+          <input type="checkbox" id="sound-toggle" checked> Sound on
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <!-- Current Status -->
+  <div class="workout-status">
+    <div class="status-item">
+      <span class="status-label">Time Left</span>
+      <span id="time-left" class="status-value">{% widthratio ride.duration_seconds 60 1 %}:00</span>
+    </div>
+    <div class="status-item">
+      <span class="status-label">Interval Time</span>
+      <span id="interval-time" class="status-value">00:00</span>
+    </div>
+    <div class="status-item">
+      <span class="status-label">Target</span>
+      <span id="current-target" class="status-value">Loading...</span>
+    </div>
+  </div>
+  
+  <!-- Countdown Display -->
+  <div id="countdown-display" class="countdown-display" style="display: none;">
+    <div class="countdown-number">10</div>
+    <div class="countdown-label">Starting in...</div>
+  </div>
+  
+  <!-- Fullscreen Overlay -->
+  <div id="fullscreen-overlay" class="fullscreen-overlay" style="display: none;">
+    <div class="fullscreen-content">
+      <button id="exit-fullscreen-btn" class="exit-fullscreen-btn" title="Exit fullscreen">✕</button>
+      
+      <!-- Fullscreen Status -->
+      <div class="fullscreen-status">
+        <div class="fullscreen-status-item">
+          <span class="fullscreen-status-label">Time Left</span>
+          <span id="fullscreen-time-left" class="fullscreen-status-value">{% widthratio ride.duration_seconds 60 1 %}:00</span>
+        </div>
+        <div class="fullscreen-status-item">
+          <span class="fullscreen-status-label">Interval Time</span>
+          <span id="fullscreen-interval-time" class="fullscreen-status-value">00:00</span>
+        </div>
+        <div class="fullscreen-status-item">
+          <span class="fullscreen-status-label">Target</span>
+          <span id="fullscreen-current-target" class="fullscreen-status-value">Loading...</span>
+        </div>
+      </div>
+      
+      <!-- Fullscreen Chart -->
+      <div class="fullscreen-chart-container">
+        <canvas id="fullscreen-class-plan-chart"></canvas>
+        <div id="fullscreen-classPlanReadout" class="fullscreen-chart-readout"></div>
+      </div>
+      
+      <!-- Fullscreen Controls -->
+      <div class="fullscreen-controls">
+        <div class="fullscreen-ftp-control">
+          <label for="fullscreen-ftp-input">FTP (W):</label>
+          <input type="number" id="fullscreen-ftp-input" class="ftp-input" value="{{ user_ftp|default:250 }}" min="100" max="500" step="5">
+        </div>
+        <button id="fullscreen-play-pause-btn" class="fullscreen-play-btn">▶</button>
+        <div class="fullscreen-progress-controls">
+          <label class="progress-label">
+            <input type="checkbox" id="fullscreen-show-progress" checked> Show time into interval
+          </label>
+          <label class="sound-label">
+            <input type="checkbox" id="fullscreen-sound-toggle" checked> Sound on
+          </label>
+        </div>
+      </div>
+      
+      <!-- Fullscreen Slider -->
+      <div class="fullscreen-slider-container">
+        <div class="fullscreen-slider-wrapper">
+          <input type="range" id="fullscreen-progress-slider" min="0" max="100" value="0" class="fullscreen-progress-slider">
+          <div id="fullscreen-slider-tooltip" class="slider-tooltip">0:00</div>
+        </div>
+        <div class="fullscreen-slider-labels">
+          <span>0:00</span>
+          <span id="fullscreen-slider-current-time">0:00</span>
+          <span>{% widthratio ride.duration_seconds 60 1 %}:00</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Chart.js Chart -->
+  <div class="interactive-chart-section">
+    <div class="pace-target-chart">
+      <canvas id="class-plan-chart"></canvas>
+      <div id="classPlanReadout" class="chart-readout"></div>
+    </div>
+    {{ chart_data|json_script:"chart-data" }}
+    
+    <!-- Progress Slider -->
+    <div class="progress-slider-container">
+      <div class="slider-wrapper">
+        <input type="range" id="progress-slider" min="0" max="100" value="0" class="progress-slider">
+        <div id="slider-tooltip" class="slider-tooltip">0:00</div>
+      </div>
+      <div class="slider-labels">
+        <span>0:00</span>
+        <span id="slider-current-time">0:00</span>
+        <span>{% widthratio ride.duration_seconds 60 1 %}:00</span>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Chart.js Implementation with Slider Integration for Power Zones
+    (function() {
+        const chartDataScript = document.getElementById('chart-data');
+        if (!chartDataScript) return;
+        
+        const chartData = JSON.parse(chartDataScript.textContent || '{}');
+        console.log('Chart data:', chartData);
+        if (!chartData.segments || !chartData.zones) {
+            console.log('Missing chart data - segments:', chartData.segments, 'zones:', chartData.zones);
+            return;
+        }
+        
+        // Get ride length from chart data or fallback
+        const rideLength = chartData.total_duration || 0;
+        
+        // Convert segments to time series data - show ACTUAL class plan power zones
+        const timePoints = [];
+        const targetSeries = [];
+        let segmentTime = 0;
+        
+        chartData.segments.forEach(segment => {
+            const duration = segment.duration;
+            // Use the actual class plan power zone (1-7)
+            let target = segment.zone;
+            
+            // For power zone charts, ensure target is within 1-7 range
+            if (chartData.type === 'power_zone') {
+                // If target is undefined/null, default to Zone 1
+                if (target === undefined || target === null || isNaN(target)) {
+                    target = 1;
+                    console.log('Defaulting to Zone 1 for segment');
+                } else {
+                    target = Math.max(1, Math.min(7, target));
+                }
+            }
+            
+            console.log('Class plan target (power zone):', target);
+            
+            // Add time points for this segment, ensuring continuous coverage
+            for (let i = 0; i < duration && (segmentTime + i) < rideLength; i += 10) { // Every 10 seconds
+                timePoints.push(segmentTime + i);
+                targetSeries.push(target); // This is the ACTUAL class plan power zone (1-7)
+            }
+            segmentTime += duration;
+        });
+        
+        // Ensure we have a final point at the exact ride length
+        if (rideLength > 0 && (timePoints.length === 0 || timePoints[timePoints.length - 1] < rideLength)) {
+            timePoints.push(rideLength);
+            targetSeries.push(targetSeries[targetSeries.length - 1] || 1); // Use last zone or default to Zone 1
+        }
+        
+        // Ensure we have points every 10 seconds up to the total duration
+        if (rideLength > 0) {
+            const lastPoint = timePoints[timePoints.length - 1] || 0;
+            for (let time = lastPoint + 10; time <= rideLength; time += 10) {
+                timePoints.push(time);
+                targetSeries.push(targetSeries[targetSeries.length - 1] || 1);
+            }
+        }
+        
+        // Calculate total duration - use ride length as authoritative source
+        const totalDuration = rideLength || (timePoints.length > 0 ? timePoints[timePoints.length - 1] : 0);
+        console.log('Time series generated:', { timePoints: timePoints.length, totalDuration, rideLength });
+        
+        // Create zone bands for background - contiguous bands with no gaps (1-7 power zones)
+        const zoneBands = chartData.zones.map((zone, index) => {
+            // Power zones are 1-7, so index 0 = Zone 1, index 6 = Zone 7
+            const zoneNum = index + 1;
+            return {
+                label: zone.name,
+                lower: zoneNum - 0.5,  // Contiguous bands
+                upper: zoneNum + 0.5,
+                color: zone.color
+            };
+        });
+        
+        // Zone band plugin
+        const bandPlugin = {
+            id: 'zoneBands',
+            beforeDatasetsDraw(chart, args, opts) {
+                const {ctx, chartArea, scales} = chart;
+                if (!opts || !Array.isArray(opts.bands)) return;
+                const toY = (zone) => scales.y.getPixelForValue(zone);
+                ctx.save();
+                (opts.bands || []).forEach(b => {
+                    const yTop = toY(b.upper ?? 7);
+                    const yBot = toY(b.lower ?? 1);
+                    if (yTop == null || yBot == null) return;
+                    ctx.fillStyle = b.color;
+                    ctx.globalAlpha = 0.18;
+                    ctx.fillRect(chartArea.left, yTop, chartArea.right - chartArea.left, yBot - yTop);
+                });
+                ctx.restore();
+            }
+        };
+        
+        // Progress line plugin
+        const progressLinePlugin = {
+            id: 'progressLine',
+            afterDatasetsDraw(chart, args, opts) {
+                const {ctx, chartArea, scales} = chart;
+                if (!opts || opts.currentTime === undefined) return;
+                
+                const x = scales.x.getPixelForValue(opts.currentTime);
+                if (x < chartArea.left || x > chartArea.right) return;
+                
+                ctx.save();
+                ctx.strokeStyle = '#00ff00';
+                ctx.lineWidth = 3;
+                ctx.shadowColor = '#00ff00';
+                ctx.shadowBlur = 10;
+                ctx.beginPath();
+                ctx.moveTo(x, chartArea.top);
+                ctx.lineTo(x, chartArea.bottom);
+                ctx.stroke();
+                ctx.restore();
+            }
+        };
+        
+        // Helper function to get zone percentage (defined before tooltip)
+        function getZonePercentage(zone) {
+            const zonePercentages = {
+                1: 0.55,  // Zone 1: 55% of FTP
+                2: 0.75,  // Zone 2: 75% of FTP
+                3: 0.90,  // Zone 3: 90% of FTP
+                4: 1.05,  // Zone 4: 105% of FTP
+                5: 1.20,  // Zone 5: 120% of FTP
+                6: 1.50,  // Zone 6: 150% of FTP
+                7: 2.00,  // Zone 7: 200% of FTP (approximate)
+            };
+            return zonePercentages[zone] || 0.90;
+        }
+        
+        // External tooltip - create custom tooltip element
+        const readout = document.getElementById('classPlanReadout');
+        const chartContainer = document.querySelector('.pace-target-chart');
+        let customTooltip = null;
+        
+        // Create custom tooltip element if it doesn't exist
+        if (chartContainer && !document.getElementById('chart-hover-tooltip')) {
+            customTooltip = document.createElement('div');
+            customTooltip.id = 'chart-hover-tooltip';
+            customTooltip.style.cssText = 'position: absolute; background: rgba(0, 0, 0, 0.9); color: white; padding: 0.5rem 0.75rem; border-radius: 6px; font-size: 0.875rem; font-weight: 600; pointer-events: none; z-index: 1000; display: none; white-space: nowrap;';
+            chartContainer.style.position = 'relative';
+            chartContainer.appendChild(customTooltip);
+        } else if (document.getElementById('chart-hover-tooltip')) {
+            customTooltip = document.getElementById('chart-hover-tooltip');
+        }
+        
+        const externalTooltip = (ctx) => {
+            const {tooltip, chart} = ctx;
+            const dataPoint = tooltip.dataPoints?.[0]?.raw;
+            
+            if (tooltip.opacity === 0 || !dataPoint) {
+                if (readout) readout.textContent = '';
+                if (customTooltip) customTooltip.style.display = 'none';
+                return;
+            }
+            
+            const time = dataPoint.x;
+            const target = dataPoint.y;
+            const minutes = Math.floor(time / 60);
+            const seconds = Math.floor(time % 60);
+            const timeString = `${minutes}:${seconds.toString().padStart(2,'0')}`;
+            
+            // Get user FTP from input
+            const ftpInput = document.getElementById('ftp-input');
+            const userFTP = parseInt(ftpInput?.value || '{{ user_ftp|default:250 }}') || 250;
+            
+            // Calculate watts based on zone and FTP
+            const zoneNum = Math.round(target);
+            const zonePercentage = getZonePercentage(zoneNum);
+            const watts = Math.round(userFTP * zonePercentage);
+            
+            // Update readout (top-right corner)
+            if (readout) {
+                readout.textContent = `${timeString} • Zone ${zoneNum}`;
+            }
+            
+            // Update custom tooltip (near cursor)
+            if (customTooltip && chart) {
+                const canvasPosition = chart.canvas.getBoundingClientRect();
+                const chartArea = chart.chartArea;
+                const x = canvasPosition.left + chartArea.left + (chart.scales.x.getPixelForValue(time) - chartArea.left);
+                const y = canvasPosition.top + chartArea.top + (chart.scales.y.getPixelForValue(target) - chartArea.top);
+                
+                customTooltip.innerHTML = `${timeString}<br>Target: ${watts} watts`;
+                customTooltip.style.display = 'block';
+                customTooltip.style.left = (x + 10) + 'px';
+                customTooltip.style.top = (y - 10) + 'px';
+            }
+        };
+        
+        // Create the chart
+        const ctx2d = document.getElementById('class-plan-chart').getContext('2d');
+        console.log('Creating chart with data points:', timePoints.length);
+        console.log('Time points range:', timePoints[0], 'to', timePoints[timePoints.length-1]);
+        console.log('Total duration:', totalDuration);
+        
+        // Use line chart for power zones
+        chartDataConfig = {
+            type: 'line',
+            data: {
+                datasets: [{
+                    label: 'Target Zone',
+                    data: timePoints.map((time, index) => ({ x: time, y: targetSeries[index] })),
+                    borderWidth: 3,
+                    pointRadius: 0,
+                    borderColor: '#5b7cfa',
+                    backgroundColor: 'rgba(91, 124, 250, 0.1)',
+                    fill: true,
+                    tension: 0.1
+                }]
+            }
+        };
+        
+        const chartConfig = {
+            ...chartDataConfig,
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { enabled: false, external: externalTooltip },
+                    zoneBands: { bands: zoneBands },
+                    progressLine: { currentTime: 0 }
+                },
+                scales: {
+                    x: {
+                        type: 'linear',
+                        min: 0,
+                        max: totalDuration,
+                        grid: { 
+                            color: document.documentElement.classList.contains('dark') 
+                                ? 'rgba(255,255,255,0.06)' 
+                                : 'rgba(0,0,0,0.05)' 
+                        },
+                        ticks: {
+                            autoSkip: true,
+                            maxTicksLimit: 9,
+                            color: document.documentElement.classList.contains('dark')
+                                ? 'rgba(255,255,255,0.7)'
+                                : 'rgba(0,0,0,0.7)',
+                            callback: (value) => {
+                                const minutes = Math.floor(value / 60);
+                                const seconds = Math.floor(value % 60);
+                                return `${minutes}:${seconds.toString().padStart(2,'0')}`;
+                            }
+                        }
+                    },
+                    y: {
+                        min: 0.5,
+                        max: 7.5,
+                        title: { 
+                            display: true, 
+                            text: 'Zone',
+                            color: document.documentElement.classList.contains('dark')
+                                ? 'rgba(255,255,255,0.7)'
+                                : 'rgba(0,0,0,0.7)'
+                        },
+                        grid: { 
+                            color: document.documentElement.classList.contains('dark') 
+                                ? 'rgba(255,255,255,0.06)' 
+                                : 'rgba(0,0,0,0.05)' 
+                        },
+                        ticks: { 
+                            stepSize: 1,
+                            maxTicksLimit: 8,
+                            color: document.documentElement.classList.contains('dark')
+                                ? 'rgba(255,255,255,0.7)'
+                                : 'rgba(0,0,0,0.7)',
+                            callback: (v) => {
+                                const zone = Math.round(v);
+                                // Only show labels for valid zones (1-7)
+                                if (zone < 1 || zone > 7) return '';
+                                return `Zone ${zone}`;
+                            }
+                        }
+                    }
+                }
+            },
+            plugins: [bandPlugin, progressLinePlugin]
+        };
+        
+        const chart = new Chart(ctx2d, chartConfig);
+        
+        // Slider integration
+        const progressSlider = document.getElementById('progress-slider');
+        const playPauseBtn = document.getElementById('play-pause-btn');
+        const timeLeftEl = document.getElementById('time-left');
+        const intervalTimeEl = document.getElementById('interval-time');
+        const currentTargetEl = document.getElementById('current-target');
+        const ftpInput = document.getElementById('ftp-input');
+        
+        let isPlaying = false;
+        let chartCurrentTime = 0;
+        let animationId = null;
+        let startTime = null;
+        let pausedTime = 0;
+        let lastUpdateTime = 0;
+        let lastSegmentIndex = -1;
+        let countdownBeepTimes = new Set();
+        let hasStarted = false;
+        let countdownInterval = null;
+        
+        // Audio for beeps
+        let countdownAudio = null;
+        let intervalChangeAudio = null;
+        
+        function initAudio() {
+            const audioUrl = '{% static "media/short-beep-countdown.mp3" %}';
+            
+            if (!countdownAudio) {
+                try {
+                    countdownAudio = new Audio(audioUrl);
+                    countdownAudio.volume = 0.7;
+                    countdownAudio.preload = 'auto';
+                } catch (e) {
+                    console.warn('Error loading countdown audio:', e);
+                }
+            }
+            if (!intervalChangeAudio) {
+                try {
+                    intervalChangeAudio = new Audio(audioUrl);
+                    intervalChangeAudio.volume = 0.7;
+                    intervalChangeAudio.preload = 'auto';
+                } catch (e) {
+                    console.warn('Error loading interval change audio:', e);
+                }
+            }
+        }
+        
+        function playCountdownAudio() {
+            const soundToggle = document.getElementById('sound-toggle');
+            if (!soundToggle || !soundToggle.checked) {
+                return;
+            }
+            
+            if (countdownAudio) {
+                try {
+                    countdownAudio.currentTime = 0;
+                    countdownAudio.play().catch(e => {
+                        console.warn('Error playing countdown audio:', e);
+                    });
+                } catch (e) {
+                    console.warn('Error playing countdown audio:', e);
+                }
+            }
+        }
+        
+        function playBeep(frequency = 800, duration = 100, type = 'sine') {
+            const soundToggle = document.getElementById('sound-toggle');
+            if (!soundToggle || !soundToggle.checked) {
+                return;
+            }
+            
+            try {
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.frequency.value = frequency;
+                oscillator.type = type;
+                
+                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration / 1000);
+                
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + duration / 1000);
+            } catch (e) {
+                console.warn('Error playing beep:', e);
+            }
+        }
+        
+        function startCountdown(callback) {
+            const soundToggle = document.getElementById('sound-toggle');
+            const soundEnabled = soundToggle && soundToggle.checked;
+            
+            let countdown = 10;
+            const countdownDisplay = document.getElementById('countdown-display');
+            const countdownNumber = countdownDisplay ? countdownDisplay.querySelector('.countdown-number') : null;
+            
+            if (countdownDisplay) {
+                countdownDisplay.style.display = 'block';
+                if (countdownNumber) {
+                    countdownNumber.textContent = countdown;
+                }
+            }
+            
+            if (soundEnabled) {
+                playBeep(600, 100, 'sine');
+            }
+            
+            countdownInterval = setInterval(() => {
+                countdown--;
+                
+                if (countdownNumber) {
+                    countdownNumber.textContent = countdown;
+                }
+                
+                if (soundEnabled && countdown > 0) {
+                    playBeep(600, 100, 'sine');
+                }
+                
+                if (countdown <= 0) {
+                    clearInterval(countdownInterval);
+                    countdownInterval = null;
+                    
+                    if (countdownDisplay) {
+                        countdownDisplay.style.display = 'none';
+                    }
+                    
+                    if (soundEnabled) {
+                        playBeep(1000, 200, 'sine');
+                    }
+                    
+                    hasStarted = true;
+                    callback();
+                }
+            }, 1000);
+        }
+        
+        function getSegmentIndex(time) {
+            let segmentTime = 0;
+            for (let i = 0; i < chartData.segments.length; i++) {
+                const segment = chartData.segments[i];
+                const segmentEnd = segmentTime + segment.duration;
+                if (time >= segmentTime && time < segmentEnd) {
+                    return i;
+                }
+                segmentTime = segmentEnd;
+            }
+            return chartData.segments.length - 1;
+        }
+        
+        function checkIntervalChangeAndCountdown() {
+            if (!chartData || !chartData.segments || chartData.segments.length === 0) return;
+            
+            const currentSegment = getCurrentSegment(chartCurrentTime);
+            if (!currentSegment) return;
+            
+            const currentSegmentIndex = getSegmentIndex(chartCurrentTime);
+            const timeRemainingInSegment = currentSegment.endTime - chartCurrentTime;
+            
+            if (timeRemainingInSegment > 0 && timeRemainingInSegment <= 3) {
+                const beepKey = `${currentSegmentIndex}-countdown`;
+                
+                if (!countdownBeepTimes.has(beepKey) && timeRemainingInSegment <= 3 && timeRemainingInSegment > 2.9) {
+                    playCountdownAudio();
+                    countdownBeepTimes.add(beepKey);
+                }
+            }
+            
+            if (currentSegmentIndex !== lastSegmentIndex) {
+                lastSegmentIndex = currentSegmentIndex;
+                countdownBeepTimes.clear();
+            }
+        }
+        
+        function updateProgress() {
+            if (totalDuration === 0) return;
+            
+            const progress = (chartCurrentTime / totalDuration) * 100;
+            progressSlider.value = Math.round(progress * 100) / 100;
+            
+            const sliderCurrentTime = document.getElementById('slider-current-time');
+            if (sliderCurrentTime) {
+                const minutes = Math.floor(chartCurrentTime / 60);
+                const seconds = Math.floor(chartCurrentTime % 60);
+                sliderCurrentTime.textContent = minutes + ':' + String(seconds).padStart(2, '0');
+            }
+            
+            const timeLeft = Math.max(0, totalDuration - chartCurrentTime);
+            const minutesLeft = Math.floor(timeLeft / 60);
+            const secondsLeft = Math.floor(timeLeft % 60);
+            timeLeftEl.textContent = minutesLeft + ':' + String(secondsLeft).padStart(2, '0');
+            
+            const currentSegment = getCurrentSegment(chartCurrentTime);
+            const showProgressCheckbox = document.getElementById('show-progress');
+            const showProgressUp = showProgressCheckbox ? showProgressCheckbox.checked : true;
+            
+            let intervalTime;
+            if (currentSegment) {
+                if (showProgressUp) {
+                    intervalTime = chartCurrentTime - currentSegment.startTime;
+                } else {
+                    intervalTime = currentSegment.endTime - chartCurrentTime;
+                }
+            } else {
+                intervalTime = 0;
+            }
+            
+            const intervalMinutes = Math.floor(Math.max(0, intervalTime) / 60);
+            const intervalSeconds = Math.floor(Math.max(0, intervalTime) % 60);
+            intervalTimeEl.textContent = intervalMinutes + ':' + String(intervalSeconds).padStart(2, '0');
+            
+            // Update current target - show power output in watts
+            const currentTarget = getCurrentTarget(chartCurrentTime);
+            if (currentTarget !== null && currentTarget !== undefined) {
+                const ftp = parseInt(ftpInput.value) || 250;
+                const targetOutput = Math.round(ftp * getZonePercentage(currentTarget));
+                currentTargetEl.textContent = String(targetOutput) + 'W @ Zone ' + currentTarget;
+            } else {
+                currentTargetEl.textContent = 'Loading...';
+            }
+            
+            chart.options.plugins.progressLine.currentTime = chartCurrentTime;
+            chart.update('none');
+            
+            if (typeof updateFullscreenDisplay === 'function') {
+                updateFullscreenDisplay();
+                updateFullscreenPlayButton();
+            }
+            
+            if (isPlaying) {
+                checkIntervalChangeAndCountdown();
+            } else {
+                const currentSegmentIndex = getSegmentIndex(chartCurrentTime);
+                if (currentSegmentIndex !== lastSegmentIndex) {
+                    lastSegmentIndex = currentSegmentIndex;
+                    countdownBeepTimes.clear();
+                }
+            }
+        }
+        
+        function getCurrentTarget(time) {
+            let segmentTime = 0;
+            for (const segment of chartData.segments) {
+                const segmentEnd = segmentTime + segment.duration;
+                if (time >= segmentTime && time < segmentEnd) {
+                    return segment.zone;
+                }
+                segmentTime = segmentEnd;
+            }
+            return 1; // Default to Zone 1
+        }
+        
+        function getCurrentSegment(time) {
+            let segmentTime = 0;
+            for (const segment of chartData.segments) {
+                const segmentEnd = segmentTime + segment.duration;
+                if (time >= segmentTime && time < segmentEnd) {
+                    return {
+                        ...segment,
+                        startTime: segmentTime,
+                        endTime: segmentEnd
+                    };
+                }
+                segmentTime = segmentEnd;
+            }
+            return null;
+        }
+        
+        function play() {
+            if (totalDuration === 0) return;
+            
+            if (!hasStarted && chartCurrentTime === 0) {
+                startCountdown(() => {
+                    isPlaying = true;
+                    playPauseBtn.textContent = '⏸';
+                    playPauseBtn.classList.add('paused');
+                    
+                    startTime = Date.now();
+                    
+                    function animate() {
+                        if (!isPlaying) return;
+                        
+                        const elapsed = (Date.now() - startTime) / 1000;
+                        chartCurrentTime = Math.min(elapsed, totalDuration);
+                        
+                        const now = Date.now();
+                        if (now - lastUpdateTime >= 100) {
+                            updateProgress();
+                            lastUpdateTime = now;
+                        }
+                        
+                        if (chartCurrentTime >= totalDuration) {
+                            pause();
+                            return;
+                        }
+                        
+                        animationId = requestAnimationFrame(animate);
+                    }
+                    
+                    animate();
+                });
+                return;
+            }
+            
+            isPlaying = true;
+            playPauseBtn.textContent = '⏸';
+            playPauseBtn.classList.add('paused');
+            
+            startTime = Date.now() - (chartCurrentTime * 1000);
+            
+            function animate() {
+                if (!isPlaying) return;
+                
+                const elapsed = (Date.now() - startTime) / 1000;
+                chartCurrentTime = Math.min(elapsed, totalDuration);
+                
+                const now = Date.now();
+                if (now - lastUpdateTime >= 100) {
+                    updateProgress();
+                    lastUpdateTime = now;
+                }
+                
+                if (chartCurrentTime >= totalDuration) {
+                    pause();
+                    return;
+                }
+                
+                animationId = requestAnimationFrame(animate);
+            }
+            
+            animate();
+        }
+        
+        function pause() {
+            isPlaying = false;
+            playPauseBtn.textContent = '▶';
+            playPauseBtn.classList.remove('paused');
+            
+            if (countdownInterval) {
+                clearInterval(countdownInterval);
+                countdownInterval = null;
+                const countdownDisplay = document.getElementById('countdown-display');
+                if (countdownDisplay) {
+                    countdownDisplay.style.display = 'none';
+                }
+            }
+            
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+                animationId = null;
+            }
+        }
+        
+        // Event listeners
+        playPauseBtn.addEventListener('click', function() {
+            if (isPlaying) {
+                pause();
+            } else {
+                play();
+            }
+        });
+        
+        const sliderTooltip = document.getElementById('slider-tooltip');
+        const sliderCurrentTime = document.getElementById('slider-current-time');
+        
+        function updateSliderTooltip(value) {
+            if (!sliderTooltip || !sliderCurrentTime) return;
+            
+            const time = (value / 100) * totalDuration;
+            const minutes = Math.floor(time / 60);
+            const seconds = Math.floor(time % 60);
+            const timeString = minutes + ':' + String(seconds).padStart(2, '0');
+            
+            sliderTooltip.textContent = timeString;
+            sliderCurrentTime.textContent = timeString;
+            
+            const percentage = (value / 100);
+            sliderTooltip.style.left = (percentage * 100) + '%';
+        }
+        
+        progressSlider.addEventListener('input', function() {
+            const progress = parseFloat(this.value);
+            chartCurrentTime = (progress / 100) * totalDuration;
+            
+            updateSliderTooltip(progress);
+            
+            if (isPlaying) {
+                startTime = Date.now() - (chartCurrentTime * 1000);
+            }
+            
+            updateProgress();
+        });
+        
+        progressSlider.addEventListener('mousemove', function(e) {
+            if (!sliderTooltip) return;
+            
+            const rect = this.getBoundingClientRect();
+            const percentage = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
+            const time = (percentage / 100) * totalDuration;
+            const minutes = Math.floor(time / 60);
+            const seconds = Math.floor(time % 60);
+            const timeString = minutes + ':' + String(seconds).padStart(2, '0');
+            
+            sliderTooltip.textContent = timeString;
+            sliderTooltip.style.left = percentage + '%';
+        });
+        
+        progressSlider.addEventListener('mouseenter', function() {
+            if (sliderTooltip) {
+                sliderTooltip.style.opacity = '1';
+            }
+        });
+        
+        progressSlider.addEventListener('mouseleave', function() {
+            if (sliderTooltip && document.activeElement !== progressSlider) {
+                sliderTooltip.style.opacity = '0';
+            }
+        });
+        
+        progressSlider.addEventListener('keydown', function(e) {
+            const step = 1;
+            let newValue = parseFloat(this.value);
+            
+            if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') {
+                e.preventDefault();
+                newValue = Math.max(0, newValue - step);
+                this.value = newValue;
+                this.dispatchEvent(new Event('input'));
+            } else if (e.key === 'ArrowRight' || e.key === 'ArrowUp') {
+                e.preventDefault();
+                newValue = Math.min(100, newValue + step);
+                this.value = newValue;
+                this.dispatchEvent(new Event('input'));
+            } else if (e.key === 'Home') {
+                e.preventDefault();
+                this.value = 0;
+                this.dispatchEvent(new Event('input'));
+            } else if (e.key === 'End') {
+                e.preventDefault();
+                this.value = 100;
+                this.dispatchEvent(new Event('input'));
+            }
+        });
+        
+        // FTP input change handler
+        ftpInput.addEventListener('change', function() {
+            const selectedFTP = parseInt(this.value) || 250;
+            const currentZone = getCurrentTarget(chartCurrentTime);
+            const targetOutput = Math.round(selectedFTP * getZonePercentage(currentZone));
+            currentTargetEl.textContent = String(targetOutput) + 'W @ Zone ' + currentZone;
+        });
+        
+        // Set initial target
+        if (chartData.type === 'power_zone' && chartData.segments && chartData.segments.length > 0) {
+            const firstSegment = chartData.segments[0];
+            const classPlanZone = firstSegment.zone || 1;
+            const userFTP = parseInt(ftpInput.value) || 250;
+            
+            const targetOutput = Math.round(userFTP * getZonePercentage(classPlanZone));
+            currentTargetEl.textContent = String(targetOutput) + 'W @ Zone ' + classPlanZone;
+        }
+        
+        // Initialize segment tracking
+        if (chartData && chartData.segments && chartData.segments.length > 0) {
+            lastSegmentIndex = getSegmentIndex(0);
+        }
+        
+        // Initialize audio on user interaction
+        document.addEventListener('click', function() {
+            initAudio();
+        }, { once: true });
+        
+        // Fullscreen functionality
+        const fullscreenBtn = document.getElementById('fullscreen-btn');
+        const fullscreenOverlay = document.getElementById('fullscreen-overlay');
+        const exitFullscreenBtn = document.getElementById('exit-fullscreen-btn');
+        let fullscreenChart = null;
+        
+        function enterFullscreen() {
+            if (!fullscreenOverlay) return;
+            
+            fullscreenOverlay.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+            
+            const fullscreenFtpInput = document.getElementById('fullscreen-ftp-input');
+            const fullscreenShowProgress = document.getElementById('fullscreen-show-progress');
+            const fullscreenSoundToggle = document.getElementById('fullscreen-sound-toggle');
+            
+            if (fullscreenFtpInput) fullscreenFtpInput.value = ftpInput.value;
+            if (fullscreenShowProgress) fullscreenShowProgress.checked = document.getElementById('show-progress')?.checked ?? true;
+            if (fullscreenSoundToggle) fullscreenSoundToggle.checked = document.getElementById('sound-toggle')?.checked ?? true;
+            
+            setTimeout(() => {
+                createFullscreenChart();
+            }, 100);
+        }
+        
+        function exitFullscreen() {
+            if (!fullscreenOverlay) return;
+            
+            fullscreenOverlay.style.display = 'none';
+            document.body.style.overflow = '';
+            
+            if (fullscreenChart) {
+                fullscreenChart.destroy();
+                fullscreenChart = null;
+            }
+            
+            const fullscreenFtpInput = document.getElementById('fullscreen-ftp-input');
+            const fullscreenShowProgress = document.getElementById('fullscreen-show-progress');
+            const fullscreenSoundToggle = document.getElementById('fullscreen-sound-toggle');
+            
+            if (fullscreenFtpInput && ftpInput) ftpInput.value = fullscreenFtpInput.value;
+            if (fullscreenShowProgress) {
+                const showProgressCheckbox = document.getElementById('show-progress');
+                if (showProgressCheckbox) showProgressCheckbox.checked = fullscreenShowProgress.checked;
+            }
+            if (fullscreenSoundToggle) {
+                const soundToggle = document.getElementById('sound-toggle');
+                if (soundToggle) soundToggle.checked = fullscreenSoundToggle.checked;
+            }
+        }
+        
+        function createFullscreenChart() {
+            const fullscreenCtx = document.getElementById('fullscreen-class-plan-chart');
+            if (!fullscreenCtx || fullscreenChart) return;
+            
+            if (!chart) {
+                console.warn('Main chart not initialized yet');
+                return;
+            }
+            
+            const fullscreenChartConfig = {
+                ...chartConfig,
+                options: {
+                    ...chartConfig.options,
+                    maintainAspectRatio: false,
+                    responsive: true
+                }
+            };
+            
+            fullscreenChart = new Chart(fullscreenCtx, fullscreenChartConfig);
+            
+            const fullscreenProgressSlider = document.getElementById('fullscreen-progress-slider');
+            const fullscreenPlayPauseBtn = document.getElementById('fullscreen-play-pause-btn');
+            const fullscreenFtpInput = document.getElementById('fullscreen-ftp-input');
+            const fullscreenShowProgress = document.getElementById('fullscreen-show-progress');
+            const fullscreenSoundToggle = document.getElementById('fullscreen-sound-toggle');
+            
+            if (fullscreenPlayPauseBtn) {
+                fullscreenPlayPauseBtn.addEventListener('click', function() {
+                    if (isPlaying) {
+                        pause();
+                    } else {
+                        play();
+                    }
+                    updateFullscreenPlayButton();
+                });
+            }
+            
+            if (fullscreenFtpInput) {
+                fullscreenFtpInput.addEventListener('change', function() {
+                    ftpInput.value = this.value;
+                    updateProgress();
+                });
+            }
+            
+            if (fullscreenShowProgress) {
+                fullscreenShowProgress.addEventListener('change', function() {
+                    const showProgressCheckbox = document.getElementById('show-progress');
+                    if (showProgressCheckbox) showProgressCheckbox.checked = this.checked;
+                    updateProgress();
+                });
+            }
+            
+            if (fullscreenSoundToggle) {
+                fullscreenSoundToggle.addEventListener('change', function() {
+                    const soundToggle = document.getElementById('sound-toggle');
+                    if (soundToggle) soundToggle.checked = this.checked;
+                });
+            }
+            
+            if (fullscreenProgressSlider) {
+                fullscreenProgressSlider.addEventListener('input', function() {
+                    progressSlider.value = this.value;
+                    progressSlider.dispatchEvent(new Event('input'));
+                });
+            }
+            
+            updateFullscreenDisplay();
+        }
+        
+        function updateFullscreenDisplay() {
+            if (!fullscreenOverlay || fullscreenOverlay.style.display === 'none') return;
+            
+            const fullscreenTimeLeft = document.getElementById('fullscreen-time-left');
+            const fullscreenIntervalTime = document.getElementById('fullscreen-interval-time');
+            const fullscreenCurrentTarget = document.getElementById('fullscreen-current-target');
+            const fullscreenProgressSlider = document.getElementById('fullscreen-progress-slider');
+            const fullscreenSliderCurrentTime = document.getElementById('fullscreen-slider-current-time');
+            
+            if (fullscreenTimeLeft) {
+                const timeLeft = Math.max(0, totalDuration - chartCurrentTime);
+                const minutesLeft = Math.floor(timeLeft / 60);
+                const secondsLeft = Math.floor(timeLeft % 60);
+                fullscreenTimeLeft.textContent = minutesLeft + ':' + String(secondsLeft).padStart(2, '0');
+            }
+            
+            if (fullscreenIntervalTime) {
+                const currentSegment = getCurrentSegment(chartCurrentTime);
+                const showProgressUp = document.getElementById('fullscreen-show-progress')?.checked ?? true;
+                
+                if (currentSegment) {
+                    if (showProgressUp) {
+                        const timeIntoInterval = chartCurrentTime - currentSegment.startTime;
+                        const intervalMinutes = Math.floor(timeIntoInterval / 60);
+                        const intervalSeconds = Math.floor(timeIntoInterval % 60);
+                        fullscreenIntervalTime.textContent = intervalMinutes + ':' + String(intervalSeconds).padStart(2, '0');
+                    } else {
+                        const timeRemaining = currentSegment.endTime - chartCurrentTime;
+                        const intervalMinutes = Math.floor(Math.max(0, timeRemaining) / 60);
+                        const intervalSeconds = Math.floor(Math.max(0, timeRemaining) % 60);
+                        fullscreenIntervalTime.textContent = intervalMinutes + ':' + String(intervalSeconds).padStart(2, '0');
+                    }
+                } else {
+                    fullscreenIntervalTime.textContent = '00:00';
+                }
+            }
+            
+            if (fullscreenCurrentTarget) {
+                const currentTarget = getCurrentTarget(chartCurrentTime);
+                if (currentTarget !== null && currentTarget !== undefined) {
+                    const userFTP = parseInt(document.getElementById('fullscreen-ftp-input')?.value || ftpInput.value) || 250;
+                    const targetOutput = Math.round(userFTP * getZonePercentage(currentTarget));
+                    fullscreenCurrentTarget.textContent = String(targetOutput) + 'W @ Zone ' + currentTarget;
+                }
+            }
+            
+            if (fullscreenProgressSlider) {
+                const progress = (chartCurrentTime / totalDuration) * 100;
+                fullscreenProgressSlider.value = progress;
+                
+                if (fullscreenSliderCurrentTime) {
+                    const minutes = Math.floor(chartCurrentTime / 60);
+                    const seconds = Math.floor(chartCurrentTime % 60);
+                    fullscreenSliderCurrentTime.textContent = minutes + ':' + String(seconds).padStart(2, '0');
+                }
+            }
+            
+            if (fullscreenChart) {
+                fullscreenChart.options.plugins.progressLine.currentTime = chartCurrentTime;
+                fullscreenChart.update('none');
+            }
+        }
+        
+        function updateFullscreenPlayButton() {
+            const fullscreenPlayPauseBtn = document.getElementById('fullscreen-play-pause-btn');
+            if (fullscreenPlayPauseBtn) {
+                fullscreenPlayPauseBtn.textContent = isPlaying ? '⏸' : '▶';
+                fullscreenPlayPauseBtn.classList.toggle('paused', isPlaying);
+            }
+        }
+        
+        if (fullscreenBtn) {
+            fullscreenBtn.addEventListener('click', enterFullscreen);
+        }
+        
+        if (exitFullscreenBtn) {
+            exitFullscreenBtn.addEventListener('click', exitFullscreen);
+        }
+        
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && fullscreenOverlay && fullscreenOverlay.style.display !== 'none') {
+                exitFullscreen();
+            }
+        });
+        
+        const showProgressCheckbox = document.getElementById('show-progress');
+        if (showProgressCheckbox) {
+            showProgressCheckbox.addEventListener('change', function() {
+                updateProgress();
+            });
+        }
+        
+        updateProgress();
+    })();
+});
+</script>
+
+<style>
+/* Interactive Workout Player */
+.workout-player-section {
+  background: rgb(31 41 55); /* dark:bg-gray-800 */
+  border: 1px solid rgb(55 65 81); /* dark:border-gray-700 */
+  border-radius: 12px;
+  padding: 1rem;
+  margin-bottom: 2rem;
+}
+
+@media (min-width: 640px) {
+  .workout-player-section {
+    padding: 2rem;
+  }
+}
+
+@media (prefers-color-scheme: light) {
+  .workout-player-section {
+    background: rgb(255 255 255); /* bg-white */
+    border: 1px solid rgb(229 231 235); /* border-gray-200 */
+  }
+}
+
+.dark .workout-player-section {
+  background: rgb(31 41 55); /* dark:bg-gray-800 */
+  border: 1px solid rgb(55 65 81); /* dark:border-gray-700 */
+}
+
+/* Workout Header */
+.workout-header {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgb(55 65 81); /* dark:border-gray-700 */
+}
+
+@media (min-width: 640px) {
+  .workout-header {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+}
+
+.workout-info {
+  flex: 1;
+}
+
+.workout-instructor-label {
+  color: rgb(17 24 39); /* text-gray-900 */
+  margin: 0 0 0.5rem 0;
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.dark .workout-instructor-label {
+  color: rgb(255 255 255); /* dark:text-white */
+}
+
+.workout-instructor-name {
+  color: rgb(17 24 39); /* text-gray-900 */
+  font-weight: 600;
+}
+
+.dark .workout-instructor-name {
+  color: rgb(255 255 255); /* dark:text-white */
+}
+
+.workout-output {
+  color: rgb(59 130 246); /* text-blue-500 */
+  font-weight: 600;
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+.workout-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+@media (min-width: 640px) {
+  .workout-controls {
+    gap: 1.5rem;
+  }
+}
+
+.ftp-control {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.ftp-control label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: rgb(17 24 39); /* text-gray-900 */
+}
+
+.dark .ftp-control label {
+  color: rgb(255 255 255); /* dark:text-white */
+}
+
+.ftp-input {
+  padding: 0.25rem 0.5rem;
+  border: 1px solid rgb(229 231 235); /* border-gray-200 */
+  border-radius: 6px;
+  background: rgb(255 255 255); /* bg-white */
+  color: rgb(17 24 39); /* text-gray-900 */
+  font-size: 0.875rem;
+  width: 80px;
+}
+
+.dark .ftp-input {
+  border: 1px solid rgb(55 65 81); /* dark:border-gray-700 */
+  background: rgb(31 41 55); /* dark:bg-gray-800 */
+  color: rgb(255 255 255); /* dark:text-white */
+}
+
+.play-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: rgb(16 185 129); /* bg-green-500 */
+  color: white;
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.play-btn:hover {
+  background: rgb(5 150 105); /* bg-green-600 */
+  transform: scale(1.05);
+}
+
+.play-btn.paused {
+  background: rgb(59 130 246); /* bg-blue-500 */
+}
+
+.fullscreen-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: white;
+  font-size: 1.25rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.fullscreen-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: scale(1.1);
+}
+
+.progress-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+@media (min-width: 640px) {
+  .progress-controls {
+    width: auto;
+  }
+}
+
+.progress-label, .sound-label {
+  font-size: 0.75rem;
+  color: rgb(107 114 128); /* text-gray-500 */
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.dark .progress-label, .dark .sound-label {
+  color: rgb(156 163 175); /* dark:text-gray-400 */
+}
+
+/* Workout Status */
+.workout-status {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  background: rgb(249 250 251); /* bg-gray-50 */
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 2rem;
+}
+
+@media (min-width: 640px) {
+  .workout-status {
+    flex-direction: row;
+    justify-content: space-around;
+    gap: 0;
+  }
+}
+
+.dark .workout-status {
+  background: rgb(31 41 55); /* dark:bg-gray-800 */
+}
+
+.status-item {
+  text-align: center;
+}
+
+.status-label {
+  display: block;
+  font-size: 0.75rem;
+  color: rgb(107 114 128); /* text-gray-500 */
+  margin-bottom: 0.25rem;
+}
+
+.dark .status-label {
+  color: rgb(156 163 175); /* dark:text-gray-400 */
+}
+
+.status-value {
+  display: block;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: rgb(17 24 39); /* text-gray-900 */
+}
+
+.dark .status-value {
+  color: rgb(255 255 255); /* dark:text-white */
+}
+
+/* Countdown Display */
+.countdown-display {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 10000;
+  background: rgba(0, 0, 0, 0.95);
+  border-radius: 20px;
+  padding: 2rem;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  border: 3px solid rgba(255, 255, 255, 0.2);
+  max-width: 90vw;
+}
+
+@media (min-width: 640px) {
+  .countdown-display {
+    padding: 3rem 4rem;
+  }
+}
+
+.countdown-number {
+  font-size: 4rem;
+  font-weight: 700;
+  color: #3b82f6;
+  line-height: 1;
+  margin-bottom: 1rem;
+  text-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
+}
+
+@media (min-width: 640px) {
+  .countdown-number {
+    font-size: 8rem;
+  }
+}
+
+.countdown-label {
+  font-size: 1rem;
+  color: rgba(255, 255, 255, 0.8);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+@media (min-width: 640px) {
+  .countdown-label {
+    font-size: 1.5rem;
+  }
+}
+
+/* Interactive Chart Section */
+.interactive-chart-section {
+  margin-bottom: 2rem;
+}
+
+.pace-target-chart {
+  position: relative;
+  height: 300px;
+  width: 100%;
+  background: rgb(249 250 251); /* bg-gray-50 */
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  margin-bottom: 1rem;
+}
+
+@media (min-width: 640px) {
+  .pace-target-chart {
+    height: 400px;
+  }
+}
+
+.dark .pace-target-chart {
+  background: rgb(17 24 39); /* dark:bg-gray-900 */
+}
+
+#class-plan-chart {
+  width: 100%;
+  height: 100%;
+}
+
+.chart-readout {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 0.375rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  pointer-events: none;
+  z-index: 10;
+  max-width: calc(100% - 1rem);
+  word-break: break-word;
+}
+
+@media (min-width: 640px) {
+  .chart-readout {
+    top: 1rem;
+    right: 1rem;
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    max-width: none;
+  }
+}
+
+/* Progress Slider */
+.progress-slider-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.slider-wrapper {
+  position: relative;
+  width: 100%;
+  padding: 1rem 0;
+}
+
+.progress-slider {
+  width: 100%;
+  height: 8px;
+  border-radius: 4px;
+  background: linear-gradient(to right, rgb(59 130 246) 0%, rgb(59 130 246) 0%, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.1) 100%);
+  outline: none;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.progress-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  cursor: grab;
+  border: 3px solid white;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.5), 0 2px 6px rgba(0, 0, 0, 0.3);
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.progress-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+  box-shadow: 0 6px 16px rgba(59, 130, 246, 0.7), 0 4px 8px rgba(0, 0, 0, 0.4);
+  background: linear-gradient(135deg, #2563eb, #1e40af);
+}
+
+.progress-slider::-webkit-slider-thumb:active {
+  cursor: grabbing;
+}
+
+.progress-slider::-moz-range-thumb {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  cursor: grab;
+  border: 3px solid white;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.5), 0 2px 6px rgba(0, 0, 0, 0.3);
+  -moz-appearance: none;
+  transition: all 0.2s ease;
+}
+
+.progress-slider::-moz-range-thumb:hover {
+  transform: scale(1.15);
+  box-shadow: 0 6px 16px rgba(59, 130, 246, 0.7), 0 4px 8px rgba(0, 0, 0, 0.4);
+}
+
+.progress-slider:focus::-webkit-slider-thumb {
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.3), 0 4px 12px rgba(59, 130, 246, 0.5), 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+.progress-slider:focus::-moz-range-thumb {
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.3), 0 4px 12px rgba(59, 130, 246, 0.5), 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+.slider-tooltip {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.9);
+  color: white;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  z-index: 10;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.slider-wrapper:hover .slider-tooltip,
+.progress-slider:active + .slider-tooltip {
+  opacity: 1;
+}
+
+.slider-labels {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.75rem;
+  color: rgb(107 114 128); /* text-gray-500 */
+  font-weight: 500;
+}
+
+.dark .slider-labels {
+  color: rgb(156 163 175); /* dark:text-gray-400 */
+}
+
+#slider-current-time {
+  color: rgb(59 130 246); /* text-blue-500 */
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+/* Fullscreen Overlay */
+.fullscreen-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgb(17 24 39); /* dark:bg-gray-900 */
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.fullscreen-content {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 2rem;
+  gap: 2rem;
+  position: relative;
+}
+
+.exit-fullscreen-btn {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  color: white;
+  font-size: 1.5rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  z-index: 10000;
+}
+
+.exit-fullscreen-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: scale(1.1);
+}
+
+.fullscreen-status {
+  display: flex;
+  justify-content: space-around;
+  gap: 2rem;
+  padding: 1.5rem;
+  background: rgb(31 41 55); /* dark:bg-gray-800 */
+  border-radius: 12px;
+  border: 1px solid rgb(55 65 81); /* dark:border-gray-700 */
+}
+
+.fullscreen-status-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+}
+
+.fullscreen-status-label {
+  font-size: 1rem;
+  color: rgba(255, 255, 255, 0.7);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.fullscreen-status-value {
+  font-size: 3rem;
+  font-weight: 700;
+  color: white;
+  line-height: 1;
+}
+
+.fullscreen-chart-container {
+  flex: 1;
+  position: relative;
+  min-height: 400px;
+  background: rgb(31 41 55); /* dark:bg-gray-800 */
+  border-radius: 12px;
+  border: 1px solid rgb(55 65 81); /* dark:border-gray-700 */
+  padding: 1rem;
+}
+
+#fullscreen-class-plan-chart {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.fullscreen-chart-readout {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 0.75rem 1.25rem;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.fullscreen-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2rem;
+  padding: 1.5rem;
+  background: rgb(31 41 55); /* dark:bg-gray-800 */
+  border-radius: 12px;
+  border: 1px solid rgb(55 65 81); /* dark:border-gray-700 */
+}
+
+.fullscreen-ftp-control {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.fullscreen-ftp-control label {
+  color: white;
+  font-weight: 500;
+}
+
+.fullscreen-ftp-control input {
+  width: 100px;
+  padding: 0.5rem;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.fullscreen-play-btn {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #10b981, #059669);
+  border: none;
+  color: white;
+  font-size: 1.5rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+}
+
+.fullscreen-play-btn:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.6);
+}
+
+.fullscreen-play-btn.paused {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+}
+
+.fullscreen-progress-controls {
+  display: flex;
+  gap: 1.5rem;
+  align-items: center;
+}
+
+.fullscreen-progress-controls label {
+  color: white;
+  font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+
+.fullscreen-progress-controls input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+.fullscreen-slider-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.fullscreen-slider-wrapper {
+  position: relative;
+  width: 100%;
+  padding: 1rem 0;
+}
+
+.fullscreen-progress-slider {
+  width: 100%;
+  height: 12px;
+  border-radius: 6px;
+  background: linear-gradient(to right, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.1) 100%);
+  outline: none;
+  cursor: pointer;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.fullscreen-progress-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  cursor: grab;
+  border: 3px solid white;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.6), 0 2px 6px rgba(0, 0, 0, 0.4);
+  transition: all 0.2s ease;
+}
+
+.fullscreen-progress-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+  box-shadow: 0 6px 16px rgba(59, 130, 246, 0.8), 0 4px 8px rgba(0, 0, 0, 0.5);
+}
+
+.fullscreen-progress-slider::-webkit-slider-thumb:active {
+  cursor: grabbing;
+}
+
+.fullscreen-progress-slider::-moz-range-thumb {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  cursor: grab;
+  border: 3px solid white;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.6), 0 2px 6px rgba(0, 0, 0, 0.4);
+  -moz-appearance: none;
+}
+
+.fullscreen-slider-labels {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 1rem;
+  color: rgba(255, 255, 255, 0.8);
+  font-weight: 500;
+}
+
+#fullscreen-slider-current-time {
+  color: #3b82f6;
+  font-weight: 600;
+  font-size: 1.125rem;
+}
+
+/* Responsive Fullscreen Styles */
+@media (max-width: 768px) {
+  .fullscreen-content {
+    padding: 1rem;
+    gap: 1rem;
+  }
+  
+  .exit-fullscreen-btn {
+    top: 0.5rem;
+    right: 0.5rem;
+    width: 40px;
+    height: 40px;
+    font-size: 1.25rem;
+  }
+  
+  .fullscreen-status {
+    flex-direction: column;
+    gap: 1rem;
+    padding: 1rem;
+  }
+  
+  .fullscreen-status-item {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    padding: 0.75rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+  }
+  
+  .fullscreen-status-label {
+    font-size: 0.875rem;
+    margin: 0;
+  }
+  
+  .fullscreen-status-value {
+    font-size: 1.75rem;
+  }
+  
+  .fullscreen-chart-container {
+    min-height: 250px;
+    padding: 0.5rem;
+  }
+  
+  .fullscreen-controls {
+    flex-direction: column;
+    gap: 1rem;
+    padding: 1rem;
+  }
+  
+  .fullscreen-ftp-control {
+    width: 100%;
+    justify-content: space-between;
+  }
+  
+  .fullscreen-ftp-control input {
+    flex: 1;
+    max-width: 150px;
+  }
+  
+  .fullscreen-play-btn {
+    width: 56px;
+    height: 56px;
+    font-size: 1.25rem;
+  }
+  
+  .fullscreen-progress-controls {
+    flex-direction: column;
+    gap: 0.75rem;
+    width: 100%;
+  }
+  
+  .fullscreen-slider-container {
+    gap: 0.5rem;
+  }
+  
+  .fullscreen-slider-wrapper {
+    padding: 0.75rem 0;
+  }
+  
+  .fullscreen-progress-slider {
+    height: 10px;
+  }
+  
+  .fullscreen-progress-slider::-webkit-slider-thumb {
+    width: 28px;
+    height: 28px;
+  }
+  
+  .fullscreen-progress-slider::-moz-range-thumb {
+    width: 28px;
+    height: 28px;
+  }
+  
+  .fullscreen-slider-labels {
+    font-size: 0.875rem;
+  }
+  
+  #fullscreen-slider-current-time {
+    font-size: 1rem;
+  }
+  
+  .countdown-display {
+    padding: 2rem 2.5rem;
+  }
+  
+  .countdown-number {
+    font-size: 6rem;
+  }
+  
+  .countdown-label {
+    font-size: 1.25rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .fullscreen-content {
+    padding: 0.75rem;
+    gap: 0.75rem;
+  }
+  
+  .exit-fullscreen-btn {
+    top: 0.25rem;
+    right: 0.25rem;
+    width: 36px;
+    height: 36px;
+    font-size: 1rem;
+  }
+  
+  .fullscreen-status {
+    gap: 0.75rem;
+    padding: 0.75rem;
+  }
+  
+  .fullscreen-status-item {
+    padding: 0.5rem;
+  }
+  
+  .fullscreen-status-label {
+    font-size: 0.75rem;
+  }
+  
+  .fullscreen-status-value {
+    font-size: 1.5rem;
+  }
+  
+  .fullscreen-chart-container {
+    min-height: 200px;
+    padding: 0.25rem;
+  }
+  
+  .fullscreen-controls {
+    padding: 0.75rem;
+  }
+  
+  .fullscreen-ftp-control label {
+    font-size: 0.875rem;
+  }
+  
+  .fullscreen-ftp-control input {
+    font-size: 0.875rem;
+    padding: 0.375rem;
+  }
+  
+  .fullscreen-play-btn {
+    width: 48px;
+    height: 48px;
+    font-size: 1rem;
+  }
+  
+  .fullscreen-progress-controls {
+    gap: 0.5rem;
+  }
+  
+  .fullscreen-progress-controls label {
+    font-size: 0.75rem;
+  }
+  
+  .fullscreen-progress-controls input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+  }
+  
+  .fullscreen-slider-wrapper {
+    padding: 0.5rem 0;
+  }
+  
+  .fullscreen-progress-slider {
+    height: 8px;
+  }
+  
+  .fullscreen-progress-slider::-webkit-slider-thumb {
+    width: 24px;
+    height: 24px;
+  }
+  
+  .fullscreen-progress-slider::-moz-range-thumb {
+    width: 24px;
+    height: 24px;
+  }
+  
+  .fullscreen-slider-labels {
+    font-size: 0.75rem;
+  }
+  
+  #fullscreen-slider-current-time {
+    font-size: 0.875rem;
+  }
+  
+  .countdown-display {
+    padding: 1.5rem 2rem;
+  }
+  
+  .countdown-number {
+    font-size: 5rem;
+  }
+  
+  .countdown-label {
+    font-size: 1rem;
+  }
+}
+</style>

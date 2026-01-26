@@ -11,6 +11,51 @@ except ImportError:
     from django.contrib.postgres.fields import JSONField
 
 
+class ClassType(models.Model):
+    """
+    Class types/categories synced from Peloton API /api/ride/filters endpoint.
+    This replaces the hardcoded CLASS_TYPE_CHOICES with dynamic data from Peloton.
+    """
+    # Peloton class type ID (unique identifier from API)
+    peloton_id = models.CharField(max_length=100, unique=True, db_index=True, help_text="Peloton class type ID")
+    
+    # Display information
+    name = models.CharField(max_length=200, help_text="Display name (e.g., 'Power Zone', 'Climb')")
+    slug = models.SlugField(max_length=200, blank=True, help_text="URL-friendly slug")
+    
+    # Fitness discipline this class type belongs to
+    fitness_discipline = models.CharField(max_length=50, blank=True, db_index=True, help_text="e.g., 'cycling', 'running', 'strength', 'yoga'")
+    
+    # Additional metadata from API
+    metadata = models.JSONField(default=dict, blank=True, help_text="Additional metadata from Peloton API")
+    
+    # Sync information
+    synced_at = models.DateTimeField(auto_now_add=True, help_text="When this class type was first synced")
+    last_synced_at = models.DateTimeField(auto_now=True, help_text="Last time this class type was synced")
+    is_active = models.BooleanField(default=True, help_text="Whether this class type is currently active")
+    
+    class Meta:
+        ordering = ['fitness_discipline', 'name']
+        indexes = [
+            models.Index(fields=['peloton_id']),
+            models.Index(fields=['fitness_discipline']),
+            models.Index(fields=['is_active']),
+        ]
+        verbose_name = "Class Type"
+        verbose_name_plural = "Class Types"
+    
+    def __str__(self):
+        discipline = f" ({self.fitness_discipline})" if self.fitness_discipline else ""
+        return f"{self.name}{discipline}"
+    
+    def save(self, *args, **kwargs):
+        # Auto-generate slug if not provided
+        if not self.slug and self.name:
+            from django.utils.text import slugify
+            self.slug = slugify(self.name)
+        super().save(*args, **kwargs)
+
+
 class WorkoutType(models.Model):
     """Workout type/category (Cycling, Running, Yoga, Strength, etc.)"""
     name = models.CharField(max_length=50, unique=True)
@@ -97,7 +142,85 @@ class RideDetail(models.Model):
     content_provider = models.CharField(max_length=50, blank=True, help_text="e.g., 'peloton'")
     has_closed_captions = models.BooleanField(default=False)
     is_archived = models.BooleanField(default=False)
-    is_power_zone_class = models.BooleanField(default=False, help_text="Whether this is a Power Zone class")
+    
+    # Class type (replaces is_power_zone_class with more granular types)
+    CLASS_TYPE_CHOICES = [
+        # Cycling class types
+        ('power_zone', 'Power Zone'),
+        ('climb', 'Climb'),
+        ('intervals', 'Intervals'),
+        ('progression', 'Progression'),
+        ('low_impact', 'Low Impact'),
+        ('beginner', 'Beginner'),
+        ('groove', 'Groove'),
+        ('pro_cyclist', 'Pro Cyclist'),
+        ('music', 'Music'),
+        ('theme', 'Theme'),
+        ('live_dj', 'Live DJ'),
+        ('peloton_studio_original', 'Peloton Studio Original'),
+        # Running class types
+        ('pace_target', 'Pace Target'),
+        ('speed', 'Speed'),
+        ('endurance', 'Endurance'),
+        ('walk_run', 'Walk + Run'),
+        ('form_drills', 'Form & Drills'),
+        # Walking class types
+        ('power_walk', 'Power Walk'),
+        ('hiking', 'Hiking'),
+        # Strength class types
+        ('bodyweight', 'Bodyweight'),
+        ('full_body', 'Full Body'),
+        ('core', 'Core'),
+        ('upper_body', 'Upper Body'),
+        ('lower_body', 'Lower Body'),
+        ('strength_basics', 'Strength Basics'),
+        ('arms_light_weights', 'Arms & Light Weights'),
+        ('strength_for_sport', 'Strength for Sport'),
+        ('resistance_bands', 'Resistance Bands'),
+        ('adaptive', 'Adaptive'),
+        ('barre', 'Barre'),
+        ('kettlebells', 'Kettlebells'),
+        ('boxing_bootcamp', 'Boxing Bootcamp'),
+        # Yoga class types
+        ('flow', 'Flow'),
+        ('focus_flow', 'Focus Flow'),
+        ('slow_flow', 'Slow Flow'),
+        ('power', 'Power'),
+        ('sculpt_flow', 'Sculpt Flow'),
+        ('yoga_pilates', 'Yoga + Pilates'),
+        ('morning', 'Morning'),
+        ('restorative', 'Restorative'),
+        ('yin_yoga', 'Yin Yoga'),
+        ('yoga_anywhere', 'Yoga Anywhere'),
+        ('yoga_basics', 'Yoga Basics'),
+        ('family_pre_postnatal', 'Family & Pre/Postnatal'),
+        ('beyond_the_pose', 'Beyond the Pose'),
+        # Meditation class types
+        ('daily_meditation', 'Daily Meditation'),
+        ('sleep', 'Sleep'),
+        ('relaxation', 'Relaxation'),
+        ('emotions', 'Emotions'),
+        ('meditation_basics', 'Meditation Basics'),
+        ('breath', 'Breath'),
+        ('mindfulness', 'Mindfulness'),
+        ('walking_meditation', 'Walking Meditation'),
+        # Rowing class types (to be expanded)
+        # Generic/Common types
+        ('warm_up', 'Warm Up'),
+        ('cool_down', 'Cool Down'),
+        ('other', 'Other'),
+    ]
+    class_type = models.CharField(
+        max_length=50,
+        choices=CLASS_TYPE_CHOICES,
+        blank=True,
+        null=True,
+        db_index=True,
+        help_text="Type of class (Power Zone, Pace Target, Climb, Intervals, etc.)"
+    )
+    
+    # Keep is_power_zone_class for backward compatibility (will be deprecated)
+    is_power_zone_class = models.BooleanField(default=False, help_text="Whether this is a Power Zone class (deprecated - use class_type instead)")
     
     # Target metrics (class-specific targets for users to aim for)
     # For Power Zone classes: power zone ranges (1-7) with output ranges
@@ -106,6 +229,10 @@ class RideDetail(models.Model):
     target_metrics_data = models.JSONField(default=dict, blank=True, help_text="Target metrics data structure with segments, zones, and ranges")
     target_class_metrics = models.JSONField(default=dict, blank=True, help_text="Target class metrics (e.g., total_expected_output)")
     pace_target_type = models.CharField(max_length=50, blank=True, null=True, help_text="Pace target type for tread runs (e.g., 'pace_target', 'pace_zone')")
+    
+    # Segments structure (from ride details API)
+    # Contains segment_list with Warm Up, Main, Cool Down sections and their subsegments_v2
+    segments_data = models.JSONField(default=dict, blank=True, help_text="Segments structure with segment_list containing Warm Up, Main, Cool Down sections and subsegments")
     
     # Sync information
     synced_at = models.DateTimeField(auto_now_add=True, help_text="When this ride detail was first synced")
@@ -129,6 +256,36 @@ class RideDetail(models.Model):
     def duration_minutes(self):
         """Return duration in minutes"""
         return int(self.duration_seconds / 60) if self.duration_seconds else 0
+    
+    @property
+    def chart_type(self):
+        """
+        Determine what type of chart/segments to display based on class_type.
+        Returns: 'zones', 'cadence_resistance', 'pace', or None
+        """
+        if self.class_type == 'power_zone' or self.is_power_zone_class:
+            return 'zones'
+        elif self.class_type == 'pace_target' or self.fitness_discipline in ['running', 'walking']:
+            return 'pace'
+        elif self.fitness_discipline == 'cycling':
+            return 'cadence_resistance'
+        return None
+    
+    @property
+    def original_air_date(self):
+        """Return original_air_time as a date object"""
+        if self.original_air_time:
+            from datetime import datetime
+            # Peloton timestamps are in milliseconds
+            try:
+                # Try milliseconds first (most common)
+                timestamp = self.original_air_time / 1000
+                if timestamp > 1e10:  # If still too large, it might be in seconds already
+                    timestamp = self.original_air_time
+                return datetime.fromtimestamp(timestamp).date()
+            except (ValueError, OSError):
+                return None
+        return None
     
     def get_target_metrics_segments(self):
         """
@@ -162,7 +319,8 @@ class RideDetail(models.Model):
         Get power zone target segments for Power Zone classes.
         Returns segments with zone numbers and calculated watt ranges based on user's FTP.
         """
-        if not self.is_power_zone_class:
+        # Check both class_type and is_power_zone_class for backward compatibility
+        if self.class_type != 'power_zone' and not self.is_power_zone_class:
             return []
         
         segments = self.get_target_metrics_segments()
@@ -206,7 +364,8 @@ class RideDetail(models.Model):
         Get cadence and resistance target segments for non-PZ cycling classes.
         Returns segments with cadence/resistance ranges.
         """
-        if self.is_power_zone_class:
+        # Only return for non-PZ cycling classes
+        if self.class_type == 'power_zone' or self.is_power_zone_class:
             return []
         
         segments = self.get_target_metrics_segments()
@@ -244,7 +403,8 @@ class RideDetail(models.Model):
     def get_pace_segments(self, user_pace_zones=None):
         """
         Get pace target segments for running/walking classes.
-        Returns segments with pace zone names and calculated pace ranges based on user's pace zones.
+        Returns segments with pace zone numbers (1-7) and calculated pace ranges based on user's pace zones.
+        Zone mapping: 1=recovery, 2=easy, 3=moderate, 4=challenging, 5=hard, 6=very_hard, 7=max
         """
         if self.fitness_discipline not in ['running', 'walking']:
             return []
@@ -257,24 +417,145 @@ class RideDetail(models.Model):
         for segment in segments:
             for metric in segment.get('metrics', []):
                 metric_name = metric.get('name', '')
-                if 'pace' in metric_name.lower():
+                if 'pace' in metric_name.lower() or 'pace_intensity' in metric_name.lower():
+                    # Get pace zone number (typically 1-7)
                     pace_zone = metric.get('lower') or metric.get('upper')
-                    # Map pace zone to user's pace zones if available
+                    if pace_zone is None:
+                        continue
+                    
+                    # Ensure it's an integer
+                    try:
+                        pace_zone = int(pace_zone)
+                    except (ValueError, TypeError):
+                        continue
+                    
+                    # Map zone number to zone name for pace_range lookup
+                    zone_map = {1: 'recovery', 2: 'easy', 3: 'moderate', 4: 'challenging', 
+                               5: 'hard', 6: 'very_hard', 7: 'max'}
+                    zone_name = zone_map.get(pace_zone, 'moderate')
+                    
+                    # Get pace range from user's pace zones if available
                     pace_range = None
-                    if user_pace_zones and isinstance(pace_zone, (int, str)):
-                        # Try to match pace zone from user's pace zones
-                        zone_name = str(pace_zone).lower()
-                        if zone_name in user_pace_zones:
-                            pace_range = user_pace_zones[zone_name]
+                    if user_pace_zones and zone_name in user_pace_zones:
+                        pace_range = user_pace_zones[zone_name]
                     
                     pace_segments.append({
                         'start': segment['start'],
                         'end': segment['end'],
-                        'zone': pace_zone,
+                        'zone': pace_zone,  # Keep as integer (1-7)
+                        'zone_name': zone_name,  # Add zone name for easier lookup
                         'pace_range': pace_range
                     })
         
         return pace_segments
+
+
+class Playlist(models.Model):
+    """
+    Music playlist for a Peloton class/ride.
+    Stores the complete playlist including songs, artists, and albums.
+    """
+    # Link to the ride/class
+    ride_detail = models.OneToOneField(
+        RideDetail,
+        on_delete=models.CASCADE,
+        related_name='playlist',
+        help_text="The class/ride this playlist belongs to"
+    )
+    
+    # Peloton playlist ID
+    peloton_playlist_id = models.CharField(
+        max_length=100,
+        unique=True,
+        blank=True,
+        null=True,
+        db_index=True,
+        help_text="Peloton playlist ID"
+    )
+    
+    # Songs array - stores complete song data with artists, albums, etc.
+    songs = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="Array of songs with full details (title, artists, album, timing, etc.)"
+    )
+    
+    # Top artists and albums
+    top_artists = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="Top artists featured in this playlist"
+    )
+    top_albums = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="Top albums featured in this playlist"
+    )
+    
+    # Stream information
+    stream_id = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        help_text="Stream ID for playlist"
+    )
+    stream_url = models.URLField(
+        blank=True,
+        null=True,
+        help_text="Stream URL for playlist"
+    )
+    
+    # Display flags
+    is_top_artists_shown = models.BooleanField(
+        default=False,
+        help_text="Whether to show top artists"
+    )
+    is_playlist_shown = models.BooleanField(
+        default=False,
+        help_text="Whether to show playlist"
+    )
+    is_in_class_music_shown = models.BooleanField(
+        default=False,
+        help_text="Whether to show in-class music"
+    )
+    
+    # Sync information
+    synced_at = models.DateTimeField(
+        auto_now_add=True,
+        help_text="When this playlist was first synced"
+    )
+    last_synced_at = models.DateTimeField(
+        auto_now=True,
+        help_text="Last time this playlist was synced"
+    )
+    
+    class Meta:
+        ordering = ["-synced_at"]
+        indexes = [
+            models.Index(fields=["peloton_playlist_id"]),
+            models.Index(fields=["ride_detail"]),
+        ]
+        verbose_name = "Playlist"
+        verbose_name_plural = "Playlists"
+    
+    def __str__(self):
+        return f"Playlist for {self.ride_detail.title}"
+    
+    @property
+    def song_count(self):
+        """Return the number of songs in the playlist"""
+        return len(self.songs) if self.songs else 0
+    
+    @property
+    def total_duration_estimate(self):
+        """Estimate total playlist duration based on song offsets"""
+        if not self.songs:
+            return None
+        
+        # Find the last song's start_time_offset and estimate duration
+        # This is rough - we'd need actual song durations for accuracy
+        last_song = max(self.songs, key=lambda s: s.get('start_time_offset', 0))
+        return last_song.get('start_time_offset', 0)
 
 
 class Workout(models.Model):

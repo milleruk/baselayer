@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.utils.html import format_html
-from .models import WorkoutType, Instructor, Workout, WorkoutDetails, WorkoutMetrics, WorkoutPerformanceData, RideDetail
+from .models import WorkoutType, Instructor, Workout, WorkoutDetails, WorkoutMetrics, WorkoutPerformanceData, RideDetail, Playlist, ClassType
 
 
 @admin.register(WorkoutType)
@@ -258,12 +258,42 @@ class WorkoutPerformanceDataAdmin(admin.ModelAdmin):
         return qs.select_related('workout', 'workout__ride_detail', 'workout__user')
 
 
+@admin.register(Playlist)
+class PlaylistAdmin(admin.ModelAdmin):
+    list_display = ['ride_detail', 'song_count', 'peloton_playlist_id', 'synced_at']
+    list_filter = ['synced_at', 'is_playlist_shown']
+    search_fields = ['ride_detail__title', 'peloton_playlist_id']
+    readonly_fields = ['synced_at', 'last_synced_at', 'song_count']
+    raw_id_fields = ['ride_detail']
+    
+    fieldsets = (
+        ('Basic Information', {
+            'fields': ('ride_detail', 'peloton_playlist_id')
+        }),
+        ('Playlist Data', {
+            'fields': ('songs', 'top_artists', 'top_albums'),
+            'classes': ('collapse',)
+        }),
+        ('Stream Information', {
+            'fields': ('stream_id', 'stream_url'),
+            'classes': ('collapse',)
+        }),
+        ('Display Flags', {
+            'fields': ('is_top_artists_shown', 'is_playlist_shown', 'is_in_class_music_shown')
+        }),
+        ('Sync Information', {
+            'fields': ('synced_at', 'last_synced_at'),
+            'classes': ('collapse',)
+        }),
+    )
+
+
 @admin.register(RideDetail)
 class RideDetailAdmin(admin.ModelAdmin):
-    list_display = ['title', 'workout_type', 'instructor', 'duration_minutes', 'fitness_discipline', 'is_power_zone_class', 'difficulty_level', 'workout_count', 'synced_at']
-    list_filter = ['workout_type', 'fitness_discipline', 'is_power_zone_class', 'difficulty_level', 'is_archived', 'synced_at']
+    list_display = ['title', 'workout_type', 'instructor', 'duration_minutes', 'fitness_discipline', 'class_type', 'chart_type_display', 'difficulty_level', 'workout_count', 'synced_at']
+    list_filter = ['workout_type', 'fitness_discipline', 'class_type', 'is_power_zone_class', 'difficulty_level', 'is_archived', 'synced_at']
     search_fields = ['title', 'description', 'peloton_ride_id', 'instructor__name', 'fitness_discipline']
-    readonly_fields = ['synced_at', 'last_synced_at', 'peloton_ride_id', 'image_preview']
+    readonly_fields = ['synced_at', 'last_synced_at', 'peloton_ride_id', 'image_preview', 'chart_type_display']
     raw_id_fields = ['workout_type', 'instructor']
     list_per_page = 50
     
@@ -288,8 +318,12 @@ class RideDetailAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
         ('Content Information', {
-            'fields': ('content_format', 'content_provider', 'has_closed_captions', 'is_archived', 'is_power_zone_class'),
+            'fields': ('content_format', 'content_provider', 'has_closed_captions', 'is_archived'),
             'classes': ('collapse',)
+        }),
+        ('Class Type', {
+            'fields': ('class_type', 'is_power_zone_class'),
+            'description': 'Class type determines what kind of chart/segments to display. Power Zone classes show zones, others show cadence/resistance or pace. Chart type is shown in the list view.'
         }),
         ('Target Metrics', {
             'fields': ('target_metrics_data', 'target_class_metrics', 'pace_target_type'),
@@ -313,6 +347,58 @@ class RideDetailAdmin(admin.ModelAdmin):
             return format_html('<img src="{}" style="max-width: 200px; max-height: 200px;" />', obj.image_url)
         return '—'
     image_preview.short_description = 'Image Preview'
+    
+    def chart_type_display(self, obj):
+        """Display what type of chart/segments this class uses"""
+        if obj is None:
+            return '—'
+        
+        try:
+            chart_type = obj.chart_type
+        except (AttributeError, TypeError, Exception):
+            return '—'
+        
+        if not chart_type:
+            return '—'
+        
+        # Use mark_safe for simple HTML strings (no placeholders needed)
+        from django.utils.safestring import mark_safe
+        
+        if chart_type == 'zones':
+            return mark_safe('<span style="color: #059669; font-weight: bold;">Zones (Power Zone)</span>')
+        elif chart_type == 'cadence_resistance':
+            return mark_safe('<span style="color: #2563eb; font-weight: bold;">Cadence & Resistance</span>')
+        elif chart_type == 'pace':
+            return mark_safe('<span style="color: #dc2626; font-weight: bold;">Pace Targets</span>')
+        else:
+            return '—'
+    chart_type_display.short_description = 'Chart Type'
+
+
+@admin.register(ClassType)
+class ClassTypeAdmin(admin.ModelAdmin):
+    list_display = ['name', 'fitness_discipline', 'peloton_id', 'is_active', 'synced_at']
+    list_filter = ['fitness_discipline', 'is_active', 'synced_at']
+    search_fields = ['name', 'peloton_id', 'fitness_discipline']
+    readonly_fields = ['synced_at', 'last_synced_at']
+    ordering = ['fitness_discipline', 'name']
+    
+    fieldsets = (
+        ('Basic Information', {
+            'fields': ('peloton_id', 'name', 'slug', 'fitness_discipline')
+        }),
+        ('Metadata', {
+            'fields': ('metadata',),
+            'classes': ('collapse',)
+        }),
+        ('Status', {
+            'fields': ('is_active',)
+        }),
+        ('Sync Information', {
+            'fields': ('synced_at', 'last_synced_at'),
+            'classes': ('collapse',)
+        }),
+    )
 
 
 # Note: PelotonConnection is registered in peloton/admin.py
