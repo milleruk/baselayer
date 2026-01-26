@@ -1,0 +1,396 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Terms and Conditions - Chase The Zones{% endblock %}
+
+{% block page_title %}Terms and Conditions{% endblock %}
+
+{% block content %}
+<div class="w-full">
+  <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 lg:p-8">
+    <div class="mb-8">
+      <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-2">Terms and Conditions</h1>
+      <p class="text-gray-600 dark:text-gray-400">Last updated: {% now "F d, Y" %}</p>
+    </div>
+
+    <div class="prose prose-lg dark:prose-invert max-w-none">
+      <div class="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500 p-4 mb-6 rounded">
+        <p class="text-blue-800 dark:text-blue-200 font-semibold mb-2">Important Notice</p>
+        <p class="text-blue-700 dark:text-blue-300 text-sm">
+          This website is hosted in the United Kingdom and is governed by UK law. These Terms and Conditions are 
+          subject to the laws of England and Wales.
+        </p>
+      </div>
+
+      <div class="bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 p-4 mb-6 rounded">
+        <p class="text-red-800 dark:text-red-200 font-semibold mb-2">⚠️ Medical Disclaimer</p>
+        <p class="text-red-700 dark:text-red-300 text-sm mb-2">
+          <strong>IMPORTANT:</strong> Chase The Zones is not a medical service, and we are not trained medical 
+          professionals. All training plans, pelvic floor exercises (kegels), exercise libraries, and fitness 
+          information provided are for informational purposes only and are not medical advice.
+        </p>
+        <p class="text-red-700 dark:text-red-300 text-sm mb-2">
+          <strong>Always consult with your doctor or qualified healthcare provider</strong> before beginning any 
+          exercise program, especially if you have health concerns, pre-existing conditions, or are recovering from 
+          surgery. We assume no responsibility for any injury or harm that may result from using our Service.
+        </p>
+        <p class="text-red-700 dark:text-red-300 text-sm">
+          If you experience any pain, discomfort, or unusual symptoms, stop immediately and seek medical attention.
+        </p>
+      </div>
+
+      <div class="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-500 p-4 mb-6 rounded">
+        <p class="text-yellow-800 dark:text-yellow-200 font-semibold mb-2">Peloton Disclaimer</p>
+        <p class="text-yellow-700 dark:text-yellow-300 text-sm mb-2">
+          <strong>IMPORTANT:</strong> Chase The Zones is not affiliated with, endorsed by, or sponsored by Peloton 
+          Interactive, Inc. ("Peloton"). We are an independent third-party application.
+        </p>
+        <p class="text-yellow-700 dark:text-yellow-300 text-sm mb-2">
+          We use Peloton's public API solely to retrieve and display your workout data. We do not represent Peloton 
+          in any way, and Peloton is not responsible for our service or its content.
+        </p>
+        <p class="text-yellow-700 dark:text-yellow-300 text-sm">
+          All Peloton trademarks, service marks, trade names, brand names, and logos (including but not limited to 
+          PELOTON®, PELOTON BIKE®, PELOTON TREAD®) are the property of Peloton Interactive, Inc. or their respective 
+          owners. All rights reserved.
+        </p>
+      </div>
+
+      <section class="mb-8">
+        <h2 class="text-2xl font-semibold text-gray-900 dark:text-white mb-4">1. Acceptance of Terms</h2>
+        <p class="text-gray-700 dark:text-gray-300 mb-4">
+          By accessing and using Chase The Zones ("the Service," "we," "our," or "us"), you accept and agree to be 
+          bound by these Terms and Conditions. If you do not agree to these terms, you must not use our Service.
+        </p>
+        <p class="text-gray-700 dark:text-gray-300 mb-4">
+          These Terms constitute a legally binding agreement between you and Chase The Zones, governed by the laws of 
+          England and Wales.
+        </p>
+      </section>
+
+      <section class="mb-8">
+        <h2 class="text-2xl font-semibold text-gray-900 dark:text-white mb-4">2. Description of Service</h2>
+        <p class="text-gray-700 dark:text-gray-300 mb-4">
+          Chase The Zones is a fitness tracking and analytics platform that:
+        </p>
+        <ul class="list-disc pl-6 text-gray-700 dark:text-gray-300 mb-4 space-y-2">
+          <li>Retrieves workout data from Peloton's public API (with your authorization)</li>
+          <li>Displays and analyzes your fitness metrics and workout history</li>
+          <li>Provides tools for tracking fitness goals and progress</li>
+          <li>Offers exercise libraries and workout planning features</li>
+        </ul>
+        <p class="text-gray-700 dark:text-gray-300 mb-4">
+          We reserve the right to modify, suspend, or discontinue any aspect of the Service at any time without 
+          prior notice.
+        </p>
+      </section>
+
+      <section class="mb-8">
+        <h2 class="text-2xl font-semibold text-gray-900 dark:text-white mb-4">3. Peloton API Usage</h2>
+        <div class="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-500 p-4 mb-4 rounded">
+          <p class="text-yellow-800 dark:text-yellow-200 font-semibold mb-2">Third-Party API</p>
+          <p class="text-yellow-700 dark:text-yellow-300 text-sm mb-2">
+            Our Service relies on Peloton's public API to retrieve your workout data. By using our Service, you 
+            acknowledge and agree that:
+          </p>
+          <ul class="list-disc pl-6 mt-2 text-sm space-y-1">
+            <li>We are not affiliated with Peloton in any way</li>
+            <li>Peloton may modify, restrict, or discontinue API access at any time</li>
+            <li>We are not responsible for the accuracy, completeness, or availability of Peloton API data</li>
+            <li>Any issues with Peloton's API are outside our control</li>
+            <li>You must have a valid Peloton account to use certain features</li>
+          </ul>
+        </div>
+        <p class="text-gray-700 dark:text-gray-300 mb-4">
+          We use Peloton's API for data retrieval only. We do not share your data back to Peloton, and we are not 
+          responsible for Peloton's data practices or terms of service.
+        </p>
+      </section>
+
+      <section class="mb-8">
+        <h2 class="text-2xl font-semibold text-gray-900 dark:text-white mb-4">4. User Accounts and Registration</h2>
+        <p class="text-gray-700 dark:text-gray-300 mb-4">
+          To use certain features of our Service, you must register for an account. You agree to:
+        </p>
+        <ul class="list-disc pl-6 text-gray-700 dark:text-gray-300 mb-4 space-y-2">
+          <li>Provide accurate, current, and complete information during registration</li>
+          <li>Maintain and update your account information to keep it accurate</li>
+          <li>Maintain the security of your account credentials</li>
+          <li>Accept responsibility for all activities that occur under your account</li>
+          <li>Notify us immediately of any unauthorized use of your account</li>
+        </ul>
+        <p class="text-gray-700 dark:text-gray-300 mb-4">
+          You must be at least 18 years old to create an account. By registering, you represent and warrant that 
+          you are of legal age.
+        </p>
+      </section>
+
+      <section class="mb-8">
+        <h2 class="text-2xl font-semibold text-gray-900 dark:text-white mb-4">5. Acceptable Use</h2>
+        <p class="text-gray-700 dark:text-gray-300 mb-4">You agree not to:</p>
+        <ul class="list-disc pl-6 text-gray-700 dark:text-gray-300 mb-4 space-y-2">
+          <li>Use the Service for any illegal purpose or in violation of any UK laws</li>
+          <li>Attempt to gain unauthorized access to our systems or other users' accounts</li>
+          <li>Interfere with or disrupt the Service or servers connected to the Service</li>
+          <li>Use automated systems (bots, scrapers) to access the Service without permission</li>
+          <li>Reverse engineer, decompile, or disassemble any part of the Service</li>
+          <li>Impersonate any person or entity or misrepresent your affiliation with any entity</li>
+          <li>Upload or transmit viruses, malware, or other harmful code</li>
+          <li>Violate any intellectual property rights of others</li>
+        </ul>
+      </section>
+
+      <section class="mb-8">
+        <h2 class="text-2xl font-semibold text-gray-900 dark:text-white mb-4">6. Intellectual Property Rights and Copyright</h2>
+        <p class="text-gray-700 dark:text-gray-300 mb-4">
+          The Service and its original content, features, and functionality are owned by Chase The Zones and are 
+          protected by UK and international copyright, trademark, and other intellectual property laws.
+        </p>
+        
+        <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-3 mt-4">6.1 Copyright Ownership</h3>
+        <p class="text-gray-700 dark:text-gray-300 mb-4">
+          All content, software, designs, text, graphics, images, logos, icons, and other materials on this Service 
+          (collectively, the "Content") are the exclusive property of Chase The Zones or its licensors and are 
+          protected by UK copyright laws and international copyright treaties.
+        </p>
+        <p class="text-gray-700 dark:text-gray-300 mb-4">
+          Copyright © {% now "Y" %} Chase The Zones. All rights reserved.
+        </p>
+        <p class="text-gray-700 dark:text-gray-300 mb-4">
+          The following elements of our Service are protected by copyright:
+        </p>
+        <ul class="list-disc pl-6 text-gray-700 dark:text-gray-300 mb-4 space-y-2">
+          <li>The website design, layout, and user interface</li>
+          <li>All software code, algorithms, and technical implementations</li>
+          <li>Exercise libraries, descriptions, and instructional content</li>
+          <li>Training plans, workout programs, and fitness methodologies</li>
+          <li>Analytics tools, metrics calculations, and data visualization features</li>
+          <li>Documentation, guides, and help materials</li>
+          <li>Branding, logos, and visual identity (excluding Peloton trademarks)</li>
+        </ul>
+
+        <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-3 mt-4">6.2 Restrictions on Use</h3>
+        <p class="text-gray-700 dark:text-gray-300 mb-4">
+          You may not copy, reproduce, distribute, modify, create derivative works, publicly display, publicly perform, 
+          republish, download, store, or transmit any of the Content without our prior written consent, except as 
+          follows:
+        </p>
+        <ul class="list-disc pl-6 text-gray-700 dark:text-gray-300 mb-4 space-y-2">
+          <li>You may temporarily store copies of Content for your personal, non-commercial use</li>
+          <li>You may print or download one copy of a reasonable number of pages for your personal, non-commercial use</li>
+          <li>You may use features of the Service that are designed for sharing (if any) in accordance with their intended purpose</li>
+        </ul>
+        <p class="text-gray-700 dark:text-gray-300 mb-4">
+          Any unauthorized use of the Content may violate copyright, trademark, and other laws. Violators may be 
+          subject to civil and criminal penalties.
+        </p>
+
+        <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-3 mt-4">6.3 Peloton Trademarks</h3>
+        <p class="text-gray-700 dark:text-gray-300 mb-4">
+          All Peloton trademarks, service marks, and logos used on this Service are the property of Peloton 
+          Interactive, Inc. We use these marks solely for identification purposes to indicate that our Service 
+          integrates with Peloton's platform. Our use does not imply endorsement, affiliation, or sponsorship by 
+          Peloton.
+        </p>
+        <p class="text-gray-700 dark:text-gray-300 mb-4">
+          You may not use any Peloton trademarks without Peloton's prior written consent.
+        </p>
+      </section>
+
+      <section class="mb-8">
+        <h2 class="text-2xl font-semibold text-gray-900 dark:text-white mb-4">7. User Content and Data</h2>
+        <p class="text-gray-700 dark:text-gray-300 mb-4">
+          You retain ownership of any data and content you provide to the Service. By using the Service, you grant 
+          us a license to use, store, and process your data solely for the purpose of providing the Service to you.
+        </p>
+        <p class="text-gray-700 dark:text-gray-300 mb-4">
+          You are responsible for ensuring that any content you provide does not violate any third-party rights or 
+          applicable laws.
+        </p>
+      </section>
+
+      <section class="mb-8">
+        <h2 class="text-2xl font-semibold text-gray-900 dark:text-white mb-4">8. Medical Disclaimer and Health Warnings</h2>
+        
+        <div class="bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 p-4 mb-6 rounded">
+          <p class="text-red-800 dark:text-red-200 font-semibold mb-2">⚠️ Important Medical Disclaimer</p>
+          <p class="text-red-700 dark:text-red-300 text-sm mb-2">
+            <strong>Chase The Zones is not a medical service, and we are not trained medical professionals.</strong>
+          </p>
+        </div>
+
+        <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-3 mt-4">8.1 Not Medical Advice</h3>
+        <p class="text-gray-700 dark:text-gray-300 mb-4">
+          The training plans, pelvic floor exercises (kegels), exercise libraries, fitness programs, and all other 
+          content provided through our Service are for informational and educational purposes only. This information 
+          is compiled from publicly available documentation, fitness guides, and general health resources.
+        </p>
+        <p class="text-gray-700 dark:text-gray-300 mb-4">
+          <strong>This content is NOT intended to be, and should not be used as, medical advice, diagnosis, or treatment.</strong>
+        </p>
+
+        <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-3 mt-4">8.2 Consult Your Healthcare Provider</h3>
+        <p class="text-gray-700 dark:text-gray-300 mb-4">
+          Before beginning any exercise program, including pelvic floor exercises, or making any changes to your fitness 
+          routine, you should:
+        </p>
+        <ul class="list-disc pl-6 text-gray-700 dark:text-gray-300 mb-4 space-y-2">
+          <li><strong>Consult with your doctor, physician, or qualified healthcare provider</strong> to ensure the exercises 
+            are appropriate for your individual health condition</li>
+          <li>Seek professional medical advice if you have any concerns, pre-existing medical conditions, or are recovering 
+            from surgery</li>
+          <li>Stop immediately and consult a healthcare professional if you experience any pain, discomfort, or unusual 
+            symptoms during or after exercise</li>
+          <li>Follow your healthcare provider's recommendations and modifications for any exercises</li>
+        </ul>
+        <p class="text-gray-700 dark:text-gray-300 mb-4">
+          If you are unsure about whether any exercise or training plan is suitable for you, <strong>always consult with 
+          your doctor or a qualified medical professional before proceeding.</strong>
+        </p>
+
+        <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-3 mt-4">8.3 No Medical Responsibility</h3>
+        <p class="text-gray-700 dark:text-gray-300 mb-4">
+          Chase The Zones, its owners, employees, and affiliates assume <strong>no responsibility or liability</strong> for:
+        </p>
+        <ul class="list-disc pl-6 text-gray-700 dark:text-gray-300 mb-4 space-y-2">
+          <li>Any injury, harm, or adverse health effects that may result from using our Service or following any 
+            exercises, plans, or information provided</li>
+          <li>The accuracy, completeness, or suitability of any exercise or training plan for your specific health 
+            condition or circumstances</li>
+          <li>Any medical complications, physical injuries, or health issues arising from the use of our Service</li>
+          <li>Any decisions made based on information provided through our Service</li>
+        </ul>
+        <p class="text-gray-700 dark:text-gray-300 mb-4">
+          You acknowledge that you are using our Service at your own risk and that you are solely responsible for 
+          determining whether any exercise or training plan is appropriate for your health and fitness level.
+        </p>
+
+        <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-3 mt-4">8.4 Emergency Situations</h3>
+        <p class="text-gray-700 dark:text-gray-300 mb-4">
+          If you experience a medical emergency, severe pain, or any serious health concern while using our Service, 
+          <strong>seek immediate medical attention</strong>. Do not rely on our Service for emergency medical care.
+        </p>
+      </section>
+
+      <section class="mb-8">
+        <h2 class="text-2xl font-semibold text-gray-900 dark:text-white mb-4">9. Disclaimers and Limitations of Liability</h2>
+        
+        <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-3 mt-4">9.1 Service Availability</h3>
+        <p class="text-gray-700 dark:text-gray-300 mb-4">
+          The Service is provided "as is" and "as available" without warranties of any kind, either express or 
+          implied. We do not guarantee that the Service will be uninterrupted, error-free, or free from viruses 
+          or other harmful components.
+        </p>
+
+        <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-3 mt-4">9.2 Fitness Data Accuracy</h3>
+        <p class="text-gray-700 dark:text-gray-300 mb-4">
+          We rely on data from Peloton's API and user input. We do not guarantee the accuracy, completeness, or 
+          reliability of any data displayed on the Service. You should verify important information independently.
+        </p>
+
+        <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-3 mt-4">9.3 Limitation of Liability</h3>
+        <p class="text-gray-700 dark:text-gray-300 mb-4">
+          To the maximum extent permitted by UK law, Chase The Zones shall not be liable for any indirect, incidental, 
+          special, consequential, or punitive damages, or any loss of profits or revenues, whether incurred directly 
+          or indirectly, or any loss of data, use, goodwill, or other intangible losses resulting from:
+        </p>
+        <ul class="list-disc pl-6 text-gray-700 dark:text-gray-300 mb-4 space-y-2">
+          <li>Your use or inability to use the Service</li>
+          <li>Any changes to Peloton's API that affect our Service</li>
+          <li>Unauthorized access to or alteration of your data</li>
+          <li>Any other matter relating to the Service</li>
+        </ul>
+        <p class="text-gray-700 dark:text-gray-300 mb-4">
+          Our total liability to you for all claims arising from or related to the Service shall not exceed the 
+          amount you paid to us in the 12 months preceding the claim, or £50, whichever is greater.
+        </p>
+      </section>
+
+      <section class="mb-8">
+        <h2 class="text-2xl font-semibold text-gray-900 dark:text-white mb-4">10. Indemnification</h2>
+        <p class="text-gray-700 dark:text-gray-300 mb-4">
+          You agree to indemnify, defend, and hold harmless Chase The Zones, its officers, directors, employees, 
+          and agents from any claims, damages, losses, liabilities, and expenses (including legal fees) arising from:
+        </p>
+        <ul class="list-disc pl-6 text-gray-700 dark:text-gray-300 mb-4 space-y-2">
+          <li>Your use of the Service</li>
+          <li>Your violation of these Terms</li>
+          <li>Your violation of any third-party rights</li>
+          <li>Any content or data you provide to the Service</li>
+        </ul>
+      </section>
+
+      <section class="mb-8">
+        <h2 class="text-2xl font-semibold text-gray-900 dark:text-white mb-4">11. Termination</h2>
+        <p class="text-gray-700 dark:text-gray-300 mb-4">
+          We may terminate or suspend your account and access to the Service immediately, without prior notice, 
+          for any reason, including if you breach these Terms.
+        </p>
+        <p class="text-gray-700 dark:text-gray-300 mb-4">
+          You may terminate your account at any time by contacting us or using account deletion features (if available). 
+          Upon termination, your right to use the Service will cease immediately.
+        </p>
+        <p class="text-gray-700 dark:text-gray-300 mb-4">
+          All provisions of these Terms that by their nature should survive termination shall survive, including 
+          ownership provisions, warranty disclaimers, and limitations of liability.
+        </p>
+      </section>
+
+      <section class="mb-8">
+        <h2 class="text-2xl font-semibold text-gray-900 dark:text-white mb-4">12. Governing Law and Jurisdiction</h2>
+        <p class="text-gray-700 dark:text-gray-300 mb-4">
+          These Terms and Conditions are governed by and construed in accordance with the laws of England and Wales. 
+          Any disputes arising from or relating to these Terms or the Service shall be subject to the exclusive 
+          jurisdiction of the courts of England and Wales.
+        </p>
+        <p class="text-gray-700 dark:text-gray-300 mb-4">
+          If you are a consumer resident in the UK, you may also have rights under UK consumer protection laws that 
+          cannot be excluded or limited.
+        </p>
+      </section>
+
+      <section class="mb-8">
+        <h2 class="text-2xl font-semibold text-gray-900 dark:text-white mb-4">13. Changes to Terms</h2>
+        <p class="text-gray-700 dark:text-gray-300 mb-4">
+          We reserve the right to modify these Terms at any time. We will notify users of material changes by 
+          posting the updated Terms on this page and updating the "Last updated" date.
+        </p>
+        <p class="text-gray-700 dark:text-gray-300 mb-4">
+          Your continued use of the Service after any changes constitutes acceptance of the new Terms. If you do not 
+          agree to the modified Terms, you must stop using the Service.
+        </p>
+      </section>
+
+      <section class="mb-8">
+        <h2 class="text-2xl font-semibold text-gray-900 dark:text-white mb-4">14. Severability</h2>
+        <p class="text-gray-700 dark:text-gray-300 mb-4">
+          If any provision of these Terms is found to be unenforceable or invalid, that provision shall be limited 
+          or eliminated to the minimum extent necessary, and the remaining provisions shall remain in full force and 
+          effect.
+        </p>
+      </section>
+
+      <section class="mb-8">
+        <h2 class="text-2xl font-semibold text-gray-900 dark:text-white mb-4">15. Entire Agreement</h2>
+        <p class="text-gray-700 dark:text-gray-300 mb-4">
+          These Terms, together with our Privacy Policy, constitute the entire agreement between you and Chase The 
+          Zones regarding the use of the Service and supersede all prior agreements and understandings.
+        </p>
+      </section>
+
+      <section class="mb-8">
+        <h2 class="text-2xl font-semibold text-gray-900 dark:text-white mb-4">16. Contact Information</h2>
+        <p class="text-gray-700 dark:text-gray-300 mb-4">
+          If you have any questions about these Terms and Conditions, please contact us:
+        </p>
+        <div class="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
+          <p class="text-gray-700 dark:text-gray-300">
+            <strong>Chase The Zones</strong><br>
+            Email: <a href="mailto:legal@chasethezones.com" class="text-primary hover:underline">legal@chasethezones.com</a>
+          </p>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+{% endblock %}

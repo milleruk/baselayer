@@ -93,6 +93,20 @@
         </div>
       </div>
       
+      <!-- Fullscreen Chart Controls -->
+      <div class="fullscreen-chart-controls">
+        <button id="fullscreen-save-chart" class="chart-control-btn">
+          <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"></path>
+          </svg>
+          Save
+        </button>
+        <label class="chart-control-checkbox">
+          <input type="checkbox" id="fullscreen-toggle-zone-colors" checked>
+          <span>Zone Colors</span>
+        </label>
+      </div>
+      
       <!-- Fullscreen Slider -->
       <div class="fullscreen-slider-container">
         <div class="fullscreen-slider-wrapper">
@@ -110,11 +124,35 @@
 
   <!-- Chart.js Chart -->
   <div class="interactive-chart-section">
+    {% if playlist and playlist.songs %}
+    <!-- Music Timeline Overlay - Above Chart -->
+    <div class="mb-3">
+      <label class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 cursor-pointer mb-2">
+        <input type="checkbox" id="showMusicTimeline" checked class="rounded border-gray-300 dark:border-gray-600 text-primary focus:ring-primary bg-white dark:bg-gray-700">
+        <span>Show Music Timeline</span>
+      </label>
+      <div id="musicTimeline" class="h-12 relative bg-gray-800 dark:bg-gray-950 rounded border border-gray-700 dark:border-gray-600 overflow-hidden"></div>
+    </div>
+    {% endif %}
     <div class="pace-target-chart">
       <canvas id="class-plan-chart"></canvas>
       <div id="classPlanReadout" class="chart-readout"></div>
     </div>
     {{ chart_data|json_script:"chart-data" }}
+    
+    <!-- Chart Controls -->
+    <div class="chart-controls">
+      <button id="save-chart" class="chart-control-btn">
+        <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"></path>
+        </svg>
+        Save
+      </button>
+      <label class="chart-control-checkbox">
+        <input type="checkbox" id="toggle-zone-colors" checked>
+        <span>Zone Colors</span>
+      </label>
+    </div>
     
     <!-- Progress Slider -->
     <div class="progress-slider-container">
@@ -147,6 +185,37 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!chartData.segments || !chartData.zones) {
             console.log('Missing chart data - segments:', chartData.segments, 'zones:', chartData.zones);
             return;
+        }
+        
+        // Get playlist data if available
+        const playlistData = {% if playlist and playlist.songs %}[
+            {% for song in playlist.songs %}
+            {
+                title: "{{ song.title|escapejs }}",
+                artists: [{% for artist in song.artists %}"{{ artist.artist_name|escapejs }}"{% if not forloop.last %}, {% endif %}{% endfor %}],
+                start_time: {{ song.start_time_offset|default:0 }},
+                duration: {{ song.duration|default:0 }}
+            }{% if not forloop.last %},{% endif %}
+            {% endfor %}
+        ]{% else %}[]{% endif %};
+        
+        // Calculate song durations if not provided
+        if (playlistData && playlistData.length > 0) {
+            const rideDuration = {{ ride.duration_seconds|default:0 }};
+            for (let i = 0; i < playlistData.length; i++) {
+                const song = playlistData[i];
+                if (!song.start_time && song.start_time !== 0) {
+                    song.start_time = 0;
+                }
+                if (!song.duration || song.duration <= 0) {
+                    if (i < playlistData.length - 1) {
+                        song.duration = playlistData[i + 1].start_time - song.start_time;
+                    } else {
+                        // Last song - use ride duration minus start time
+                        song.duration = Math.max(180, rideDuration - song.start_time);
+                    }
+                }
+            }
         }
         
         // Get ride length from chart data or fallback
@@ -214,10 +283,12 @@ document.addEventListener('DOMContentLoaded', function() {
             };
         });
         
-        // Zone band plugin
+        // Zone band plugin - can be toggled on/off
+        let showZoneColors = true;
         const bandPlugin = {
             id: 'zoneBands',
             beforeDatasetsDraw(chart, args, opts) {
+                if (!showZoneColors) return;
                 const {ctx, chartArea, scales} = chart;
                 if (!opts || !Array.isArray(opts.bands)) return;
                 const toY = (zone) => scales.y.getPixelForValue(zone);
@@ -338,6 +409,8 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('Total duration:', totalDuration);
         
         // Use line chart for power zones
+        let showTargetLine = true;
+        let useKilometers = false;
         chartDataConfig = {
             type: 'line',
             data: {
@@ -349,7 +422,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     borderColor: '#5b7cfa',
                     backgroundColor: 'rgba(91, 124, 250, 0.1)',
                     fill: true,
-                    tension: 0.1
+                    tension: 0.1,
+                    hidden: !showTargetLine
                 }]
             }
         };
@@ -425,6 +499,30 @@ document.addEventListener('DOMContentLoaded', function() {
         };
         
         const chart = new Chart(ctx2d, chartConfig);
+        
+        // Chart control handlers
+        const toggleZoneColorsCheckbox = document.getElementById('toggle-zone-colors');
+        const saveChartBtn = document.getElementById('save-chart');
+        
+        // Toggle zone colors visibility
+        if (toggleZoneColorsCheckbox) {
+            toggleZoneColorsCheckbox.addEventListener('change', function() {
+                showZoneColors = this.checked;
+                chart.update('none');
+            });
+        }
+        
+        // Save chart functionality
+        if (saveChartBtn) {
+            saveChartBtn.addEventListener('click', function() {
+                // Convert chart to image and download
+                const url = chart.toBase64Image();
+                const link = document.createElement('a');
+                link.download = 'power-zone-chart.png';
+                link.href = url;
+                link.click();
+            });
+        }
         
         // Slider integration
         const progressSlider = document.getElementById('progress-slider');
@@ -960,8 +1058,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
             
+            // Clone the chart config and data
             const fullscreenChartConfig = {
                 ...chartConfig,
+                data: {
+                    datasets: chartConfig.data.datasets.map(dataset => ({
+                        ...dataset,
+                        hidden: dataset.hidden
+                    }))
+                },
                 options: {
                     ...chartConfig.options,
                     maintainAspectRatio: false,
@@ -970,6 +1075,38 @@ document.addEventListener('DOMContentLoaded', function() {
             };
             
             fullscreenChart = new Chart(fullscreenCtx, fullscreenChartConfig);
+            
+            // Sync fullscreen chart controls with main chart
+            const fullscreenToggleZoneColorsCheckbox = document.getElementById('fullscreen-toggle-zone-colors');
+            const fullscreenSaveChartBtn = document.getElementById('fullscreen-save-chart');
+            
+            // Sync initial states
+            if (fullscreenToggleZoneColorsCheckbox) {
+                fullscreenToggleZoneColorsCheckbox.checked = showZoneColors;
+            }
+            
+            // Fullscreen zone colors toggle
+            if (fullscreenToggleZoneColorsCheckbox) {
+                fullscreenToggleZoneColorsCheckbox.addEventListener('change', function() {
+                    showZoneColors = this.checked;
+                    chart.update('none');
+                    fullscreenChart.update('none');
+                    if (toggleZoneColorsCheckbox) {
+                        toggleZoneColorsCheckbox.checked = showZoneColors;
+                    }
+                });
+            }
+            
+            // Fullscreen save chart
+            if (fullscreenSaveChartBtn) {
+                fullscreenSaveChartBtn.addEventListener('click', function() {
+                    const url = fullscreenChart.toBase64Image();
+                    const link = document.createElement('a');
+                    link.download = 'power-zone-chart.png';
+                    link.href = url;
+                    link.click();
+                });
+            }
             
             const fullscreenProgressSlider = document.getElementById('fullscreen-progress-slider');
             const fullscreenPlayPauseBtn = document.getElementById('fullscreen-play-pause-btn');
@@ -1113,6 +1250,116 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         updateProgress();
+        
+        // Music timeline overlay rendering
+        if (playlistData && playlistData.length > 0) {
+            const musicTimelineEl = document.getElementById('musicTimeline');
+            const showMusicCheckbox = document.getElementById('showMusicTimeline');
+            
+            function renderMusicTimeline() {
+                if (!musicTimelineEl || !showMusicCheckbox) return;
+                
+                if (!showMusicCheckbox.checked) {
+                    musicTimelineEl.classList.add('hidden');
+                    return;
+                }
+                
+                musicTimelineEl.classList.remove('hidden');
+                musicTimelineEl.innerHTML = '';
+                
+                // Get max time from chart or ride duration
+                const maxTime = totalDuration || {{ ride.duration_seconds|default:0 }};
+                const timelineWidth = musicTimelineEl.offsetWidth || 800;
+                
+                // Color palette for different songs
+                const songColors = [
+                    'rgba(91, 124, 250, 0.4)',   // Blue
+                    'rgba(34, 197, 94, 0.4)',    // Green
+                    'rgba(234, 179, 8, 0.4)',    // Yellow
+                    'rgba(239, 68, 68, 0.4)',    // Red
+                    'rgba(168, 85, 247, 0.4)',   // Purple
+                    'rgba(236, 72, 153, 0.4)',   // Pink
+                    'rgba(20, 184, 166, 0.4)',   // Teal
+                    'rgba(251, 146, 60, 0.4)',   // Orange
+                ];
+                
+                playlistData.forEach((song, idx) => {
+                    const startTime = song.start_time || 0;
+                    const duration = song.duration || 180;
+                    
+                    // Calculate percentages based on max time
+                    const startPercent = maxTime > 0 ? (startTime / maxTime) * 100 : 0;
+                    const widthPercent = maxTime > 0 ? (duration / maxTime) * 100 : 0;
+                    
+                    // Ensure we don't go beyond 100%
+                    const actualStartPercent = Math.max(0, Math.min(startPercent, 100));
+                    const actualWidthPercent = Math.max(0, Math.min(widthPercent, 100 - actualStartPercent));
+                    
+                    // Skip if segment is too small or outside bounds
+                    if (actualWidthPercent < 0.5 || actualStartPercent >= 100) {
+                        return;
+                    }
+                    
+                    const segment = document.createElement('div');
+                    const color = songColors[idx % songColors.length];
+                    const artistName = song.artists && song.artists.length > 0 ? song.artists[0] : '';
+                    
+                    segment.style.cssText = `
+                        position: absolute;
+                        left: ${actualStartPercent}%;
+                        width: ${actualWidthPercent}%;
+                        height: 100%;
+                        background: ${color};
+                        border-right: 1px solid rgba(255,255,255,0.25);
+                        display: flex;
+                        flex-direction: column;
+                        justify-content: center;
+                        align-items: flex-start;
+                        padding: 2px 6px;
+                        font-size: 10px;
+                        line-height: 1.2;
+                        color: rgba(255,255,255,0.95);
+                        overflow: hidden;
+                        cursor: pointer;
+                        transition: opacity 0.2s, background 0.2s;
+                        min-width: 60px;
+                    `;
+                    
+                    segment.onmouseenter = () => {
+                        segment.style.opacity = '0.85';
+                        segment.style.background = color.replace('0.4', '0.6');
+                    };
+                    segment.onmouseleave = () => {
+                        segment.style.opacity = '1';
+                        segment.style.background = color;
+                    };
+                    
+                    // Create title element
+                    const titleEl = document.createElement('div');
+                    titleEl.style.cssText = 'font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; font-size: 10px;';
+                    titleEl.textContent = song.title || 'Unknown';
+                    segment.appendChild(titleEl);
+                    
+                    // Create artist element (only if there's space)
+                    if (artistName && actualWidthPercent > 5) {
+                        const artistEl = document.createElement('div');
+                        artistEl.style.cssText = 'font-size: 9px; opacity: 0.8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; margin-top: 1px;';
+                        artistEl.textContent = artistName;
+                        segment.appendChild(artistEl);
+                    }
+                    
+                    musicTimelineEl.appendChild(segment);
+                });
+            }
+            
+            // Initial render
+            renderMusicTimeline();
+            
+            // Update on checkbox change
+            if (showMusicCheckbox) {
+                showMusicCheckbox.addEventListener('change', renderMusicTimeline);
+            }
+        }
     })();
 });
 </script>
@@ -1581,6 +1828,112 @@ document.addEventListener('DOMContentLoaded', function() {
   font-size: 0.875rem;
 }
 
+/* Chart Controls */
+.chart-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  justify-content: flex-end;
+  margin-top: 1rem;
+  padding: 0.5rem 0;
+}
+
+.chart-control-btn {
+  padding: 0.5rem 1rem;
+  background: rgb(55 65 81); /* dark:bg-gray-700 */
+  color: white;
+  border: 1px solid rgb(75 85 99); /* dark:border-gray-600 */
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.chart-control-btn:hover {
+  background: rgb(75 85 99); /* dark:hover:bg-gray-600 */
+  border-color: rgb(107 114 128); /* dark:hover:border-gray-500 */
+}
+
+@media (prefers-color-scheme: light) {
+  .chart-control-btn {
+    background: rgb(229 231 235); /* bg-gray-200 */
+    color: rgb(17 24 39); /* text-gray-900 */
+    border-color: rgb(209 213 219); /* border-gray-300 */
+  }
+  
+  .chart-control-btn:hover {
+    background: rgb(209 213 219); /* hover:bg-gray-300 */
+    border-color: rgb(156 163 175); /* hover:border-gray-400 */
+  }
+}
+
+.dark .chart-control-btn {
+  background: rgb(55 65 81); /* dark:bg-gray-700 */
+  color: white;
+  border-color: rgb(75 85 99); /* dark:border-gray-600 */
+}
+
+.dark .chart-control-btn:hover {
+  background: rgb(75 85 99); /* dark:hover:bg-gray-600 */
+  border-color: rgb(107 114 128); /* dark:hover:border-gray-500 */
+}
+
+.chart-control-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: rgb(55 65 81); /* dark:bg-gray-700 */
+  border: 1px solid rgb(75 85 99); /* dark:border-gray-600 */
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.chart-control-checkbox:hover {
+  background: rgb(75 85 99); /* dark:hover:bg-gray-600 */
+  border-color: rgb(107 114 128); /* dark:hover:border-gray-500 */
+}
+
+.chart-control-checkbox input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: rgb(59 130 246); /* accent-blue-500 */
+}
+
+@media (prefers-color-scheme: light) {
+  .chart-control-checkbox {
+    background: rgb(229 231 235); /* bg-gray-200 */
+    color: rgb(17 24 39); /* text-gray-900 */
+    border-color: rgb(209 213 219); /* border-gray-300 */
+  }
+  
+  .chart-control-checkbox:hover {
+    background: rgb(209 213 219); /* hover:bg-gray-300 */
+    border-color: rgb(156 163 175); /* hover:border-gray-400 */
+  }
+}
+
+.dark .chart-control-checkbox {
+  background: rgb(55 65 81); /* dark:bg-gray-700 */
+  color: white;
+  border-color: rgb(75 85 99); /* dark:border-gray-600 */
+}
+
+.dark .chart-control-checkbox:hover {
+  background: rgb(75 85 99); /* dark:hover:bg-gray-600 */
+  border-color: rgb(107 114 128); /* dark:hover:border-gray-500 */
+}
+
 /* Fullscreen Overlay */
 .fullscreen-overlay {
   position: fixed;
@@ -1770,6 +2123,18 @@ document.addEventListener('DOMContentLoaded', function() {
   width: 18px;
   height: 18px;
   cursor: pointer;
+}
+
+.fullscreen-chart-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgb(31 41 55); /* dark:bg-gray-800 */
+  border-radius: 12px;
+  border: 1px solid rgb(55 65 81); /* dark:border-gray-700 */
 }
 
 .fullscreen-slider-container {

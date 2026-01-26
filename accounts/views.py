@@ -91,6 +91,112 @@ def profile(request):
     running_pace_levels = PaceLevel.objects.filter(user=request.user, activity_type='running').prefetch_related('bands').order_by('-recorded_date', '-level')
     walking_pace_levels = PaceLevel.objects.filter(user=request.user, activity_type='walking').prefetch_related('bands').order_by('-recorded_date', '-level')
     
+    # Get current active pace level objects for metrics display
+    current_running_pace_level = None
+    current_walking_pace_level = None
+    if current_running_pace:
+        # Get the most recent pace level definition for the current level
+        current_running_pace_level = PaceLevel.objects.filter(
+            user=request.user, 
+            activity_type='running', 
+            level=current_running_pace
+        ).prefetch_related('bands').order_by('-recorded_date').first()
+        
+        # If no custom pace level exists but we have default data, create a display object
+        if not current_running_pace_level and current_running_pace in DEFAULT_RUNNING_PACE_LEVELS:
+            from datetime import date
+            from decimal import Decimal
+            
+            class DefaultPaceLevel:
+                def __init__(self, level, default_data):
+                    self.level = level
+                    self.recorded_date = date.today()
+                    self._default_data = default_data
+                
+                @property
+                def bands(self):
+                    class DefaultBands:
+                        def __init__(self, default_data):
+                            self._default_data = default_data
+                        
+                        def all(self):
+                            class DefaultBand:
+                                def __init__(self, zone, data):
+                                    self.zone = zone
+                                    self.min_mph = Decimal(str(data[0]))
+                                    self.max_mph = Decimal(str(data[1]))
+                                    self.min_pace = Decimal(str(data[2]))
+                                    self.max_pace = Decimal(str(data[3]))
+                                    self.description = data[4]
+                                
+                                def get_zone_display(self):
+                                    zone_map = {
+                                        'recovery': 'Recovery',
+                                        'easy': 'Easy',
+                                        'moderate': 'Moderate',
+                                        'challenging': 'Challenging',
+                                        'hard': 'Hard',
+                                        'very_hard': 'Very Hard',
+                                        'max': 'Max',
+                                    }
+                                    return zone_map.get(self.zone, self.zone.title())
+                            
+                            return [DefaultBand(zone, data) for zone, data in self._default_data.items()]
+                    
+                    return DefaultBands(self._default_data)
+            
+            current_running_pace_level = DefaultPaceLevel(current_running_pace, DEFAULT_RUNNING_PACE_LEVELS[current_running_pace])
+    if current_walking_pace:
+        # Get the most recent pace level definition for the current level
+        current_walking_pace_level = PaceLevel.objects.filter(
+            user=request.user, 
+            activity_type='walking', 
+            level=current_walking_pace
+        ).prefetch_related('bands').order_by('-recorded_date').first()
+        
+        # If no custom pace level exists but we have default data, create a display object
+        if not current_walking_pace_level and current_walking_pace in DEFAULT_WALKING_PACE_LEVELS:
+            from datetime import date
+            from decimal import Decimal
+            
+            class DefaultPaceLevel:
+                def __init__(self, level, default_data):
+                    self.level = level
+                    self.recorded_date = date.today()
+                    self._default_data = default_data
+                
+                @property
+                def bands(self):
+                    class DefaultBands:
+                        def __init__(self, default_data):
+                            self._default_data = default_data
+                        
+                        def all(self):
+                            class DefaultBand:
+                                def __init__(self, zone, data):
+                                    self.zone = zone
+                                    self.min_mph = Decimal(str(data[0]))
+                                    self.max_mph = Decimal(str(data[1]))
+                                    self.min_pace = Decimal(str(data[2]))
+                                    self.max_pace = Decimal(str(data[3]))
+                                    self.description = data[4]
+                                
+                                def get_zone_display(self):
+                                    zone_map = {
+                                        'recovery': 'Recovery',
+                                        'easy': 'Easy',
+                                        'brisk': 'Brisk',
+                                        'power': 'Power',
+                                        'max': 'Max',
+                                    }
+                                    return zone_map.get(self.zone, self.zone.title())
+                            
+                            return [DefaultBand(zone, data) for zone, data in self._default_data.items()]
+                    
+                    return DefaultBands(self._default_data)
+            
+            current_walking_pace_level = DefaultPaceLevel(current_walking_pace, DEFAULT_WALKING_PACE_LEVELS[current_walking_pace])
+    
     # Check if user is in an active challenge
     from datetime import date
     today = date.today()
@@ -187,6 +293,8 @@ def profile(request):
         "current_walking_pace": current_walking_pace,
         "running_pace_levels": running_pace_levels,
         "walking_pace_levels": walking_pace_levels,
+        "current_running_pace_level": current_running_pace_level,
+        "current_walking_pace_level": current_walking_pace_level,
         "default_running_pace_levels": DEFAULT_RUNNING_PACE_LEVELS,
         "default_walking_pace_levels": DEFAULT_WALKING_PACE_LEVELS,
         "zone_colors": ZONE_COLORS,

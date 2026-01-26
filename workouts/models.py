@@ -418,16 +418,27 @@ class RideDetail(models.Model):
             for metric in segment.get('metrics', []):
                 metric_name = metric.get('name', '')
                 if 'pace' in metric_name.lower() or 'pace_intensity' in metric_name.lower():
-                    # Get pace zone number (typically 1-7)
-                    pace_zone = metric.get('lower') or metric.get('upper')
-                    if pace_zone is None:
+                    # Get pace intensity value (typically 0-6 from Peloton API)
+                    pace_intensity = metric.get('lower') or metric.get('upper')
+                    if pace_intensity is None:
                         continue
                     
                     # Ensure it's an integer
                     try:
-                        pace_zone = int(pace_zone)
+                        pace_intensity = int(pace_intensity)
                     except (ValueError, TypeError):
                         continue
+                    
+                    # Map pace_intensity (0-6) to pace zone (1-7)
+                    # Peloton pace_intensity: 0=Recovery, 1=Easy, 2=Moderate, 3=Challenging, 4=Hard, 5=Very Hard, 6=Max
+                    # Our pace zones: 1=Recovery, 2=Easy, 3=Moderate, 4=Challenging, 5=Hard, 6=Very Hard, 7=Max
+                    pace_zone = pace_intensity + 1  # Convert 0-6 to 1-7
+                    
+                    # Ensure pace_zone is in valid range (1-7)
+                    if pace_zone < 1:
+                        pace_zone = 1
+                    elif pace_zone > 7:
+                        pace_zone = 7
                     
                     # Map zone number to zone name for pace_range lookup
                     zone_map = {1: 'recovery', 2: 'easy', 3: 'moderate', 4: 'challenging', 

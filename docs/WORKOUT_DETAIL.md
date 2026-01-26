@@ -61,12 +61,46 @@ For power zone cycling classes, the graph includes:
   - Zone 6: Red (#dc3545) - Anaerobic
   - Zone 7: Dark Purple (#6610f2) - Neuromuscular
 
+#### Pace Target Classes
+
+For running and walking pace target classes, the graph includes:
+
+- **Pace Target Timeline**: Title and description
+- **Music Timeline Toggle**: Checkbox to show/hide music overlay (top-right)
+- **Music Timeline Overlay**: Horizontal band above chart showing song segments (same as power zone)
+- **Chart Features**:
+  - **Actual Pace Line**: Yellow smooth curve showing actual pace level (1-7) based on speed
+  - **Target Pace Line**: Blue stepped line showing target pace zones (from class plan)
+  - **Zone Background Bands**: Colored zones 1-7 with opacity
+  - **Custom Legend**: Zone names (Max to Recovery)
+  - **Readout Display**: Shows "Time • Pace Level X • Target Y" on hover
+- **Zone Colors** (matching power zone):
+  - Recovery: Purple - Zone 1
+  - Easy: Teal - Zone 2
+  - Moderate: Green - Zone 3
+  - Challenging: Yellow - Zone 4
+  - Hard: Orange - Zone 5
+  - Very Hard: Red - Zone 6
+  - Max: Pink - Zone 7
+- **Target Line Offset**: Target pace line is offset by -60 seconds (starts 60s earlier) to match power zone behavior
+
 #### Other Workout Types
 
-For non-power zone workouts:
+For non-power zone, non-pace target workouts:
 - **Cycling**: Output line (watts)
-- **Running**: Speed line (mph)
+- **Running/Walking (non-pace target)**: Speed line (mph)
 - **Other**: Heart rate line (bpm)
+
+#### Classes Without Performance Data
+
+For classes where Peloton returned no performance metrics:
+- Displays message: "Peloton returned no performance metrics for this class"
+- No chart is rendered
+
+#### Unsupported Class Types
+
+For class types that don't support performance graphs (e.g., yoga, strength, meditation):
+- Displays message: "Performance data is not available for this class type"
 
 ### 4. Power Profile and Zone Cards (Power Zone Classes Only)
 
@@ -143,8 +177,11 @@ Displays class playlist if available:
    - Determines workout type (power zone, pace target, other)
    - Calculates target metrics:
      - **Power Zone**: Uses `ride_detail.get_power_zone_segments()` with user's FTP at workout date
+     - **Pace Target**: Uses `ride_detail.get_pace_segments()` with user's pace level at workout date
      - **Target Line**: Calculated from class plan segments (preferred) or API fallback
-     - **Zone Ranges**: Calculated from user's FTP at workout date
+     - **Zone Ranges**: 
+       - Power Zone: Calculated from user's FTP at workout date
+       - Pace Target: Calculated from user's pace level at workout date (activity-specific: running or walking)
    - Calculates power profile (5s, 1m, 5m, 20m peak power):
      - Uses rolling averages over performance data
      - Calculates segment_length from timestamp intervals
@@ -201,11 +238,18 @@ The target line is calculated using two methods (in priority order):
    - Applies -60 second time shift
    - Used when class plan segments unavailable
 
-### Zone Range Calculation
+### Historical Data Lookup
+
+The system uses **historical values** (FTP and pace levels) that were active when the workout was recorded, not current values. This ensures accurate zone calculations and target displays for past workouts.
+
+#### FTP Lookup
 
 Power zone ranges are calculated based on user's FTP at workout date:
 
 ```python
+workout_date = workout.completed_date or workout.recorded_date
+user_ftp = user_profile.get_ftp_at_date(workout_date)
+
 zone_ranges = {
     1: (0, int(user_ftp * 0.55)),           # Zone 1: 0-55% FTP
     2: (int(user_ftp * 0.55), int(user_ftp * 0.75)),  # Zone 2: 55-75% FTP
@@ -216,6 +260,41 @@ zone_ranges = {
     7: (int(user_ftp * 1.50), None)              # Zone 7: 150%+ FTP
 }
 ```
+
+The `get_ftp_at_date()` method:
+- Finds the most recent FTP entry with `recorded_date <= workout_date`
+- Falls back to current FTP if no historical entry found
+
+#### Pace Level Lookup
+
+Pace target zones are calculated based on user's pace level at workout date (activity-specific):
+
+```python
+workout_date = workout.completed_date or workout.recorded_date
+activity_type = 'running' if ride_detail.fitness_discipline in ['running', 'run'] else 'walking'
+user_pace_level = user_profile.get_pace_at_date(workout_date, activity_type=activity_type)
+
+# Calculate pace zones based on level (1-10)
+base_paces = {
+    1: 12.0, 2: 11.0, 3: 10.0, 4: 9.0, 5: 8.5, 6: 8.0, 7: 7.5, 8: 7.0, 9: 6.5, 10: 6.0
+}
+base_pace = base_paces.get(user_pace_level, 8.0)
+
+pace_zones = {
+    'recovery': base_pace + 2.0,      # Recovery: +2:00/mile
+    'easy': base_pace + 1.0,          # Easy: +1:00/mile
+    'moderate': base_pace,            # Moderate: base pace
+    'challenging': base_pace - 0.5,   # Challenging: -0:30/mile
+    'hard': base_pace - 1.0,          # Hard: -1:00/mile
+    'very_hard': base_pace - 1.5,     # Very Hard: -1:30/mile
+    'max': base_pace - 2.0            # Max: -2:00/mile
+}
+```
+
+The `get_pace_at_date()` method:
+- Finds the most recent PaceEntry with `recorded_date <= workout_date` for the specific activity type (running or walking)
+- Falls back to current active pace if no historical entry found
+- Supports separate pace levels for running and walking activities
 
 ### Styling
 
@@ -296,7 +375,7 @@ The workout detail page is fully responsive with mobile-optimized layouts:
 
 **Command**: `python manage.py refresh_workout_performance <workout_id>`
 
-Re-fetches and updates performance graph data for a specific workout without full re-sync.
+Re-fetches and updates performance graph data for a specific workout without full re-sync. This command correctly extracts speed data from the `pace` metric's `alternatives` array for running/walking workouts.
 
 **Options**:
 - `--username`: Peloton username (if not workout owner)
@@ -311,6 +390,36 @@ python manage.py refresh_workout_performance c29be4c7e31441d9964ec1cd34a497a2
 # Using Django workout ID
 python manage.py refresh_workout_performance 936 --django-id
 ```
+
+### Refresh All Running/Walking Workouts
+
+**Command**: `python manage.py refresh_all_running_walking`
+
+Bulk refreshes performance data for all running and walking workouts. Useful after fixing speed extraction logic or updating performance data processing.
+
+**Options**:
+- `--username`: Peloton username (if not provided, processes all users)
+- `--every-n`: Sampling interval in seconds (default: 5)
+- `--limit`: Limit the number of workouts to process (for testing)
+- `--dry-run`: Show what would be processed without actually updating
+
+**Usage**:
+```bash
+# Refresh all running/walking workouts
+python manage.py refresh_all_running_walking
+
+# Test with first 10 workouts
+python manage.py refresh_all_running_walking --limit 10
+
+# Dry run to see what would be processed
+python manage.py refresh_all_running_walking --dry-run
+```
+
+**Features**:
+- Correctly extracts speed data from `pace` metric's `alternatives` array
+- Groups workouts by user to minimize API client creation
+- Provides detailed progress output with success/failure counts
+- Skips workouts with no performance data available from Peloton
 
 ### Download Workout JSONs
 
@@ -355,6 +464,30 @@ For power zone classes:
     "1": [0, 105],
     "2": [105, 143],
     ...
+  }
+}
+```
+
+For pace target classes:
+```json
+{
+  "type": "pace",
+  "segments": [
+    {
+      "zone": 3,
+      "pace_level": 3,
+      "start": 60,
+      "end": 300
+    }
+  ],
+  "pace_zones": {
+    "recovery": 10.0,
+    "easy": 9.0,
+    "moderate": 8.5,
+    "challenging": 8.0,
+    "hard": 7.5,
+    "very_hard": 7.0,
+    "max": 6.5
   }
 }
 ```

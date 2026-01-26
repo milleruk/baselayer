@@ -1893,6 +1893,7 @@ def workout_detail(request, pk):
     target_metrics = None
     target_metrics_json = None
     target_line_data = None  # For power zone graph target line
+    is_pace_target = False  # Initialize flag early
     
     if workout.ride_detail:
         ride_detail = workout.ride_detail
@@ -1991,14 +1992,44 @@ def workout_detail(request, pk):
                 if not performance_data.exists():
                     logger.warning(f"No performance data found for workout {workout.id}")
         elif ride_detail.fitness_discipline in ['running', 'walking']:
-            # Running/Walking class - get user's pace zones
-            pace_zones = user_profile.get_pace_zone_targets()
+            # Running/Walking class - get user's pace zones based on activity type
+            activity_type = 'running' if ride_detail.fitness_discipline in ['running', 'run'] else 'walking'
+            # Get the pace level that was active at the workout date
+            workout_date = workout.completed_date or workout.recorded_date
+            current_pace_level = user_profile.get_pace_at_date(workout_date, activity_type=activity_type) if user_profile and workout_date else None
+            # Fallback to pace_target_level if no PaceEntry exists
+            if current_pace_level is None and user_profile:
+                current_pace_level = user_profile.pace_target_level
+            
+            # Get pace zones using the correct level
+            # We need to use get_pace_zone_targets() but with the correct level
+            # Since get_pace_zone_targets() uses self.pace_target_level, we'll calculate zones manually
+            if current_pace_level and user_profile:
+                # Calculate pace zones based on the current pace level
+                base_paces = {
+                    1: 12.0, 2: 11.0, 3: 10.0, 4: 9.0, 5: 8.5, 6: 8.0, 7: 7.5, 8: 7.0, 9: 6.5, 10: 6.0
+                }
+                base_pace = base_paces.get(current_pace_level, 8.0)
+                pace_zones = {
+                    'recovery': base_pace + 2.0,
+                    'easy': base_pace + 1.0,
+                    'moderate': base_pace,
+                    'challenging': base_pace - 0.5,
+                    'hard': base_pace - 1.0,
+                    'very_hard': base_pace - 1.5,
+                    'max': base_pace - 2.0
+                }
+            else:
+                pace_zones = user_profile.get_pace_zone_targets() if user_profile else None
+            
             segments = ride_detail.get_pace_segments(user_pace_zones=pace_zones)
             target_metrics = {
                 'type': 'pace',
                 'segments': segments,
                 'pace_zones': pace_zones
             }
+            # Set is_pace_target flag for running/walking classes
+            is_pace_target = True
         else:
             # Standard cycling class - cadence/resistance ranges
             segments = ride_detail.get_cadence_resistance_segments()
@@ -2010,6 +2041,12 @@ def workout_detail(request, pk):
         # Convert to JSON for template
         if target_metrics:
             target_metrics_json = mark_safe(json.dumps(target_metrics))
+    
+    # Ensure is_pace_target is set correctly (check class_type or fitness_discipline if not already set)
+    if workout.ride_detail and not is_pace_target:
+        if (workout.ride_detail.class_type == 'pace_target' or 
+            workout.ride_detail.fitness_discipline in ['running', 'walking']):
+            is_pace_target = True
     
     # Get playlist if available
     playlist = None
@@ -2237,6 +2274,204 @@ def workout_detail(request, pk):
         
         class_notes = class_notes_list if class_notes_list else None
     
+    # Calculate pace target distribution and summary for pace target classes
+    pace_targets = None
+    pace_class_notes = None
+    # is_pace_target should already be set above, but ensure it's set if we have pace target_metrics
+    if not is_pace_target and target_metrics and target_metrics.get('type') == 'pace':
+        is_pace_target = True
+    
+    # Calculate pace targets if this is a pace target class (even if segments is empty, we still want to show the cards)
+    if is_pace_target and target_metrics and target_metrics.get('type') == 'pace':
+        segments = target_metrics.get('segments', [])
+        
+        # Calculate segment_length from performance data timestamps (default 5 seconds)
+        segment_length = 5  # Default Peloton sampling interval
+        if performance_data:
+            perf_list = list(performance_data.order_by('timestamp'))
+            if len(perf_list) > 1:
+                intervals = []
+                for i in range(1, min(10, len(perf_list))):
+                    interval = perf_list[i].timestamp - perf_list[i-1].timestamp
+                    if interval > 0:
+                        intervals.append(interval)
+                if intervals:
+                    segment_length = int(sum(intervals) / len(intervals))
+        
+        # Calculate time in each pace level from target segments
+        # Pace zones: recovery=1, easy=2, moderate=3, challenging=4, hard=5, very_hard=6, max=7
+        pace_times = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0}
+        pace_blocks = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0}
+        previous_pace = None
+        
+        # If no segments from get_pace_segments, try to get from target_metrics_data
+        if not segments and workout.ride_detail and workout.ride_detail.target_metrics_data:
+            # Try to extract segments from target_metrics_data
+            target_metrics_data = workout.ride_detail.target_metrics_data
+            target_metrics_list = target_metrics_data.get('target_metrics', [])
+            if target_metrics_list:
+                for tm in target_metrics_list:
+                    offsets = tm.get('offsets', {})
+                    start = offsets.get('start', 0)
+                    end = offsets.get('end', start)
+                    duration = max(end - start, 0)
+                    
+                    # Find pace_intensity in metrics
+                    pace_zone = None
+                    for metric in tm.get('metrics', []):
+                        if metric.get('name') == 'pace_intensity':
+                            # pace_intensity is 0-6, map to 1-7 (recovery=1, easy=2, etc.)
+                            pace_intensity = metric.get('lower') or metric.get('upper')
+                            if pace_intensity is not None:
+                                pace_zone = int(pace_intensity) + 1  # Convert 0-6 to 1-7
+                                break
+                    
+                    if pace_zone and duration > 0:
+                        segments.append({
+                            'start': start,
+                            'end': end,
+                            'zone': pace_zone,
+                            'duration': duration
+                        })
+        
+        for segment in segments:
+            pace_zone = segment.get('zone')  # 1-7 from get_pace_segments
+            if 'start' in segment and 'end' in segment:
+                start = segment.get('start', 0)
+                end = segment.get('end', start)
+                duration = max(end - start, 0)
+            else:
+                offsets = segment.get('offsets', {})
+                start = offsets.get('start', 0)
+                end = offsets.get('end', start)
+                duration = max(end - start, segment.get('duration', 0))
+            
+            if pace_zone and duration > 0:
+                pace_times[pace_zone] = pace_times.get(pace_zone, 0) + duration
+                if pace_zone != previous_pace:
+                    pace_blocks[pace_zone] = pace_blocks.get(pace_zone, 0) + 1
+                previous_pace = pace_zone
+        
+        # Calculate actual time in pace levels from performance data (speed-based)
+        pace_actual_times = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0}
+        if performance_data and target_metrics and target_metrics.get('pace_zones'):
+            pace_zones = target_metrics.get('pace_zones')
+            # Get user's pace zones for comparison
+            for perf in performance_data:
+                if perf.speed and perf.speed > 0:
+                    # Convert speed (mph) to pace (min/mile)
+                    pace_min_per_mile = 60.0 / perf.speed if perf.speed > 0 else None
+                    
+                    if pace_min_per_mile:
+                        # Map pace to zone based on user's pace zones
+                        if pace_min_per_mile >= pace_zones.get('recovery', 20.0):
+                            pace_actual_times[1] += segment_length
+                        elif pace_min_per_mile >= pace_zones.get('easy', 15.0):
+                            pace_actual_times[2] += segment_length
+                        elif pace_min_per_mile >= pace_zones.get('moderate', 12.0):
+                            pace_actual_times[3] += segment_length
+                        elif pace_min_per_mile >= pace_zones.get('challenging', 10.0):
+                            pace_actual_times[4] += segment_length
+                        elif pace_min_per_mile >= pace_zones.get('hard', 8.5):
+                            pace_actual_times[5] += segment_length
+                        elif pace_min_per_mile >= pace_zones.get('very_hard', 7.5):
+                            pace_actual_times[6] += segment_length
+                        else:
+                            pace_actual_times[7] += segment_length
+        
+        # Build pace targets with progress
+        pace_targets_list = []
+        total_target_time = 0
+        total_actual_time = 0
+        
+        pace_names = {
+            1: "Recovery",
+            2: "Easy",
+            3: "Moderate",
+            4: "Challenging",
+            5: "Hard",
+            6: "Very Hard",
+            7: "Max"
+        }
+        
+        # Process pace levels in reverse order (Max to Recovery) for display
+        for pace_level in range(7, 0, -1):
+            target_time = pace_times.get(pace_level, 0)
+            actual_time = pace_actual_times.get(pace_level, 0)
+            blocks = pace_blocks.get(pace_level, 0)
+            
+            if target_time > 0:
+                total_target_time += target_time
+                total_actual_time += min(actual_time, target_time)
+                
+                percentage = min(100, (actual_time / target_time * 100)) if target_time > 0 else 0
+                
+                def format_duration(seconds):
+                    mins = seconds // 60
+                    secs = seconds % 60
+                    return f"{mins}:{secs:02d}"
+                
+                pace_targets_list.append({
+                    'zone': pace_level,
+                    'name': pace_names[pace_level],
+                    'target_time': target_time,
+                    'target_time_str': format_duration(target_time),
+                    'actual_time': actual_time,
+                    'actual_time_str': format_duration(actual_time),
+                    'percentage': percentage,
+                    'blocks': blocks
+                })
+        
+        # Calculate overall progress
+        overall_percentage = 0
+        if total_target_time > 0:
+            overall_percentage = (total_actual_time / total_target_time) * 100
+        
+        if pace_targets_list:
+            pace_targets = {
+                'overall_percentage': round(overall_percentage, 2),
+                'zones': pace_targets_list
+            }
+        else:
+            pace_targets = None
+        
+        # Build pace class notes
+        pace_class_notes_list = []
+        for pace_level in range(7, 0, -1):
+            target_time = pace_times.get(pace_level, 0)
+            blocks = pace_blocks.get(pace_level, 0)
+            if target_time > 0:
+                def format_duration(seconds):
+                    mins = seconds // 60
+                    secs = seconds % 60
+                    return f"{mins}:{secs:02d}"
+                
+                pace_class_notes_list.append({
+                    'zone': pace_level,
+                    'zone_label': pace_names[pace_level],
+                    'name': pace_names[pace_level],
+                    'total_time': target_time,
+                    'total_time_str': format_duration(target_time),
+                    'blocks': blocks
+                })
+        
+        pace_class_notes = pace_class_notes_list if pace_class_notes_list else None
+    
+    # Get user pace level for pace target classes - use correct level based on activity type and workout date
+    user_pace_level = None
+    if is_pace_target and user_profile and workout.ride_detail:
+        activity_type = 'running' if workout.ride_detail.fitness_discipline in ['running', 'run'] else 'walking'
+        # Get the pace level that was active at the workout date
+        workout_date = workout.completed_date or workout.recorded_date
+        if workout_date:
+            user_pace_level = user_profile.get_pace_at_date(workout_date, activity_type=activity_type)
+        else:
+            # Fallback to current pace if no workout date
+            user_pace_level = user_profile.get_current_pace(activity_type=activity_type)
+        # Fallback to pace_target_level if no PaceEntry exists
+        if user_pace_level is None:
+            user_pace_level = user_profile.pace_target_level or 5  # Default to level 5
+    
     context = {
         'workout': workout,
         'performance_data': performance_data,
@@ -2245,10 +2480,14 @@ def workout_detail(request, pk):
         'target_line_data': target_line_data_json,
         'user_profile': user_profile,
         'user_ftp': user_ftp,  # Pass FTP explicitly for template
+        'user_pace_level': user_pace_level,  # Pass pace level for pace target classes
         'playlist': playlist,
         'power_profile': power_profile,
         'zone_targets': zone_targets,
         'class_notes': class_notes,
+        'pace_targets': pace_targets,  # Pace target distribution
+        'pace_class_notes': pace_class_notes,  # Pace class notes
+        'is_pace_target': is_pace_target,  # Flag to identify pace target classes
     }
     
     return render(request, 'workouts/detail.html', context)
@@ -3234,6 +3473,18 @@ def sync_workouts(request):
                             values = metric.get('values', [])
                             if slug and values:
                                 metric_values_by_slug[slug] = values
+                            
+                            # For running classes, speed might be in the 'pace' metric's alternatives array
+                            if slug == 'pace':
+                                alternatives = metric.get('alternatives', [])
+                                for alt in alternatives:
+                                    alt_slug = alt.get('slug')
+                                    alt_values = alt.get('values', [])
+                                    if alt_slug == 'speed' and alt_values:
+                                        # Use speed from alternatives if not already found
+                                        if 'speed' not in metric_values_by_slug:
+                                            metric_values_by_slug['speed'] = alt_values
+                                            logger.debug(f"Workout {total_processed} ({peloton_workout_id}): Found speed in pace metric alternatives ({len(alt_values)} values)")
                         
                         # Create performance data entries for each timestamp
                         performance_data_entries = []

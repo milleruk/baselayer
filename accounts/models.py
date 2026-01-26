@@ -163,6 +163,24 @@ class Profile(models.Model):
             return active_ftp.ftp_value
         return self.ftp_score
     
+    def get_ftp_at_date(self, date):
+        """
+        Get the FTP value that was active at a specific date.
+        Returns the most recent FTP entry with recorded_date <= date, or current FTP if none found.
+        """
+        from django.db.models import Q
+        
+        # Get FTP entries recorded on or before the workout date, ordered by most recent first
+        ftp_entry = self.user.ftp_entries.filter(
+            recorded_date__lte=date
+        ).order_by('-recorded_date', '-created_at').first()
+        
+        if ftp_entry:
+            return ftp_entry.ftp_value
+        
+        # Fallback to current FTP
+        return self.get_current_ftp()
+    
     def get_current_pace(self, activity_type='running'):
         """Get the current active pace level from PaceEntry for the given activity type"""
         active_pace = self.user.pace_entries.filter(
@@ -172,6 +190,26 @@ class Profile(models.Model):
         if active_pace:
             return active_pace.level
         return None
+    
+    def get_pace_at_date(self, date, activity_type='running'):
+        """
+        Get the pace level that was active at a specific date.
+        Returns the most recent PaceEntry with recorded_date <= date for the given activity type,
+        or current pace if none found.
+        """
+        from django.db.models import Q
+        
+        # Get pace entries recorded on or before the workout date, ordered by most recent first
+        pace_entry = self.user.pace_entries.filter(
+            activity_type=activity_type,
+            recorded_date__lte=date
+        ).order_by('-recorded_date', '-created_at').first()
+        
+        if pace_entry:
+            return pace_entry.level
+        
+        # Fallback to current active pace
+        return self.get_current_pace(activity_type=activity_type)
     
     def get_power_zone_ranges(self):
         """Calculate power zone ranges based on FTP (zones 1-7)"""

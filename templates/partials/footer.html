@@ -87,9 +87,9 @@
             <div class="pt-2">
               <p class="text-gray-400 mb-2 text-xs">© {% now "Y" %} ChaseTheZones. All rights reserved.</p>
               <p class="text-gray-400 text-xs">
-                <a href="#" class="hover:text-gray-200 transition-colors">Privacy Policy</a>
+                <a href="{% url 'plans:privacy_policy' %}" class="hover:text-gray-200 transition-colors">Privacy Policy</a>
                 <span class="mx-2">|</span>
-                <a href="#" class="hover:text-gray-200 transition-colors">Terms of Use</a>
+                <a href="{% url 'plans:terms_and_conditions' %}" class="hover:text-gray-200 transition-colors">Terms of Use</a>
               </p>
             </div>
           </div>
@@ -108,8 +108,8 @@
         <div class="flex gap-6 text-gray-400">
           <a href="{% url 'plans:landing' %}" class="hover:text-gray-200 transition-colors">Home</a>
           <a href="{% url 'plans:guide' %}" class="hover:text-gray-200 transition-colors">Guide</a>
-          <a href="#" class="hover:text-gray-200 transition-colors">Privacy Policy</a>
-          <a href="#" class="hover:text-gray-200 transition-colors">Terms of Use</a>
+          <a href="{% url 'plans:privacy_policy' %}" class="hover:text-gray-200 transition-colors">Privacy Policy</a>
+          <a href="{% url 'plans:terms_and_conditions' %}" class="hover:text-gray-200 transition-colors">Terms of Use</a>
         </div>
       </div>
     </div>

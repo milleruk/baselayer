@@ -207,3 +207,6 @@ htmlcov/
 # Local development
 local/
 local_*
+
+# JSON test data
+jsons/

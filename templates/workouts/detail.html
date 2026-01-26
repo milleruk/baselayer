@@ -133,7 +133,22 @@
 {% endif %}
 
 <!-- Performance Graph -->
-{% if performance_data %}
+{% if workout.ride_detail and workout.ride_detail.fitness_discipline %}
+  {% if workout.ride_detail.fitness_discipline != 'running' and workout.ride_detail.fitness_discipline != 'cycling' and workout.ride_detail.fitness_discipline != 'walking' and workout.ride_detail.fitness_discipline != 'run' and workout.ride_detail.fitness_discipline != 'ride' %}
+    <!-- Non-running/cycling classes - show message -->
+    <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm mb-6">
+      <p class="text-gray-600 dark:text-gray-400">
+        Performance data is not available for this class type.
+      </p>
+    </div>
+  {% elif not performance_data %}
+    <!-- No performance metrics from Peloton -->
+    <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm mb-6">
+      <p class="text-gray-600 dark:text-gray-400">
+        Peloton returned no performance metrics for this class.
+      </p>
+    </div>
+  {% elif performance_data or target_metrics %}
   <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3 sm:p-6 shadow-sm mb-6">
     {% if target_metrics and target_metrics.type == 'power_zone' %}
     <div class="mb-3 sm:mb-4">
@@ -177,13 +192,63 @@
       </div>
       {% endif %}
     </div>
+    {% elif is_pace_target and target_metrics and target_metrics.type == 'pace' %}
+    <div class="mb-3 sm:mb-4">
+      <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-2">
+        <div>
+          <h2 class="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-1">Pace Target Timeline</h2>
+          <p class="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Coach cues mapped against your pace effort.</p>
+        </div>
+        {% if playlist and playlist.songs %}
+        <label class="flex items-center gap-2 text-xs sm:text-sm text-gray-600 dark:text-gray-400 cursor-pointer">
+          <input type="checkbox" id="showMusicTimeline" checked class="rounded border-gray-300 dark:border-gray-600 text-primary focus:ring-primary bg-white dark:bg-gray-700">
+          <span>Show Music Timeline</span>
+        </label>
+        {% endif %}
+      </div>
+    </div>
+    <div class="pace-target-chart relative px-1 sm:px-3 pt-2 overflow-x-auto">
+      {% if playlist and playlist.songs %}
+      <!-- Music Timeline Overlay - Above Chart -->
+      <div id="musicTimeline" class="mb-2 sm:mb-3 h-10 sm:h-12 relative bg-gray-800 dark:bg-gray-950 rounded border border-gray-700 dark:border-gray-600 overflow-hidden"></div>
+      {% endif %}
+      <div class="relative bg-gray-50 dark:bg-gray-900 rounded-lg min-h-[240px] sm:min-h-[320px] w-full">
+        <canvas id="performanceChart"></canvas>
+      </div>
+      <div id="powerChartReadout" class="mt-2 px-1 sm:px-3 text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-400 opacity-85 break-words"></div>
+      
+      <!-- Chart Controls (for pace target workouts) -->
+      {% if is_pace_target and target_metrics and target_metrics.type == 'pace' %}
+      <div class="chart-controls mt-3 sm:mt-4">
+        <button id="toggle-target-line" class="chart-control-btn text-xs sm:text-sm">Hide Target</button>
+        <button id="save-chart" class="chart-control-btn text-xs sm:text-sm">
+          <svg class="w-3 h-3 sm:w-4 sm:h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"></path>
+          </svg>
+          Save
+        </button>
+        <label class="chart-control-checkbox text-xs sm:text-sm">
+          <input type="checkbox" id="toggle-zone-colors" checked class="w-3 h-3 sm:w-4 sm:h-4">
+          <span>Pace Level Colors</span>
+        </label>
+      </div>
+      {% endif %}
+    </div>
     {% else %}
     <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Performance Graph</h2>
-    <div class="relative bg-gray-50 dark:bg-gray-900 p-4 rounded-lg min-h-[400px]">
+    <div class="relative bg-gray-50 dark:bg-gray-900 rounded-lg min-h-[240px] sm:min-h-[320px] w-full">
       <canvas id="performanceChart"></canvas>
     </div>
     {% endif %}
   </div>
+  {% else %}
+    <!-- No performance data for supported class type (running/cycling/walking) -->
+    <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm mb-6">
+      <p class="text-gray-600 dark:text-gray-400">
+        Performance data not available for this workout. Please sync your workouts to see performance graphs.
+      </p>
+    </div>
+  {% endif %}
   
   <!-- Power Profile and Zone Cards (only for power zone workouts) -->
   {% if target_metrics and target_metrics.type == 'power_zone' %}
@@ -298,6 +363,95 @@
         </li>
         {% endfor %}
       </ul>
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+  
+  <!-- Pace Target Cards (only for pace target workouts) -->
+  {% if is_pace_target and target_metrics and target_metrics.type == 'pace' %}
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+    <!-- Main Set Pace Targets Card -->
+    {% if pace_targets %}
+    <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
+      <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Main Set Pace Targets</h3>
+      
+      <!-- Overall Progress Bar -->
+      <div class="mb-4">
+        <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-8 relative overflow-hidden">
+          <div class="bg-gradient-to-r from-blue-500 to-teal-400 h-full rounded-full flex items-center justify-center transition-all duration-300" style="width: {{ pace_targets.overall_percentage }}%">
+            <span class="text-white font-bold text-sm">{{ pace_targets.overall_percentage|floatformat:2 }}%</span>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Pace Level Details -->
+      <div class="space-y-3">
+        {% for pace_info in pace_targets.zones %}
+        <div class="flex items-center gap-3">
+          <div class="flex-1 min-w-0">
+            <div class="text-sm font-medium text-gray-900 dark:text-white mb-1">{{ pace_info.name }}</div>
+            <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-4 relative overflow-hidden">
+              {% if pace_info.zone == 7 %}
+                <div class="bg-red-500 h-full rounded-full" style="width: {{ pace_info.percentage }}%"></div>
+              {% elif pace_info.zone == 6 %}
+                <div class="bg-orange-600 h-full rounded-full" style="width: {{ pace_info.percentage }}%"></div>
+              {% elif pace_info.zone == 5 %}
+                <div class="bg-orange-500 h-full rounded-full" style="width: {{ pace_info.percentage }}%"></div>
+              {% elif pace_info.zone == 4 %}
+                <div class="bg-green-500 h-full rounded-full" style="width: {{ pace_info.percentage }}%"></div>
+              {% elif pace_info.zone == 3 %}
+                <div class="bg-blue-500 h-full rounded-full" style="width: {{ pace_info.percentage }}%"></div>
+              {% elif pace_info.zone == 2 %}
+                <div class="bg-indigo-500 h-full rounded-full" style="width: {{ pace_info.percentage }}%"></div>
+              {% elif pace_info.zone == 1 %}
+                <div class="bg-purple-500 h-full rounded-full" style="width: {{ pace_info.percentage }}%"></div>
+              {% endif %}
+            </div>
+          </div>
+          <div class="text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">
+            {{ pace_info.target_time_str }} ({{ pace_info.percentage|floatformat:1 }}%)
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+    
+    <!-- Pace Target Class Notes Card -->
+    {% if pace_class_notes %}
+    <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
+      <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Class Notes</h3>
+      <ul class="space-y-2">
+        {% for note in pace_class_notes %}
+        <li class="text-sm text-gray-900 dark:text-white">
+          <span class="font-semibold">{{ note.zone_label }}</span> • 
+          <span>{{ note.name }}</span> — 
+          <span>{{ note.total_time_str }} total</span>
+          {% if note.blocks > 1 %}
+            <span>({{ note.blocks }} blocks)</span>
+          {% else %}
+            <span>({{ note.blocks }} block)</span>
+          {% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+    
+    <!-- User Pace Level Info Card -->
+    {% if user_pace_level %}
+    <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
+      <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Pace Level</h3>
+      <div class="text-center">
+        <div class="bg-gradient-to-b from-blue-600 to-blue-400 rounded-lg p-6 mb-3">
+          <div class="text-4xl font-bold text-white mb-1">{{ user_pace_level }}</div>
+          <div class="text-sm font-semibold text-white uppercase">Your Pace Level</div>
+        </div>
+        <p class="text-xs text-gray-600 dark:text-gray-400">
+          Based on your profile settings. Adjust in your profile to change pace targets.
+        </p>
+      </div>
     </div>
     {% endif %}
   </div>
@@ -420,6 +574,7 @@
 <script>
   // Performance data from Django
   const performanceData = [
+    {% if performance_data %}
     {% for data in performance_data %}
     {
       timestamp: {{ data.timestamp }},
@@ -432,6 +587,7 @@
       resistance: {{ data.resistance|default:"null" }}
     }{% if not forloop.last %},{% endif %}
     {% endfor %}
+    {% endif %}
   ];
 
   // Target line data (for power zone classes)
@@ -440,12 +596,27 @@
   const workoutType = "{% if workout.ride_detail and workout.ride_detail.workout_type %}{{ workout.ride_detail.workout_type.slug }}{% elif workout.workout_type %}{{ workout.workout_type.slug }}{% else %}other{% endif %}";
   // Check if this is a power zone class - check both target_metrics and ride_detail
   const isPowerZone = {% if target_metrics and target_metrics.type == 'power_zone' %}true{% elif workout.ride_detail and workout.ride_detail.is_power_zone_class %}true{% elif workout.ride_detail and workout.ride_detail.class_type == 'power_zone' %}true{% else %}false{% endif %};
+  // Check if this is a pace target class
+  const isPaceTarget = {% if is_pace_target %}true{% elif target_metrics and target_metrics.type == 'pace' %}true{% elif workout.ride_detail and workout.ride_detail.class_type == 'pace_target' %}true{% elif workout.ride_detail and workout.ride_detail.fitness_discipline == 'running' or workout.ride_detail.fitness_discipline == 'walking' %}true{% else %}false{% endif %};
+  const userPaceLevel = {% if user_pace_level %}{{ user_pace_level }}{% else %}5{% endif %};
   const workoutDuration = {{ workout.duration_minutes|default:30 }} * 60; // Convert to seconds
   const userFTP = {% if user_ftp %}{{ user_ftp }}{% else %}null{% endif %};
-  // Get target metrics JSON (includes zone_ranges)
-  const targetMetricsJson = {% if target_metrics_json %}{{ target_metrics_json|safe }}{% else %}null{% endif %};
+  // Get target metrics JSON (includes zone_ranges and pace_zones)
+  // target_metrics_json is already a JSON string from Django
+  let targetMetricsJson = null;
+  {% if target_metrics_json %}
+  try {
+    const targetMetricsJsonStr = {{ target_metrics_json|safe }};
+    targetMetricsJson = typeof targetMetricsJsonStr === 'string' ? JSON.parse(targetMetricsJsonStr) : targetMetricsJsonStr;
+  } catch (e) {
+    console.warn('Error parsing target_metrics_json:', e);
+    targetMetricsJson = null;
+  }
+  {% endif %}
   // Extract zone_ranges from target_metrics_json if available
   const zoneRanges = (targetMetricsJson && targetMetricsJson.zone_ranges) ? targetMetricsJson.zone_ranges : null;
+  // Extract pace_zones from target_metrics_json if available
+  const paceZonesFromJson = (targetMetricsJson && targetMetricsJson.pace_zones) ? targetMetricsJson.pace_zones : null;
   
   // Playlist data for music timeline
   const playlistData = {% if playlist and playlist.songs %}[
@@ -496,6 +667,9 @@
   const outputData = performanceData.map(d => d.output !== null && d.output !== undefined ? d.output : null);
   const speedData = performanceData.map(d => d.speed !== null && d.speed !== undefined ? d.speed : null);
   const heartRateData = performanceData.map(d => d.heart_rate !== null && d.heart_rate !== undefined ? d.heart_rate : null);
+  
+  // For pace target classes, we can use speed and convert to pace, or use pace directly if available
+  // Since we store speed in the database, we'll convert speed to pace (min/mile) for consistency
   
   // Helper function to convert watts to zone (1-7) based on FTP
   function wattsToZone(watts, ftp) {
@@ -583,6 +757,41 @@
           upper: upper !== null && upper !== undefined ? upper : null
         });
       }
+    }
+  }
+  
+  // Pace target colors and names
+  const PACE_LEVEL_COLORS = {
+    1: "#6f42c1",  // Purple - Recovery
+    2: "#4c6ef5",  // Blue - Easy
+    3: "#228be6",  // Light Blue - Moderate
+    4: "#0ca678",  // Green - Challenging
+    5: "#ff922b",  // Orange - Hard
+    6: "#f76707",  // Dark Orange - Very Hard
+    7: "#fa5252"   // Red - Max
+  };
+  
+  const PACE_LEVEL_NAMES = {
+    1: "Recovery",
+    2: "Easy",
+    3: "Moderate",
+    4: "Challenging",
+    5: "Hard",
+    6: "Very Hard",
+    7: "Max"
+  };
+  
+  // Build pace level bands for pace target classes
+  let paceLevelBands = [];
+  if (isPaceTarget) {
+    for (let level = 1; level <= 7; level++) {
+      paceLevelBands.push({
+        level: level,
+        label: PACE_LEVEL_NAMES[level] || `Level ${level}`,
+        color: PACE_LEVEL_COLORS[level] || '#888',
+        lower: level - 0.5,
+        upper: level + 0.5
+      });
     }
   }
 
@@ -736,21 +945,153 @@
       });
     }
   } else if (workoutType === 'running' || workoutType === 'run') {
-    yAxisLabel = 'Speed (mph)';
-    datasets = [
-      {
-        label: 'Speed',
-        data: speedData,
-        borderColor: 'rgb(234, 179, 8)',
-        backgroundColor: 'rgba(234, 179, 8, 0.1)',
-        borderWidth: 2,
-        fill: false,
-        tension: 0.1,
-        pointRadius: 0,
-        pointHoverRadius: 4,
-        spanGaps: true
+    if (isPaceTarget) {
+      // Pace target class - use pace levels (1-7) on Y-axis
+      yAxisLabel = 'Pace Level';
+      
+      // Get user's pace zones for conversion
+      const userPaceZones = paceZonesFromJson;
+      
+      // Convert actual speed (mph) to pace levels (1-7)
+      // We use speed and convert to pace (min/mile) since that's what we store in the database
+      // Pace zones: recovery=1, easy=2, moderate=3, challenging=4, hard=5, very_hard=6, max=7
+      let actualPaceData = [];
+      if (speedData.length > 0 && speedData.some(s => s !== null && s > 0)) {
+        actualPaceData = speedData.map(speed => {
+        if (speed === null || speed === undefined || speed <= 0) return null;
+        
+        // Convert speed (mph) to pace (min/mile)
+        // Formula: pace (min/mile) = 60 / speed (mph)
+        const paceMinPerMile = 60.0 / speed;
+        
+        // Map to pace level based on user's pace zones or defaults
+        if (userPaceZones) {
+          if (paceMinPerMile >= userPaceZones.recovery) return 1;
+          if (paceMinPerMile >= userPaceZones.easy) return 2;
+          if (paceMinPerMile >= userPaceZones.moderate) return 3;
+          if (paceMinPerMile >= userPaceZones.challenging) return 4;
+          if (paceMinPerMile >= userPaceZones.hard) return 5;
+          if (paceMinPerMile >= userPaceZones.very_hard) return 6;
+          return 7; // Max
+        } else {
+          // Default pace zones (Level 5)
+          if (paceMinPerMile >= 15.217) return 1;  // Recovery
+          if (paceMinPerMile >= 13.333) return 2;  // Easy
+          if (paceMinPerMile >= 12.25) return 3;   // Moderate
+          if (paceMinPerMile >= 11.117) return 4;  // Challenging
+          if (paceMinPerMile >= 10.0) return 5;    // Hard
+          if (paceMinPerMile >= 9.083) return 6;   // Very Hard
+          return 7; // Max
+        }
+        });
+        
+        // Convert to decimal pace levels for smooth curves (similar to power zones)
+        actualPaceData = actualPaceData.map(paceLevel => {
+          if (paceLevel === null) return null;
+          // Map integer pace level (1-7) to decimal (1.0-7.0) for smooth interpolation
+          return paceLevel + 0.0; // Keep as integer for now, can add decimal mapping later
+        });
       }
-    ];
+      
+      // Actual pace performance line (only if we have performance data)
+      // Debug logging
+      console.log('Pace Target Chart Debug:', {
+        speedDataLength: speedData.length,
+        actualPaceDataLength: actualPaceData.length,
+        timeSecondsLength: timeSeconds.length,
+        hasUserPaceZones: !!userPaceZones,
+        userPaceZones: userPaceZones
+      });
+      
+      if (actualPaceData.length > 0 && timeSeconds.length > 0) {
+        datasets.push({
+          label: 'Actual',
+          data: actualPaceData.map((pace, index) => ({ x: timeSeconds[index], y: pace })),
+          borderColor: '#fbbf24',  // Yellow
+          backgroundColor: 'rgba(251, 191, 36, 0.1)',
+          borderWidth: 2.8,
+          fill: false,
+          tension: 1.0,
+          stepped: false,
+          pointRadius: 0,
+          pointHoverRadius: 4,
+          spanGaps: false
+        });
+      } else {
+        console.warn('Pace Target Chart: No actual performance data to display. Speed data:', speedData.length, 'Time data:', timeSeconds.length);
+      }
+      
+      // Target pace line from segments
+      // Shift target line 60 seconds backwards (earlier) to match power zone behavior
+      const TIME_SHIFT = -60;
+      
+      if (targetMetricsJson && targetMetricsJson.segments && targetMetricsJson.segments.length > 0) {
+        const targetPaceData = [];
+        // If no performance data, generate time points based on workout duration
+        const timePoints = performanceData.length > 0 ? timeSeconds : [];
+        if (timePoints.length === 0 && workoutDuration > 0) {
+          // Generate time points every 5 seconds for the workout duration
+          for (let t = 0; t <= workoutDuration; t += 5) {
+            timePoints.push(t);
+          }
+        }
+        
+        for (let i = 0; i < timePoints.length; i++) {
+          const currentTime = timePoints[i];
+          // Find which segment this time belongs to (with 60 second backward shift)
+          let targetPace = null;
+          for (const segment of targetMetricsJson.segments) {
+            // Apply 60 second backward shift to segment times
+            const segStart = Math.max(0, (segment.start || 0) + TIME_SHIFT);
+            const segEnd = Math.max(0, (segment.end || segStart) + TIME_SHIFT);
+            if (currentTime >= segStart && currentTime < segEnd) {
+              targetPace = segment.zone || segment.pace_level || 2; // Default to Easy
+              break;
+            }
+          }
+          // If no segment found, use the last segment's pace or default
+          if (targetPace === null && targetMetricsJson.segments.length > 0) {
+            const lastSegment = targetMetricsJson.segments[targetMetricsJson.segments.length - 1];
+            targetPace = lastSegment.zone || lastSegment.pace_level || 2;
+          }
+          if (targetPace !== null) {
+            targetPaceData.push({ x: currentTime, y: targetPace });
+          }
+        }
+        
+        datasets.push({
+          label: 'Target',
+          data: targetPaceData,
+          borderColor: '#93c5fd',  // Light blue
+          backgroundColor: 'rgba(147, 197, 253, 0.1)',
+          borderWidth: 2.8,
+          fill: false,
+          tension: 0,
+          stepped: 'before',
+          pointRadius: 0,
+          pointHoverRadius: 4,
+          spanGaps: true,
+          hidden: !showTargetLine
+        });
+      }
+    } else {
+      // Standard running chart - use speed
+      yAxisLabel = 'Speed (mph)';
+      datasets = [
+        {
+          label: 'Speed',
+          data: speedData,
+          borderColor: 'rgb(234, 179, 8)',
+          backgroundColor: 'rgba(234, 179, 8, 0.1)',
+          borderWidth: 2,
+          fill: false,
+          tension: 0.1,
+          pointRadius: 0,
+          pointHoverRadius: 4,
+          spanGaps: true
+        }
+      ];
+    }
   } else {
     yAxisLabel = 'Heart Rate (bpm)';
     datasets = [
@@ -789,6 +1130,17 @@
           ctx.globalAlpha = 0.18;  // Match reference opacity
           ctx.fillRect(chartArea.left, yTop, chartArea.right - chartArea.left, yBot - yTop);
         }
+      } else if (isPaceTarget) {
+        // For pace target charts, draw bands by pace level (1-7)
+        for (let level = 1; level <= 7; level++) {
+          const levelColor = PACE_LEVEL_COLORS[level] || '#888';
+          // Each level spans from (level - 0.5) to (level + 0.5)
+          const yTop = scales.y.getPixelForValue(level - 0.5);
+          const yBot = scales.y.getPixelForValue(level + 0.5);
+          ctx.fillStyle = levelColor;
+          ctx.globalAlpha = 0.18;
+          ctx.fillRect(chartArea.left, yTop, chartArea.right - chartArea.left, yBot - yTop);
+        }
       } else {
         // For watt-based charts, use the bands from opts
         const bands = opts?.bands || [];
@@ -804,7 +1156,7 @@
       ctx.restore();
     },
     afterDraw(chart, args, opts) {
-      // Overlay zone labels on the chart (on the left side of the chart area)
+      // Overlay zone/pace level labels on the chart (on the left side of the chart area)
       if (isPowerZone && userFTP) {
         const {ctx, chartArea, scales} = chart;
         ctx.save();
@@ -818,6 +1170,21 @@
           const yPos = scales.y.getPixelForValue(zone);
           // Position labels on the left side of the chart area
           ctx.fillText(`ZONE ${zone}`, chartArea.left + 8, yPos);
+        }
+        ctx.restore();
+      } else if (isPaceTarget) {
+        const {ctx, chartArea, scales} = chart;
+        ctx.save();
+        ctx.font = '12px sans-serif';
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        
+        // Draw pace level labels overlaid on the chart
+        for (let level = 1; level <= 7; level++) {
+          const yPos = scales.y.getPixelForValue(level);
+          const levelName = PACE_LEVEL_NAMES[level] || `Level ${level}`;
+          ctx.fillText(levelName.toUpperCase(), chartArea.left + 8, yPos);
         }
         ctx.restore();
       }
@@ -845,9 +1212,10 @@
       return;
     }
     
-    // Check if we have data
-    if (performanceData.length === 0) {
-      console.error('No performance data available');
+    // Check if we have data - allow rendering if we have target metrics even without performance data
+    const hasTargetMetrics = (isPowerZone || isPaceTarget) && targetMetricsJson && targetMetricsJson.segments && targetMetricsJson.segments.length > 0;
+    if (performanceData.length === 0 && !hasTargetMetrics) {
+      console.error('No performance data or target metrics available');
       return;
     }
     
@@ -856,7 +1224,7 @@
     const chartConfig = {
     type: 'line',
     data: {
-      labels: isPowerZone && userFTP ? [] : (isPowerZone ? timeSeconds : labels),  // Empty labels for power zone when using x/y data points
+      labels: (isPowerZone && userFTP) || isPaceTarget ? [] : (isPowerZone ? timeSeconds : labels),  // Empty labels for power zone/pace target when using x/y data points
       datasets: datasets
     },
     options: {
@@ -883,7 +1251,7 @@
           callbacks: {
             title: function(context) {
               if (context.length > 0 && context[0].parsed) {
-                const timestamp = isPowerZone ? context[0].parsed.x : performanceData[context[0].dataIndex]?.timestamp || 0;
+                const timestamp = (isPowerZone || isPaceTarget) ? context[0].parsed.x : performanceData[context[0].dataIndex]?.timestamp || 0;
                 return formatTime(timestamp);
               }
               return '';
@@ -907,6 +1275,27 @@
                     return `Target: ${Math.round(targetWatts)} watts (Zone ${zone})`;
                   }
                 }
+              } else if (isPaceTarget) {
+                const datasetLabel = context.dataset.label;
+                const paceValue = context.parsed.y;
+                const dataIndex = context.dataIndex;
+                
+                if (datasetLabel === 'Actual') {
+                  const speed = speedData[dataIndex];
+                  if (speed !== null && speed !== undefined && speed > 0) {
+                    const paceMinPerMile = 60.0 / speed;
+                    const minutes = Math.floor(paceMinPerMile);
+                    const seconds = Math.round((paceMinPerMile - minutes) * 60);
+                    const paceStr = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                    const level = Math.round(paceValue);
+                    const levelName = PACE_LEVEL_NAMES[level] || `Level ${level}`;
+                    return `Actual: ${paceStr}/mi (${levelName})`;
+                  }
+                } else if (datasetLabel === 'Target') {
+                  const level = Math.round(paceValue);
+                  const levelName = PACE_LEVEL_NAMES[level] || `Level ${level}`;
+                  return `Target: ${levelName}`;
+                }
               }
               return context.dataset.label + ': ' + context.parsed.y;
             }
@@ -918,13 +1307,13 @@
           borderWidth: 1,
           padding: 12
         },
-        zoneBands: (isPowerZone && userFTP) ? { bands: [] } : (powerZoneBands.length > 0 ? { bands: powerZoneBands } : undefined)
+        zoneBands: (isPowerZone && userFTP) ? { bands: [] } : (isPaceTarget ? { bands: paceLevelBands } : (powerZoneBands.length > 0 ? { bands: powerZoneBands } : undefined))
       },
       scales: {
         x: {
-          type: isPowerZone ? 'linear' : 'category',  // Linear scale for power zone (time-based)
-          min: isPowerZone ? 0 : undefined,
-          max: isPowerZone && timeSeconds.length > 0 ? timeSeconds[timeSeconds.length - 1] : undefined,
+          type: (isPowerZone || isPaceTarget) ? 'linear' : 'category',  // Linear scale for power zone/pace target (time-based)
+          min: (isPowerZone || isPaceTarget) ? 0 : undefined,
+          max: (isPowerZone || isPaceTarget) ? (timeSeconds.length > 0 ? timeSeconds[timeSeconds.length - 1] : (workoutDuration || 2700)) : undefined,
           grid: {
             color: 'rgba(255,255,255,0.06)'  // Match reference
           },
@@ -932,7 +1321,7 @@
             autoSkip: true,
             maxTicksLimit: 9,
             callback: function(value, index) {
-              if (isPowerZone) {
+              if (isPowerZone || isPaceTarget) {
                 // For linear scale, value is the timestamp
                 return formatTime(value);
               } else {
@@ -947,8 +1336,8 @@
           }
         },
         y: {
-          min: isPowerZone ? 0.5 : ((ymax) ? ymin : 0),
-          max: isPowerZone ? 7.5 : ((ymax) ? ymax : undefined),
+          min: (isPowerZone || isPaceTarget) ? 0.5 : ((ymax) ? ymin : 0),
+          max: (isPowerZone || isPaceTarget) ? 7.5 : ((ymax) ? ymax : undefined),
           title: {
             display: false,  // Hide y-axis title
             text: yAxisLabel.toLowerCase(),
@@ -960,15 +1349,22 @@
             drawTicks: false
           },
           ticks: {
-            stepSize: isPowerZone ? 1 : undefined,
-            maxTicksLimit: isPowerZone ? 8 : undefined,
-            display: false,  // Hide ticks on left - we'll overlay zone labels on chart
+            stepSize: (isPowerZone || isPaceTarget) ? 1 : undefined,
+            maxTicksLimit: (isPowerZone || isPaceTarget) ? 8 : undefined,
+            display: false,  // Hide ticks on left - we'll overlay zone/pace labels on chart
             callback: function(value) {
               if (isPowerZone) {
                 const zone = Math.round(value);
                 // Show labels for all zones (1-7)
                 if (zone >= 1 && zone <= 7) {
                   return `ZONE ${zone}`;
+                }
+                return '';
+              } else if (isPaceTarget) {
+                const level = Math.round(value);
+                // Show labels for all pace levels (1-7)
+                if (level >= 1 && level <= 7) {
+                  return PACE_LEVEL_NAMES[level] || `Level ${level}`;
                 }
                 return '';
               } else {
@@ -980,7 +1376,7 @@
         }
       }
     },
-    plugins: (isPowerZone && userFTP) ? [zoneBandsPlugin] : (powerZoneBands.length > 0 ? [zoneBandsPlugin] : [])
+    plugins: (isPowerZone && userFTP) ? [zoneBandsPlugin] : (isPaceTarget ? [zoneBandsPlugin] : (powerZoneBands.length > 0 ? [zoneBandsPlugin] : []))
   };
   
     const chart = new Chart(ctx, chartConfig);
@@ -991,7 +1387,7 @@
     const saveChartBtn = document.getElementById('save-chart');
     
     // Toggle target line visibility
-    if (toggleTargetLineBtn && isPowerZone) {
+    if (toggleTargetLineBtn && (isPowerZone || isPaceTarget)) {
         toggleTargetLineBtn.addEventListener('click', function() {
             showTargetLine = !showTargetLine;
             const targetDataset = chart.data.datasets.find(d => d.label === 'Target');
@@ -1003,8 +1399,8 @@
         });
     }
     
-    // Toggle zone colors visibility
-    if (toggleZoneColorsCheckbox && isPowerZone) {
+    // Toggle zone/pace level colors visibility
+    if (toggleZoneColorsCheckbox && (isPowerZone || isPaceTarget)) {
         toggleZoneColorsCheckbox.addEventListener('change', function() {
             showZoneColors = this.checked;
             chart.update('none');
@@ -1023,8 +1419,8 @@
         });
     }
     
-    // Music timeline overlay
-    if (playlistData && playlistData.length > 0 && isPowerZone) {
+    // Music timeline overlay (for both power zone and pace target classes)
+    if (playlistData && playlistData.length > 0 && (isPowerZone || isPaceTarget)) {
       const musicTimelineEl = document.getElementById('musicTimeline');
       const showMusicCheckbox = document.getElementById('showMusicTimeline');
       

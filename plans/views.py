@@ -301,6 +301,12 @@ def landing(request):
 def guide(request):
     return render(request, "plans/guide.html")
 
+def privacy_policy(request):
+    return render(request, "plans/privacy_policy.html")
+
+def terms_and_conditions(request):
+    return render(request, "plans/terms_and_conditions.html")
+
 @login_required
 def metrics(request):
     from collections import defaultdict
