@@ -384,13 +384,10 @@ def class_library(request):
                             ride_data['if_value'] = normalized_power / user_ftp
                             ride_data['tss'] = (ride.duration_seconds / 3600.0) * (ride_data['if_value'] ** 2) * 100
                     
-                    # Generate chart data for mini chart (excluding warm up and cool down)
+                    # Generate chart data for mini chart (including full class with warm up and cool down)
                     if segments:
                         chart_segments = []
-                        segment_time = 0
                         total_duration = ride.duration_seconds
-                        warm_up_cutoff = total_duration * 0.15  # First 15% is warm up
-                        cool_down_start = total_duration * 0.90  # Last 10% is cool down
                         
                         for i, segment in enumerate(segments):
                             zone_num = segment.get('zone', 1)
@@ -403,10 +400,6 @@ def class_library(request):
                             elif start == end:
                                 end = start + 60
                             
-                            # Skip warm up and cool down segments
-                            if start < warm_up_cutoff or start >= cool_down_start:
-                                continue
-                            
                             duration = end - start
                             if duration <= 0:
                                 continue
@@ -415,10 +408,9 @@ def class_library(request):
                             chart_segments.append({
                                 'duration': duration,
                                 'zone': chart_zone,
-                                'start': segment_time,
-                                'end': segment_time + duration,
+                                'start': start,
+                                'end': end,
                             })
-                            segment_time += duration
                         
                         if chart_segments:
                             ride_data['chart_data'] = mark_safe(json.dumps({
@@ -467,11 +459,8 @@ def class_library(request):
                                         duration = segment.get('end', 0) - segment.get('start', 0)
                                         zone_times[zone] = zone_times.get(zone, 0) + duration
                     
-                    # Generate chart segments from target_metrics_segments (excluding warm up and cool down)
-                    segment_time = 0
+                    # Generate chart segments from target_metrics_segments (including full class with warm up and cool down)
                     total_duration = ride.duration_seconds
-                    warm_up_cutoff = total_duration * 0.15  # First 15% is warm up
-                    cool_down_start = total_duration * 0.90  # Last 10% is cool down
                     
                     for i, segment in enumerate(segments):
                         if segment.get('type') == 'pace_target':
@@ -482,10 +471,6 @@ def class_library(request):
                                         zone = int(zone) - 1  # Convert 1-7 to 0-6
                                         start = segment.get('start', 0)
                                         end = segment.get('end', 0)
-                                        
-                                        # Skip warm up and cool down segments
-                                        if start < warm_up_cutoff or start >= cool_down_start:
-                                            continue
                                         
                                         if start == end and i < len(segments) - 1:
                                             next_segment = segments[i + 1] if i + 1 < len(segments) else None
@@ -501,30 +486,22 @@ def class_library(request):
                                         chart_segments.append({
                                             'duration': duration,
                                             'zone': zone,
-                                            'start': segment_time,
-                                            'end': segment_time + duration,
+                                            'start': start,
+                                            'end': end,
                                         })
-                                        segment_time += duration
             
             # Method 2: Fallback to get_pace_segments if no chart data yet
             if not chart_segments and hasattr(ride, 'get_pace_segments'):
                 pace_zones = user_profile.get_pace_zone_targets() if user_profile else None
                 pace_segments = ride.get_pace_segments(user_pace_zones=pace_zones)
                 if pace_segments:
-                    segment_time = 0
                     total_duration = ride.duration_seconds
-                    warm_up_cutoff = total_duration * 0.15  # First 15% is warm up
-                    cool_down_start = total_duration * 0.90  # Last 10% is cool down
                     
                     for i, segment in enumerate(pace_segments):
                         zone_num = segment.get('zone', 1)  # 1-7 from get_pace_segments
                         zone = zone_num - 1  # Convert to 0-6
                         start = segment.get('start', 0)
                         end = segment.get('end', 0)
-                        
-                        # Skip warm up and cool down segments
-                        if start < warm_up_cutoff or start >= cool_down_start:
-                            continue
                         
                         if start == end and i < len(pace_segments) - 1:
                             next_segment = pace_segments[i + 1]
@@ -539,10 +516,9 @@ def class_library(request):
                         chart_segments.append({
                             'duration': duration,
                             'zone': zone,
-                            'start': segment_time,
-                            'end': segment_time + duration,
+                            'start': start,
+                            'end': end,
                         })
-                        segment_time += duration
                     
                     # Also populate zone_times for zone_distribution (excluding warm up and cool down)
                     total_duration = ride.duration_seconds
