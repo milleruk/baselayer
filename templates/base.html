@@ -347,18 +347,16 @@
   {% if user.is_authenticated %}
     <!-- Dashboard Layout -->
     {% if request.resolver_match.url_name == 'landing' or request.path == '/' %}
-      <!-- Landing Page Layout - Full Footer -->
+      <!-- Landing Page Layout - No Sidebar, Full Width -->
       <div class="flex flex-col min-h-screen">
-        <div class="flex flex-1 overflow-hidden">
     {% else %}
       <!-- Other Pages Layout - Sidebar to Bottom, Footer in Content -->
       <div class="flex h-screen overflow-hidden">
-    {% endif %}
-      <!-- Sidebar -->
+      <!-- Sidebar - Only show on non-landing pages -->
       <aside 
         x-data="{ open: false }"
         :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'"
-        class="fixed lg:static {% if not request.resolver_match.url_name == 'landing' and request.path != '/' %}h-screen{% else %}inset-y-0{% endif %} left-0 z-50 w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 sidebar-transition flex flex-col"
+        class="fixed lg:static h-screen left-0 z-50 w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 sidebar-transition flex flex-col"
       >
         <!-- Sidebar Header -->
         <div class="flex items-center justify-between h-20 px-6 border-b border-gray-200 dark:border-gray-700">
@@ -581,7 +579,7 @@
         </header>
         
         <!-- Page Content -->
-        <main class="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900 p-6 {% if not request.resolver_match.url_name == 'landing' and request.path != '/' %}flex flex-col{% endif %}">
+        <main class="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900 p-6 flex flex-col">
           {% if messages %}
             <div class="mb-6">
               {% for message in messages %}
@@ -592,21 +590,23 @@
             </div>
           {% endif %}
           
-          {% if not request.resolver_match.url_name == 'landing' and request.path != '/' %}
-            <div class="flex-1">
-              <!-- Content goes here -->
-            </div>
-            <!-- Simple Footer nested in content for non-landing pages -->
-            <div class="mt-auto">
-              {% include 'partials/footer.html' %}
-            </div>
-          {% endif %}
+          <div class="flex-1">
+            <!-- Content goes here -->
+          </div>
+          <!-- Simple Footer nested in content for non-landing pages -->
+          <div class="mt-auto">
+            {% include 'partials/footer.html' %}
+          </div>
         </main>
       </div>
-      {% if request.resolver_match.url_name == 'landing' or request.path == '/' %}
-        </div>
-        {% include 'partials/footer.html' %}
-      {% endif %}
+    {% endif %}
+    {% if request.resolver_match.url_name == 'landing' or request.path == '/' %}
+      <!-- Landing Page Content Area - Full Width, No Sidebar -->
+      <main class="flex-1">
+        <!-- Content will be inserted here -->
+      </main>
+      {% include 'partials/footer.html' %}
+    {% endif %}
     </div>
   {% endif %}
   
@@ -621,8 +621,10 @@
               <span class="text-xl font-bold text-gray-900 dark:text-white">Chase The Zones</span>
             </a>
             <div class="hidden md:flex ml-10 space-x-4">
-              <a href="{% url 'plans:guide' %}" class="px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white">Guide</a>
-              <a href="{% url 'plans:exercise_list' %}" class="px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white">Exercises</a>
+              <a href="{% url 'plans:landing' %}" class="px-3 py-2 text-sm font-medium {% if request.resolver_match.url_name == 'landing' %}text-primary font-semibold{% else %}text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white{% endif %}">Home</a>
+              <a href="{% url 'plans:features' %}" class="px-3 py-2 text-sm font-medium {% if request.resolver_match.url_name == 'features' %}text-primary font-semibold{% else %}text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white{% endif %}">Features</a>
+              <a href="{% url 'plans:guide' %}" class="px-3 py-2 text-sm font-medium {% if request.resolver_match.url_name == 'guide' %}text-primary font-semibold{% else %}text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white{% endif %}">Guide</a>
+              <a href="{% url 'plans:exercise_list' %}" class="px-3 py-2 text-sm font-medium {% if request.resolver_match.url_name == 'exercise_list' %}text-primary font-semibold{% else %}text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white{% endif %}">Exercises</a>
             </div>
           </div>
           <div class="flex items-center space-x-4">
@@ -667,25 +669,29 @@
       const contentWrapper = document.getElementById('content-wrapper');
       if (!contentWrapper) return;
       
-      // Check if authenticated layout exists (has sidebar)
-      const authenticatedMain = document.querySelector('.flex-1.overflow-y-auto.bg-gray-50');
-      if (authenticatedMain) {
-        // Check if this is a non-landing page (has flex-1 div for content)
-        const contentDiv = authenticatedMain.querySelector('.flex-1');
-        if (contentDiv) {
-          // Non-landing page - place content in the flex-1 div
-          contentDiv.appendChild(contentWrapper);
-        } else {
-          // Landing page - place content directly in main
-          authenticatedMain.appendChild(contentWrapper);
-        }
+      // Check if this is a landing page (has main.flex-1.w-full)
+      const landingMain = document.querySelector('main.flex-1.w-full');
+      if (landingMain) {
+        // Landing page - place content directly in main
+        landingMain.appendChild(contentWrapper);
         contentWrapper.style.display = 'block';
       } else {
-        // Non-authenticated layout - move content to non-authenticated main
-        const main = document.querySelector('main');
-        if (main) {
-          main.appendChild(contentWrapper);
-          contentWrapper.style.display = 'block';
+        // Check if authenticated layout exists (has sidebar)
+        const authenticatedMain = document.querySelector('.flex-1.overflow-y-auto.bg-gray-50');
+        if (authenticatedMain) {
+          // Non-landing page - place content in the flex-1 div
+          const contentDiv = authenticatedMain.querySelector('.flex-1');
+          if (contentDiv) {
+            contentDiv.appendChild(contentWrapper);
+            contentWrapper.style.display = 'block';
+          }
+        } else {
+          // Non-authenticated layout - move content to non-authenticated main
+          const main = document.querySelector('main');
+          if (main) {
+            main.appendChild(contentWrapper);
+            contentWrapper.style.display = 'block';
+          }
         }
       }
     });

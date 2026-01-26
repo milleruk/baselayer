@@ -65,7 +65,11 @@
     
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
       <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm hover:shadow-md transition-shadow">
-        <div class="text-3xl mb-4">📊</div>
+        <div class="w-16 h-16 rounded-lg bg-primary/10 flex items-center justify-center mb-4">
+          <svg class="w-8 h-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+          </svg>
+        </div>
         <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-3">Insights at your fingertips</h3>
         <p class="text-gray-600 dark:text-gray-400 mb-4">All your training data and progress metrics in one place to provide quick answers and make decisions instantly.</p>
         {% if user.is_authenticated %}
@@ -74,14 +78,22 @@
       </div>
       
       <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm hover:shadow-md transition-shadow">
-        <div class="text-3xl mb-4">🎯</div>
+        <div class="w-16 h-16 rounded-lg bg-green-500/10 flex items-center justify-center mb-4">
+          <svg class="w-8 h-8 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+          </svg>
+        </div>
         <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-3">Kegel Exercise Library</h3>
         <p class="text-gray-600 dark:text-gray-400 mb-4">Browse and analyse pelvic floor exercises with detailed descriptions, video demonstrations, and proper form cues.</p>
         <a href="{% url 'plans:exercise_list' %}" class="text-primary hover:text-primary-dark font-medium text-sm">Browse Exercises →</a>
       </div>
       
       <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm hover:shadow-md transition-shadow">
-        <div class="text-3xl mb-4">⚡</div>
+        <div class="w-16 h-16 rounded-lg bg-purple-500/10 flex items-center justify-center mb-4">
+          <svg class="w-8 h-8 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+          </svg>
+        </div>
         <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-3">Automated Weekly Plans</h3>
         <p class="text-gray-600 dark:text-gray-400 mb-4">Generate Power Zone-aligned weekly plans with pelvic floor exercises seamlessly integrated into your training schedule.</p>
         {% if user.is_authenticated %}
@@ -90,7 +102,11 @@
       </div>
       
       <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm hover:shadow-md transition-shadow">
-        <div class="text-3xl mb-4">🏆</div>
+        <div class="w-16 h-16 rounded-lg bg-orange-500/10 flex items-center justify-center mb-4">
+          <svg class="w-8 h-8 text-orange-600 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"></path>
+          </svg>
+        </div>
         <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-3">Custom Challenges</h3>
         <p class="text-gray-600 dark:text-gray-400 mb-4">Join structured challenges that guide you through multi-week programmes designed to progressively strengthen your pelvic floor muscles.</p>
         {% if user.is_authenticated %}
@@ -128,7 +144,7 @@
   </div>
 </section>
 
-<!-- Features Section -->
+<!-- Features Preview Section -->
 <section class="py-16 lg:py-24 bg-white dark:bg-gray-900">
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
     <div class="text-center mb-12">
@@ -139,51 +155,42 @@
       <p class="mt-4 text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
         From personalized training plans and challenge tracking to exercise libraries and progress monitoring, we provide everything you need to achieve lasting fitness results.
       </p>
+      <div class="mt-6">
+        <a href="{% url 'plans:features' %}" class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg text-white bg-primary hover:bg-primary-dark transition-colors">
+          View All Features →
+        </a>
+      </div>
     </div>
     
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm hover:shadow-md transition-shadow">
+        <div class="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4">
+          <svg class="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
+          </svg>
+        </div>
         <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-3">Weekly Plan Generation</h3>
-        <p class="text-gray-600 dark:text-gray-400 mb-4">Automatically create Power Zone-aligned weekly exercise blocks with pelvic floor exercises tailored to your training schedule. Includes kegel exercises strategically placed around your rides and runs.</p>
-        {% if user.is_authenticated %}
-          <a href="{% url 'tracker:generate' %}" class="text-primary hover:text-primary-dark font-medium text-sm">Get Started →</a>
-        {% endif %}
+        <p class="text-gray-600 dark:text-gray-400 mb-4">Automatically create Power Zone-aligned weekly exercise blocks with pelvic floor exercises tailored to your training schedule.</p>
       </div>
       
       <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm hover:shadow-md transition-shadow">
+        <div class="w-12 h-12 rounded-lg bg-green-500/10 flex items-center justify-center mb-4">
+          <svg class="w-6 h-6 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+          </svg>
+        </div>
         <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-3">Progress Tracking</h3>
-        <p class="text-gray-600 dark:text-gray-400 mb-4">Mark exercises as complete, add personal notes, and monitor your progression over time with detailed completion tracking. See your kegel exercise consistency and improvement.</p>
-        {% if user.is_authenticated %}
-          <a href="{% url 'tracker:weekly_plans' %}" class="text-primary hover:text-primary-dark font-medium text-sm">View Plans →</a>
-        {% endif %}
+        <p class="text-gray-600 dark:text-gray-400 mb-4">Mark exercises as complete, add personal notes, and monitor your progression over time with detailed completion tracking.</p>
       </div>
       
       <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm hover:shadow-md transition-shadow">
+        <div class="w-12 h-12 rounded-lg bg-orange-500/10 flex items-center justify-center mb-4">
+          <svg class="w-6 h-6 text-orange-600 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"></path>
+          </svg>
+        </div>
         <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-3">Structured Challenges</h3>
-        <p class="text-gray-600 dark:text-gray-400 mb-4">Participate in structured challenges that guide you through multi-week programmes designed to progressively strengthen your pelvic floor muscles. Choose to include or exclude kegel exercises based on your needs.</p>
-        {% if user.is_authenticated %}
-          <a href="{% url 'challenges:challenges_list' %}" class="text-primary hover:text-primary-dark font-medium text-sm">Browse Challenges →</a>
-        {% endif %}
-      </div>
-      
-      <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm hover:shadow-md transition-shadow">
-        <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-3">Kegel Exercise Library</h3>
-        <p class="text-gray-600 dark:text-gray-400 mb-4">Browse our comprehensive library of pelvic floor exercises including basic kegels, long-hold kegels, pulse kegels, elevator kegels, and more. Each exercise includes detailed descriptions, video demonstrations, and proper form cues.</p>
-        <a href="{% url 'plans:exercise_list' %}" class="text-primary hover:text-primary-dark font-medium text-sm">Browse Exercises →</a>
-      </div>
-      
-      <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm hover:shadow-md transition-shadow">
-        <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-3">Video Demonstrations</h3>
-        <p class="text-gray-600 dark:text-gray-400 mb-4">Access form cues and exercise demonstrations with one click. Every kegel exercise includes embedded video links to ensure proper form and technique.</p>
-        <a href="{% url 'plans:exercise_list' %}" class="text-primary hover:text-primary-dark font-medium text-sm">View Videos →</a>
-      </div>
-      
-      <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm hover:shadow-md transition-shadow">
-        <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-3">Detailed Analytics</h3>
-        <p class="text-gray-600 dark:text-gray-400 mb-4">View your completion statistics, total points earned, and weeks completed. Track your journey with detailed analytics showing your kegel exercise consistency and overall progress.</p>
-        {% if user.is_authenticated %}
-          <a href="{% url 'tracker:weekly_plans' %}" class="text-primary hover:text-primary-dark font-medium text-sm">View Analytics →</a>
-        {% endif %}
+        <p class="text-gray-600 dark:text-gray-400 mb-4">Participate in structured challenges that guide you through multi-week programmes designed to progressively strengthen your pelvic floor muscles.</p>
       </div>
     </div>
   </div>

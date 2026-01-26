@@ -307,6 +307,9 @@ def privacy_policy(request):
 def terms_and_conditions(request):
     return render(request, "plans/terms_and_conditions.html")
 
+def features(request):
+    return render(request, "plans/features.html")
+
 @login_required
 def metrics(request):
     from collections import defaultdict

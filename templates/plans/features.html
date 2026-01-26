@@ -1,0 +1,325 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Features - Chase The Zones{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 text-white py-16 lg:py-24">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="text-center">
+      <h1 class="text-4xl md:text-5xl lg:text-6xl font-extrabold mb-6">
+        Powerful Features for Your Training Journey
+      </h1>
+      <p class="text-xl md:text-2xl text-gray-300 dark:text-gray-400 max-w-3xl mx-auto">
+        Everything you need to optimize your Power Zone training and pelvic floor health in one integrated platform.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- Main Features Section -->
+<section class="py-16 lg:py-24 bg-white dark:bg-gray-900">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center mb-16">
+      <!-- Feature 1: Weekly Plan Generation -->
+      <div>
+        <div class="mb-6">
+          <div class="inline-flex items-center justify-center w-16 h-16 rounded-lg bg-primary/10 text-primary mb-4">
+            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
+            </svg>
+          </div>
+          <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-4">Automated Weekly Plan Generation</h2>
+          <p class="text-lg text-gray-600 dark:text-gray-400 mb-4">
+            Generate Power Zone-aligned weekly exercise plans with pelvic floor exercises seamlessly integrated into your training schedule. Our intelligent system creates personalized plans that work with your Peloton workouts, not against them.
+          </p>
+          <ul class="space-y-2 text-gray-600 dark:text-gray-400">
+            <li class="flex items-start">
+              <svg class="w-5 h-5 text-primary mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+              </svg>
+              <span>Automatically syncs with your Peloton workout schedule</span>
+            </li>
+            <li class="flex items-start">
+              <svg class="w-5 h-5 text-primary mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+              </svg>
+              <span>Strategic placement of kegel exercises around rides and runs</span>
+            </li>
+            <li class="flex items-start">
+              <svg class="w-5 h-5 text-primary mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+              </svg>
+              <span>Customizable exercise selection and frequency</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+      <div class="rounded-lg overflow-hidden shadow-xl">
+        <div class="bg-gradient-to-br from-primary/20 to-primary/10 p-12 flex items-center justify-center h-64">
+          <div class="text-center">
+            <div class="text-6xl mb-4">📅</div>
+            <p class="text-gray-600 dark:text-gray-400">Weekly Plan Preview</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center mb-16">
+      <div class="order-2 lg:order-1 rounded-lg overflow-hidden shadow-xl">
+        <div class="bg-gradient-to-br from-green-500/20 to-green-400/10 p-12 flex items-center justify-center h-64">
+          <div class="text-center">
+            <div class="text-6xl mb-4">📊</div>
+            <p class="text-gray-600 dark:text-gray-400">Progress Tracking Dashboard</p>
+          </div>
+        </div>
+      </div>
+      <div class="order-1 lg:order-2">
+        <div class="mb-6">
+          <div class="inline-flex items-center justify-center w-16 h-16 rounded-lg bg-green-500/10 text-green-600 dark:text-green-400 mb-4">
+            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+            </svg>
+          </div>
+          <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-4">Comprehensive Progress Tracking</h2>
+          <p class="text-lg text-gray-600 dark:text-gray-400 mb-4">
+            Track your exercise completion, monitor consistency, and view detailed analytics. Mark exercises as complete, add personal notes, and see your progression over time with visual charts and statistics.
+          </p>
+          <ul class="space-y-2 text-gray-600 dark:text-gray-400">
+            <li class="flex items-start">
+              <svg class="w-5 h-5 text-green-600 dark:text-green-400 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+              </svg>
+              <span>Real-time completion tracking with visual progress bars</span>
+            </li>
+            <li class="flex items-start">
+              <svg class="w-5 h-5 text-green-600 dark:text-green-400 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+              </svg>
+              <span>Weekly and monthly completion statistics</span>
+            </li>
+            <li class="flex items-start">
+              <svg class="w-5 h-5 text-green-600 dark:text-green-400 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+              </svg>
+              <span>Personal notes and exercise history</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center mb-16">
+      <div>
+        <div class="mb-6">
+          <div class="inline-flex items-center justify-center w-16 h-16 rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400 mb-4">
+            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
+            </svg>
+          </div>
+          <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-4">Exercise Library</h2>
+          <p class="text-lg text-gray-600 dark:text-gray-400 mb-4">
+            Browse our comprehensive library of pelvic floor exercises including basic kegels, long-hold kegels, pulse kegels, elevator kegels, and more. Each exercise includes detailed descriptions, video demonstrations, and proper form cues.
+          </p>
+          <ul class="space-y-2 text-gray-600 dark:text-gray-400">
+            <li class="flex items-start">
+              <svg class="w-5 h-5 text-purple-600 dark:text-purple-400 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+              </svg>
+              <span>Comprehensive exercise database with categories</span>
+            </li>
+            <li class="flex items-start">
+              <svg class="w-5 h-5 text-purple-600 dark:text-purple-400 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+              </svg>
+              <span>Video demonstrations for proper form</span>
+            </li>
+            <li class="flex items-start">
+              <svg class="w-5 h-5 text-purple-600 dark:text-purple-400 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+              </svg>
+              <span>Detailed instructions and form cues</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+      <div class="rounded-lg overflow-hidden shadow-xl">
+        <div class="bg-gradient-to-br from-purple-500/20 to-purple-400/10 p-12 flex items-center justify-center h-64">
+          <div class="text-center">
+            <div class="text-6xl mb-4">📚</div>
+            <p class="text-gray-600 dark:text-gray-400">Exercise Library</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center mb-16">
+      <div class="order-2 lg:order-1 rounded-lg overflow-hidden shadow-xl">
+        <div class="bg-gradient-to-br from-orange-500/20 to-orange-400/10 p-12 flex items-center justify-center h-64">
+          <div class="text-center">
+            <div class="text-6xl mb-4">🏆</div>
+            <p class="text-gray-600 dark:text-gray-400">Challenge Dashboard</p>
+          </div>
+        </div>
+      </div>
+      <div class="order-1 lg:order-2">
+        <div class="mb-6">
+          <div class="inline-flex items-center justify-center w-16 h-16 rounded-lg bg-orange-500/10 text-orange-600 dark:text-orange-400 mb-4">
+            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"></path>
+            </svg>
+          </div>
+          <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-4">Structured Challenges</h2>
+          <p class="text-lg text-gray-600 dark:text-gray-400 mb-4">
+            Participate in structured challenges that guide you through multi-week programmes designed to progressively strengthen your pelvic floor muscles. Join teams, track progress, and earn points as you complete exercises.
+          </p>
+          <ul class="space-y-2 text-gray-600 dark:text-gray-400">
+            <li class="flex items-start">
+              <svg class="w-5 h-5 text-orange-600 dark:text-orange-400 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+              </svg>
+              <span>Multi-week progressive programmes</span>
+            </li>
+            <li class="flex items-start">
+              <svg class="w-5 h-5 text-orange-600 dark:text-orange-400 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+              </svg>
+              <span>Team-based challenges with leaderboards</span>
+            </li>
+            <li class="flex items-start">
+              <svg class="w-5 h-5 text-orange-600 dark:text-orange-400 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+              </svg>
+              <span>Points system and achievement tracking</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+      <div>
+        <div class="mb-6">
+          <div class="inline-flex items-center justify-center w-16 h-16 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 mb-4">
+            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+            </svg>
+          </div>
+          <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-4">Peloton Integration</h2>
+          <p class="text-lg text-gray-600 dark:text-gray-400 mb-4">
+            Seamlessly sync with your Peloton account to automatically track workouts, view detailed performance metrics, and integrate pelvic floor exercises into your training schedule. View power zone charts, pace targets, and workout history.
+          </p>
+          <ul class="space-y-2 text-gray-600 dark:text-gray-400">
+            <li class="flex items-start">
+              <svg class="w-5 h-5 text-blue-600 dark:text-blue-400 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+              </svg>
+              <span>Automatic workout syncing from Peloton</span>
+            </li>
+            <li class="flex items-start">
+              <svg class="w-5 h-5 text-blue-600 dark:text-blue-400 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+              </svg>
+              <span>Power zone and pace target visualization</span>
+            </li>
+            <li class="flex items-start">
+              <svg class="w-5 h-5 text-blue-600 dark:text-blue-400 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+              </svg>
+              <span>Historical FTP and pace level tracking</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+      <div class="rounded-lg overflow-hidden shadow-xl">
+        <div class="bg-gradient-to-br from-blue-500/20 to-blue-400/10 p-12 flex items-center justify-center h-64">
+          <div class="text-center">
+            <div class="text-6xl mb-4">🚴</div>
+            <p class="text-gray-600 dark:text-gray-400">Peloton Integration</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Additional Features Grid -->
+<section class="py-16 lg:py-24 bg-gray-50 dark:bg-gray-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="text-center mb-12">
+      <h2 class="text-3xl md:text-4xl font-extrabold text-gray-900 dark:text-white mb-4">
+        Even More Features
+      </h2>
+      <p class="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
+        Additional tools and capabilities to enhance your training experience
+      </p>
+    </div>
+    
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm hover:shadow-md transition-shadow">
+        <div class="text-3xl mb-4">📈</div>
+        <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-3">Detailed Analytics</h3>
+        <p class="text-gray-600 dark:text-gray-400">View completion statistics, total points earned, and weeks completed. Track your journey with detailed analytics showing your exercise consistency and overall progress.</p>
+      </div>
+      
+      <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm hover:shadow-md transition-shadow">
+        <div class="text-3xl mb-4">🎯</div>
+        <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-3">Personalized Plans</h3>
+        <p class="text-gray-600 dark:text-gray-400">Generate plans tailored to your fitness level, goals, and preferences. Customize exercise selection, frequency, and intensity to match your needs.</p>
+      </div>
+      
+      <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm hover:shadow-md transition-shadow">
+        <div class="text-3xl mb-4">💪</div>
+        <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-3">FTP & Pace Tracking</h3>
+        <p class="text-gray-600 dark:text-gray-400">Track your Functional Threshold Power (FTP) and pace levels over time. Historical data ensures accurate zone calculations for past workouts.</p>
+      </div>
+      
+      <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm hover:shadow-md transition-shadow">
+        <div class="text-3xl mb-4">📱</div>
+        <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-3">Mobile Responsive</h3>
+        <p class="text-gray-600 dark:text-gray-400">Access your plans and track progress from any device. Fully responsive design works seamlessly on desktop, tablet, and mobile.</p>
+      </div>
+      
+      <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm hover:shadow-md transition-shadow">
+        <div class="text-3xl mb-4">🌙</div>
+        <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-3">Dark Mode</h3>
+        <p class="text-gray-600 dark:text-gray-400">Comfortable viewing in any lighting condition with built-in dark mode support. Toggle between light and dark themes with one click.</p>
+      </div>
+      
+      <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm hover:shadow-md transition-shadow">
+        <div class="text-3xl mb-4">🔒</div>
+        <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-3">Secure & Private</h3>
+        <p class="text-gray-600 dark:text-gray-400">Your data is encrypted and secure. We follow UK data protection laws and never share your personal information with third parties.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA Section -->
+<section class="py-16 lg:py-24 bg-gradient-to-br from-primary to-primary-dark text-white">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="text-center">
+      <h2 class="text-3xl md:text-4xl font-extrabold mb-4">
+        Ready to Get Started?
+      </h2>
+      <p class="text-xl text-white/90 max-w-2xl mx-auto mb-8">
+        Join Chase The Zones today and start your journey to better pelvic floor health and optimized training.
+      </p>
+      <div class="flex flex-col sm:flex-row gap-4 justify-center">
+        {% if user.is_authenticated %}
+          <a href="{% url 'tracker:generate' %}" class="inline-flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-lg text-primary bg-white hover:bg-gray-100 transition-colors shadow-lg">
+            Generate Your First Week
+          </a>
+        {% else %}
+          <a href="{% url 'register' %}" class="inline-flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-lg text-primary bg-white hover:bg-gray-100 transition-colors shadow-lg">
+            Get Started
+          </a>
+          <a href="{% url 'login' %}" class="inline-flex items-center justify-center px-8 py-3 border-2 border-white text-base font-medium rounded-lg text-white bg-transparent hover:bg-white/10 transition-colors">
+            Login
+          </a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}
