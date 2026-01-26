@@ -816,10 +816,19 @@ def class_detail(request, pk):
             segment_list = ride.segments_data.get('segment_list', [])
             
             # Map pace names to zone numbers (0-6)
+            # Handle various formats: "Recovery", "Easy", "Moderate", "Challenging", "Hard", "Very Hard", "Max"
+            # Also handle variations like "Very Hard" vs "VeryHard" vs "very_hard"
             pace_name_to_zone = {
-                'recovery': 0, 'easy': 1, 'moderate': 2, 'challenging': 3,
-                'hard': 4, 'very hard': 5, 'max': 6,
-                'very_hard': 5
+                'recovery': 0, 
+                'easy': 1, 
+                'moderate': 2, 
+                'challenging': 3,
+                'hard': 4, 
+                'very hard': 5, 
+                'veryhard': 5,
+                'very_hard': 5,
+                'max': 6,
+                'maximum': 6
             }
             
             for seg in segment_list:
@@ -837,12 +846,22 @@ def class_detail(request, pk):
                         abs_end = abs_start + subseg_length
                         
                         # Extract pace level from display_name (e.g., "Recovery", "Easy", "Moderate", etc.)
+                        # Try exact match first, then substring match
                         pace_level = 2  # Default to Moderate
-                        display_lower = display_name.lower()
-                        for pace_name, zone_num in pace_name_to_zone.items():
-                            if pace_name in display_lower:
-                                pace_level = zone_num
-                                break
+                        display_lower = display_name.lower().strip()
+                        
+                        # Try exact match first (most reliable)
+                        if display_lower in pace_name_to_zone:
+                            pace_level = pace_name_to_zone[display_lower]
+                        else:
+                            # Try substring match (handle cases like "Moderate Pace" or "Easy Run")
+                            for pace_name, zone_num in pace_name_to_zone.items():
+                                # Check if pace name is at the start of display_name or as a whole word
+                                if display_lower.startswith(pace_name) or \
+                                   f' {pace_name} ' in f' {display_lower} ' or \
+                                   display_lower.endswith(f' {pace_name}'):
+                                    pace_level = zone_num
+                                    break
                         
                         chart_segments.append({
                             "duration": subseg_length,
@@ -918,10 +937,18 @@ def class_detail(request, pk):
             fallback_chart_segments = []
             
             # Map pace names to zone numbers (0-6)
+            # Handle various formats: "Recovery", "Easy", "Moderate", "Challenging", "Hard", "Very Hard", "Max"
             pace_name_to_zone = {
-                'recovery': 0, 'easy': 1, 'moderate': 2, 'challenging': 3,
-                'hard': 4, 'very hard': 5, 'max': 6,
-                'very_hard': 5
+                'recovery': 0, 
+                'easy': 1, 
+                'moderate': 2, 
+                'challenging': 3,
+                'hard': 4, 
+                'very hard': 5, 
+                'veryhard': 5,
+                'very_hard': 5,
+                'max': 6,
+                'maximum': 6
             }
             
             for seg in segment_list:
