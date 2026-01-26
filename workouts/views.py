@@ -920,12 +920,13 @@ def class_detail(request, pk):
             chart_segments.sort(key=lambda x: x['start'])
             
             # Calculate actual duration from segments (use last segment's end time)
-            # This ensures we match the actual class plan duration, not just ride.duration_seconds
+            # This ensures we match the actual class plan duration from segments_data
             actual_duration = total_duration
             if chart_segments:
                 last_segment_end = max(seg.get('end', 0) for seg in chart_segments)
-                # Use the larger of ride duration or last segment end (but don't exceed ride duration)
-                actual_duration = min(max(last_segment_end, total_duration), total_duration)
+                # Use last segment end time, but don't exceed ride duration
+                # If segments only go to 23:10 but ride is 30:00, use 23:10 (actual class plan)
+                actual_duration = min(last_segment_end, total_duration)
             
             # Use actual duration from segments (matches class plan)
             pace_chart = {
@@ -1007,8 +1008,9 @@ def class_detail(request, pk):
                 actual_duration = total_duration
                 if fallback_chart_segments:
                     last_segment_end = max(seg.get('end', 0) for seg in fallback_chart_segments)
-                    # Use the larger of ride duration or last segment end (but don't exceed ride duration)
-                    actual_duration = min(max(last_segment_end, total_duration), total_duration)
+                    # Use last segment end time, but don't exceed ride duration
+                    # If segments only go to 23:10 but ride is 30:00, use 23:10 (actual class plan)
+                    actual_duration = min(last_segment_end, total_duration)
                 
                 pace_chart = {
                     'chart_data': {
