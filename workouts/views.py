@@ -11,6 +11,7 @@ from datetime import date, datetime, timezone as dt_timezone
 # Use datetime.timezone.utc (recommended for Django 4.2+, required for Django 5.0+)
 UTC = dt_timezone.utc
 import json
+import re
 
 from .models import Workout, WorkoutType, Instructor, RideDetail, WorkoutDetails, Playlist
 from peloton.models import PelotonConnection
@@ -665,25 +666,60 @@ def class_detail(request, pk):
         }
         
         # Build chart data for power zone classes (similar to pace target)
+        # Prefer segments_data (segment_list) as it has exact class plan timings
         power_zone_chart = None
-        if segments:
-            total_duration = ride.duration_seconds
+        total_duration = ride.duration_seconds
+        
+        # Create 7 power zones (1-7)
+        chart_zones = []
+        zone_labels = ["Zone 1", "Zone 2", "Zone 3", "Zone 4", "Zone 5", "Zone 6", "Zone 7"]
+        zone_colors = ["#9333ea", "#3b82f6", "#10b981", "#eab308", "#f97316", "#ef4444", "#ec4899"]
+        
+        for i in range(7):
+            chart_zones.append({
+                "name": zone_labels[i],
+                "label": zone_labels[i],
+                "color": zone_colors[i]
+            })
+        
+        chart_segments = []
+        
+        # Method 1: Use segments_data (segment_list) if available - this has exact class plan timings
+        if ride.segments_data and ride.segments_data.get('segment_list'):
+            segment_list = ride.segments_data.get('segment_list', [])
             
-            # Create 7 power zones (1-7)
-            chart_zones = []
-            zone_labels = ["Zone 1", "Zone 2", "Zone 3", "Zone 4", "Zone 5", "Zone 6", "Zone 7"]
-            zone_colors = ["#9333ea", "#3b82f6", "#10b981", "#eab308", "#f97316", "#ef4444", "#ec4899"]
-            
-            for i in range(7):
-                chart_zones.append({
-                    "name": zone_labels[i],
-                    "label": zone_labels[i],
-                    "color": zone_colors[i]
-                })
-            
-            # Process segments to create chart segments
-            # Use segments as-is from Peloton API (they already include full class duration)
-            chart_segments = []
+            for seg in segment_list:
+                subsegments = seg.get('subsegments_v2', [])
+                section_start = seg.get('start_time_offset', 0)
+                
+                for subseg in subsegments:
+                    subseg_offset = subseg.get('offset', 0)
+                    subseg_length = subseg.get('length', 0)
+                    display_name = subseg.get('display_name', '')
+                    
+                    if subseg_length > 0 and display_name:
+                        # Calculate absolute start/end times
+                        abs_start = section_start + subseg_offset
+                        abs_end = abs_start + subseg_length
+                        
+                        # Extract zone number from display_name (e.g., "Zone 1", "Zone 2", etc.)
+                        zone_num = 1  # Default
+                        zone_match = re.search(r'zone\s*(\d+)', display_name, re.IGNORECASE)
+                        if zone_match:
+                            zone_num = int(zone_match.group(1))
+                        
+                        # Clamp zone to 1-7 range
+                        chart_zone = max(1, min(7, int(zone_num)))
+                        
+                        chart_segments.append({
+                            "duration": subseg_length,
+                            "zone": chart_zone,
+                            "start": abs_start,
+                            "end": abs_end,
+                        })
+        
+        # Method 2: Fallback to target_metrics_data segments if segments_data not available
+        if not chart_segments and segments:
             for i, segment in enumerate(segments):
                 zone_num = segment.get('zone', 1)  # Power zone 1-7
                 start = segment.get('start', 0)
@@ -719,17 +755,20 @@ def class_detail(request, pk):
                     "start": start,
                     "end": end,
                 })
+        
+        if chart_segments:
+            # Sort segments by start time to ensure proper order
+            chart_segments.sort(key=lambda x: x['start'])
             
-            if chart_segments:
-                # Use exact class duration (no offset)
-                power_zone_chart = {
-                    'chart_data': {
-                        'type': 'power_zone',
-                        'segments': chart_segments,
-                        'zones': chart_zones,
-                        'total_duration': total_duration,  # Exact class duration
-                    }
+            # Use exact class duration (no offset)
+            power_zone_chart = {
+                'chart_data': {
+                    'type': 'power_zone',
+                    'segments': chart_segments,
+                    'zones': chart_zones,
+                    'total_duration': total_duration,  # Exact class duration
                 }
+            }
         
         # Calculate zone distribution
         if segments:
@@ -753,30 +792,70 @@ def class_detail(request, pk):
                         'percentage': int(percentage)
                     })
     elif ride.fitness_discipline in ['running', 'walking', 'run']:
-        # Running/Walking class - build chart data directly from target_metrics_data
-        # This matches the reference implementation from pelodads
+        # Running/Walking class - build chart data
+        # Prefer segments_data (segment_list) as it has exact class plan timings
         pace_chart = None
-        if ride.target_metrics_data and isinstance(ride.target_metrics_data, dict):
+        total_duration = ride.duration_seconds
+        
+        # Create 7 pace zones (0-6)
+        chart_zones = []
+        pace_labels = ["Recovery", "Easy", "Moderate", "Challenging", "Hard", "Very Hard", "Max"]
+        pace_colors = ["#6f42c1", "#4c6ef5", "#228be6", "#0ca678", "#ff922b", "#f76707", "#fa5252"]
+        
+        for i in range(7):
+            chart_zones.append({
+                "name": pace_labels[i],
+                "label": pace_labels[i],
+                "color": pace_colors[i]
+            })
+        
+        chart_segments = []
+        
+        # Method 1: Use segments_data (segment_list) if available - this has exact class plan timings
+        if ride.segments_data and ride.segments_data.get('segment_list'):
+            segment_list = ride.segments_data.get('segment_list', [])
+            
+            # Map pace names to zone numbers (0-6)
+            pace_name_to_zone = {
+                'recovery': 0, 'easy': 1, 'moderate': 2, 'challenging': 3,
+                'hard': 4, 'very hard': 5, 'max': 6,
+                'very_hard': 5
+            }
+            
+            for seg in segment_list:
+                subsegments = seg.get('subsegments_v2', [])
+                section_start = seg.get('start_time_offset', 0)
+                
+                for subseg in subsegments:
+                    subseg_offset = subseg.get('offset', 0)
+                    subseg_length = subseg.get('length', 0)
+                    display_name = subseg.get('display_name', '')
+                    
+                    if subseg_length > 0 and display_name:
+                        # Calculate absolute start/end times
+                        abs_start = section_start + subseg_offset
+                        abs_end = abs_start + subseg_length
+                        
+                        # Extract pace level from display_name (e.g., "Recovery", "Easy", "Moderate", etc.)
+                        pace_level = 2  # Default to Moderate
+                        display_lower = display_name.lower()
+                        for pace_name, zone_num in pace_name_to_zone.items():
+                            if pace_name in display_lower:
+                                pace_level = zone_num
+                                break
+                        
+                        chart_segments.append({
+                            "duration": subseg_length,
+                            "zone": pace_level,
+                            "pace_level": pace_level,
+                            "start": abs_start,
+                            "end": abs_end,
+                        })
+        
+        # Method 2: Fallback to target_metrics_data if segments_data not available
+        if not chart_segments and ride.target_metrics_data and isinstance(ride.target_metrics_data, dict):
             target_metrics_list = ride.target_metrics_data.get('target_metrics', [])
             if target_metrics_list and isinstance(target_metrics_list, list):
-                # Build chart data directly from target_metrics_data (matching reference)
-                total_duration = ride.duration_seconds
-                
-                # Create 7 pace zones (0-6)
-                chart_zones = []
-                pace_labels = ["Recovery", "Easy", "Moderate", "Challenging", "Hard", "Very Hard", "Max"]
-                pace_colors = ["#6f42c1", "#4c6ef5", "#228be6", "#0ca678", "#ff922b", "#f76707", "#fa5252"]
-                
-                for i in range(7):
-                    chart_zones.append({
-                        "name": pace_labels[i],
-                        "label": pace_labels[i],
-                        "color": pace_colors[i]
-                    })
-                
-                # Process target metrics to create segments
-                # Use segments as-is from Peloton API (they already include full class duration)
-                chart_segments = []
                 for idx, metric in enumerate(target_metrics_list):
                     if 'offsets' in metric and 'metrics' in metric:
                         start_time = metric['offsets']['start']
@@ -816,17 +895,20 @@ def class_detail(request, pk):
                             "start": start_time,
                             "end": end_time,
                         })
-                
-                if chart_segments:
-                    # Use exact class duration (no offset)
-                    pace_chart = {
-                        'chart_data': {
-                            'type': 'pace_target',
-                            'segments': chart_segments,
-                            'zones': chart_zones,
-                            'total_duration': total_duration,  # Exact class duration
-                        }
-                    }
+        
+        if chart_segments:
+            # Sort segments by start time to ensure proper order
+            chart_segments.sort(key=lambda x: x['start'])
+            
+            # Use exact class duration (no offset)
+            pace_chart = {
+                'chart_data': {
+                    'type': 'pace_target',
+                    'segments': chart_segments,
+                    'zones': chart_zones,
+                    'total_duration': total_duration,  # Exact class duration
+                }
+            }
         
         # Fallback: use get_pace_segments if target_metrics_data approach didn't work
         if not pace_chart:
