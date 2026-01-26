@@ -910,7 +910,64 @@ def class_detail(request, pk):
                 }
             }
         
-        # Fallback: use get_pace_segments if target_metrics_data approach didn't work
+        # Fallback: use get_pace_segments if segments_data and target_metrics_data approaches didn't work
+        # But first double-check segments_data wasn't missed
+        if not pace_chart and ride.segments_data and ride.segments_data.get('segment_list'):
+            # Try segments_data one more time (in case it was skipped earlier)
+            segment_list = ride.segments_data.get('segment_list', [])
+            fallback_chart_segments = []
+            
+            # Map pace names to zone numbers (0-6)
+            pace_name_to_zone = {
+                'recovery': 0, 'easy': 1, 'moderate': 2, 'challenging': 3,
+                'hard': 4, 'very hard': 5, 'max': 6,
+                'very_hard': 5
+            }
+            
+            for seg in segment_list:
+                subsegments = seg.get('subsegments_v2', [])
+                section_start = seg.get('start_time_offset', 0)
+                
+                for subseg in subsegments:
+                    subseg_offset = subseg.get('offset', 0)
+                    subseg_length = subseg.get('length', 0)
+                    display_name = subseg.get('display_name', '')
+                    
+                    if subseg_length > 0 and display_name:
+                        # Calculate absolute start/end times
+                        abs_start = section_start + subseg_offset
+                        abs_end = abs_start + subseg_length
+                        
+                        # Extract pace level from display_name (e.g., "Recovery", "Easy", "Moderate", etc.)
+                        pace_level = 2  # Default to Moderate
+                        display_lower = display_name.lower()
+                        for pace_name, zone_num in pace_name_to_zone.items():
+                            if pace_name in display_lower:
+                                pace_level = zone_num
+                                break
+                        
+                        fallback_chart_segments.append({
+                            "duration": subseg_length,
+                            "zone": pace_level,
+                            "pace_level": pace_level,
+                            "start": abs_start,
+                            "end": abs_end,
+                        })
+            
+            if fallback_chart_segments:
+                # Sort segments by start time to ensure proper order
+                fallback_chart_segments.sort(key=lambda x: x['start'])
+                
+                pace_chart = {
+                    'chart_data': {
+                        'type': 'pace_target',
+                        'segments': fallback_chart_segments,
+                        'zones': chart_zones,
+                        'total_duration': total_duration,  # Exact class duration
+                    }
+                }
+        
+        # Final fallback: use get_pace_segments if all else fails
         if not pace_chart:
             pace_zones = user_profile.get_pace_zone_targets()
             segments = ride.get_pace_segments(user_pace_zones=pace_zones)
