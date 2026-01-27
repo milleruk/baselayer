@@ -34,6 +34,15 @@ class EmailAuthenticationForm(AuthenticationForm):
         if email:
             email = email.lower().strip()
         return email
+    
+    def confirm_login_allowed(self, user):
+        """Override to provide better error message for inactive accounts"""
+        if not user.is_active:
+            raise ValidationError(
+                'Your account is currently inactive and requires administrator approval before you can log in. Please contact support or wait for your account to be activated.',
+                code='inactive',
+            )
+        super().confirm_login_allowed(user)
 
 
 class EmailUserCreationForm(forms.ModelForm):

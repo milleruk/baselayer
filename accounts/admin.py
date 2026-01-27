@@ -1,15 +1,24 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
+from django.utils.html import format_html
 from .models import User, Profile, WeightEntry, FTPEntry, PaceEntry, PaceLevel, PaceBand
 
 
 @admin.register(User)
 class UserAdmin(BaseUserAdmin):
     """Custom admin for User model"""
-    list_display = ['email', 'first_name', 'last_name', 'is_staff', 'is_active', 'date_joined']
+    list_display = ['email', 'first_name', 'last_name', 'is_staff', 'is_active', 'date_joined', 'inactive_status']
     list_filter = ['is_staff', 'is_active', 'date_joined']
     search_fields = ['email', 'first_name', 'last_name']
-    ordering = ['email']
+    ordering = ['-date_joined']  # Show newest users first (likely inactive)
+    actions = ['activate_users', 'deactivate_users']
+    
+    def inactive_status(self, obj):
+        """Display status badge for inactive users"""
+        if not obj.is_active:
+            return format_html('<span style="color: red; font-weight: bold;">⚠️ Inactive - Requires Activation</span>')
+        return format_html('<span style="color: green;">✓ Active</span>')
+    inactive_status.short_description = 'Status'
     
     fieldsets = (
         (None, {'fields': ('email', 'password')}),
@@ -24,6 +33,20 @@ class UserAdmin(BaseUserAdmin):
             'fields': ('email', 'password1', 'password2'),
         }),
     )
+    
+    def activate_users(self, request, queryset):
+        """Admin action to activate selected users"""
+        count = queryset.update(is_active=True)
+        self.message_user(request, f'Successfully activated {count} user(s).')
+    activate_users.short_description = 'Activate selected users'
+    
+    def deactivate_users(self, request, queryset):
+        """Admin action to deactivate selected users"""
+        # Don't allow deactivating superusers
+        queryset = queryset.exclude(is_superuser=True)
+        count = queryset.update(is_active=False)
+        self.message_user(request, f'Successfully deactivated {count} user(s).')
+    deactivate_users.short_description = 'Deactivate selected users'
 
 
 @admin.register(Profile)

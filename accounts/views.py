@@ -16,11 +16,10 @@ def register(request):
         form = EmailUserCreationForm(request.POST)
         if form.is_valid():
             user = form.save()
-            # Specify the backend when logging in (required when multiple backends are configured)
-            from accounts.backends import EmailBackend
-            login(request, user, backend='accounts.backends.EmailBackend')
-            messages.success(request, 'Account created successfully!')
-            return redirect("plans:dashboard")
+            # New users are inactive by default - don't auto-login
+            # Show message that account needs activation
+            messages.info(request, 'Your account has been created successfully! However, your account is currently inactive and requires administrator approval before you can log in. You will be notified once your account has been activated.')
+            return redirect("login")
     else:
         form = EmailUserCreationForm()
     return render(request, "accounts/register.html", {"form": form})
@@ -30,6 +29,22 @@ class CustomLoginView(LoginView):
     """Custom login view that uses email authentication"""
     form_class = EmailAuthenticationForm
     template_name = 'accounts/login.html'
+    
+    def form_invalid(self, form):
+        """Handle invalid form submission - check if account is inactive"""
+        # Check if user exists and is inactive
+        email = form.cleaned_data.get('username') or form.cleaned_data.get('email')
+        if email:
+            from .models import User
+            try:
+                user = User.objects.get(email=email)
+                if not user.is_active:
+                    messages.error(self.request, 'Your account is currently inactive and requires administrator approval before you can log in. Please contact support or wait for your account to be activated.')
+                    return self.render_to_response(self.get_context_data(form=form))
+            except User.DoesNotExist:
+                pass  # User doesn't exist, let default error handling work
+        
+        return super().form_invalid(form)
 
 @login_required
 def profile(request):
