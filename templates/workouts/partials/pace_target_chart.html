@@ -430,17 +430,23 @@ document.addEventListener('DOMContentLoaded', function() {
         // Function to get pace value for a given level (defined before tooltip)
         // Get user pace bands from backend (if available)
         const userPaceBandsData = JSON.parse(document.getElementById('user-pace-bands')?.textContent || 'null');
+        // Get the user's saved pace level from template (for comparison)
+        const savedUserPaceLevel = parseInt('{{ user_pace_level|default:5 }}') || 5;
         
         function getPaceForLevel(classPlanIntensity, userLevel = 5) {
             // Convert class plan pace intensity (0-6) to min/mi based on user's selected level (1-10)
-            // Uses actual PaceBand data from user's profile if available, otherwise falls back to defaults
+            // Uses actual PaceBand data from user's profile if available and matches selected level, otherwise falls back to defaults
             
             // Map class plan intensity (0-6) to intensity labels
             const intensityLabels = ['Recovery', 'Easy', 'Moderate', 'Challenging', 'Hard', 'Very Hard', 'Max'];
             const label = intensityLabels[classPlanIntensity] || 'Moderate';
             
-            // Use actual user pace bands if available
-            if (userPaceBandsData && userPaceBandsData.length > 0) {
+            // Clamp user level to valid range
+            const clampedLevel = Math.max(1, Math.min(10, userLevel));
+            
+            // Use actual user pace bands ONLY if they match the currently selected level
+            // This ensures that when user changes the dropdown, we use the correct pace values for that level
+            if (userPaceBandsData && userPaceBandsData.length > 0 && clampedLevel === savedUserPaceLevel) {
                 // Map intensity index (0-6) to zone names used in PaceBand
                 const zoneMap = {
                     0: 'recovery',
@@ -456,10 +462,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (zoneKey) {
                     const band = userPaceBandsData.find(b => b.zone === zoneKey);
                     if (band) {
-                        // Use the middle of the pace range
                         const minPace = band.min_pace;
                         const maxPace = band.max_pace;
-                        const pace = (minPace + maxPace) / 2;
+                        let pace;
+                        
+                        // Special handling for recovery zones: max_pace is unlimited (60.0), so use min_pace directly
+                        // Recovery means "as slow as you want, but no faster than min_pace"
+                        if (zoneKey === 'recovery' && maxPace >= 60.0) {
+                            pace = minPace; // Use min_pace directly for recovery
+                        } else {
+                            // For other zones, use the middle of the pace range
+                            pace = (minPace + maxPace) / 2;
+                        }
+                        
                         const minutes = Math.floor(pace);
                         const seconds = Math.round((pace - minutes) * 60);
                         
@@ -570,16 +585,24 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             };
             
-            // Clamp user level to valid range
-            const clampedLevel = Math.max(1, Math.min(10, userLevel));
+            // Use hardcoded pace ranges based on the selected user level
+            // (clampedLevel was already calculated above when checking userPaceBandsData)
             const levelRanges = paceRangesByLevel[clampedLevel] || paceRangesByLevel[5];
             
             // Get the range for the current intensity
             const range = levelRanges[label] || levelRanges['Moderate'];
             const [minPace, maxPace] = range;
             
-            // Use middle of the range
-            const pace = (minPace + maxPace) / 2;
+            // Special handling for recovery zones: max_pace is unlimited (60.0), so use min_pace directly
+            // Recovery means "as slow as you want, but no faster than min_pace"
+            let pace;
+            if (label === 'Recovery' && maxPace >= 60.0) {
+                pace = minPace; // Use min_pace directly for recovery
+            } else {
+                // For other zones, use the middle of the range
+                pace = (minPace + maxPace) / 2;
+            }
+            
             const minutes = Math.floor(pace);
             const seconds = Math.round((pace - minutes) * 60);
             
@@ -1496,8 +1519,16 @@ document.addEventListener('DOMContentLoaded', function() {
             const range = levelRanges[label] || levelRanges['Moderate'];
             const [minPace, maxPace] = range;
             
-            // Use middle of the range
-            const pace = (minPace + maxPace) / 2;
+            // Special handling for recovery zones: max_pace is unlimited (60.0), so use min_pace directly
+            // Recovery means "as slow as you want, but no faster than min_pace"
+            let pace;
+            if (label === 'Recovery' && maxPace >= 60.0) {
+                pace = minPace; // Use min_pace directly for recovery
+            } else {
+                // For other zones, use the middle of the range
+                pace = (minPace + maxPace) / 2;
+            }
+            
             const minutes = Math.floor(pace);
             const seconds = Math.round((pace - minutes) * 60);
             

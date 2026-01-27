@@ -1350,9 +1350,23 @@ def class_detail(request, pk):
             activity_type = 'running' if ride.fitness_discipline in ['running', 'run'] else 'walking'
             # Get the latest active pace target from user's profile (matching get_current_ftp pattern)
             user_pace_level = user_profile.get_current_pace(activity_type=activity_type)
-            # Fallback to pace_target_level if no PaceEntry exists
+            
+            # If no active PaceEntry, try to get the latest PaceEntry regardless of is_active status
             if user_pace_level is None:
-                user_pace_level = user_profile.pace_target_level if user_profile and user_profile.pace_target_level else 5  # Default to level 5
+                from accounts.models import PaceEntry
+                latest_pace_entry = PaceEntry.objects.filter(
+                    user=request.user,
+                    activity_type=activity_type
+                ).order_by('-recorded_date', '-created_at').first()
+                if latest_pace_entry:
+                    user_pace_level = latest_pace_entry.level
+            
+            # Fallback to pace_target_level if no PaceEntry exists at all
+            if user_pace_level is None:
+                if user_profile and user_profile.pace_target_level is not None:
+                    user_pace_level = user_profile.pace_target_level
+                else:
+                    user_pace_level = 5  # Default to level 5
             
             # Get the PaceLevel object with bands for this level (similar to how FTP is used for power zones)
             if user_pace_level:
@@ -1418,7 +1432,10 @@ def class_detail(request, pk):
                     user_pace_bands = bands_list
         else:
             # Fallback if no user profile or unknown activity type
-            user_pace_level = user_profile.pace_target_level if user_profile and user_profile.pace_target_level else 5
+            if user_profile and user_profile.pace_target_level is not None:
+                user_pace_level = user_profile.pace_target_level
+            else:
+                user_pace_level = 5
         
         # Calculate time in zones for running (L0-L6 format matching reference template)
         time_in_zones = {}
@@ -1936,7 +1953,8 @@ def class_detail(request, pk):
     pace_chart_json = None
     power_zone_chart_json = None
     chart_data = None  # For reference template compatibility
-    user_pace_level = 5  # Default
+    # Note: user_pace_level should already be set in the pace target block above (line 1345-1438)
+    # Don't set a default here as it would overwrite the value already set
     
     # Handle pace target chart data
     if 'pace_chart' in locals() and pace_chart and pace_chart.get('chart_data'):
@@ -1955,21 +1973,38 @@ def class_detail(request, pk):
     
     # Ensure user_pace_level is set (fallback, matching user_ftp pattern)
     # Only set if not already set in the pace target block above
-    # Note: user_pace_level should already be set in the pace target block (line 1342-1418)
-    # This is just a safety fallback for non-pace-target classes
+    # Note: user_pace_level should already be set in the pace target block (line 1345-1438)
+    # This is just a safety fallback in case it wasn't set (shouldn't happen, but defensive programming)
     # IMPORTANT: Use new system (PaceEntry) first, fallback to old system (pace_target_level) only if needed
-    if 'user_pace_level' not in locals() or user_pace_level is None:
+    if user_pace_level is None:
         # For pace target classes, try to get current pace from PaceEntry (new system)
         if user_profile and ride.fitness_discipline in ['running', 'run', 'walking', 'walk']:
             activity_type = 'running' if ride.fitness_discipline in ['running', 'run'] else 'walking'
             # Use new system: get_current_pace() looks for active PaceEntry
             user_pace_level = user_profile.get_current_pace(activity_type=activity_type)
+            
+            # If no active PaceEntry, try to get the latest PaceEntry regardless of is_active status
+            if user_pace_level is None:
+                from accounts.models import PaceEntry
+                latest_pace_entry = PaceEntry.objects.filter(
+                    user=request.user,
+                    activity_type=activity_type
+                ).order_by('-recorded_date', '-created_at').first()
+                if latest_pace_entry:
+                    user_pace_level = latest_pace_entry.level
+            
             # Fallback to old system: pace_target_level (deprecated but still used as fallback)
             if user_pace_level is None:
-                user_pace_level = user_profile.pace_target_level if user_profile and user_profile.pace_target_level else 5
+                if user_profile and user_profile.pace_target_level is not None:
+                    user_pace_level = user_profile.pace_target_level
+                else:
+                    user_pace_level = 5
         else:
             # For non-pace classes, use old system as fallback
-            user_pace_level = user_profile.pace_target_level if user_profile and user_profile.pace_target_level else 5
+            if user_profile and user_profile.pace_target_level is not None:
+                user_pace_level = user_profile.pace_target_level
+            else:
+                user_pace_level = 5
     
     # Format class date (matching reference template)
     class_date = None
@@ -2026,7 +2061,7 @@ def class_detail(request, pk):
         'power_zone_chart': power_zone_chart if 'power_zone_chart' in locals() else None,
         'power_zone_chart_json': power_zone_chart_json,
         'chart_data': chart_data,  # For reference template compatibility
-        'user_pace_level': user_pace_level if 'user_pace_level' in locals() and user_pace_level is not None else (user_profile.pace_target_level if user_profile and user_profile.pace_target_level else 5),
+        'user_pace_level': user_pace_level if user_pace_level is not None else (user_profile.pace_target_level if user_profile and user_profile.pace_target_level is not None else 5),
         'user_pace_bands': user_pace_bands if 'user_pace_bands' in locals() else None,
         'has_pace_target': bool(user_profile.pace_target_level) if user_profile else False,
         'time_in_zones': time_in_zones if 'time_in_zones' in locals() else {},
