@@ -58,9 +58,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.4.0-alpha] - 2026-01-27
+
+### Added
+- **Background Sync Architecture**: Celery-based task queue for asynchronous workout processing
+  - Immediate workout record creation (synchronous)
+  - Background fetching of ride details and performance graphs
+  - Scalable solution for users with 4k+ workouts
+- **Celery Integration**: Full Celery setup with Redis broker
+  - `fetch_ride_details_task`: Background task for fetching class/ride details
+  - `fetch_performance_graph_task`: Background task for fetching workout metrics
+  - Batch processing tasks for parallel execution
+  - Automatic retry logic with exponential backoff
+- **Background Sync Documentation**: Comprehensive guide in `docs/BACKGROUND_SYNC.md`
+  - Setup instructions for Redis and Celery workers
+  - Usage examples and best practices
+  - Production considerations and monitoring
+
+### Fixed
+- **Sync Status Bug**: Fixed issue where adding Peloton credentials incorrectly marked users as synced
+  - `last_sync_at` now only set when workouts are actually synced
+  - Users see "First sync will import all your workout history" until they click sync
+- **Database Constraint**: Fixed `NOT NULL constraint failed` error for `home_peloton_id` field
+  - Added `null=True` to `RideDetail.home_peloton_id` field
+  - Migration created and applied
+  - Code updated to handle None values gracefully
+
+### Changed
+- **Dependencies**: Updated to compatible versions
+  - Celery: 5.6.2
+  - Kombu: 5.6.2
+  - Redis: 7.1.0
+  - Added tzlocal: 5.3.1
+- **Sync Flow**: Prepared for background processing (tasks created, ready for integration)
+
+### Technical
+- Celery configuration in `config/celery.py`
+- Task definitions in `workouts/tasks.py`
+- Redis broker configuration in settings
+- Migration for `home_peloton_id` field update
+
+---
+
 ## [Unreleased]
 
 ### Planned
+- Refactor `sync_workouts` view to use background tasks
+- Add progress tracking UI for background sync
 - Enhanced analytics and reporting features
 - Additional exercise types and categories
 - Improved challenge features

@@ -3188,7 +3188,7 @@ def sync_workouts(request):
                                 'overall_estimate': ride_data.get('overall_estimate'),
                                 'difficulty_estimate': ride_data.get('difficulty_estimate'),
                                 'image_url': ride_data.get('image_url', ''),
-                                'home_peloton_id': ride_data.get('home_peloton_id', ''),
+                                'home_peloton_id': ride_data.get('home_peloton_id') or '',
                                 'original_air_time': ride_data.get('original_air_time'),
                                 'scheduled_start_time': ride_data.get('scheduled_start_time'),
                                 'created_at_timestamp': ride_data.get('created_at'),

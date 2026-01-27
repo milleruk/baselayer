@@ -149,3 +149,64 @@ For issues, questions, or feedback, please contact support or check the document
 **Release Date**: January 26, 2026  
 **Version**: v0.1.0-alpha  
 **Status**: Alpha Release
+
+---
+
+## Alpha Release v0.4.0 - January 27, 2026
+
+### 🚀 Background Sync & Bug Fixes
+
+This release introduces background processing capabilities and fixes critical sync issues.
+
+### ✨ New Features
+
+#### Background Sync Architecture
+- **Celery Integration**: Full task queue system for asynchronous processing
+- **Immediate Response**: Basic workout records created instantly
+- **Background Processing**: Ride details and performance graphs fetched asynchronously
+- **Scalability**: Handles users with 4k+ workouts without blocking requests
+- **Retry Logic**: Automatic retries on API failures with exponential backoff
+
+#### Task System
+- `fetch_ride_details_task`: Background fetching of class/ride details
+- `fetch_performance_graph_task`: Background fetching of workout metrics
+- Batch processing support for parallel execution
+- Comprehensive error handling and logging
+
+### 🐛 Bug Fixes
+
+#### Sync Status Issue
+- **Fixed**: Adding Peloton credentials no longer incorrectly marks users as synced
+- Users now see "First sync will import all your workout history" until they actually sync
+- `last_sync_at` only set when workouts are actually synced
+
+#### Database Constraint
+- **Fixed**: `NOT NULL constraint failed` error for `home_peloton_id` field
+- Added `null=True` to allow NULL values
+- Migration created and applied
+
+### 📚 Documentation
+
+- Added comprehensive background sync guide (`docs/BACKGROUND_SYNC.md`)
+- Setup instructions for Redis and Celery workers
+- Usage examples and production considerations
+
+### 🔧 Technical Updates
+
+- Updated dependencies to compatible versions:
+  - Celery 5.6.2
+  - Kombu 5.6.2
+  - Redis 7.1.0
+  - tzlocal 5.3.1
+
+### 📋 Next Steps
+
+- Refactor sync view to use background tasks (ready for implementation)
+- Add progress tracking UI for background sync
+- Enhanced monitoring and error reporting
+
+---
+
+**Release Date**: January 27, 2026  
+**Version**: v0.4.0-alpha  
+**Status**: Alpha Release

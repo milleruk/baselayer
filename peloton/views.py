@@ -269,14 +269,13 @@ def connect_peloton(request):
                     if leaderboard_name:
                         profile.peloton_leaderboard_name = leaderboard_name
                     
-                    profile.peloton_last_synced_at = timezone.now()
                     profile.save()
                 except Exception as e:
                     # If we can't fetch user details, that's okay - we'll try again later
                     logger.warning(f"Could not fetch Peloton user details: {e}")
                 
                 connection.is_active = True
-                connection.last_sync_at = timezone.now()
+                # Don't set last_sync_at here - it should only be set when workouts are actually synced
                 connection.save()
                 
                 messages.success(request, 'Peloton account connected successfully!')
@@ -367,7 +366,7 @@ def oauth_callback(request):
         expires_in = token.expires_in or 172800
         connection.token_expires_at = timezone.now() + timedelta(seconds=expires_in)
         connection.is_active = True
-        connection.last_sync_at = timezone.now()
+        # Don't set last_sync_at here - it should only be set when workouts are actually synced
         
         # Fetch user info
         client.token = token
@@ -410,7 +409,6 @@ def oauth_callback(request):
             if leaderboard_name:
                 profile.peloton_leaderboard_name = leaderboard_name
             
-            profile.peloton_last_synced_at = timezone.now()
             profile.save()
         except Exception as e:
             logger.warning(f"Could not fetch Peloton user details: {e}")
@@ -538,7 +536,6 @@ def test_connection(request):
             if leaderboard_name:
                 profile.peloton_leaderboard_name = leaderboard_name
             
-            profile.peloton_last_synced_at = timezone.now()
             profile.save()
             
             # Update bearer token if we got a new one (from refresh)
@@ -550,7 +547,7 @@ def test_connection(request):
                 expires_in = client.token.expires_in or 172800
                 connection.token_expires_at = timezone.now() + timedelta(seconds=expires_in)
             
-            connection.last_sync_at = timezone.now()
+            # Don't set last_sync_at here - it should only be set when workouts are actually synced
             connection.save()
             
             messages.success(request, 'Connection test successful! Profile updated with Peloton stats.')
@@ -558,7 +555,7 @@ def test_connection(request):
             logger.warning(f"Could not fetch Peloton user details: {e}")
             messages.warning(request, f'Connected but could not fetch user details: {str(e)}')
             
-            connection.last_sync_at = timezone.now()
+            # Don't set last_sync_at here - it should only be set when workouts are actually synced
             connection.save()
             
     except PelotonConnection.DoesNotExist:

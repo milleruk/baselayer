@@ -124,7 +124,7 @@ class RideDetail(models.Model):
     
     # Media
     image_url = models.URLField(blank=True, null=True, help_text="Class thumbnail/image URL")
-    home_peloton_id = models.CharField(max_length=100, blank=True, help_text="Home Peloton ID")
+    home_peloton_id = models.CharField(max_length=100, blank=True, null=True, help_text="Home Peloton ID")
     peloton_class_url = models.URLField(blank=True, null=True, help_text="Link to class on Peloton website")
     
     # Timing
