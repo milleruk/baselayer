@@ -32,19 +32,31 @@ class CustomLoginView(LoginView):
     
     def form_invalid(self, form):
         """Handle invalid form submission - check if account is inactive"""
-        # Check if user exists and is inactive
+        # Check if the error is due to inactive account
+        if 'username' in form.errors:
+            for error in form.errors['username']:
+                if error.code == 'inactive':
+                    # Redirect to inactive account page
+                    return redirect('account_inactive')
+        
+        # Also check if user exists and is inactive (fallback)
         email = form.cleaned_data.get('username') or form.cleaned_data.get('email')
         if email:
             from .models import User
             try:
                 user = User.objects.get(email=email)
                 if not user.is_active:
-                    messages.error(self.request, 'Your account is currently inactive and requires administrator approval before you can log in. Please contact support or wait for your account to be activated.')
-                    return self.render_to_response(self.get_context_data(form=form))
+                    # Redirect to inactive account page
+                    return redirect('account_inactive')
             except User.DoesNotExist:
                 pass  # User doesn't exist, let default error handling work
         
         return super().form_invalid(form)
+
+
+def account_inactive(request):
+    """Display page for inactive accounts"""
+    return render(request, 'accounts/inactive.html')
 
 @login_required
 def profile(request):

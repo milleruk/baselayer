@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0"
+    />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>Account Inactive | Chase The Zones</title>
+    {% load static %}
+    
+    <!-- Tailwind CSS CDN with TailAdmin theme config -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="{% static 'js/tailwind-config.js' %}"></script>
+    
+    <!-- TailAdmin Theme CSS -->
+    <link rel="stylesheet" href="{% static 'css/tailadmin.css' %}" />
+    
+    <!-- Alpine.js -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x/dist/cdn.min.js"></script>
+    
+    <!-- Dark mode initialization -->
+    <script src="{% static 'js/dark-mode-init.js' %}"></script>
+  </head>
+  <body
+    x-data="{ 'darkMode': (() => {
+      if (typeof Storage !== 'undefined') {
+        const saved = localStorage.getItem('darkMode');
+        return saved !== null ? saved === 'true' : false;
+      }
+      return false;
+    })() }"
+    x-init="
+      darkMode = JSON.parse(localStorage.getItem('darkMode') || 'false');
+      $watch('darkMode', value => {
+        localStorage.setItem('darkMode', JSON.stringify(value));
+        if (value) {
+          document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+        }
+      })"
+    :class="{'dark bg-gray-900': darkMode === true}"
+    class="font-outfit"
+  >
+    <!-- ===== Page Wrapper Start ===== -->
+    <div class="relative p-6 bg-white z-1 dark:bg-gray-900 sm:p-0">
+      <div
+        class="relative flex flex-col justify-center w-full h-screen dark:bg-gray-900 sm:p-0 lg:flex-row"
+      >
+        <!-- Left Side - Logo and Branding -->
+        <div
+          class="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-primary/20 to-primary/5 dark:from-primary/30 dark:to-primary/10 flex-col items-center justify-center p-8"
+        >
+          <div class="text-center">
+            <a href="{% url 'plans:landing' %}" class="inline-block mb-8">
+              <img
+                src="{% static 'img/logo.png' %}"
+                alt="Chase The Zones"
+                class="h-16 w-auto mx-auto"
+              />
+            </a>
+            <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-4">
+              Chase The Zones
+            </h1>
+            <p class="text-gray-600 dark:text-gray-300 text-lg">
+              Your fitness journey starts here
+            </p>
+          </div>
+        </div>
+
+        <!-- Right Side - Inactive Account Message -->
+        <div
+          class="flex flex-col justify-center w-full lg:w-1/2 px-6 py-12 sm:px-12 lg:px-16 xl:px-24"
+        >
+          <div class="max-w-md mx-auto w-full">
+            <!-- Logo for mobile -->
+            <div class="lg:hidden mb-8 text-center">
+              <a href="{% url 'plans:landing' %}" class="inline-block">
+                <img
+                  src="{% static 'img/logo.png' %}"
+                  alt="Chase The Zones"
+                  class="h-12 w-auto mx-auto"
+                />
+              </a>
+            </div>
+
+            <!-- Inactive Account Card -->
+            <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-8">
+              <!-- Icon -->
+              <div class="text-center mb-6">
+                <div class="inline-flex items-center justify-center w-20 h-20 rounded-full bg-yellow-100 dark:bg-yellow-900/30 mb-4">
+                  <svg class="w-10 h-10 text-yellow-600 dark:text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                  </svg>
+                </div>
+                <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+                  Account Pending Activation
+                </h2>
+              </div>
+
+              <!-- Message -->
+              <div class="space-y-4 mb-6">
+                <p class="text-gray-700 dark:text-gray-300 text-center">
+                  Your account has been created successfully, but it is currently <strong class="text-yellow-600 dark:text-yellow-400">inactive</strong> and requires administrator approval before you can access the application.
+                </p>
+                
+                <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                  <p class="text-sm text-blue-800 dark:text-blue-200 text-center">
+                    <strong>Next Steps:</strong><br>
+                    Please speak to one of the team members to activate your account. Once activated, you'll be able to log in and start using Chase The Zones.
+                  </p>
+                </div>
+
+                <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+                  <p class="text-xs text-gray-600 dark:text-gray-400 text-center">
+                    This is a development application. All new accounts require manual activation to ensure proper access control during the development phase.
+                  </p>
+                </div>
+              </div>
+
+              <!-- Actions -->
+              <div class="space-y-3">
+                <a
+                  href="{% url 'login' %}"
+                  class="block w-full px-4 py-3 text-center text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors"
+                >
+                  Back to Login
+                </a>
+                <a
+                  href="{% url 'plans:landing' %}"
+                  class="block w-full px-4 py-3 text-center text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                >
+                  Return to Home
+                </a>
+              </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="mt-8 text-center">
+              <p class="text-sm text-gray-500 dark:text-gray-400">
+                Need help? <a href="{% url 'plans:contact' %}" class="text-primary hover:underline">Contact Support</a>
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- ===== Page Wrapper End ===== -->
+  </body>
+</html>

@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from django.utils.html import format_html
+from django.utils.safestring import mark_safe
 from .models import User, Profile, WeightEntry, FTPEntry, PaceEntry, PaceLevel, PaceBand
 
 
@@ -16,8 +16,8 @@ class UserAdmin(BaseUserAdmin):
     def inactive_status(self, obj):
         """Display status badge for inactive users"""
         if not obj.is_active:
-            return format_html('<span style="color: red; font-weight: bold;">⚠️ Inactive - Requires Activation</span>')
-        return format_html('<span style="color: green;">✓ Active</span>')
+            return mark_safe('<span style="color: red; font-weight: bold;">⚠️ Inactive - Requires Activation</span>')
+        return mark_safe('<span style="color: green;">✓ Active</span>')
     inactive_status.short_description = 'Status'
     
     fieldsets = (

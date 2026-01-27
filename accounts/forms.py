@@ -36,10 +36,10 @@ class EmailAuthenticationForm(AuthenticationForm):
         return email
     
     def confirm_login_allowed(self, user):
-        """Override to provide better error message for inactive accounts"""
+        """Override to prevent login for inactive accounts - redirect handled in view"""
         if not user.is_active:
             raise ValidationError(
-                'Your account is currently inactive and requires administrator approval before you can log in. Please contact support or wait for your account to be activated.',
+                'Your account is currently inactive.',
                 code='inactive',
             )
         super().confirm_login_allowed(user)
