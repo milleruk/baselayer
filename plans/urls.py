@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import landing, dashboard, exercise_list, guide, metrics, privacy_policy, terms_and_conditions, features, about, faq, contact, how_it_works, recap, recap_share, recap_share_manage, recap_regenerate, eddington
+from .views import landing, dashboard, exercise_list, guide, metrics, privacy_policy, terms_and_conditions, features, about, faq, contact, how_it_works, recap, recap_share, recap_share_manage, recap_regenerate, eddington, pace_zones_reference
 
 app_name = "plans"
 
@@ -8,6 +8,7 @@ urlpatterns = [
     path("dashboard/", dashboard, name="dashboard"),
     path("exercises/", exercise_list, name="exercise_list"),
     path("guide/", guide, name="guide"),
+    path("guide/pace-zones/", pace_zones_reference, name="pace_zones_reference"),
     path("features/", features, name="features"),
     path("about/", about, name="about"),
     path("how-it-works/", how_it_works, name="how_it_works"),
