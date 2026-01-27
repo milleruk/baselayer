@@ -106,6 +106,37 @@
 </head>
 <body class="font-outfit bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 overflow-x-hidden">
   
+  <!-- Development Mode Banner -->
+  <div x-data="{ dismissed: (() => {
+    if (typeof Storage !== 'undefined') {
+      return localStorage.getItem('devBannerDismissed') === 'true';
+    }
+    return false;
+  })() }" 
+  x-show="!dismissed" 
+  x-cloak
+  class="bg-yellow-500 dark:bg-yellow-600 border-b border-yellow-600 dark:border-yellow-700 text-white px-4 py-2.5 text-sm font-medium relative z-50">
+    <div class="max-w-7xl mx-auto flex items-center justify-between gap-4">
+      <div class="flex items-center gap-3 flex-1">
+        <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+        </svg>
+        <span class="flex-1">
+          <strong>Development Mode:</strong> This application is currently in development and has not been released yet. Features may change, and data may be reset. Please be mindful of this when using the application.
+        </span>
+      </div>
+      <button 
+        @click="dismissed = true; if (typeof Storage !== 'undefined') localStorage.setItem('devBannerDismissed', 'true');"
+        class="flex-shrink-0 p-1 rounded hover:bg-yellow-600 dark:hover:bg-yellow-700 transition-colors"
+        aria-label="Dismiss banner"
+      >
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+        </svg>
+      </button>
+    </div>
+  </div>
+  
   {% if user.is_authenticated %}
     <!-- Dashboard Layout -->
     {% if request.resolver_match.url_name == 'landing' or request.path == '/' %}
