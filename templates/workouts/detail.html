@@ -38,9 +38,14 @@
           View Workout ↗
         </a>
       {% endif %}
-      {% if workout.ride_detail and workout.ride_detail.peloton_class_url %}
-        <a href="{{ workout.ride_detail.peloton_class_url }}" target="_blank" rel="noopener noreferrer" class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors">
-          View Class ↗
+      {% if workout.ride_detail %}
+        {% if workout.ride_detail.peloton_class_url %}
+          <a href="{{ workout.ride_detail.peloton_class_url }}" target="_blank" rel="noopener noreferrer" class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors">
+            View Class ↗
+          </a>
+        {% endif %}
+        <a href="{% url 'workouts:class_detail' workout.ride_detail.pk %}" class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors">
+          View in Library
         </a>
       {% endif %}
     </div>

@@ -27,6 +27,9 @@ except ImportError:
 
 from .models import Workout, WorkoutType, Instructor, RideDetail, WorkoutDetails, Playlist
 from peloton.models import PelotonConnection
+from accounts.pace_converter import DEFAULT_RUNNING_PACE_LEVELS, ZONE_COLORS
+from accounts.walking_pace_levels_data import DEFAULT_WALKING_PACE_LEVELS, WALKING_ZONE_COLORS
+from accounts.rowing_pace_levels_data import DEFAULT_ROWING_PACE_LEVELS, ROWING_ZONE_COLORS
 import logging
 
 logger = logging.getLogger(__name__)
@@ -818,6 +821,7 @@ def class_detail(request, pk):
     target_metrics_json = None
     zone_distribution = []
     class_segments = []
+    target_line_data = None  # Initialize outside block for scope
     
     if ride.class_type == 'power_zone' or ride.is_power_zone_class:
         # Power Zone class - get user's FTP for zone calculations
@@ -935,6 +939,18 @@ def class_detail(request, pk):
                     'total_duration': total_duration,  # Exact class duration
                 }
             }
+        
+        # Calculate target line data for visualization (matching workout_detail approach)
+        if segments and len(segments) > 0 and user_ftp and zone_ranges:
+            # Generate timestamps array for target line (every 5 seconds, matching workout_detail)
+            timestamps = list(range(0, total_duration + 1, 5))
+            
+            # Calculate target line from segments
+            target_line_data = _calculate_target_line_from_segments(
+                segments,
+                zone_ranges,
+                timestamps
+            )
         
         # Calculate zone distribution
         if segments:
@@ -1280,6 +1296,17 @@ def class_detail(request, pk):
                     }
                 }
         
+        # Calculate target line data for visualization (matching power zone approach)
+        if chart_segments and len(chart_segments) > 0:
+            # Generate timestamps array for target line (every 5 seconds, matching power zone)
+            timestamps = list(range(0, total_duration + 1, 5))
+            
+            # Calculate target line from segments
+            target_line_data = _calculate_pace_target_line_from_segments(
+                chart_segments,
+                timestamps
+            )
+        
         # Set target_metrics for backward compatibility
         if pace_chart:
             # Still create target_metrics structure for other parts of the template
@@ -1315,8 +1342,83 @@ def class_detail(request, pk):
                     'pace_zones': None
                 }
         
-        # Add user pace level to context
-        user_pace_level = user_profile.pace_target_level if user_profile and user_profile.pace_target_level else 5
+        # Pace Target class - get user's pace level for pace calculations (matching FTP pattern)
+        user_pace_level = None
+        user_pace_bands = None  # Pace bands data for JavaScript
+        
+        if user_profile and ride.fitness_discipline in ['running', 'run', 'walking', 'walk']:
+            activity_type = 'running' if ride.fitness_discipline in ['running', 'run'] else 'walking'
+            # Get the latest active pace target from user's profile (matching get_current_ftp pattern)
+            user_pace_level = user_profile.get_current_pace(activity_type=activity_type)
+            # Fallback to pace_target_level if no PaceEntry exists
+            if user_pace_level is None:
+                user_pace_level = user_profile.pace_target_level if user_profile and user_profile.pace_target_level else 5  # Default to level 5
+            
+            # Get the PaceLevel object with bands for this level (similar to how FTP is used for power zones)
+            if user_pace_level:
+                from accounts.models import PaceLevel
+                user_pace_level_obj = PaceLevel.objects.filter(
+                    user=request.user,
+                    activity_type=activity_type,
+                    level=user_pace_level
+                ).prefetch_related('bands').order_by('-recorded_date').first()
+                
+                # If no PaceLevel found, use defaults
+                if not user_pace_level_obj:
+                    from accounts.pace_levels_data import DEFAULT_RUNNING_PACE_LEVELS
+                    from accounts.walking_pace_levels_data import DEFAULT_WALKING_PACE_LEVELS
+                    from datetime import date
+                    from decimal import Decimal
+                    
+                    # Define DefaultPaceLevel class locally (same as in accounts/views.py)
+                    class DefaultPaceLevel:
+                        def __init__(self, level, default_data):
+                            self.level = level
+                            self.recorded_date = date.today()
+                            self._default_data = default_data
+                        
+                        @property
+                        def bands(self):
+                            class DefaultBands:
+                                def __init__(self, default_data):
+                                    self._default_data = default_data
+                                
+                                def all(self):
+                                    class DefaultBand:
+                                        def __init__(self, zone, data):
+                                            self.zone = zone
+                                            self.min_mph = Decimal(str(data[0]))
+                                            self.max_mph = Decimal(str(data[1]))
+                                            self.min_pace = Decimal(str(data[2]))
+                                            self.max_pace = Decimal(str(data[3]))
+                                            self.description = data[4]
+                                    
+                                    return [DefaultBand(zone, data) for zone, data in self._default_data.items()]
+                            
+                            return DefaultBands(self._default_data)
+                    
+                    default_data = DEFAULT_RUNNING_PACE_LEVELS if activity_type == 'running' else DEFAULT_WALKING_PACE_LEVELS
+                    if user_pace_level in default_data:
+                        user_pace_level_obj = DefaultPaceLevel(user_pace_level, default_data[user_pace_level])
+                
+                # Extract bands data for JavaScript
+                if user_pace_level_obj and hasattr(user_pace_level_obj, 'bands'):
+                    bands_list = []
+                    for band in user_pace_level_obj.bands.all():
+                        bands_list.append({
+                            'zone': band.zone,
+                            'min_mph': float(band.min_mph),
+                            'max_mph': float(band.max_mph),
+                            'min_pace': float(band.min_pace),
+                            'max_pace': float(band.max_pace),
+                        })
+                    # Sort by zone order (recovery, easy, moderate, etc.)
+                    zone_order = ['recovery', 'easy', 'moderate', 'challenging', 'hard', 'very_hard', 'max', 'brisk', 'power']
+                    bands_list.sort(key=lambda x: zone_order.index(x['zone']) if x['zone'] in zone_order else 999)
+                    user_pace_bands = bands_list
+        else:
+            # Fallback if no user profile or unknown activity type
+            user_pace_level = user_profile.pace_target_level if user_profile and user_profile.pace_target_level else 5
         
         # Calculate time in zones for running (L0-L6 format matching reference template)
         time_in_zones = {}
@@ -1851,10 +1953,23 @@ def class_detail(request, pk):
             power_zone_chart_json = mark_safe(json.dumps(chart_data_for_js))
             chart_data = chart_data_for_js  # Use same variable name for consistency
     
-    if 'user_pace_level' in locals():
-        user_pace_level = locals()['user_pace_level']
-    elif hasattr(user_profile, 'pace_target_level') and user_profile.pace_target_level:
-        user_pace_level = user_profile.pace_target_level
+    # Ensure user_pace_level is set (fallback, matching user_ftp pattern)
+    # Only set if not already set in the pace target block above
+    # Note: user_pace_level should already be set in the pace target block (line 1342-1418)
+    # This is just a safety fallback for non-pace-target classes
+    # IMPORTANT: Use new system (PaceEntry) first, fallback to old system (pace_target_level) only if needed
+    if 'user_pace_level' not in locals() or user_pace_level is None:
+        # For pace target classes, try to get current pace from PaceEntry (new system)
+        if user_profile and ride.fitness_discipline in ['running', 'run', 'walking', 'walk']:
+            activity_type = 'running' if ride.fitness_discipline in ['running', 'run'] else 'walking'
+            # Use new system: get_current_pace() looks for active PaceEntry
+            user_pace_level = user_profile.get_current_pace(activity_type=activity_type)
+            # Fallback to old system: pace_target_level (deprecated but still used as fallback)
+            if user_pace_level is None:
+                user_pace_level = user_profile.pace_target_level if user_profile and user_profile.pace_target_level else 5
+        else:
+            # For non-pace classes, use old system as fallback
+            user_pace_level = user_profile.pace_target_level if user_profile and user_profile.pace_target_level else 5
     
     # Format class date (matching reference template)
     class_date = None
@@ -1891,10 +2006,14 @@ def class_detail(request, pk):
         discipline = discipline_map.get(ride.fitness_discipline, 'cycling')
         peloton_url = f"{base_url}/{discipline}?modal=classDetailsModal&classId={ride.peloton_ride_id}"
     
+    # Pass target_line_data as Python object for json_script filter (not pre-encoded JSON)
+    # The json_script filter will handle JSON encoding automatically
+    # Note: target_line_data is already a Python list/dict, not a JSON string
     context = {
         'ride': ride,
         'target_metrics': target_metrics,
         'target_metrics_json': target_metrics_json,
+        'target_line_data': target_line_data if target_line_data else None,  # Pass Python object, not JSON string
         'zone_distribution': zone_distribution,
         'class_segments': class_segments,
         'class_sections': class_sections,
@@ -1907,7 +2026,8 @@ def class_detail(request, pk):
         'power_zone_chart': power_zone_chart if 'power_zone_chart' in locals() else None,
         'power_zone_chart_json': power_zone_chart_json,
         'chart_data': chart_data,  # For reference template compatibility
-        'user_pace_level': user_pace_level if 'user_pace_level' in locals() else (user_profile.pace_target_level if user_profile and user_profile.pace_target_level else 5),
+        'user_pace_level': user_pace_level if 'user_pace_level' in locals() and user_pace_level is not None else (user_profile.pace_target_level if user_profile and user_profile.pace_target_level else 5),
+        'user_pace_bands': user_pace_bands if 'user_pace_bands' in locals() else None,
         'has_pace_target': bool(user_profile.pace_target_level) if user_profile else False,
         'time_in_zones': time_in_zones if 'time_in_zones' in locals() else {},
         'class_date': class_date,
@@ -2748,6 +2868,67 @@ def _calculate_target_line_from_segments(segments, zone_ranges, seconds_array):
         target_line_list.append({
             'timestamp': int(timestamp),
             'target_output': target_series[i] if i < len(target_series) else None
+        })
+    
+    return target_line_list
+
+
+def _calculate_pace_target_line_from_segments(segments, seconds_array):
+    """
+    Calculate target pace line from class plan segments (for running/walking classes).
+    Returns a list matching seconds_array length with target pace zones (0-6) for each timestamp.
+    No time shift applied for pace targets (unlike power zones).
+    """
+    if not segments or not seconds_array:
+        return []
+    
+    sample_count = len(seconds_array)
+    target_series = [None] * sample_count
+    
+    # Process each segment from the class plan
+    for segment in segments:
+        # Get pace zone/level (0-6)
+        zone_num = segment.get('zone') or segment.get('pace_level')
+        if zone_num is None:
+            continue
+        
+        # Ensure zone is in 0-6 range
+        zone_num = max(0, min(6, int(zone_num)))
+        
+        # Get segment times (no shift for pace targets)
+        start_time = max(0, segment.get('start', 0))
+        end_time = max(0, segment.get('end', 0))
+        
+        if end_time <= start_time:
+            continue
+        
+        # Map time offsets to array indices using seconds_array
+        start_idx = 0
+        end_idx = sample_count
+        
+        for i, timestamp in enumerate(seconds_array):
+            if isinstance(timestamp, (int, float)) and timestamp >= start_time:
+                start_idx = i
+                break
+        
+        for i in range(len(seconds_array) - 1, -1, -1):
+            timestamp = seconds_array[i]
+            if isinstance(timestamp, (int, float)) and timestamp <= end_time:
+                end_idx = i + 1
+                break
+        
+        # Fill target_series for this segment
+        for i in range(start_idx, min(end_idx, sample_count)):
+            target_series[i] = zone_num
+    
+    # Convert to list of {timestamp, target_pace_zone} objects for template
+    target_line_list = []
+    for i, timestamp in enumerate(seconds_array):
+        if not isinstance(timestamp, (int, float)):
+            continue
+        target_line_list.append({
+            'timestamp': int(timestamp),
+            'target_pace_zone': target_series[i] if i < len(target_series) else None
         })
     
     return target_line_list
@@ -3884,3 +4065,105 @@ def sync_status(request):
         }
     
     return JsonResponse(status)
+
+
+@login_required
+def pace_zones_reference(request):
+    """Display pace target zones reference page for all levels (1-10) for Running, Walking, and Rowing"""
+    
+    def decimal_to_mmss(decimal_minutes):
+        """Convert decimal minutes to MM:SS format"""
+        minutes = int(decimal_minutes)
+        seconds = int((decimal_minutes - minutes) * 60)
+        return f"{minutes}:{seconds:02d}"
+    
+    # Running pace levels
+    running_levels = []
+    running_zone_order = ['recovery', 'easy', 'moderate', 'challenging', 'hard', 'very_hard', 'max']
+    running_color_map = {
+        'recovery': '#9333ea',      # Purple
+        'easy': '#3b82f6',          # Blue
+        'moderate': '#10b981',       # Green
+        'challenging': '#eab308',    # Yellow
+        'hard': '#f97316',          # Orange
+        'very_hard': '#ef4444',     # Red
+        'max': '#ec4899',           # Pink
+    }
+    
+    for level_num in range(1, 11):
+        level_data = DEFAULT_RUNNING_PACE_LEVELS.get(level_num, {})
+        zones = []
+        for zone_name in running_zone_order:
+            if zone_name in level_data:
+                zone_info = level_data[zone_name]
+                min_mph, max_mph, min_pace, max_pace, description = zone_info
+                zones.append({
+                    'name': zone_name.replace('_', ' ').title(),
+                    'min_mph': float(min_mph),
+                    'max_mph': float(max_mph),
+                    'min_pace': decimal_to_mmss(min_pace),
+                    'max_pace': decimal_to_mmss(max_pace),
+                    'description': description,
+                    'color': running_color_map.get(zone_name, '#6b7280'),
+                })
+        running_levels.append({'level': level_num, 'zones': zones})
+    
+    # Walking pace levels
+    walking_levels = []
+    walking_zone_order = ['recovery', 'easy', 'brisk', 'power', 'max']
+    walking_color_map = {
+        'recovery': '#10b981',      # Green
+        'easy': '#3b82f6',          # Blue
+        'brisk': '#eab308',         # Yellow
+        'power': '#f97316',         # Orange
+        'max': '#ef4444',           # Red
+    }
+    
+    for level_num in range(1, 10):  # Walking has 9 levels
+        level_data = DEFAULT_WALKING_PACE_LEVELS.get(level_num, {})
+        zones = []
+        for zone_name in walking_zone_order:
+            if zone_name in level_data:
+                zone_info = level_data[zone_name]
+                min_mph, max_mph, min_pace, max_pace, description = zone_info
+                zones.append({
+                    'name': zone_name.replace('_', ' ').title(),
+                    'min_mph': float(min_mph),
+                    'max_mph': float(max_mph),
+                    'min_pace': decimal_to_mmss(min_pace),
+                    'max_pace': decimal_to_mmss(max_pace),
+                    'description': description,
+                    'color': walking_color_map.get(zone_name, '#6b7280'),
+                })
+        walking_levels.append({'level': level_num, 'zones': zones})
+    
+    # Rowing pace levels
+    rowing_levels = []
+    rowing_zone_order = ['easy', 'moderate', 'challenging', 'max']
+    rowing_color_map = {
+        'easy': '#3b82f6',          # Blue
+        'moderate': '#10b981',       # Green
+        'challenging': '#eab308',    # Yellow
+        'max': '#ef4444',           # Red
+    }
+    
+    for level_num in range(1, 11):
+        level_data = DEFAULT_ROWING_PACE_LEVELS.get(level_num, {})
+        zones = []
+        for zone_name in rowing_zone_order:
+            if zone_name in level_data:
+                zone_info = level_data[zone_name]
+                pace_decimal, description = zone_info
+                zones.append({
+                    'name': zone_name.replace('_', ' ').title(),
+                    'pace': decimal_to_mmss(pace_decimal),
+                    'description': description,
+                    'color': rowing_color_map.get(zone_name, '#6b7280'),
+                })
+        rowing_levels.append({'level': level_num, 'zones': zones})
+    
+    return render(request, 'workouts/pace_zones_reference.html', {
+        'running_levels': running_levels,
+        'walking_levels': walking_levels,
+        'rowing_levels': rowing_levels,
+    })

@@ -101,6 +101,9 @@
           </svg>
           Save
         </button>
+        {% if target_line_data %}
+        <button id="fullscreen-toggle-target-line" class="chart-control-btn">Hide Target</button>
+        {% endif %}
         <label class="chart-control-checkbox">
           <input type="checkbox" id="fullscreen-toggle-zone-colors" checked>
           <span>Zone Colors</span>
@@ -139,6 +142,9 @@
       <div id="classPlanReadout" class="chart-readout"></div>
     </div>
     {{ chart_data|json_script:"chart-data" }}
+    {% if target_line_data %}
+    {{ target_line_data|json_script:"target-line-data" }}
+    {% endif %}
     
     <!-- Chart Controls -->
     <div class="chart-controls">
@@ -148,6 +154,9 @@
         </svg>
         Save
       </button>
+      {% if target_line_data %}
+      <button id="toggle-target-line" class="chart-control-btn">Hide Target</button>
+      {% endif %}
       <label class="chart-control-checkbox">
         <input type="checkbox" id="toggle-zone-colors" checked>
         <span>Zone Colors</span>
@@ -185,6 +194,30 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!chartData.segments || !chartData.zones) {
             console.log('Missing chart data - segments:', chartData.segments, 'zones:', chartData.zones);
             return;
+        }
+        
+        // Get target line data if available
+        const targetLineDataScript = document.getElementById('target-line-data');
+        let targetLineData = null;
+        if (targetLineDataScript) {
+            try {
+                const jsonText = targetLineDataScript.textContent;
+                targetLineData = JSON.parse(jsonText || '[]');
+                if (targetLineData && Array.isArray(targetLineData)) {
+                    console.log('Target line data loaded:', targetLineData.length, 'points');
+                    if (targetLineData.length > 0) {
+                        console.log('First point:', targetLineData[0]);
+                        console.log('Last point:', targetLineData[targetLineData.length - 1]);
+                    }
+                } else {
+                    console.warn('Target line data is not an array:', typeof targetLineData);
+                }
+            } catch (e) {
+                console.error('Error parsing target line data:', e);
+                targetLineData = null;
+            }
+        } else {
+            console.log('No target-line-data script tag found');
         }
         
         // Get playlist data if available
@@ -271,7 +304,19 @@ document.addEventListener('DOMContentLoaded', function() {
         const totalDuration = rideLength || (timePoints.length > 0 ? timePoints[timePoints.length - 1] : 0);
         console.log('Time series generated:', { timePoints: timePoints.length, totalDuration, rideLength });
         
+        // Power Zone colors matching workout_detail implementation
+        const POWER_ZONE_COLORS = {
+            1: "#6f42c1",  // Purple - Z1 • Active Recovery
+            2: "#17a2b8",  // Teal - Z2 • Endurance
+            3: "#28a745",  // Green - Z3 • Tempo
+            4: "#ffc107",  // Yellow - Z4 • Threshold
+            5: "#fd7e14",  // Orange - Z5 • VO2 Max
+            6: "#dc3545",  // Red - Z6 • Anaerobic
+            7: "#6610f2"   // Dark Purple - Z7 • Neuromuscular
+        };
+        
         // Create zone bands for background - contiguous bands with no gaps (1-7 power zones)
+        // Note: zoneBands array is kept for compatibility but bandPlugin draws zones directly
         const zoneBands = chartData.zones.map((zone, index) => {
             // Power zones are 1-7, so index 0 = Zone 1, index 6 = Zone 7
             const zoneNum = index + 1;
@@ -279,28 +324,48 @@ document.addEventListener('DOMContentLoaded', function() {
                 label: zone.name,
                 lower: zoneNum - 0.5,  // Contiguous bands
                 upper: zoneNum + 0.5,
-                color: zone.color
+                color: POWER_ZONE_COLORS[zoneNum] || zone.color  // Use POWER_ZONE_COLORS
             };
         });
         
-        // Zone band plugin - can be toggled on/off
+        // Zone band plugin - can be toggled on/off (matching workout_detail)
         let showZoneColors = true;
         const bandPlugin = {
             id: 'zoneBands',
             beforeDatasetsDraw(chart, args, opts) {
                 if (!showZoneColors) return;
                 const {ctx, chartArea, scales} = chart;
-                if (!opts || !Array.isArray(opts.bands)) return;
-                const toY = (zone) => scales.y.getPixelForValue(zone);
                 ctx.save();
-                (opts.bands || []).forEach(b => {
-                    const yTop = toY(b.upper ?? 7);
-                    const yBot = toY(b.lower ?? 1);
-                    if (yTop == null || yBot == null) return;
-                    ctx.fillStyle = b.color;
-                    ctx.globalAlpha = 0.18;
+                
+                // Draw zone bands by zone number (1-7) matching workout_detail
+                for (let zone = 1; zone <= 7; zone++) {
+                    const zoneColor = POWER_ZONE_COLORS[zone] || '#888';
+                    // Each zone spans from (zone - 0.5) to (zone + 0.5)
+                    const yTop = scales.y.getPixelForValue(zone - 0.5);
+                    const yBot = scales.y.getPixelForValue(zone + 0.5);
+                    ctx.fillStyle = zoneColor;
+                    ctx.globalAlpha = 0.18;  // Match workout_detail opacity
                     ctx.fillRect(chartArea.left, yTop, chartArea.right - chartArea.left, yBot - yTop);
-                });
+                }
+                
+                ctx.restore();
+            },
+            afterDraw(chart, args, opts) {
+                // Overlay zone labels on the chart (matching workout_detail)
+                if (!showZoneColors) return;
+                const {ctx, chartArea, scales} = chart;
+                ctx.save();
+                ctx.font = '12px sans-serif';
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'middle';
+                
+                // Draw zone labels (ZONE 1 through ZONE 7) overlaid on the chart
+                for (let zone = 1; zone <= 7; zone++) {
+                    const yPos = scales.y.getPixelForValue(zone);
+                    // Position labels on the left side of the chart area
+                    ctx.fillText(`ZONE ${zone}`, chartArea.left + 8, yPos);
+                }
                 ctx.restore();
             }
         };
@@ -361,6 +426,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const externalTooltip = (ctx) => {
             const {tooltip, chart} = ctx;
             const dataPoint = tooltip.dataPoints?.[0]?.raw;
+            const datasetLabel = tooltip.dataPoints?.[0]?.dataset?.label || '';
             
             if (tooltip.opacity === 0 || !dataPoint) {
                 if (readout) readout.textContent = '';
@@ -388,14 +454,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 readout.textContent = `${timeString} • Zone ${zoneNum}`;
             }
             
-            // Update custom tooltip (near cursor)
+            // Update custom tooltip (near cursor) - match workout_detail format
             if (customTooltip && chart) {
                 const canvasPosition = chart.canvas.getBoundingClientRect();
                 const chartArea = chart.chartArea;
                 const x = canvasPosition.left + chartArea.left + (chart.scales.x.getPixelForValue(time) - chartArea.left);
                 const y = canvasPosition.top + chartArea.top + (chart.scales.y.getPixelForValue(target) - chartArea.top);
                 
-                customTooltip.innerHTML = `${timeString}<br>Target: ${watts} watts`;
+                // Format tooltip based on dataset label (matching workout_detail)
+                // Always calculate watts from current FTP and zone (not from stored target_output)
+                // This ensures tooltip updates when FTP changes
+                let tooltipText = `${timeString}<br>Target: ${watts} watts (Zone ${zoneNum})`;
+                
+                customTooltip.innerHTML = tooltipText;
                 customTooltip.style.display = 'block';
                 customTooltip.style.left = (x + 10) + 'px';
                 customTooltip.style.top = (y - 10) + 'px';
@@ -411,20 +482,104 @@ document.addEventListener('DOMContentLoaded', function() {
         // Use line chart for power zones
         let showTargetLine = true;
         let useKilometers = false;
+        
+        // Build datasets array
+        // Note: The first dataset shows the class plan zone structure (for interactive player)
+        // The target line dataset (added below) shows the actual target watts converted to zones
+        // Hide class plan line when target line is available to avoid confusion
+        const datasets = [{
+            label: 'Class Plan',
+            data: timePoints.map((time, index) => ({ x: time, y: targetSeries[index] })),
+            borderWidth: 3,
+            pointRadius: 0,
+            borderColor: '#5b7cfa',
+            backgroundColor: 'rgba(91, 124, 250, 0.1)',
+            fill: true,
+            tension: 0.1,
+            hidden: chartData.segments && chartData.segments.length > 0  // Hide if target line is available
+        }];
+        
+        // Add target line dataset - use class plan zones directly (zones don't change, watts do)
+        // The target line should show the zones from the class plan, not recalculated from watts
+        if (chartData.segments && chartData.segments.length > 0) {
+            console.log('Adding target line dataset from class plan segments:', chartData.segments.length);
+            
+            // Build target line from segments (zones from class plan, not from watts)
+            // Use the same sequential approach as class library, then apply time shift
+            const targetZoneData = [];
+            const TIME_SHIFT = -60; // Shift target line 60 seconds backwards (matching workout_detail)
+            let segmentTime = 0;
+            
+            // Build time series data from segments sequentially (like class library)
+            chartData.segments.forEach(segment => {
+                const duration = segment.duration || 0;
+                let target = segment.zone;
+                
+                // Ensure zone is in 1-7 range
+                if (target !== null && target !== undefined) {
+                    target = Math.max(1, Math.min(7, Math.round(target)));
+                } else {
+                    target = 1; // Default to Zone 1
+                }
+                
+                // Add time points for this segment (every 5 seconds, matching workout_detail)
+                // Build without shift first, then we'll shift the x values
+                for (let i = 0; i < duration && (segmentTime + i) < totalDuration; i += 5) {
+                    const originalTime = segmentTime + i;
+                    // Apply time shift to the x coordinate
+                    const shiftedTime = Math.max(0, originalTime + TIME_SHIFT);
+                    if (shiftedTime <= totalDuration) {
+                        targetZoneData.push({ x: shiftedTime, y: target });
+                    }
+                }
+                
+                segmentTime += duration;
+            });
+            
+            // Ensure we have a final point at the exact end of the duration
+            if (totalDuration > 0 && (targetZoneData.length === 0 || targetZoneData[targetZoneData.length - 1].x < totalDuration)) {
+                const lastZone = targetZoneData.length > 0 
+                    ? targetZoneData[targetZoneData.length - 1].y 
+                    : (chartData.segments.length > 0 ? chartData.segments[chartData.segments.length - 1].zone : 1);
+                targetZoneData.push({ 
+                    x: totalDuration, 
+                    y: Math.max(1, Math.min(7, Math.round(lastZone || 1))) 
+                });
+            }
+            
+            // Sort by x to ensure proper order (in case time shift caused reordering)
+            targetZoneData.sort((a, b) => a.x - b.x);
+            
+            console.log('Target zone data generated from class plan:', targetZoneData.length, 'points');
+            
+            datasets.push({
+                label: 'Target',
+                data: targetZoneData,
+                borderColor: '#93c5fd',  // Light blue like workout_detail
+                backgroundColor: 'rgba(147, 197, 253, 0.1)',
+                borderWidth: 2.8,
+                fill: false,
+                tension: 0,  // Stepped line (no smoothing)
+                stepped: 'before',  // Stepped line
+                pointRadius: 0,
+                pointHoverRadius: 4,
+                spanGaps: true,
+                hidden: !showTargetLine
+            });
+            
+            // Y-axis will show full range (0.5 to 7.5) to ensure entire target line is visible
+            // No need to calculate dynamic range - show all zones
+            
+            console.log('Target line dataset added. Total datasets:', datasets.length);
+            console.log('Target line visible:', showTargetLine);
+        } else {
+            console.log('No segments available for target line. chartData.segments:', chartData.segments);
+        }
+        
         chartDataConfig = {
             type: 'line',
             data: {
-                datasets: [{
-                    label: 'Target Zone',
-                    data: timePoints.map((time, index) => ({ x: time, y: targetSeries[index] })),
-                    borderWidth: 3,
-                    pointRadius: 0,
-                    borderColor: '#5b7cfa',
-                    backgroundColor: 'rgba(91, 124, 250, 0.1)',
-                    fill: true,
-                    tension: 0.1,
-                    hidden: !showTargetLine
-                }]
+                datasets: datasets
             }
         };
         
@@ -437,7 +592,49 @@ document.addEventListener('DOMContentLoaded', function() {
                 interaction: { mode: 'index', intersect: false },
                 plugins: {
                     legend: { display: false },
-                    tooltip: { enabled: false, external: externalTooltip },
+                    tooltip: { 
+                        enabled: true,  // Use Chart.js tooltip like workout_detail
+                        mode: 'index',
+                        intersect: false,
+                        callbacks: {
+                            title: function(context) {
+                                if (context.length > 0 && context[0].parsed) {
+                                    const timestamp = context[0].parsed.x;
+                                    const minutes = Math.floor(timestamp / 60);
+                                    const seconds = Math.floor(timestamp % 60);
+                                    return `${minutes}:${seconds.toString().padStart(2,'0')}`;
+                                }
+                                return '';
+                            },
+                            label: function(context) {
+                                const datasetLabel = context.dataset.label;
+                                const zoneValue = context.parsed.y;
+                                const ftpInput = document.getElementById('ftp-input');
+                                const userFTP = parseInt(ftpInput?.value || '{{ user_ftp|default:250 }}') || 250;
+                                
+                                if (datasetLabel === 'Target') {
+                                    // Always calculate watts from current FTP and zone (not from stored target_output)
+                                    // This ensures tooltip updates when FTP changes
+                                    const zoneNum = Math.round(zoneValue);
+                                    const zonePercentage = getZonePercentage(zoneNum);
+                                    const watts = Math.round(userFTP * zonePercentage);
+                                    return `Target: ${watts} watts (Zone ${zoneNum})`;
+                                } else if (datasetLabel === 'Class Plan') {
+                                    const zoneNum = Math.round(zoneValue);
+                                    const zonePercentage = getZonePercentage(zoneNum);
+                                    const watts = Math.round(userFTP * zonePercentage);
+                                    return `Class Plan: Zone ${zoneNum} (${watts} watts)`;
+                                }
+                                return `${datasetLabel}: Zone ${Math.round(zoneValue)}`;
+                            }
+                        },
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        titleColor: 'rgba(255, 255, 255, 0.9)',
+                        bodyColor: 'rgba(255, 255, 255, 0.9)',
+                        borderColor: 'rgba(255, 255, 255, 0.2)',
+                        borderWidth: 1,
+                        padding: 12
+                    },
                     zoneBands: { bands: zoneBands },
                     progressLine: { currentTime: 0 }
                 },
@@ -449,7 +646,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         grid: { 
                             color: document.documentElement.classList.contains('dark') 
                                 ? 'rgba(255,255,255,0.06)' 
-                                : 'rgba(0,0,0,0.05)' 
+                                : 'rgba(0,0,0,0.06)' 
                         },
                         ticks: {
                             autoSkip: true,
@@ -468,7 +665,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         min: 0.5,
                         max: 7.5,
                         title: { 
-                            display: true, 
+                            display: false,  // Hide y-axis title (labels are overlaid on chart)
                             text: 'Zone',
                             color: document.documentElement.classList.contains('dark')
                                 ? 'rgba(255,255,255,0.7)'
@@ -476,12 +673,15 @@ document.addEventListener('DOMContentLoaded', function() {
                         },
                         grid: { 
                             color: document.documentElement.classList.contains('dark') 
-                                ? 'rgba(255,255,255,0.06)' 
-                                : 'rgba(0,0,0,0.05)' 
+                                ? 'rgba(255,255,255,0.1)' 
+                                : 'rgba(0,0,0,0.1)',
+                            drawOnChartArea: true,
+                            drawTicks: false  // Hide ticks - zone labels are overlaid on chart
                         },
                         ticks: { 
                             stepSize: 1,
                             maxTicksLimit: 8,
+                            display: false,  // Hide ticks on left - zone labels are overlaid on chart
                             color: document.documentElement.classList.contains('dark')
                                 ? 'rgba(255,255,255,0.7)'
                                 : 'rgba(0,0,0,0.7)',
@@ -502,6 +702,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Chart control handlers
         const toggleZoneColorsCheckbox = document.getElementById('toggle-zone-colors');
+        const toggleTargetLineBtn = document.getElementById('toggle-target-line');
         const saveChartBtn = document.getElementById('save-chart');
         
         // Toggle zone colors visibility
@@ -509,6 +710,33 @@ document.addEventListener('DOMContentLoaded', function() {
             toggleZoneColorsCheckbox.addEventListener('change', function() {
                 showZoneColors = this.checked;
                 chart.update('none');
+            });
+        }
+        
+        // Toggle target line visibility
+        if (toggleTargetLineBtn && targetLineData && targetLineData.length > 0) {
+            toggleTargetLineBtn.addEventListener('click', function() {
+                showTargetLine = !showTargetLine;
+                // Find the target line dataset (should be the second dataset if it exists)
+                const targetDataset = chart.data.datasets.find(d => d.label === 'Target');
+                if (targetDataset) {
+                    chart.setDatasetVisibility(chart.data.datasets.indexOf(targetDataset), showTargetLine);
+                    chart.update('none');
+                }
+                // Sync with fullscreen chart if it exists
+                if (typeof fullscreenChart !== 'undefined' && fullscreenChart) {
+                    const fullscreenTargetDataset = fullscreenChart.data.datasets.find(d => d.label === 'Target');
+                    if (fullscreenTargetDataset) {
+                        fullscreenChart.setDatasetVisibility(fullscreenChart.data.datasets.indexOf(fullscreenTargetDataset), showTargetLine);
+                        fullscreenChart.update('none');
+                    }
+                    const fullscreenToggleTargetLineBtn = document.getElementById('fullscreen-toggle-target-line');
+                    if (fullscreenToggleTargetLineBtn) {
+                        fullscreenToggleTargetLineBtn.textContent = showTargetLine ? 'Hide Target' : 'Show Target';
+                    }
+                }
+                // Update button text
+                this.textContent = showTargetLine ? 'Hide Target' : 'Show Target';
             });
         }
         
@@ -976,6 +1204,28 @@ document.addEventListener('DOMContentLoaded', function() {
             const currentZone = getCurrentTarget(chartCurrentTime);
             const targetOutput = Math.round(selectedFTP * getZonePercentage(currentZone));
             currentTargetEl.textContent = String(targetOutput) + 'W @ Zone ' + currentZone;
+            
+            // Update fullscreen target display if in fullscreen
+            const fullscreenCurrentTarget = document.getElementById('fullscreen-current-target');
+            if (fullscreenCurrentTarget) {
+                const fullscreenZone = getCurrentTarget(chartCurrentTime);
+                const fullscreenOutput = Math.round(selectedFTP * getZonePercentage(fullscreenZone));
+                fullscreenCurrentTarget.textContent = String(fullscreenOutput) + 'W @ Zone ' + fullscreenZone;
+            }
+            
+            // Zones don't change when FTP changes - only watts do
+            // The target line shows zones from the class plan, which are fixed
+            // We just need to update the chart to refresh tooltips with new watts
+            const targetDataset = chart.data.datasets.find(d => d.label === 'Target');
+            if (targetDataset) {
+                // Zones stay the same, just update the chart to refresh tooltips
+                chart.update('none');
+                
+                // Also update fullscreen chart if it exists
+                if (typeof fullscreenChart !== 'undefined' && fullscreenChart) {
+                    fullscreenChart.update('none');
+                }
+            }
         });
         
         // Set initial target
@@ -1078,11 +1328,15 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Sync fullscreen chart controls with main chart
             const fullscreenToggleZoneColorsCheckbox = document.getElementById('fullscreen-toggle-zone-colors');
+            const fullscreenToggleTargetLineBtn = document.getElementById('fullscreen-toggle-target-line');
             const fullscreenSaveChartBtn = document.getElementById('fullscreen-save-chart');
             
             // Sync initial states
             if (fullscreenToggleZoneColorsCheckbox) {
                 fullscreenToggleZoneColorsCheckbox.checked = showZoneColors;
+            }
+            if (fullscreenToggleTargetLineBtn) {
+                fullscreenToggleTargetLineBtn.textContent = showTargetLine ? 'Hide Target' : 'Show Target';
             }
             
             // Fullscreen zone colors toggle
@@ -1093,6 +1347,29 @@ document.addEventListener('DOMContentLoaded', function() {
                     fullscreenChart.update('none');
                     if (toggleZoneColorsCheckbox) {
                         toggleZoneColorsCheckbox.checked = showZoneColors;
+                    }
+                });
+            }
+            
+            // Fullscreen target line toggle
+            if (fullscreenToggleTargetLineBtn && targetLineData && targetLineData.length > 0) {
+                fullscreenToggleTargetLineBtn.addEventListener('click', function() {
+                    showTargetLine = !showTargetLine;
+                    // Update both charts
+                    const targetDataset = chart.data.datasets.find(d => d.label === 'Target');
+                    const fullscreenTargetDataset = fullscreenChart.data.datasets.find(d => d.label === 'Target');
+                    if (targetDataset) {
+                        chart.setDatasetVisibility(chart.data.datasets.indexOf(targetDataset), showTargetLine);
+                        chart.update('none');
+                    }
+                    if (fullscreenTargetDataset) {
+                        fullscreenChart.setDatasetVisibility(fullscreenChart.data.datasets.indexOf(fullscreenTargetDataset), showTargetLine);
+                        fullscreenChart.update('none');
+                    }
+                    // Update button texts
+                    this.textContent = showTargetLine ? 'Hide Target' : 'Show Target';
+                    if (toggleTargetLineBtn) {
+                        toggleTargetLineBtn.textContent = showTargetLine ? 'Hide Target' : 'Show Target';
                     }
                 });
             }
@@ -1128,7 +1405,8 @@ document.addEventListener('DOMContentLoaded', function() {
             if (fullscreenFtpInput) {
                 fullscreenFtpInput.addEventListener('change', function() {
                     ftpInput.value = this.value;
-                    updateProgress();
+                    // Trigger the FTP change event to recalculate target line
+                    ftpInput.dispatchEvent(new Event('change'));
                 });
             }
             

@@ -132,11 +132,44 @@
 
   <!-- Chart.js Chart -->
   <div class="interactive-chart-section">
+    {% if playlist and playlist.songs %}
+    <!-- Music Timeline Overlay - Above Chart -->
+    <div class="mb-2 sm:mb-3 flex items-center justify-end gap-2">
+      <label class="flex items-center gap-2 text-xs sm:text-sm text-gray-600 dark:text-gray-400 cursor-pointer">
+        <input type="checkbox" id="showMusicTimeline" checked class="rounded border-gray-300 dark:border-gray-600 text-primary focus:ring-primary bg-white dark:bg-gray-700">
+        <span>Show Music Timeline</span>
+      </label>
+    </div>
+    <div id="musicTimeline" class="mb-2 sm:mb-3 h-10 sm:h-12 relative bg-gray-800 dark:bg-gray-950 rounded border border-gray-700 dark:border-gray-600 overflow-hidden"></div>
+    {% endif %}
     <div class="pace-target-chart">
       <canvas id="class-plan-chart"></canvas>
       <div id="classPlanReadout" class="chart-readout"></div>
     </div>
     {{ chart_data|json_script:"chart-data" }}
+    {% if target_line_data %}
+    {{ target_line_data|json_script:"target-line-data" }}
+    {% endif %}
+    {% if user_pace_bands %}
+    {{ user_pace_bands|json_script:"user-pace-bands" }}
+    {% endif %}
+    
+    <!-- Chart Controls -->
+    <div class="chart-controls">
+      <button id="save-chart" class="chart-control-btn">
+        <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"></path>
+        </svg>
+        Save
+      </button>
+      {% if target_line_data %}
+      <button id="toggle-target-line" class="chart-control-btn">Hide Target</button>
+      {% endif %}
+      <label class="chart-control-checkbox">
+        <input type="checkbox" id="toggle-zone-colors" checked>
+        <span>Zone Colors</span>
+      </label>
+    </div>
     
     <!-- Progress Slider -->
     <div class="progress-slider-container">
@@ -172,8 +205,69 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
+        // Get target line data if available
+        const targetLineDataScript = document.getElementById('target-line-data');
+        let targetLineData = null;
+        if (targetLineDataScript) {
+            try {
+                const jsonText = targetLineDataScript.textContent;
+                targetLineData = JSON.parse(jsonText || '[]');
+                if (targetLineData && Array.isArray(targetLineData)) {
+                    console.log('Target line data loaded:', targetLineData.length, 'points');
+                    if (targetLineData.length > 0) {
+                        console.log('First point:', targetLineData[0]);
+                        console.log('Last point:', targetLineData[targetLineData.length - 1]);
+                    }
+                } else {
+                    console.warn('Target line data is not an array:', typeof targetLineData);
+                }
+            } catch (e) {
+                console.error('Error parsing target line data:', e);
+                targetLineData = null;
+            }
+        } else {
+            console.log('No target-line-data script tag found');
+        }
+        
         // Get ride length from chart data or fallback
         const rideLength = chartData.total_duration || 0;
+        
+        // Track target line visibility
+        let showTargetLine = true;
+        
+        // Store target pace data for getCurrentTarget function
+        let targetPaceData = [];
+        
+        // Get playlist data if available (for music timeline)
+        const playlistData = {% if playlist and playlist.songs %}[
+            {% for song in playlist.songs %}
+            {
+                title: "{{ song.title|escapejs }}",
+                artists: [{% for artist in song.artists %}"{{ artist.artist_name|escapejs }}"{% if not forloop.last %}, {% endif %}{% endfor %}],
+                start_time: {{ song.start_time_offset|default:0 }},
+                duration: {{ song.duration|default:0 }}
+            }{% if not forloop.last %},{% endif %}
+            {% endfor %}
+        ]{% else %}[]{% endif %};
+        
+        // Calculate song durations if not provided
+        if (playlistData && playlistData.length > 0) {
+            const rideDuration = {{ ride.duration_seconds|default:0 }};
+            for (let i = 0; i < playlistData.length; i++) {
+                const song = playlistData[i];
+                if (!song.start_time && song.start_time !== 0) {
+                    song.start_time = 0;
+                }
+                if (!song.duration || song.duration <= 0) {
+                    if (i < playlistData.length - 1) {
+                        song.duration = playlistData[i + 1].start_time - song.start_time;
+                    } else {
+                        // Last song - use ride duration minus start time
+                        song.duration = Math.max(180, rideDuration - song.start_time);
+                    }
+                }
+            }
+        }
         
         // Convert segments to time series data - show ACTUAL class plan pace targets
         const timePoints = [];
@@ -229,42 +323,83 @@ document.addEventListener('DOMContentLoaded', function() {
         const totalDuration = rideLength || (timePoints.length > 0 ? timePoints[timePoints.length - 1] : 0);
         console.log('Time series generated:', { timePoints: timePoints.length, totalDuration, rideLength });
         
-        // Create zone bands for background - contiguous bands with no gaps
+        // Create zone bands for background - matching workout_detail (pace levels 1-7)
         const zoneBands = chartData.zones.map((zone, index) => {
-            // Make recovery band (index 0) much bigger to match reference
-            if (index === 0) {
-                return {
-                    label: zone.name,
-                    lower: -1.5,  // Much bigger recovery band
-                    upper: 0.5,   // Contiguous with next band
-                    color: zone.color
-                };
-            } else {
-                return {
-                    label: zone.name,
-                    lower: index - 0.5,  // Contiguous bands
-                    upper: index + 0.5,
-                    color: zone.color
-                };
-            }
+            // Convert from 0-6 index to 1-7 pace levels (matching workout_detail)
+            const paceLevel = index + 1;
+            return {
+                label: zone.name,
+                lower: paceLevel - 0.5,  // Contiguous bands (1-7 scale)
+                upper: paceLevel + 0.5,
+                color: zone.color
+            };
         });
         
-        // Zone band plugin
+        // Zone band plugin - draw zone bands and overlay labels (matching power_zone_chart)
+        const POWER_ZONE_COLORS = [
+            '#9333ea',  // Zone 1 / Recovery
+            '#3b82f6',  // Zone 2 / Easy
+            '#10b981',  // Zone 3 / Moderate
+            '#eab308',  // Zone 4 / Challenging
+            '#f97316',  // Zone 5 / Hard
+            '#ef4444',  // Zone 6 / Very Hard
+            '#ec4899'   // Zone 7 / Max
+        ];
+        
+        const PACE_LABELS = ['RECOVERY', 'EASY', 'MODERATE', 'CHALLENGING', 'HARD', 'VERY HARD', 'MAX'];
+        
+        let showZoneColors = true;
+        
         const bandPlugin = {
             id: 'zoneBands',
             beforeDatasetsDraw(chart, args, opts) {
+                if (!showZoneColors) return;
                 const {ctx, chartArea, scales} = chart;
                 if (!opts || !Array.isArray(opts.bands)) return;
                 const toY = (zone) => scales.y.getPixelForValue(zone);
                 ctx.save();
                 (opts.bands || []).forEach(b => {
                     const yTop = toY(b.upper ?? 6);
-                    const yBot = toY(b.lower ?? 1);
+                    const yBot = toY(b.lower ?? -1.5);
                     if (yTop == null || yBot == null) return;
                     ctx.fillStyle = b.color;
                     ctx.globalAlpha = 0.18;
                     ctx.fillRect(chartArea.left, yTop, chartArea.right - chartArea.left, yBot - yTop);
                 });
+                ctx.restore();
+            },
+            afterDraw(chart, args, opts) {
+                // Overlay zone labels on the chart (matching workout_detail)
+                if (!showZoneColors) return;
+                const {ctx, chartArea, scales} = chart;
+                ctx.save();
+                ctx.font = '12px sans-serif';
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'middle';
+                
+                if (chartData.type === 'pace_target') {
+                    // Draw pace labels (1-7) overlaid on the chart (matching workout_detail)
+                    // PACE_LABELS: ['RECOVERY', 'EASY', 'MODERATE', 'CHALLENGING', 'HARD', 'VERY HARD', 'MAX']
+                    // Map to levels 1-7: Recovery=1, Easy=2, Moderate=3, etc.
+                    for (let level = 1; level <= 7; level++) {
+                        const yPos = scales.y.getPixelForValue(level);
+                        if (yPos < chartArea.top || yPos > chartArea.bottom) continue;
+                        // Position labels on the left side of the chart area
+                        // level 1 = Recovery (index 0), level 2 = Easy (index 1), etc.
+                        const labelIndex = level - 1;
+                        ctx.fillText(PACE_LABELS[labelIndex] || `LEVEL ${level}`, chartArea.left + 8, yPos);
+                    }
+                } else {
+                    // Draw zone labels (1-7) overlaid on the chart
+                    for (let zone = 1; zone <= 7; zone++) {
+                        const yPos = scales.y.getPixelForValue(zone);
+                        if (yPos < chartArea.top || yPos > chartArea.bottom) continue;
+                        // Position labels on the left side of the chart area
+                        ctx.fillText(`ZONE ${zone}`, chartArea.left + 8, yPos);
+                    }
+                }
+                
                 ctx.restore();
             }
         };
@@ -293,14 +428,52 @@ document.addEventListener('DOMContentLoaded', function() {
         };
         
         // Function to get pace value for a given level (defined before tooltip)
+        // Get user pace bands from backend (if available)
+        const userPaceBandsData = JSON.parse(document.getElementById('user-pace-bands')?.textContent || 'null');
+        
         function getPaceForLevel(classPlanIntensity, userLevel = 5) {
             // Convert class plan pace intensity (0-6) to min/mi based on user's selected level (1-10)
-            // Uses PaceTarget model pace ranges directly
+            // Uses actual PaceBand data from user's profile if available, otherwise falls back to defaults
             
             // Map class plan intensity (0-6) to intensity labels
             const intensityLabels = ['Recovery', 'Easy', 'Moderate', 'Challenging', 'Hard', 'Very Hard', 'Max'];
             const label = intensityLabels[classPlanIntensity] || 'Moderate';
             
+            // Use actual user pace bands if available
+            if (userPaceBandsData && userPaceBandsData.length > 0) {
+                // Map intensity index (0-6) to zone names used in PaceBand
+                const zoneMap = {
+                    0: 'recovery',
+                    1: 'easy',
+                    2: 'moderate',
+                    3: 'challenging',
+                    4: 'hard',
+                    5: 'very_hard',
+                    6: 'max'
+                };
+                const zoneKey = zoneMap[classPlanIntensity];
+                
+                if (zoneKey) {
+                    const band = userPaceBandsData.find(b => b.zone === zoneKey);
+                    if (band) {
+                        // Use the middle of the pace range
+                        const minPace = band.min_pace;
+                        const maxPace = band.max_pace;
+                        const pace = (minPace + maxPace) / 2;
+                        const minutes = Math.floor(pace);
+                        const seconds = Math.round((pace - minutes) * 60);
+                        
+                        console.log(`Using user pace band for ${label} (${zoneKey}): ${minPace}-${maxPace} min/mile, calculated pace: ${minutes}:${seconds.toString().padStart(2, '0')}`);
+                        
+                        return {
+                            pace: `${minutes}:${seconds.toString().padStart(2, '0')}`,
+                            label: label,
+                        };
+                    }
+                }
+            }
+            
+            // Fallback to hardcoded pace ranges (for backwards compatibility or if no bands available)
             // Pace ranges from PaceTarget model for each user level (1-10)
             // Level 1 = slowest (highest min/mile), Level 10 = fastest (lowest min/mile)
             // Values are in decimal minutes per mile (e.g., 18.183 = 18:11 min/mile)
@@ -417,71 +590,8 @@ document.addEventListener('DOMContentLoaded', function() {
             };
         }
         
-        // External tooltip - create custom tooltip element
+        // Readout display (top-right corner) - update on chart hover
         const readout = document.getElementById('classPlanReadout');
-        const chartContainer = document.querySelector('.pace-target-chart');
-        let customTooltip = null;
-        
-        // Create custom tooltip element if it doesn't exist
-        if (chartContainer && !document.getElementById('chart-hover-tooltip')) {
-            customTooltip = document.createElement('div');
-            customTooltip.id = 'chart-hover-tooltip';
-            customTooltip.style.cssText = 'position: absolute; background: rgba(0, 0, 0, 0.9); color: white; padding: 0.5rem 0.75rem; border-radius: 6px; font-size: 0.875rem; font-weight: 600; pointer-events: none; z-index: 1000; display: none; white-space: nowrap;';
-            chartContainer.style.position = 'relative';
-            chartContainer.appendChild(customTooltip);
-        } else if (document.getElementById('chart-hover-tooltip')) {
-            customTooltip = document.getElementById('chart-hover-tooltip');
-        }
-        
-        const externalTooltip = (ctx) => {
-            const {tooltip, chart} = ctx;
-            const dataPoint = tooltip.dataPoints?.[0]?.raw;
-            
-            if (tooltip.opacity === 0 || !dataPoint) {
-                if (readout) readout.textContent = '';
-                if (customTooltip) customTooltip.style.display = 'none';
-                return;
-            }
-            
-            const time = dataPoint.x;
-            const target = dataPoint.y;
-            const minutes = Math.floor(time / 60);
-            const seconds = Math.floor(time % 60);
-            const timeString = `${minutes}:${seconds.toString().padStart(2,'0')}`;
-            
-            if (chartData.type === 'pace_target') {
-                // Get user pace level from select
-                const paceLevelSelect = document.getElementById('pace-level-select');
-                const userLevel = parseInt(paceLevelSelect?.value || '{{ user_pace_level|default:5 }}') || 5;
-                
-                // Calculate pace based on zone and user level
-                const zoneNum = Math.round(target);
-                const paceInfo = getPaceForLevel(zoneNum, userLevel);
-                
-                // Update readout (top-right corner)
-                if (readout) {
-                    readout.textContent = `${timeString} • ${paceInfo.label}`;
-                }
-                
-                // Update custom tooltip (near cursor)
-                if (customTooltip && chart) {
-                    const canvasPosition = chart.canvas.getBoundingClientRect();
-                    const chartArea = chart.chartArea;
-                    const x = canvasPosition.left + chartArea.left + (chart.scales.x.getPixelForValue(time) - chartArea.left);
-                    const y = canvasPosition.top + chartArea.top + (chart.scales.y.getPixelForValue(target) - chartArea.top);
-                    
-                    customTooltip.innerHTML = `${timeString}<br>Target: ${paceInfo.pace} /mi`;
-                    customTooltip.style.display = 'block';
-                    customTooltip.style.left = (x + 10) + 'px';
-                    customTooltip.style.top = (y - 10) + 'px';
-                }
-            } else {
-                if (readout) {
-                    readout.textContent = `${timeString} • Zone ${target}`;
-                }
-                if (customTooltip) customTooltip.style.display = 'none';
-            }
-        };
         
         // Create the chart
         const ctx2d = document.getElementById('class-plan-chart').getContext('2d');
@@ -489,20 +599,133 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('Time points range:', timePoints[0], 'to', timePoints[timePoints.length-1]);
         console.log('Total duration:', totalDuration);
         
+        // Build datasets array
+        const datasets = [];
+        
+        // Add "Class Plan" dataset (hidden if target line is available)
+        // Convert from 0-6 scale to 1-7 scale to match workout_detail
+        const classPlanData = timePoints.map((time, index) => {
+            const zoneValue = targetSeries[index];
+            // Convert from 0-6 (class library) to 1-7 (workout_detail)
+            const paceLevel = zoneValue !== null && zoneValue !== undefined ? zoneValue + 1 : 2;
+            return { x: time, y: Math.max(1, Math.min(7, Math.round(paceLevel))) };
+        });
+        
+        datasets.push({
+            label: chartData.type === 'pace_target' ? 'Class Plan' : 'Target Zone',
+            data: classPlanData,
+            borderWidth: 3,
+            pointRadius: 0,
+            borderColor: '#5b7cfa',
+            backgroundColor: 'rgba(91, 124, 250, 0.1)',
+            fill: true,
+            tension: 0.1,
+            hidden: true  // Always hide class plan when we have target line (matching workout_detail)
+        });
+        
+        // Add target line dataset - calculate from segments (matching workout_detail approach exactly)
+        // For pace targets, we calculate the target line directly from chartData.segments
+        // This matches how workout_detail does it (not using backend target_line_data)
+        if (chartData.segments && chartData.segments.length > 0) {
+            console.log('Calculating target line from segments:', chartData.segments.length);
+            
+            // Shift target line 60 seconds backwards (earlier) to match power zone behavior
+            // This matches workout_detail exactly
+            const TIME_SHIFT = -60;
+            
+            // Use the outer scope targetPaceData variable
+            targetPaceData = [];
+            // Generate time points every 5 seconds for the class duration (matching workout_detail)
+            const timePoints = [];
+            for (let t = 0; t <= totalDuration; t += 5) {
+                timePoints.push(t);
+            }
+            
+            console.log('Generated time points:', timePoints.length, 'for duration:', totalDuration);
+            
+            for (let i = 0; i < timePoints.length; i++) {
+                const currentTime = timePoints[i];
+                // Find which segment this time belongs to (with 60 second backward shift, matching workout_detail)
+                let targetPace = null;
+                for (const segment of chartData.segments) {
+                    // Apply 60 second backward shift to segment times (matching workout_detail)
+                    const segStart = Math.max(0, (segment.start || 0) + TIME_SHIFT);
+                    const segEnd = Math.max(0, (segment.end || (segment.start || 0) + (segment.duration || 0)) + TIME_SHIFT);
+                    
+                    if (currentTime >= segStart && currentTime < segEnd) {
+                        // Get zone/pace_level from segment
+                        // Class library uses 0-6, but workout_detail uses 1-7, so convert
+                        let zoneValue = segment.zone !== null && segment.zone !== undefined 
+                            ? segment.zone 
+                            : (segment.pace_level !== null && segment.pace_level !== undefined 
+                                ? segment.pace_level 
+                                : 1); // Default to Easy (1 in 0-6 scale, which is 2 in 1-7 scale)
+                        
+                        // Convert from 0-6 scale (class library) to 1-7 scale (workout_detail)
+                        // 0 (Recovery) -> 1, 1 (Easy) -> 2, 2 (Moderate) -> 3, etc.
+                        targetPace = zoneValue + 1;
+                        break;
+                    }
+                }
+                
+                // If no segment found, use the last segment's pace or default
+                if (targetPace === null && chartData.segments.length > 0) {
+                    const lastSegment = chartData.segments[chartData.segments.length - 1];
+                    let zoneValue = lastSegment.zone !== null && lastSegment.zone !== undefined
+                        ? lastSegment.zone
+                        : (lastSegment.pace_level !== null && lastSegment.pace_level !== undefined
+                            ? lastSegment.pace_level
+                            : 1); // Default to Easy
+                    targetPace = zoneValue + 1; // Convert to 1-7 scale
+                }
+                
+                if (targetPace !== null) {
+                    // Ensure pace level is in valid range (1-7 for pace targets, matching workout_detail)
+                    const clampedPace = Math.max(1, Math.min(7, Math.round(targetPace)));
+                    targetPaceData.push({ x: currentTime, y: clampedPace });
+                }
+            }
+            
+            console.log('Target pace data generated:', targetPaceData.length, 'points');
+            if (targetPaceData.length > 0) {
+                console.log('First target point:', targetPaceData[0]);
+                console.log('Last target point:', targetPaceData[targetPaceData.length - 1]);
+                console.log('Target line Y-axis range:', 
+                    Math.min(...targetPaceData.map(p => p.y)), 
+                    'to', 
+                    Math.max(...targetPaceData.map(p => p.y))
+                );
+            }
+            
+            if (targetPaceData.length > 0) {
+                datasets.push({
+                    label: 'Target',
+                    data: targetPaceData,
+                    borderColor: '#93c5fd',  // Light blue like power zone
+                    backgroundColor: 'rgba(147, 197, 253, 0.1)',
+                    borderWidth: 2.8,
+                    fill: false,
+                    tension: 0,  // Stepped line (no smoothing)
+                    stepped: 'before',  // Stepped line
+                    pointRadius: 0,
+                    pointHoverRadius: 4,
+                    spanGaps: true,
+                    hidden: false  // Always show by default - user can toggle
+                });
+                
+                console.log('Target line dataset added. Total datasets:', datasets.length);
+            } else {
+                console.warn('Target pace data is empty after generation');
+            }
+        } else {
+            console.log('No segments available for target line calculation. chartData.segments:', chartData.segments);
+        }
+        
         // Use line chart for both cycling and running
         chartDataConfig = {
             type: 'line',
             data: {
-                datasets: [{
-                    label: chartData.type === 'pace_target' ? 'Target Pace Level' : 'Target Zone',
-                    data: timePoints.map((time, index) => ({ x: time, y: targetSeries[index] })),
-                    borderWidth: 3,
-                    pointRadius: 0,
-                    borderColor: '#5b7cfa',
-                    backgroundColor: 'rgba(91, 124, 250, 0.1)',
-                    fill: true,
-                    tension: 0.1
-                }]
+                datasets: datasets
             }
         };
         
@@ -515,7 +738,52 @@ document.addEventListener('DOMContentLoaded', function() {
                 interaction: { mode: 'index', intersect: false },
                 plugins: {
                     legend: { display: false },
-                    tooltip: { enabled: false, external: externalTooltip },
+                    tooltip: { 
+                        enabled: true,  // Use Chart.js tooltip
+                        mode: 'index',
+                        intersect: false,
+                        callbacks: {
+                            title: function(context) {
+                                if (context.length > 0 && context[0].parsed) {
+                                    const timestamp = context[0].parsed.x;
+                                    const minutes = Math.floor(timestamp / 60);
+                                    const seconds = Math.floor(timestamp % 60);
+                                    return `${minutes}:${seconds.toString().padStart(2,'0')}`;
+                                }
+                                return '';
+                            },
+                            label: function(context) {
+                                const datasetLabel = context.dataset.label;
+                                const zoneValue = context.parsed.y;
+                                
+                                if (chartData.type === 'pace_target') {
+                                    // Get user pace level from select
+                                    const paceLevelSelect = document.getElementById('pace-level-select');
+                                    const userLevel = parseInt(paceLevelSelect?.value || '{{ user_pace_level|default:5 }}') || 5;
+                                    
+                                    if (datasetLabel === 'Target') {
+                                        // Target line uses 1-7 scale, convert to 0-6 for getPaceForLevel
+                                        const zoneNum = Math.max(0, Math.min(6, Math.round(zoneValue) - 1));
+                                        const paceInfo = getPaceForLevel(zoneNum, userLevel);
+                                        return `Target: ${paceInfo.pace} /mi (${paceInfo.label})`;
+                                    } else if (datasetLabel === 'Class Plan') {
+                                        // Class Plan also uses 1-7 scale (converted from 0-6), convert back to 0-6
+                                        const zoneNum = Math.max(0, Math.min(6, Math.round(zoneValue) - 1));
+                                        const paceInfo = getPaceForLevel(zoneNum, userLevel);
+                                        return `Class Plan: ${paceInfo.label}`;
+                                    }
+                                }
+                                
+                                return `${datasetLabel}: Zone ${Math.round(zoneValue)}`;
+                            }
+                        },
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        titleColor: 'rgba(255, 255, 255, 0.9)',
+                        bodyColor: 'rgba(255, 255, 255, 0.9)',
+                        borderColor: 'rgba(255, 255, 255, 0.2)',
+                        borderWidth: 1,
+                        padding: 12
+                    },
                     zoneBands: { bands: zoneBands },
                     progressLine: { currentTime: 0 }
                 },
@@ -543,10 +811,10 @@ document.addEventListener('DOMContentLoaded', function() {
                         }
                     },
                     y: {
-                        min: -1.5,
-                        max: 6.5,
+                        min: 0.5,  // Match workout_detail (pace levels 1-7)
+                        max: 7.5,  // Match workout_detail (pace levels 1-7)
                         title: { 
-                            display: true, 
+                            display: false,  // Hide y-axis title (labels are overlaid on chart)
                             text: chartData.type === 'pace_target' ? 'Pace Level' : 'Zone',
                             color: document.documentElement.classList.contains('dark')
                                 ? 'rgba(255,255,255,0.7)'
@@ -559,30 +827,10 @@ document.addEventListener('DOMContentLoaded', function() {
                         },
                         ticks: { 
                             stepSize: 1,
-                            maxTicksLimit: 8,  // Show all 7 pace levels plus recovery
-                            color: document.documentElement.classList.contains('dark')
-                                ? 'rgba(255,255,255,0.7)'
-                                : 'rgba(0,0,0,0.7)',
-                            callback: (v) => {
-                                if (chartData.type === 'pace_target') {
-                                    const level = Math.round(v);
-                                    // Only show labels for valid levels (0-6)
-                                    if (level < 0 || level > 6) return '';
-                                    const paceLabels = {
-                                        0: 'Recovery',
-                                        1: 'Easy', 
-                                        2: 'Moderate',
-                                        3: 'Challenging',
-                                        4: 'Hard',
-                                        5: 'Very Hard',
-                                        6: 'Max'
-                                    };
-                                    return paceLabels[level] || '';
-                                } else {
-                                    return `Zone ${Math.round(v)}`;
-                                }
-                            }
-                        }
+                            maxTicksLimit: 8,
+                            drawTicks: false  // Hide ticks - zone labels are overlaid on chart
+                        },
+                        display: false  // Hide ticks on left - zone labels are overlaid on chart
                     }
                 }
             },
@@ -876,16 +1124,45 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         function getCurrentTarget(time) {
-            let segmentTime = 0;
-            for (const segment of chartData.segments) {
-                const segmentEnd = segmentTime + segment.duration;
-                if (time >= segmentTime && time < segmentEnd) {
-                    // Handle both power zones (cycling) and pace levels (running)
-                    return segment.zone || segment.pace_level;
+            // First try to use targetPaceData (from target line calculation, uses 1-7 scale)
+            if (targetPaceData && targetPaceData.length > 0) {
+                // Find the closest target point to the current time
+                let closestPoint = null;
+                let minDiff = Infinity;
+                for (const point of targetPaceData) {
+                    const diff = Math.abs(point.x - time);
+                    if (diff < minDiff && diff < 10) { // Within 10 seconds
+                        minDiff = diff;
+                        closestPoint = point;
+                    }
                 }
-                segmentTime = segmentEnd;
+                if (closestPoint && closestPoint.y !== null && closestPoint.y !== undefined) {
+                    // Target line uses 1-7 scale, convert to 0-6 for getPaceForLevel
+                    const paceLevel = closestPoint.y - 1;
+                    console.log(`getCurrentTarget: Using target line data. Time: ${time}, Target pace level: ${closestPoint.y} (1-7), Converted: ${paceLevel} (0-6)`);
+                    return paceLevel;
+                }
             }
-            return 1; // Default to Zone/Level 1
+            
+            // Fallback to segments (0-6 scale)
+            // Use segment.start/end times (matching workout_detail approach)
+            for (const segment of chartData.segments) {
+                const segStart = segment.start || 0;
+                const segEnd = segment.end || (segStart + (segment.duration || 0));
+                if (time >= segStart && time < segEnd) {
+                    // Handle both power zones (cycling) and pace levels (running)
+                    // Segments use 0-6 scale for pace targets
+                    const zoneValue = segment.zone !== null && segment.zone !== undefined 
+                        ? segment.zone 
+                        : (segment.pace_level !== null && segment.pace_level !== undefined 
+                            ? segment.pace_level 
+                            : 1); // Default to Easy (1 in 0-6 scale)
+                    console.log(`getCurrentTarget: Using segment data. Time: ${time}, Segment zone: ${zoneValue} (0-6)`);
+                    return zoneValue;
+                }
+            }
+            console.log(`getCurrentTarget: No match found, defaulting to Easy (1)`);
+            return 1; // Default to Easy (1 in 0-6 scale, which is 2 in 1-7 scale)
         }
         
         function getCurrentSegment(time) {
@@ -1236,14 +1513,90 @@ document.addEventListener('DOMContentLoaded', function() {
             const selectedLevel = parseInt(this.value);
             console.log('User selected level:', selectedLevel);
             
-            // Get current class plan intensity from the chart data
-            const currentIntensity = getCurrentClassPlanIntensity();
-            console.log('Current class plan intensity:', currentIntensity);
+            // Update current target display with new pace level
+            const currentTarget = getCurrentTarget(chartCurrentTime);
+            if (currentTarget !== null && currentTarget !== undefined) {
+                const paceInfo = getPaceForLevel(currentTarget, selectedLevel);
+                currentTargetEl.textContent = `${paceInfo.pace} @ ${paceInfo.label}`;
+            }
             
-            // Convert class plan intensity to min/mi based on user's level
-            const paceInfo = getPaceForLevel(currentIntensity, selectedLevel);
-            currentTargetEl.textContent = `${paceInfo.pace} @ ${paceInfo.label}`;
+            // Update fullscreen target display if in fullscreen
+            const fullscreenCurrentTarget = document.getElementById('fullscreen-current-target');
+            if (fullscreenCurrentTarget) {
+                const fullscreenTarget = getCurrentTarget(chartCurrentTime);
+                if (fullscreenTarget !== null && fullscreenTarget !== undefined) {
+                    const paceInfo = getPaceForLevel(fullscreenTarget, selectedLevel);
+                    fullscreenCurrentTarget.textContent = `${paceInfo.pace} @ ${paceInfo.label}`;
+                }
+            }
+            
+            // Force chart update to refresh tooltips with new pace level
+            if (chart) {
+                chart.update('none');
+            }
         });
+        
+        // Toggle target line button
+        const toggleTargetLineBtn = document.getElementById('toggle-target-line');
+        if (toggleTargetLineBtn) {
+            // Check if target line dataset exists
+            const hasTargetLine = chart && chart.data.datasets.some(ds => ds.label === 'Target');
+            
+            if (hasTargetLine) {
+                // Initialize button state
+                showTargetLine = true;
+                toggleTargetLineBtn.textContent = 'Hide Target';
+                
+                toggleTargetLineBtn.addEventListener('click', function() {
+                    showTargetLine = !showTargetLine;
+                    
+                    // Update target line dataset visibility
+                    if (chart) {
+                        const targetDataset = chart.data.datasets.find(ds => ds.label === 'Target');
+                        if (targetDataset) {
+                            targetDataset.hidden = !showTargetLine;
+                            chart.update('none');
+                            console.log('Target line toggled. Visible:', showTargetLine);
+                        } else {
+                            console.warn('Target dataset not found in chart');
+                        }
+                    }
+                    
+                    // Update button text
+                    this.textContent = showTargetLine ? 'Hide Target' : 'Show Target';
+                });
+            } else {
+                // Hide button if no target line dataset
+                toggleTargetLineBtn.style.display = 'none';
+                console.log('No target line dataset found, hiding toggle button');
+            }
+        }
+        
+        // Save chart functionality
+        const saveChartBtn = document.getElementById('save-chart');
+        if (saveChartBtn) {
+            saveChartBtn.addEventListener('click', function() {
+                if (chart) {
+                    const url = chart.toBase64Image();
+                    const link = document.createElement('a');
+                    link.download = 'pace-target-chart.png';
+                    link.href = url;
+                    link.click();
+                }
+            });
+        }
+        
+        // Zone colors toggle
+        const toggleZoneColors = document.getElementById('toggle-zone-colors');
+        if (toggleZoneColors) {
+            toggleZoneColors.addEventListener('change', function() {
+                showZoneColors = this.checked;
+                // Zone colors are handled by the bandPlugin, so we just need to update the chart
+                if (chart) {
+                    chart.update('none');
+                }
+            });
+        }
         
         // Function to get current class plan intensity from chart data
         function getCurrentClassPlanIntensity() {
@@ -1387,7 +1740,8 @@ document.addEventListener('DOMContentLoaded', function() {
             if (fullscreenPaceLevelSelect) {
                 fullscreenPaceLevelSelect.addEventListener('change', function() {
                     paceLevelSelect.value = this.value;
-                    updateProgress();
+                    // Trigger the pace level change event to update tooltips
+                    paceLevelSelect.dispatchEvent(new Event('change'));
                 });
             }
             
@@ -1523,6 +1877,119 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Initial setup
         updateProgress();
+        
+        // Music timeline overlay (matching workout_detail)
+        if (playlistData && playlistData.length > 0) {
+            const musicTimelineEl = document.getElementById('musicTimeline');
+            const showMusicCheckbox = document.getElementById('showMusicTimeline');
+            
+            function renderMusicTimeline() {
+                if (!musicTimelineEl || !showMusicCheckbox) return;
+                
+                if (!showMusicCheckbox.checked) {
+                    musicTimelineEl.classList.add('hidden');
+                    return;
+                }
+                
+                musicTimelineEl.classList.remove('hidden');
+                musicTimelineEl.innerHTML = '';
+                
+                // Get max time from chart or ride duration
+                const maxTime = totalDuration || {{ ride.duration_seconds|default:1800 }};
+                const timelineWidth = musicTimelineEl.offsetWidth || 800;
+                
+                // Color palette for different songs (matching workout_detail)
+                const songColors = [
+                    'rgba(91, 124, 250, 0.4)',   // Blue
+                    'rgba(34, 197, 94, 0.4)',    // Green
+                    'rgba(234, 179, 8, 0.4)',    // Yellow
+                    'rgba(239, 68, 68, 0.4)',    // Red
+                    'rgba(168, 85, 247, 0.4)',   // Purple
+                    'rgba(236, 72, 153, 0.4)',   // Pink
+                    'rgba(20, 184, 166, 0.4)',   // Teal
+                    'rgba(251, 146, 60, 0.4)',   // Orange
+                ];
+                
+                playlistData.forEach((song, idx) => {
+                    const startTime = song.start_time || 0;
+                    const duration = song.duration || 180;
+                    
+                    // Calculate percentages based on max time (align with chart's time axis)
+                    const startPercent = maxTime > 0 ? (startTime / maxTime) * 100 : 0;
+                    const widthPercent = maxTime > 0 ? (duration / maxTime) * 100 : 0;
+                    
+                    // Ensure we don't go beyond 100%
+                    const actualStartPercent = Math.max(0, Math.min(startPercent, 100));
+                    const actualWidthPercent = Math.max(0, Math.min(widthPercent, 100 - actualStartPercent));
+                    
+                    // Skip if segment is too small or outside bounds
+                    if (actualWidthPercent < 0.5 || actualStartPercent >= 100) {
+                        return;
+                    }
+                    
+                    const segment = document.createElement('div');
+                    const color = songColors[idx % songColors.length];
+                    const artistName = song.artists && song.artists.length > 0 ? song.artists[0] : '';
+                    
+                    segment.style.cssText = `
+                        position: absolute;
+                        left: ${actualStartPercent}%;
+                        width: ${actualWidthPercent}%;
+                        height: 100%;
+                        background: ${color};
+                        border-right: 1px solid rgba(255,255,255,0.25);
+                        display: flex;
+                        flex-direction: column;
+                        justify-content: center;
+                        align-items: flex-start;
+                        padding: 2px 6px;
+                        font-size: 10px;
+                        line-height: 1.2;
+                        color: rgba(255,255,255,0.95);
+                        overflow: hidden;
+                        cursor: pointer;
+                        transition: opacity 0.2s, background 0.2s;
+                        min-width: 60px;
+                    `;
+                    
+                    segment.onmouseenter = () => {
+                        segment.style.opacity = '0.85';
+                        segment.style.background = color.replace('0.4', '0.6');
+                    };
+                    segment.onmouseleave = () => {
+                        segment.style.opacity = '1';
+                        segment.style.background = color;
+                    };
+                    
+                    // Create title element (truncate if too long)
+                    const titleEl = document.createElement('div');
+                    titleEl.style.cssText = 'font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; font-size: 10px;';
+                    titleEl.textContent = song.title || 'Unknown';
+                    
+                    // Create artist element (only if there's space)
+                    if (artistName && actualWidthPercent > 5) {
+                        const artistEl = document.createElement('div');
+                        artistEl.style.cssText = 'font-size: 9px; opacity: 0.8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; margin-top: 1px;';
+                        artistEl.textContent = artistName;
+                        segment.appendChild(artistEl);
+                    }
+                    
+                    segment.insertBefore(titleEl, segment.firstChild);
+                    
+                    // Tooltip with full info
+                    const fullInfo = `${song.title}${artistName ? ' • ' + artistName : ''}`;
+                    segment.title = fullInfo;
+                    
+                    musicTimelineEl.appendChild(segment);
+                });
+            }
+            
+            if (showMusicCheckbox) {
+                showMusicCheckbox.addEventListener('change', renderMusicTimeline);
+                // Initial render after a short delay to ensure chart is rendered
+                setTimeout(renderMusicTimeline, 200);
+            }
+        }
     })();
 });
 </script>
