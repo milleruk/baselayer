@@ -245,7 +245,7 @@ def class_library(request):
     ).exclude(
         Q(title__icontains='warm up') | Q(title__icontains='warmup') |
         Q(title__icontains='cool down') | Q(title__icontains='cooldown')
-    ).select_related('workout_type', 'instructor').order_by('-original_air_time')
+    ).select_related('workout_type', 'instructor')
     
     # Search query
     search_query = request.GET.get('search', '').strip()
@@ -280,12 +280,75 @@ def class_library(request):
     # Filter by TSS (Training Stress Score) - filter based on calculated TSS
     tss_filter = request.GET.get('tss', '')
     
-    # Ordering
+    # Filter by year
+    year_filter = request.GET.get('year', '')
+    if year_filter:
+        try:
+            year = int(year_filter)
+            # Convert year to Unix timestamps (seconds)
+            start_timestamp = int(datetime(year, 1, 1, 0, 0, 0).timestamp())
+            end_timestamp = int(datetime(year, 12, 31, 23, 59, 59).timestamp())
+            rides = rides.filter(
+                original_air_time__gte=start_timestamp,
+                original_air_time__lte=end_timestamp
+            )
+        except (ValueError, TypeError):
+            pass
+    
+    # Filter by month (requires year)
+    month_filter = request.GET.get('month', '')
+    if month_filter and year_filter:
+        try:
+            year = int(year_filter)
+            month = int(month_filter)
+            if 1 <= month <= 12:
+                # Calculate first and last day of month
+                if month == 12:
+                    next_month = 1
+                    next_year = year + 1
+                else:
+                    next_month = month + 1
+                    next_year = year
+                
+                start_timestamp = int(datetime(year, month, 1, 0, 0, 0).timestamp())
+                # End timestamp is start of next month minus 1 second
+                end_timestamp = int(datetime(next_year, next_month, 1, 0, 0, 0).timestamp()) - 1
+                rides = rides.filter(
+                    original_air_time__gte=start_timestamp,
+                    original_air_time__lte=end_timestamp
+                )
+        except (ValueError, TypeError):
+            pass
+    
+    # Ordering - default to newest first (by original air time), with NULLs last
     order_by = request.GET.get('order_by', '-original_air_time')
     if order_by in ['original_air_time', '-original_air_time', 'title', '-title', 'duration_seconds', '-duration_seconds']:
-        rides = rides.order_by(order_by)
+        if order_by == '-original_air_time':
+            # For descending order, put NULLs last using Coalesce
+            from django.db.models import Value, BigIntegerField
+            from django.db.models.functions import Coalesce
+            # Use 0 for NULLs so they sort last when descending
+            rides = rides.annotate(
+                sort_air_time=Coalesce('original_air_time', Value(0, output_field=BigIntegerField()))
+            ).order_by('-sort_air_time')
+        elif order_by == 'original_air_time':
+            # For ascending order, put NULLs last using Coalesce
+            from django.db.models import Value, BigIntegerField
+            from django.db.models.functions import Coalesce
+            # Use a very large number for NULLs so they sort last when ascending
+            rides = rides.annotate(
+                sort_air_time=Coalesce('original_air_time', Value(9999999999999, output_field=BigIntegerField()))
+            ).order_by('sort_air_time')
+        else:
+            rides = rides.order_by(order_by)
     else:
-        rides = rides.order_by('-original_air_time')
+        # Default: newest first, NULLs last
+        from django.db.models import Value, BigIntegerField
+        from django.db.models.functions import Coalesce
+        # Use 0 for NULLs so they sort last when descending
+        rides = rides.annotate(
+            sort_air_time=Coalesce('original_air_time', Value(0, output_field=BigIntegerField()))
+        ).order_by('-sort_air_time')
     
     # Pagination
     paginator = Paginator(rides, 12)  # 12 rides per page
@@ -325,6 +388,59 @@ def class_library(request):
             duration_set.add(closest)
     
     durations = sorted(list(duration_set))
+    
+    # Get available years and months from rides (for filters)
+    available_years = RideDetail.objects.filter(
+        Q(workout_type__slug__in=allowed_types) |
+        Q(fitness_discipline__in=allowed_disciplines),
+        original_air_time__isnull=False
+    ).exclude(original_air_time=0).values_list('original_air_time', flat=True)
+    
+    # Extract unique years
+    years_set = set()
+    for timestamp in available_years:
+        try:
+            # Handle both seconds and milliseconds
+            ts = timestamp / 1000 if timestamp >= 1e12 else timestamp
+            dt = datetime.fromtimestamp(ts)
+            years_set.add(dt.year)
+        except (ValueError, OSError, OverflowError):
+            continue
+    
+    available_years_list = sorted(list(years_set), reverse=True)  # Newest first
+    
+    # Get available months for selected year (if year filter is active)
+    available_months = []
+    if year_filter:
+        try:
+            year = int(year_filter)
+            months_set = set()
+            year_rides = RideDetail.objects.filter(
+                Q(workout_type__slug__in=allowed_types) |
+                Q(fitness_discipline__in=allowed_disciplines),
+                original_air_time__isnull=False
+            ).exclude(original_air_time=0)
+            
+            # Filter by year range
+            start_timestamp = int(datetime(year, 1, 1, 0, 0, 0).timestamp())
+            end_timestamp = int(datetime(year, 12, 31, 23, 59, 59).timestamp())
+            year_rides = year_rides.filter(
+                original_air_time__gte=start_timestamp,
+                original_air_time__lte=end_timestamp
+            ).values_list('original_air_time', flat=True)
+            
+            for timestamp in year_rides:
+                try:
+                    ts = timestamp / 1000 if timestamp >= 1e12 else timestamp
+                    dt = datetime.fromtimestamp(ts)
+                    if dt.year == year:
+                        months_set.add(dt.month)
+                except (ValueError, OSError, OverflowError):
+                    continue
+            
+            available_months = sorted(list(months_set))
+        except (ValueError, TypeError):
+            pass
     
     # Calculate TSS/IF and zone data for each ride (for card display)
     user_profile = request.user.profile if hasattr(request.user, 'profile') else None
@@ -629,12 +745,39 @@ def class_library(request):
         
         rides_with_metrics.append(ride_data)
     
+    # Handle AJAX requests for live search
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' and request.GET.get('ajax') == '1':
+        # Return JSON response for AJAX requests
+        results = []
+        for ride_data in rides_with_metrics[:12]:  # Limit to 12 for preview
+            ride = ride_data['ride']
+            results.append({
+                'id': ride.id,
+                'title': ride.title,
+                'duration_minutes': ride.duration_minutes,
+                'instructor': ride.instructor.name if ride.instructor else None,
+                'workout_type': ride.workout_type.name if ride.workout_type else None,
+                'original_air_date': ride.original_air_date.strftime('%b %d, %Y') if ride.original_air_date else None,
+                'url': f'/workouts/library/{ride.id}/',
+            })
+        
+        return JsonResponse({
+            'success': True,
+            'results': results,
+            'total': page_obj.paginator.count,
+            'has_more': page_obj.has_next(),
+        })
+    
     context = {
         'rides_with_metrics': rides_with_metrics,
         'page_obj': page_obj,
         'is_paginated': is_paginated,
         'search_query': search_query,
         'workout_type_filter': workout_type_filter,
+        'year_filter': year_filter,
+        'month_filter': month_filter,
+        'available_years': available_years_list,
+        'available_months': available_months,
         'instructor_filter': instructor_filter,
         'duration_filter': duration_filter,
         'tss_filter': tss_filter,
@@ -643,6 +786,14 @@ def class_library(request):
         'durations': durations,
         'order_by': order_by,
     }
+    
+    # Add year/month filter variables to context
+    context.update({
+        'year_filter': year_filter,
+        'month_filter': month_filter,
+        'available_years': available_years_list,
+        'available_months': available_months,
+    })
     
     return render(request, "workouts/class_library.html", context)
 

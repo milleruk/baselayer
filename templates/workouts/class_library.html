@@ -66,9 +66,55 @@
         </div>
       </div>
       
+      <!-- Year Filter -->
+      <div class="relative min-w-[100px]">
+        <select name="year" 
+                class="w-full appearance-none bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 pr-8 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent cursor-pointer text-sm filter-select">
+          <option value="">All Years</option>
+          {% for year in available_years %}
+            <option value="{{ year }}" {% if year_filter == year|stringformat:"s" %}selected{% endif %}>
+              {{ year }}
+            </option>
+          {% endfor %}
+        </select>
+        <div class="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+          <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+          </svg>
+        </div>
+      </div>
+      
+      <!-- Month Filter (only shown if year is selected) -->
+      {% if year_filter %}
+      <div class="relative min-w-[120px]">
+        <select name="month" 
+                class="w-full appearance-none bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 pr-8 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent cursor-pointer text-sm filter-select">
+          <option value="">All Months</option>
+          {% for month in available_months %}
+            <option value="{{ month }}" {% if month_filter == month|stringformat:"s" %}selected{% endif %}>
+              {% if month == 1 %}January{% elif month == 2 %}February{% elif month == 3 %}March{% elif month == 4 %}April{% elif month == 5 %}May{% elif month == 6 %}June{% elif month == 7 %}July{% elif month == 8 %}August{% elif month == 9 %}September{% elif month == 10 %}October{% elif month == 11 %}November{% elif month == 12 %}December{% endif %}
+            </option>
+          {% endfor %}
+        </select>
+        <div class="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+          <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+          </svg>
+        </div>
+      </div>
+      {% endif %}
+      
       <!-- Preserve workout type filter -->
       {% if workout_type_filter %}
         <input type="hidden" name="type" value="{{ workout_type_filter }}">
+      {% endif %}
+      
+      <!-- Preserve year/month filters -->
+      {% if year_filter %}
+        <input type="hidden" name="year" value="{{ year_filter }}">
+      {% endif %}
+      {% if month_filter %}
+        <input type="hidden" name="month" value="{{ month_filter }}">
       {% endif %}
       
       <!-- Preserve order by -->
@@ -97,13 +143,13 @@
   </div>
   
   <!-- Active Filters Display -->
-  {% if search_query or instructor_filter or duration_filter or tss_filter %}
+  {% if search_query or instructor_filter or duration_filter or tss_filter or year_filter or month_filter %}
     <div class="flex flex-wrap gap-2 items-center">
       <span class="text-sm text-gray-600 dark:text-gray-400">Active filters:</span>
       {% if search_query %}
         <span class="inline-flex items-center gap-1 px-3 py-1 text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full">
           Search: "{{ search_query }}"
-          <a href="?{% if workout_type_filter %}type={{ workout_type_filter }}&{% endif %}{% if instructor_filter %}instructor={{ instructor_filter }}&{% endif %}{% if duration_filter %}duration={{ duration_filter }}&{% endif %}{% if tss_filter %}tss={{ tss_filter }}{% endif %}{% if order_by and order_by != '-original_air_time' %}&order_by={{ order_by }}{% endif %}" class="hover:text-gray-900 dark:hover:text-white">×</a>
+          <a href="?{% if workout_type_filter %}type={{ workout_type_filter }}&{% endif %}{% if instructor_filter %}instructor={{ instructor_filter }}&{% endif %}{% if duration_filter %}duration={{ duration_filter }}&{% endif %}{% if tss_filter %}tss={{ tss_filter }}&{% endif %}{% if year_filter %}year={{ year_filter }}&{% endif %}{% if month_filter %}month={{ month_filter }}&{% endif %}{% if order_by and order_by != '-original_air_time' %}&order_by={{ order_by }}{% endif %}" class="hover:text-gray-900 dark:hover:text-white">×</a>
         </span>
       {% endif %}
       {% if instructor_filter %}
@@ -111,7 +157,7 @@
           {% if instructor.id|stringformat:"s" == instructor_filter %}
             <span class="inline-flex items-center gap-1 px-3 py-1 text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full">
               Instructor: {{ instructor.name }}
-              <a href="?{% if workout_type_filter %}type={{ workout_type_filter }}&{% endif %}{% if search_query %}search={{ search_query }}&{% endif %}{% if duration_filter %}duration={{ duration_filter }}&{% endif %}{% if tss_filter %}tss={{ tss_filter }}{% endif %}{% if order_by and order_by != '-original_air_time' %}&order_by={{ order_by }}{% endif %}" class="hover:text-gray-900 dark:hover:text-white">×</a>
+              <a href="?{% if workout_type_filter %}type={{ workout_type_filter }}&{% endif %}{% if search_query %}search={{ search_query }}&{% endif %}{% if duration_filter %}duration={{ duration_filter }}&{% endif %}{% if tss_filter %}tss={{ tss_filter }}&{% endif %}{% if year_filter %}year={{ year_filter }}&{% endif %}{% if month_filter %}month={{ month_filter }}&{% endif %}{% if order_by and order_by != '-original_air_time' %}&order_by={{ order_by }}{% endif %}" class="hover:text-gray-900 dark:hover:text-white">×</a>
             </span>
           {% endif %}
         {% endfor %}
@@ -119,13 +165,19 @@
       {% if duration_filter %}
         <span class="inline-flex items-center gap-1 px-3 py-1 text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full">
           Duration: {{ duration_filter }} min
-          <a href="?{% if workout_type_filter %}type={{ workout_type_filter }}&{% endif %}{% if search_query %}search={{ search_query }}&{% endif %}{% if instructor_filter %}instructor={{ instructor_filter }}&{% endif %}{% if tss_filter %}tss={{ tss_filter }}{% endif %}{% if order_by and order_by != '-original_air_time' %}&order_by={{ order_by }}{% endif %}" class="hover:text-gray-900 dark:hover:text-white">×</a>
+          <a href="?{% if workout_type_filter %}type={{ workout_type_filter }}&{% endif %}{% if search_query %}search={{ search_query }}&{% endif %}{% if instructor_filter %}instructor={{ instructor_filter }}&{% endif %}{% if tss_filter %}tss={{ tss_filter }}&{% endif %}{% if year_filter %}year={{ year_filter }}&{% endif %}{% if month_filter %}month={{ month_filter }}&{% endif %}{% if order_by and order_by != '-original_air_time' %}&order_by={{ order_by }}{% endif %}" class="hover:text-gray-900 dark:hover:text-white">×</a>
         </span>
       {% endif %}
       {% if tss_filter %}
         <span class="inline-flex items-center gap-1 px-3 py-1 text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full">
           TSS: ≥{{ tss_filter }}
-          <a href="?{% if workout_type_filter %}type={{ workout_type_filter }}&{% endif %}{% if search_query %}search={{ search_query }}&{% endif %}{% if instructor_filter %}instructor={{ instructor_filter }}&{% endif %}{% if duration_filter %}duration={{ duration_filter }}{% endif %}{% if order_by and order_by != '-original_air_time' %}&order_by={{ order_by }}{% endif %}" class="hover:text-gray-900 dark:hover:text-white">×</a>
+          <a href="?{% if workout_type_filter %}type={{ workout_type_filter }}&{% endif %}{% if search_query %}search={{ search_query }}&{% endif %}{% if instructor_filter %}instructor={{ instructor_filter }}&{% endif %}{% if duration_filter %}duration={{ duration_filter }}&{% endif %}{% if year_filter %}year={{ year_filter }}&{% endif %}{% if month_filter %}month={{ month_filter }}&{% endif %}{% if order_by and order_by != '-original_air_time' %}&order_by={{ order_by }}{% endif %}" class="hover:text-gray-900 dark:hover:text-white">×</a>
+        </span>
+      {% endif %}
+      {% if year_filter %}
+        <span class="inline-flex items-center gap-1 px-3 py-1 text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full">
+          Year: {{ year_filter }}{% if month_filter %} {% if month_filter == '1' %}January{% elif month_filter == '2' %}February{% elif month_filter == '3' %}March{% elif month_filter == '4' %}April{% elif month_filter == '5' %}May{% elif month_filter == '6' %}June{% elif month_filter == '7' %}July{% elif month_filter == '8' %}August{% elif month_filter == '9' %}September{% elif month_filter == '10' %}October{% elif month_filter == '11' %}November{% elif month_filter == '12' %}December{% endif %}{% endif %}
+          <a href="?{% if workout_type_filter %}type={{ workout_type_filter }}&{% endif %}{% if search_query %}search={{ search_query }}&{% endif %}{% if instructor_filter %}instructor={{ instructor_filter }}&{% endif %}{% if duration_filter %}duration={{ duration_filter }}&{% endif %}{% if tss_filter %}tss={{ tss_filter }}&{% endif %}{% if order_by and order_by != '-original_air_time' %}&order_by={{ order_by }}{% endif %}" class="hover:text-gray-900 dark:hover:text-white">×</a>
         </span>
       {% endif %}
     </div>
@@ -184,8 +236,10 @@
           {% if ride.instructor %}
             <p class="text-sm text-gray-700 dark:text-gray-300">{{ ride.instructor.name }}</p>
           {% endif %}
-          {% if ride.original_air_date and ride.original_air_time and ride.original_air_time > 1000000 %}
-            <p class="text-xs text-gray-500 dark:text-gray-500">Recorded: {{ ride.original_air_date|date:"m/d/Y" }}</p>
+          {% if ride.original_air_date %}
+            <p class="text-xs text-gray-500 dark:text-gray-500">Originally aired: {{ ride.original_air_date|date:"M d, Y" }}</p>
+          {% elif ride.original_air_time %}
+            <p class="text-xs text-gray-500 dark:text-gray-500">Originally aired: Date unavailable</p>
           {% endif %}
         </div>
         
@@ -475,6 +529,164 @@ document.addEventListener('DOMContentLoaded', function() {
       })();
     {% endif %}
   {% endfor %}
+  
+  // Live Search with AJAX
+  const searchInput = document.querySelector('input[name="search"]');
+  let searchTimeout = null;
+  let currentSearchRequest = null;
+  
+  if (searchInput) {
+    const searchResultsContainer = document.getElementById('live-search-results');
+    let resultsContainer = null;
+    
+    // Create results container if it doesn't exist
+    if (!searchResultsContainer) {
+      resultsContainer = document.createElement('div');
+      resultsContainer.id = 'live-search-results';
+      resultsContainer.className = 'absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-96 overflow-y-auto';
+      resultsContainer.style.display = 'none';
+      searchInput.parentElement.style.position = 'relative';
+      searchInput.parentElement.appendChild(resultsContainer);
+    } else {
+      resultsContainer = searchResultsContainer;
+    }
+    
+    searchInput.addEventListener('input', function(e) {
+      const query = this.value.trim();
+      
+      // Clear previous timeout
+      if (searchTimeout) {
+        clearTimeout(searchTimeout);
+      }
+      
+      // Cancel previous request if still pending
+      if (currentSearchRequest) {
+        currentSearchRequest.abort();
+      }
+      
+      // Hide results if query is empty
+      if (query.length === 0) {
+        resultsContainer.style.display = 'none';
+        return;
+      }
+      
+      // Show loading state
+      resultsContainer.innerHTML = '<div class="p-4 text-center text-gray-500 dark:text-gray-400">Searching...</div>';
+      resultsContainer.style.display = 'block';
+      
+      // Debounce: wait 300ms before making request
+      searchTimeout = setTimeout(function() {
+        performLiveSearch(query, resultsContainer);
+      }, 300);
+    });
+    
+    // Hide results when clicking outside
+    document.addEventListener('click', function(e) {
+      if (!searchInput.contains(e.target) && !resultsContainer.contains(e.target)) {
+        resultsContainer.style.display = 'none';
+      }
+    });
+    
+    // Handle keyboard navigation
+    searchInput.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') {
+        resultsContainer.style.display = 'none';
+        this.blur();
+      }
+    });
+  }
+  
+  function performLiveSearch(query, container) {
+    const filterForm = document.querySelector('form[action="{% url 'workouts:library' %}"]');
+    const formData = new FormData(filterForm);
+    formData.set('search', query);
+    formData.set('ajax', '1');
+    
+    // Create URL with all current filters
+    const params = new URLSearchParams();
+    for (const [key, value] of formData.entries()) {
+      if (value && key !== 'ajax') {
+        params.append(key, value);
+      }
+    }
+    params.append('ajax', '1');
+    
+    const url = '{% url "workouts:library" %}?' + params.toString();
+    
+    // Create abort controller for this request
+    const controller = new AbortController();
+    currentSearchRequest = controller;
+    
+    fetch(url, {
+      method: 'GET',
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+      },
+      signal: controller.signal
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        displaySearchResults(data.results, data.total, container);
+      } else {
+        container.innerHTML = '<div class="p-4 text-center text-red-500">Error loading results</div>';
+      }
+    })
+    .catch(error => {
+      if (error.name !== 'AbortError') {
+        container.innerHTML = '<div class="p-4 text-center text-red-500">Error loading results</div>';
+      }
+    })
+    .finally(() => {
+      currentSearchRequest = null;
+    });
+  }
+  
+  function displaySearchResults(results, total, container) {
+    if (results.length === 0) {
+      container.innerHTML = '<div class="p-4 text-center text-gray-500 dark:text-gray-400">No classes found</div>';
+      return;
+    }
+    
+    let html = '<div class="divide-y divide-gray-200 dark:divide-gray-700">';
+    
+    results.forEach(function(result) {
+      html += `
+        <a href="${result.url}" class="block p-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+          <div class="flex items-start justify-between">
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-medium text-gray-900 dark:text-white truncate">${escapeHtml(result.title)}</p>
+              <div class="mt-1 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                ${result.instructor ? `<span>${escapeHtml(result.instructor)}</span>` : ''}
+                ${result.workout_type ? `<span>• ${escapeHtml(result.workout_type)}</span>` : ''}
+                ${result.duration_minutes ? `<span>• ${result.duration_minutes} min</span>` : ''}
+              </div>
+              ${result.original_air_date ? `<p class="mt-1 text-xs text-gray-400 dark:text-gray-500">${result.original_air_date}</p>` : ''}
+            </div>
+          </div>
+        </a>
+      `;
+    });
+    
+    if (total > results.length) {
+      const searchInput = document.querySelector('input[name="search"]');
+      const query = searchInput ? searchInput.value : '';
+      html += `
+        <div class="p-3 text-center text-sm text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700">
+          Showing ${results.length} of ${total} results. <a href="?search=${encodeURIComponent(query)}" class="text-primary hover:underline">View all</a>
+        </div>
+      `;
+    }
+    
+    html += '</div>';
+    container.innerHTML = html;
+  }
+  
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
   
   // AJAX Filter Handling for Class Library
   const filterForm = document.querySelector('form[action="{% url 'workouts:library' %}"]');

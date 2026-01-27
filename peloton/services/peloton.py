@@ -571,6 +571,109 @@ class PelotonClient:
             current_page += 1
 
     # ------------------------------------------------------------------------------
+    # Rides/Classes Library
+    # ------------------------------------------------------------------------------
+    def fetch_archived_rides(
+        self,
+        page: int = 0,
+        limit: int = 20,
+        fitness_discipline: Optional[str] = None,
+        start_date: Optional[int] = None,
+        end_date: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """
+        Fetch archived rides/classes from Peloton API with pagination and filtering.
+        
+        Args:
+            page: Page number (0-indexed)
+            limit: Number of rides per page
+            fitness_discipline: Filter by discipline (e.g., 'cycling', 'running')
+            start_date: Unix timestamp (milliseconds) for start date filter
+            end_date: Unix timestamp (milliseconds) for end date filter
+        
+        Returns:
+            Paginated response with rides data
+        """
+        params: Dict[str, Any] = {"page": page, "limit": limit}
+        
+        if fitness_discipline:
+            params["fitness_discipline"] = fitness_discipline
+        
+        if start_date:
+            params["start_date"] = start_date
+        
+        if end_date:
+            params["end_date"] = end_date
+        
+        return self._get("/api/v2/ride/archived", params=params)
+    
+    def iter_archived_rides(
+        self,
+        limit: int = 20,
+        fitness_discipline: Optional[str] = None,
+        start_date: Optional[int] = None,
+        end_date: Optional[int] = None,
+        max_pages: Optional[int] = None,
+    ) -> Iterable[Dict[str, Any]]:
+        """
+        Yield individual archived ride entries, handling pagination automatically.
+        
+        Args:
+            limit: Number of rides per page
+            fitness_discipline: Filter by discipline (e.g., 'cycling', 'running')
+            start_date: Unix timestamp (milliseconds) for start date filter
+            end_date: Unix timestamp (milliseconds) for end date filter
+            max_pages: Maximum number of pages to fetch (None for all)
+        
+        Yields:
+            Individual ride dictionaries from the API
+        """
+        current_page = 0
+        fetched_pages = 0
+        cursor = None
+        
+        while True:
+            params: Dict[str, Any] = {"page": current_page, "limit": limit}
+            
+            if fitness_discipline:
+                params["fitness_discipline"] = fitness_discipline
+            
+            if start_date:
+                params["start_date"] = start_date
+            
+            if end_date:
+                params["end_date"] = end_date
+            
+            if cursor:
+                params.update(cursor)
+            
+            try:
+                payload = self._get("/api/v2/ride/archived", params=params)
+            except PelotonAPIError as e:
+                logger.warning(f"Error fetching archived rides page {current_page}: {e}")
+                break
+            
+            # Handle different response structures
+            data = payload.get("data", [])
+            if not data and isinstance(payload, list):
+                # Some endpoints return a list directly
+                data = payload
+            
+            for item in data:
+                yield item
+            
+            fetched_pages += 1
+            
+            # Check for pagination
+            cursor = payload.get("next")
+            show_next = payload.get("show_next", False)
+            
+            if not show_next or (max_pages and fetched_pages >= max_pages):
+                break
+            
+            current_page += 1
+
+    # ------------------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------------------
     def _get(self, path: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:

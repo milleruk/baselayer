@@ -276,14 +276,20 @@ class RideDetail(models.Model):
         """Return original_air_time as a date object"""
         if self.original_air_time:
             from datetime import datetime
-            # Peloton timestamps are in milliseconds
             try:
-                # Try milliseconds first (most common)
-                timestamp = self.original_air_time / 1000
-                if timestamp > 1e10:  # If still too large, it might be in seconds already
-                    timestamp = self.original_air_time
+                timestamp = self.original_air_time
+                # Peloton timestamps can be in milliseconds (13 digits) or seconds (10 digits)
+                # Check the magnitude to determine the format:
+                # - >= 1e12: milliseconds (13+ digits, e.g., 1735689600000)
+                # - < 1e10: seconds (9 or fewer digits, e.g., 1735689600)
+                # - 1e10 to 1e12: ambiguous, but based on DB inspection, Peloton stores in seconds
+                if timestamp >= 1e12:
+                    # Definitely milliseconds (13+ digits) - convert to seconds
+                    timestamp = timestamp / 1000
+                # Otherwise, it's already in seconds (no conversion needed)
+                
                 return datetime.fromtimestamp(timestamp).date()
-            except (ValueError, OSError):
+            except (ValueError, OSError, OverflowError):
                 return None
         return None
     

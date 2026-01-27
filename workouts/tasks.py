@@ -14,6 +14,130 @@ logger = logging.getLogger(__name__)
 User = get_user_model()
 
 
+def store_ride_detail_from_api(client, ride_id, logger_instance=None):
+    """
+    Synchronous helper function to fetch and store ride details for a specific ride.
+    This is extracted from fetch_ride_details_task for use in bulk operations.
+    
+    Args:
+        client: Authenticated PelotonClient instance
+        ride_id: Peloton ride/class ID
+        logger_instance: Optional logger instance (defaults to module logger)
+    
+    Returns:
+        dict: {'status': 'success'|'error', 'ride_detail_id': int, 'created': bool, 'message': str}
+    """
+    if logger_instance is None:
+        logger_instance = logger
+    
+    try:
+        logger_instance.info(f"Fetching ride details for ride_id {ride_id}")
+        ride_details = client.fetch_ride_details(ride_id)
+        ride_data = ride_details.get('ride', {})
+        
+        if not ride_data:
+            logger_instance.warning(f"No ride data found for ride_id {ride_id}")
+            return {'status': 'error', 'message': 'No ride data found'}
+        
+        # Extract class_type_ids and equipment_ids
+        class_type_ids = ride_data.get('class_type_ids', [])
+        if not isinstance(class_type_ids, list):
+            class_type_ids = []
+        
+        equipment_ids = ride_data.get('equipment_ids', [])
+        if not isinstance(equipment_ids, list):
+            equipment_ids = []
+        
+        equipment_tags = ride_data.get('equipment_tags', [])
+        if not isinstance(equipment_tags, list):
+            equipment_tags = []
+        
+        # Generate Peloton class URL
+        peloton_class_url = ''
+        fitness_discipline = ride_data.get('fitness_discipline', '').lower()
+        if fitness_discipline and ride_id:
+            discipline_paths = {
+                'cycling': 'cycling',
+                'running': 'treadmill',
+                'walking': 'walking',
+                'yoga': 'yoga',
+                'strength': 'strength',
+                'stretching': 'stretching',
+                'meditation': 'meditation',
+                'cardio': 'cardio',
+            }
+            path = discipline_paths.get(fitness_discipline, 'cycling')
+            peloton_class_url = f"https://members.onepeloton.com/classes/{path}/{ride_id}"
+        
+        # Check if RideDetail already exists
+        ride_detail, created = RideDetail.objects.get_or_create(
+            peloton_ride_id=ride_id,
+            defaults={
+                'title': ride_data.get('title', ''),
+                'description': ride_data.get('description', ''),
+                'duration_seconds': ride_data.get('duration', 0),
+                'workout_type': WorkoutType.objects.get_or_create(
+                    slug=ride_data.get('fitness_discipline', 'other').lower(),
+                    defaults={'name': ride_data.get('fitness_discipline', 'other').title()}
+                )[0],
+                'fitness_discipline': ride_data.get('fitness_discipline', ''),
+                'fitness_discipline_display_name': ride_data.get('fitness_discipline_display_name', ''),
+                'difficulty_rating_avg': ride_data.get('difficulty_rating_avg'),
+                'difficulty_rating_count': ride_data.get('difficulty_rating_count', 0),
+                'difficulty_level': ride_data.get('difficulty_level') or None,
+                'overall_estimate': ride_data.get('overall_estimate'),
+                'difficulty_estimate': ride_data.get('difficulty_estimate'),
+                'image_url': ride_data.get('image_url', ''),
+                'home_peloton_id': ride_data.get('home_peloton_id') or '',
+                'peloton_class_url': peloton_class_url,
+                'original_air_time': ride_data.get('original_air_time'),
+                'scheduled_start_time': ride_data.get('scheduled_start_time'),
+                'created_at_timestamp': ride_data.get('created_at'),
+                'class_type': detect_class_type(ride_data, ride_details),
+                'class_type_ids': class_type_ids,
+                'equipment_ids': equipment_ids,
+                'equipment_tags': equipment_tags,
+                'target_metrics_data': ride_details.get('target_metrics_data', {}),
+                'target_class_metrics': ride_details.get('target_class_metrics', {}),
+                'pace_target_type': ride_details.get('pace_target_type'),
+                'segments_data': ride_details.get('segments', {}),
+                'is_archived': ride_data.get('is_archived', False),
+                'is_power_zone_class': ride_data.get('is_power_zone_class', False),
+            }
+        )
+        
+        # Update instructor if needed
+        instructor_id = ride_data.get('instructor_id')
+        if instructor_id:
+            instructor_obj = ride_data.get('instructor', {})
+            instructor_name = instructor_obj.get('name') or instructor_obj.get('full_name') or 'Unknown Instructor'
+            instructor, _ = Instructor.objects.get_or_create(
+                peloton_id=instructor_id,
+                defaults={
+                    'name': instructor_name,
+                    'image_url': instructor_obj.get('image_url', ''),
+                }
+            )
+            if ride_detail.instructor != instructor:
+                ride_detail.instructor = instructor
+                ride_detail.save()
+        
+        # Store playlist if available
+        playlist_data = ride_details.get('playlist')
+        if playlist_data:
+            _store_playlist_from_data(playlist_data, ride_detail, logger_instance)
+        
+        logger_instance.debug(f"Successfully processed ride details for ride_id {ride_id} ({'created' if created else 'updated'})")
+        return {'status': 'success', 'ride_detail_id': ride_detail.id, 'created': created}
+        
+    except PelotonAPIError as e:
+        logger_instance.error(f"Peloton API error fetching ride details for ride_id {ride_id}: {e}")
+        return {'status': 'error', 'message': f'API error: {str(e)}'}
+    except Exception as e:
+        logger_instance.error(f"Error fetching ride details for ride_id {ride_id}: {e}", exc_info=True)
+        return {'status': 'error', 'message': f'Error: {str(e)}'}
+
+
 @shared_task(bind=True, max_retries=3)
 def fetch_ride_details_task(self, user_id, ride_id, workout_id=None):
     """
