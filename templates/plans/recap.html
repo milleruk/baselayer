@@ -211,7 +211,7 @@
 <!-- Main Content Container -->
 <div class="w-full py-6 pb-16">
   <!-- Header -->
-  <div class="flex items-center justify-between mb-6 gap-4 flex-wrap px-6">
+  <div class="flex items-center justify-between mb-6 gap-4 flex-wrap">
     <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Yearly Recap</h1>
     <div class="flex items-center gap-4 flex-wrap">
       <div class="flex items-center gap-2">
@@ -247,7 +247,7 @@
 
   <!-- Success Message -->
   {% if is_first_load %}
-  <div class="mb-6 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4 flex items-center gap-3 mx-6" id="first-load-success">
+  <div class="mb-6 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4 flex items-center gap-3" id="first-load-success">
     <div class="text-2xl">✅</div>
     <div class="flex-1">
       <p class="text-green-800 dark:text-green-200 font-semibold">Your {{ selected_year }} Year in Review has been generated!</p>
@@ -261,18 +261,18 @@
 
   <!-- Empty States -->
   {% if not selected_year %}
-    <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm p-6 mx-6">
+    <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm p-6">
       <h2>No completed years</h2>
       <p class="text-gray-600 dark:text-gray-400">{{ no_years_message|default:"No completed years found. Check back next year for your recap!" }}</p>
     </div>
   {% elif not has_workouts %}
-    <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm p-6 mx-6">
+    <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm p-6">
       <h2>No workouts found</h2>
       <p class="text-gray-600 dark:text-gray-400">No workouts found for {{ selected_year }}. Please select a different year or sync your workouts.</p>
     </div>
   {% else %}
     <!-- Overview Section -->
-    <div class="px-6 mb-8">
+    <div class="mb-8">
       <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-3 border-b-2 border-gray-200 dark:border-gray-700">Overview</h2>
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         
@@ -409,7 +409,7 @@
     </div>
 
     <!-- Activity Patterns Section -->
-    <div class="px-6 mb-8">
+    <div class="mb-8">
       <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-3 border-b-2 border-gray-200 dark:border-gray-700">Activity Patterns</h2>
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
       
@@ -687,7 +687,7 @@
     </div>
 
     <!-- Performance Metrics Section -->
-    <div class="px-6 mb-8">
+    <div class="mb-8">
       <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-3 border-b-2 border-gray-200 dark:border-gray-700">Performance Metrics</h2>
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
 
@@ -852,7 +852,7 @@
     </div>
 
     <!-- Zones & Records Section -->
-    <div class="px-6 mb-8">
+    <div class="mb-8">
       <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-3 border-b-2 border-gray-200 dark:border-gray-700">Zones & Records</h2>
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
 
@@ -963,7 +963,7 @@
     </div>
 
     <!-- Workouts & Instructors Section -->
-    <div class="px-6 mb-8">
+    <div class="mb-8">
       <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-3 border-b-2 border-gray-200 dark:border-gray-700">Workouts & Instructors</h2>
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
 
