@@ -21,7 +21,21 @@
           <div class="text-sm text-gray-600 dark:text-gray-400 mb-2">
             Your Peloton account is connected. Click "Sync Workouts" to import your workout history.
           </div>
-          {% if peloton_connection.last_sync_at %}
+          {% if sync_in_progress %}
+            <div class="flex items-center gap-2 text-xs text-yellow-600 dark:text-yellow-400">
+              <svg class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+              </svg>
+              <span><strong>Sync in progress...</strong> Please wait for it to complete.</span>
+            </div>
+          {% elif sync_cooldown_until %}
+            <div class="flex items-center gap-2 text-xs text-orange-600 dark:text-orange-400">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+              <span><strong>Sync on cooldown:</strong> Please wait {{ cooldown_remaining_minutes }} more minute{{ cooldown_remaining_minutes|pluralize }} before syncing again.</span>
+            </div>
+          {% elif peloton_connection.last_sync_at %}
             <div class="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
@@ -49,7 +63,7 @@
       </div>
       <form method="post" action="{% url 'workouts:sync' %}" id="sync-workouts-form">
         {% csrf_token %}
-        <button type="submit" id="sync-workouts-btn" class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap">
+        <button type="submit" id="sync-workouts-btn" {% if not can_sync %}disabled{% endif %} class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap">
           <span id="sync-btn-text">Sync Workouts</span>
           <span id="sync-btn-spinner" class="hidden inline-block ml-2">
             <svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -736,6 +750,11 @@ document.addEventListener('DOMContentLoaded', function() {
     syncForm.addEventListener('submit', function(e) {
       e.preventDefault();
       
+      // Check if button is already disabled (sync in progress or cooldown)
+      if (syncBtn.disabled) {
+        return false;
+      }
+      
       // Disable button and show spinner
       syncBtn.disabled = true;
       syncBtnText.textContent = 'Syncing...';
@@ -794,9 +813,18 @@ document.addEventListener('DOMContentLoaded', function() {
           } else if (data.status === 'error') {
             syncStatusMessage.textContent = data.message || 'Sync failed. Please try again.';
             syncStatusMessage.className = 'mt-2 text-sm text-red-600 dark:text-red-400';
-            syncBtn.disabled = false;
-            syncBtnText.textContent = 'Sync Workouts';
-            syncBtnSpinner.classList.add('hidden');
+            // Only re-enable button if error is not about sync in progress or cooldown
+            const errorMsg = (data.message || '').toLowerCase();
+            if (!errorMsg.includes('in progress') && !errorMsg.includes('cooldown')) {
+              syncBtn.disabled = false;
+              syncBtnText.textContent = 'Sync Workouts';
+              syncBtnSpinner.classList.add('hidden');
+            } else {
+              // Reload page to show updated status
+              setTimeout(() => {
+                window.location.reload();
+              }, 2000);
+            }
           }
         }
       })

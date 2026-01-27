@@ -53,6 +53,12 @@ class PelotonConnection(models.Model):
     # Metadata
     is_active = models.BooleanField(default=True)
     last_sync_at = models.DateTimeField(blank=True, null=True)
+    
+    # Sync status tracking
+    sync_in_progress = models.BooleanField(default=False, help_text="Whether a sync is currently in progress")
+    sync_started_at = models.DateTimeField(blank=True, null=True, help_text="When the current sync started")
+    sync_cooldown_until = models.DateTimeField(blank=True, null=True, help_text="When sync can be run again (60 min cooldown)")
+    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     

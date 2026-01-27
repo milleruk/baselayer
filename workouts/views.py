@@ -1864,6 +1864,21 @@ def workout_history(request):
     ).values_list('ride_detail__fitness_discipline', flat=True).distinct()
     fitness_disciplines = [d for d in fitness_disciplines if d]  # Remove empty values
     
+    # Calculate sync status for template
+    sync_in_progress = False
+    sync_cooldown_until = None
+    cooldown_remaining_minutes = None
+    can_sync = True
+    
+    if peloton_connection:
+        sync_in_progress = peloton_connection.sync_in_progress
+        if peloton_connection.sync_cooldown_until and timezone.now() < peloton_connection.sync_cooldown_until:
+            sync_cooldown_until = peloton_connection.sync_cooldown_until
+            cooldown_remaining_minutes = int((peloton_connection.sync_cooldown_until - timezone.now()).total_seconds() / 60)
+            can_sync = False
+        if sync_in_progress:
+            can_sync = False
+    
     context = {
         'workouts': page_obj,
         'workout_types': workout_types,
@@ -1871,6 +1886,10 @@ def workout_history(request):
         'durations': all_durations,
         'fitness_disciplines': fitness_disciplines,
         'peloton_connection': peloton_connection,
+        'sync_in_progress': sync_in_progress,
+        'sync_cooldown_until': sync_cooldown_until,
+        'cooldown_remaining_minutes': cooldown_remaining_minutes,
+        'can_sync': can_sync,
         'search_query': search_query,
         'workout_type_filter': workout_type_filter,
         'instructor_filter': instructor_filter,
@@ -2750,6 +2769,23 @@ def sync_workouts(request):
         messages.error(request, 'No Peloton connection found. Please connect your Peloton account first.')
         return redirect('workouts:history')
     
+    # Check if sync is already in progress
+    if connection.sync_in_progress:
+        messages.warning(request, 'A sync is already in progress. Please wait for it to complete.')
+        return redirect('workouts:history')
+    
+    # Check if sync is in cooldown period (60 minutes)
+    from datetime import timedelta
+    if connection.sync_cooldown_until and timezone.now() < connection.sync_cooldown_until:
+        remaining_minutes = int((connection.sync_cooldown_until - timezone.now()).total_seconds() / 60)
+        messages.warning(request, f'Sync is on cooldown. Please wait {remaining_minutes} more minute(s) before syncing again.')
+        return redirect('workouts:history')
+    
+    # Mark sync as in progress
+    connection.sync_in_progress = True
+    connection.sync_started_at = timezone.now()
+    connection.save()
+    
     try:
         from peloton.services.peloton import PelotonAPIError
         from datetime import datetime
@@ -3583,6 +3619,11 @@ def sync_workouts(request):
         # Update connection last sync time
         sync_completed_at = timezone.now()
         connection.last_sync_at = sync_completed_at
+        
+        # Clear sync in progress and set cooldown period (60 minutes)
+        connection.sync_in_progress = False
+        connection.sync_started_at = None
+        connection.sync_cooldown_until = sync_completed_at + timedelta(minutes=60)
         connection.save()
         
         # Also update profile sync time
@@ -3622,6 +3663,12 @@ def sync_workouts(request):
     except PelotonAPIError as e:
         logger.error(f"Peloton API error during sync: {e}", exc_info=True)
         error_message = f'Peloton API error: {str(e)}'
+        
+        # Clear sync status on error
+        connection.sync_in_progress = False
+        connection.sync_started_at = None
+        connection.save()
+        
         messages.error(request, error_message)
         
         # If AJAX request, return JSON
@@ -3633,6 +3680,12 @@ def sync_workouts(request):
     except Exception as e:
         logger.error(f"Error syncing workouts: {e}", exc_info=True)
         error_message = f'Error syncing workouts: {str(e)}'
+        
+        # Clear sync status on error
+        connection.sync_in_progress = False
+        connection.sync_started_at = None
+        connection.save()
+        
         messages.error(request, error_message)
         
         # If AJAX request, return JSON
@@ -3651,15 +3704,31 @@ def sync_status(request):
     """Return sync status for AJAX polling"""
     try:
         connection = PelotonConnection.objects.get(user=request.user)
+        
+        # Check if sync is in progress or cooldown
+        sync_in_progress = connection.sync_in_progress
+        sync_cooldown_until = None
+        cooldown_remaining_minutes = None
+        
+        if connection.sync_cooldown_until and timezone.now() < connection.sync_cooldown_until:
+            sync_cooldown_until = connection.sync_cooldown_until.isoformat()
+            cooldown_remaining_minutes = int((connection.sync_cooldown_until - timezone.now()).total_seconds() / 60)
+        
         status = {
             'connected': True,
             'last_sync_at': connection.last_sync_at.isoformat() if connection.last_sync_at else None,
+            'sync_in_progress': sync_in_progress,
+            'sync_cooldown_until': sync_cooldown_until,
+            'cooldown_remaining_minutes': cooldown_remaining_minutes,
             'workout_count': Workout.objects.filter(user=request.user).count(),
         }
     except PelotonConnection.DoesNotExist:
         status = {
             'connected': False,
             'last_sync_at': None,
+            'sync_in_progress': False,
+            'sync_cooldown_until': None,
+            'cooldown_remaining_minutes': None,
             'workout_count': 0,
         }
     
