@@ -1,164 +1,1111 @@
 {% extends "base.html" %}
 {% load static %}
+{% load dict_filters %}
 
 {% block title %}Yearly Recap • {{ selected_year|default:"Recap" }}{% endblock %}
 
+{% block extra_css %}
+<style>
+/* Heatmap styles - GitHub style */
+.heatmap-container {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.heatmap-wrapper {
+  display: flex;
+  gap: 4px;
+  align-items: flex-start;
+}
+
+.heatmap-day-labels {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding-top: 20px;
+  min-width: 30px;
+}
+
+.heatmap-day-label {
+  height: 14px;
+  font-size: 11px;
+  color: #6b7280;
+  text-align: right;
+  padding-right: 8px;
+  line-height: 14px;
+}
+
+.dark .heatmap-day-label {
+  color: #9ca3af;
+}
+
+.heatmap-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.heatmap-month-labels {
+  display: grid;
+  grid-template-columns: repeat(var(--num-weeks, 53), minmax(12px, 1fr));
+  gap: 3px;
+  margin-bottom: 4px;
+  height: 16px;
+  position: relative;
+  width: 100%;
+  min-width: max-content;
+}
+
+.heatmap-month-label {
+  font-size: 11px;
+  color: #6b7280;
+  text-align: left;
+  padding-left: 2px;
+  white-space: nowrap;
+}
+
+.dark .heatmap-month-label {
+  color: #9ca3af;
+}
+
+.heatmap-squares {
+  display: grid;
+  grid-template-rows: repeat(7, 14px);
+  grid-template-columns: repeat(var(--num-weeks, 53), minmax(12px, 1fr));
+  gap: 3px;
+  width: 100%;
+  min-width: max-content;
+}
+
+.heatmap-square {
+  width: 100%;
+  height: 14px;
+  min-width: 12px;
+  border-radius: 3px;
+  background: #f3f4f6;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.heatmap-square:hover {
+  opacity: 0.8;
+  outline: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.dark .heatmap-square:hover {
+  outline-color: rgba(255, 255, 255, 0.2);
+}
+
+.heatmap-square.level-0 { background: #ebedf0; }
+.heatmap-square.level-1 { background: #9be9a8; }
+.heatmap-square.level-2 { background: #40c463; }
+.heatmap-square.level-3 { background: #30a14e; }
+.heatmap-square.level-4 { background: #216e39; }
+
+.heatmap-square.calories-level-0 { background: #ebedf0; }
+.heatmap-square.calories-level-1 { background: #fff4b3; }
+.heatmap-square.calories-level-2 { background: #ffd666; }
+.heatmap-square.calories-level-3 { background: #ffa940; }
+.heatmap-square.calories-level-4 { background: #ff8c00; }
+.heatmap-square.calories-level-5 { background: #ff4d4f; }
+
+.heatmap-square.power-level-0 { background: #ebedf0; }
+.heatmap-square.power-level-1 { background: #d1e7ff; }
+.heatmap-square.power-level-2 { background: #91caff; }
+.heatmap-square.power-level-3 { background: #60a5fa; }
+.heatmap-square.power-level-4 { background: #3b82f6; }
+.heatmap-square.power-level-5 { background: #1e40af; }
+
+/* Loading animation */
+.recap-loading {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 9999;
+  align-items: center;
+  justify-content: center;
+}
+
+.recap-loading.active {
+  display: flex;
+}
+
+.recap-loading-spinner {
+  width: 50px;
+  height: 50px;
+  border: 4px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.recap-loading-content {
+  background: white;
+  padding: 2rem;
+  border-radius: 0.5rem;
+  text-align: center;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+}
+
+.dark .recap-loading-content {
+  background: #1f2937;
+  color: #f9fafb;
+}
+
+/* Chart container heights - prevent charts from scaling too large */
+.chart-container {
+  position: relative;
+  height: 300px;
+  max-height: 300px;
+  width: 100%;
+}
+
+/* Smaller charts (pie, donut) */
+.chart-container.small {
+  height: 250px;
+  max-height: 250px;
+}
+
+/* Medium charts (bar charts, line charts) */
+.chart-container.medium {
+  height: 300px;
+  max-height: 300px;
+}
+
+/* Larger charts (complex multi-series) */
+.chart-container.large {
+  height: 400px;
+  max-height: 400px;
+}
+
+/* Ensure canvas respects container */
+.chart-container canvas {
+  max-height: 100%;
+}
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="container mx-auto px-4 py-8">
-  <div class="mb-6 flex justify-between items-center">
-    <h1 class="text-3xl font-bold">Yearly Recap</h1>
-    <div class="flex items-center gap-4">
+<!-- Loading overlay -->
+{% if not use_cache %}
+<div class="recap-loading active" id="recap-loading">
+  <div class="recap-loading-content">
+    <div class="recap-loading-spinner mx-auto mb-4"></div>
+    {% if is_first_load %}
+    <p class="text-gray-700 dark:text-gray-300 font-semibold mb-2">Generating your {{ selected_year }} Year in Review...</p>
+    <p class="text-sm text-gray-600 dark:text-gray-400">This may take a moment. We're analyzing all your workouts!</p>
+    {% else %}
+    <p class="text-gray-700 dark:text-gray-300">Updating your recap data...</p>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+<!-- Main Content Container -->
+<div class="w-full py-6 pb-16">
+  <!-- Header -->
+  <div class="flex items-center justify-between mb-6 gap-4 flex-wrap px-6">
+    <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Yearly Recap</h1>
+    <div class="flex items-center gap-4 flex-wrap">
       <div class="flex items-center gap-2">
         <label for="year-select" class="text-sm text-gray-600 dark:text-gray-400">Year:</label>
-        <select id="year-select" onchange="window.location.href='?year=' + this.value" class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100">
+        <select id="year-select" onchange="window.location.href='?year=' + this.value" class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm">
           {% for year in available_years %}
             <option value="{{ year }}" {% if year == selected_year %}selected{% endif %}>{{ year }}</option>
           {% endfor %}
         </select>
       </div>
       {% if share and share.is_enabled %}
-        <a href="{% url 'plans:recap_share' share.token %}" target="_blank" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors text-sm">
-          🔗 View Share Link
-        </a>
+        <button onclick="showShareModal()" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors text-sm">
+          🔗 Share Link
+        </button>
       {% else %}
         <button onclick="createShare()" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors text-sm">
           🔗 Create Share Link
         </button>
       {% endif %}
+      {% if use_cache %}
+        {% if can_regenerate %}
+          <button onclick="regenerateCache()" id="regenerate-btn" class="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-colors text-sm">
+            🔄 Regenerate
+          </button>
+        {% elif hours_until_regenerate %}
+          <button disabled title="You can regenerate once every 24 hours. {{ hours_until_regenerate|floatformat:1 }} hours remaining." class="px-4 py-2 bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 rounded-lg cursor-not-allowed text-sm">
+            🔄 Regenerate ({{ hours_until_regenerate|floatformat:0 }}h)
+          </button>
+        {% endif %}
+      {% endif %}
     </div>
   </div>
 
+  <!-- Success Message -->
+  {% if is_first_load %}
+  <div class="mb-6 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4 flex items-center gap-3 mx-6" id="first-load-success">
+    <div class="text-2xl">✅</div>
+    <div class="flex-1">
+      <p class="text-green-800 dark:text-green-200 font-semibold">Your {{ selected_year }} Year in Review has been generated!</p>
+      <p class="text-sm text-green-700 dark:text-green-300 mt-1">All your stats have been calculated and cached. Future loads will be instant. You can regenerate anytime if you need fresh data.</p>
+    </div>
+    <button onclick="this.parentElement.remove()" class="text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-200">
+      ✕
+    </button>
+  </div>
+  {% endif %}
+
+  <!-- Empty States -->
   {% if not selected_year %}
-    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-      <h2 class="text-xl font-semibold mb-2">No completed years</h2>
+    <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm p-6 mx-6">
+      <h2>No completed years</h2>
       <p class="text-gray-600 dark:text-gray-400">{{ no_years_message|default:"No completed years found. Check back next year for your recap!" }}</p>
     </div>
   {% elif not has_workouts %}
-    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-      <h2 class="text-xl font-semibold mb-2">No workouts found</h2>
+    <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm p-6 mx-6">
+      <h2>No workouts found</h2>
       <p class="text-gray-600 dark:text-gray-400">No workouts found for {{ selected_year }}. Please select a different year or sync your workouts.</p>
     </div>
   {% else %}
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <!-- Overview Section -->
+    <div class="px-6 mb-8">
+      <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-3 border-b-2 border-gray-200 dark:border-gray-700">Overview</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        
+        <!-- Consistency Score -->
+      {% if consistency_score %}
+      <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm p-6 hover:shadow-md transition-shadow">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-1">📈 Consistency Score</h2>
+        <h3 class="text-sm text-gray-600 dark:text-gray-400 mb-4">Your training consistency grade</h3>
+        <div class="text-center py-8">
+          <div class="text-6xl font-bold mb-2" style="color: {{ consistency_score.grade_color }};">{{ consistency_score.grade }}</div>
+          <div class="text-2xl font-semibold mb-4">{{ consistency_score.score }}/100</div>
+          <div class="text-sm text-gray-600 dark:text-gray-400 mb-1">{{ consistency_score.active_days }} active days out of {{ consistency_score.total_days }}</div>
+          <div class="text-sm text-gray-600 dark:text-gray-400">{{ consistency_score.consistency_percentage }}% consistency | {{ consistency_score.workouts_per_week }} workouts/week</div>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Consistency Metrics -->
+      <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm p-6 hover:shadow-md transition-shadow">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-1">📈 Consistency</h2>
+        <h3 class="text-sm text-gray-600 dark:text-gray-400 mb-4">Training consistency metrics</h3>
+        <div class="space-y-3">
+          <div class="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
+            <span class="text-sm text-gray-600 dark:text-gray-400">Workouts per week</span>
+            <span class="font-semibold">{{ consistency_metrics.workouts_per_week }}</span>
+          </div>
+          {% if consistency_metrics.best_month %}
+          <div class="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
+            <span class="text-sm text-gray-600 dark:text-gray-400">Best month</span>
+            <span class="font-semibold">{{ consistency_metrics.best_month.name }} ({{ consistency_metrics.best_month.count }})</span>
+          </div>
+          {% endif %}
+          {% if consistency_metrics.worst_month %}
+          <div class="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
+            <span class="text-sm text-gray-600 dark:text-gray-400">Quietest month</span>
+            <span class="font-semibold">{{ consistency_metrics.worst_month.name }} ({{ consistency_metrics.worst_month.count }})</span>
+          </div>
+          {% endif %}
+          {% if consistency_metrics.most_active_day %}
+          <div class="flex justify-between items-center py-2">
+            <span class="text-sm text-gray-600 dark:text-gray-400">Most active day</span>
+            <span class="font-semibold">{{ consistency_metrics.most_active_day }}</span>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Streaks -->
+      <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm p-6 hover:shadow-md transition-shadow">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-1">🔥 Streaks</h2>
+        <h3 class="text-sm text-gray-600 dark:text-gray-400 mb-4">Longest streaks</h3>
+        <div class="space-y-4">
+          <div class="text-center py-3 border-b border-gray-200 dark:border-gray-700">
+            <div class="text-4xl font-bold mb-1">{{ streaks.longest_days }}</div>
+            <div class="text-sm text-gray-600 dark:text-gray-400">days</div>
+          </div>
+          <div class="text-center py-3 border-b border-gray-200 dark:border-gray-700">
+            <div class="text-4xl font-bold mb-1">{{ streaks.longest_weeks }}</div>
+            <div class="text-sm text-gray-600 dark:text-gray-400">weeks</div>
+          </div>
+          <div class="text-center py-3">
+            <div class="text-4xl font-bold mb-1">{{ streaks.longest_months }}</div>
+            <div class="text-sm text-gray-600 dark:text-gray-400">months</div>
+          </div>
+        </div>
+      </div>
+
       <!-- Summary Stats -->
-      <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-        <h2 class="text-xl font-semibold mb-4">📊 Summary</h2>
+      <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm p-6 hover:shadow-md transition-shadow">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-1">📊 Summary</h2>
+        <h3 class="text-sm text-gray-600 dark:text-gray-400 mb-4">Yearly averages and totals</h3>
         <div class="space-y-3">
-          <div>
-            <div class="text-sm text-gray-600 dark:text-gray-400">Total Workouts</div>
-            <div class="text-2xl font-bold">{{ total_workouts }}</div>
-          </div>
-          <div>
-            <div class="text-sm text-gray-600 dark:text-gray-400">Active Days</div>
-            <div class="text-2xl font-bold">{{ active_days }}</div>
-          </div>
-          <div>
-            <div class="text-sm text-gray-600 dark:text-gray-400">Longest Streak</div>
-            <div class="text-2xl font-bold">{{ longest_streak }} days</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Distance & Calories -->
-      <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-        <h2 class="text-xl font-semibold mb-4">📈 Performance</h2>
-        <div class="space-y-3">
-          {% if summary_stats.total_distance_km > 0 %}
-          <div>
-            <div class="text-sm text-gray-600 dark:text-gray-400">Total Distance</div>
-            <div class="text-2xl font-bold">{{ summary_stats.total_distance_km }} km</div>
+          {% if summary_stats.avg_duration_minutes > 0 %}
+          <div class="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
+            <span class="text-sm text-gray-600 dark:text-gray-400">Avg workout duration</span>
+            <span class="font-semibold">{{ summary_stats.avg_duration_minutes }} min</span>
           </div>
           {% endif %}
-          {% if summary_stats.total_calories > 0 %}
-          <div>
-            <div class="text-sm text-gray-600 dark:text-gray-400">Total Calories</div>
-            <div class="text-2xl font-bold">{{ summary_stats.total_calories|floatformat:0 }} cal</div>
-          </div>
-          {% endif %}
-          {% if summary_stats.total_output_kj > 0 %}
-          <div>
-            <div class="text-sm text-gray-600 dark:text-gray-400">Total Output</div>
-            <div class="text-2xl font-bold">{{ summary_stats.total_output_kj }} kJ</div>
-          </div>
-          {% endif %}
-        </div>
-      </div>
-
-      <!-- Averages -->
-      <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-        <h2 class="text-xl font-semibold mb-4">📊 Averages</h2>
-        <div class="space-y-3">
-          {% if summary_stats.avg_output > 0 %}
-          <div>
-            <div class="text-sm text-gray-600 dark:text-gray-400">Avg Output</div>
-            <div class="text-2xl font-bold">{{ summary_stats.avg_output }} W</div>
+          {% if summary_stats.avg_distance_km > 0 %}
+          <div class="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
+            <span class="text-sm text-gray-600 dark:text-gray-400">Avg distance per workout</span>
+            <span class="font-semibold">{{ summary_stats.avg_distance_km }} km</span>
           </div>
           {% endif %}
           {% if summary_stats.avg_calories > 0 %}
-          <div>
-            <div class="text-sm text-gray-600 dark:text-gray-400">Avg Calories</div>
-            <div class="text-2xl font-bold">{{ summary_stats.avg_calories|floatformat:0 }} cal</div>
+          <div class="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
+            <span class="text-sm text-gray-600 dark:text-gray-400">Avg calories per workout</span>
+            <span class="font-semibold">{{ summary_stats.avg_calories }} cal</span>
+          </div>
+          {% endif %}
+          {% if summary_stats.avg_power_kj > 0 %}
+          <div class="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
+            <span class="text-sm text-gray-600 dark:text-gray-400">Avg power output</span>
+            <span class="font-semibold">{{ summary_stats.avg_power_kj }} kJ</span>
+          </div>
+          {% endif %}
+          {% if summary_stats.total_distance_km > 0 %}
+          <div class="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
+            <span class="text-sm text-gray-600 dark:text-gray-400">Total distance</span>
+            <span class="font-semibold">{{ summary_stats.total_distance_km }} km</span>
+          </div>
+          {% endif %}
+          {% if summary_stats.total_calories > 0 %}
+          <div class="flex justify-between items-center py-2">
+            <span class="text-sm text-gray-600 dark:text-gray-400">Total calories</span>
+            <span class="font-semibold">{{ summary_stats.total_calories|floatformat:0 }} cal</span>
           </div>
           {% endif %}
         </div>
       </div>
 
-      <!-- Top Instructors -->
-      {% if top_instructors %}
-      <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 md:col-span-2 lg:col-span-3">
-        <h2 class="text-xl font-semibold mb-4">👨‍🏫 Top Instructors</h2>
-        <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
-          {% for instructor in top_instructors %}
+      <!-- Rest Days -->
+      <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm p-6 hover:shadow-md transition-shadow" style="position: relative;">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-1">🛏️ Rest days</h2>
+        <h3 class="text-sm text-gray-600 dark:text-gray-400 mb-4">Rest days vs. active days</h3>
+        <div class="absolute top-4 right-4 text-right">
+          <div class="text-3xl font-bold">{{ rest_days.active_percentage }}%</div>
+          <div class="text-xs text-gray-600 dark:text-gray-400">Active days</div>
+        </div>
+        <div class="chart-container small" style="max-width: 300px; margin: 2rem auto;">
+          <canvas id="restDaysChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Total Hours -->
+      <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm p-6 hover:shadow-md transition-shadow">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-1">Total hours</h2>
+        <h3 class="text-sm text-gray-600 dark:text-gray-400 mb-4">Total hours spent per discipline</h3>
+        <div class="chart-container small">
+          <canvas id="hoursChart"></canvas>
+        </div>
+      </div>
+      </div>
+    </div>
+
+    <!-- Activity Patterns Section -->
+    <div class="px-6 mb-8">
+      <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-3 border-b-2 border-gray-200 dark:border-gray-700">Activity Patterns</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+      
+      <!-- Yearly Calendar -->
+      {% if yearly_calendar and yearly_calendar.has_data %}
+      <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm p-6 hover:shadow-md transition-shadow col-span-full">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-1">📅 Peloton Active Days {{ selected_year }}</h2>
+        <h3 class="text-sm text-gray-600 dark:text-gray-400 mb-4">Highlighted days represent active days. Color indicates workout type.</h3>
+        <div class="overflow-x-auto">
+          <div class="grid grid-cols-4 gap-4" style="min-width: 800px;">
+            {% for month in yearly_calendar.months %}
+            <div>
+              <div class="text-sm font-semibold mb-2">{{ month.name }}</div>
+              <div class="grid grid-cols-7 gap-1">
+                {% for day in month.days %}
+                <div class="calendar-day aspect-square flex items-center justify-center text-xs rounded {% if day.day is None %}invisible{% elif day.type is None %}bg-gray-100 dark:bg-gray-700 text-gray-400{% elif day.type == 'cardio_and_strength' %}bg-blue-900 text-white{% elif day.type == 'cardio' %}bg-pink-500 text-white{% elif day.type == 'strength' %}bg-orange-500 text-white{% else %}bg-teal-400 text-white{% endif %}">
+                  {% if day.day %}{{ day.day }}{% endif %}
+                </div>
+                {% endfor %}
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          <div class="flex justify-center gap-6 mt-4 flex-wrap">
+            <div class="flex items-center gap-2 text-sm">
+              <div class="w-4 h-4 rounded bg-blue-900"></div>
+              <span>Cardio & Strength</span>
+            </div>
+            <div class="flex items-center gap-2 text-sm">
+              <div class="w-4 h-4 rounded bg-pink-500"></div>
+              <span>Cardio</span>
+            </div>
+            <div class="flex items-center gap-2 text-sm">
+              <div class="w-4 h-4 rounded bg-orange-500"></div>
+              <span>Strength</span>
+            </div>
+            <div class="flex items-center gap-2 text-sm">
+              <div class="w-4 h-4 rounded bg-teal-400"></div>
+              <span>Other</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Daily Activities Heatmap -->
+      <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm p-6 hover:shadow-md transition-shadow col-span-full">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-1 flex items-center gap-2">
+              <span>📅</span>
+              <span>Daily activities</span>
+            </h2>
+            <h3 class="text-sm text-gray-600 dark:text-gray-400">Activity heatmap for {{ selected_year }}</h3>
+          </div>
+          <span class="text-sm text-gray-600 dark:text-gray-400">
+            {{ daily_activities.total_activities }} activities
+          </span>
+        </div>
+        <div class="heatmap-container mt-4">
+          <div class="heatmap-wrapper" style="--num-weeks: {{ daily_activities.num_weeks }};">
+            <div class="heatmap-day-labels">
+              <div class="heatmap-day-label"></div>
+              <div class="heatmap-day-label">Mon</div>
+              <div class="heatmap-day-label"></div>
+              <div class="heatmap-day-label">Wed</div>
+              <div class="heatmap-day-label"></div>
+              <div class="heatmap-day-label">Fri</div>
+              <div class="heatmap-day-label"></div>
+              <div class="heatmap-day-label"></div>
+            </div>
+            <div class="heatmap-content" style="--num-weeks: {{ daily_activities.num_weeks }};">
+              <div class="heatmap-month-labels" style="--num-weeks: {{ daily_activities.num_weeks }};">
+                {% for month in daily_activities.month_labels %}
+                  {% if month.week_pos is not None %}
+                    <div class="heatmap-month-label" style="grid-column-start: {{ month.week_pos|add:1 }};">{{ month.name }}</div>
+                  {% endif %}
+                {% endfor %}
+              </div>
+              <div class="heatmap-squares" style="--num-weeks: {{ daily_activities.num_weeks }};">
+                {% for day_row in daily_activities.days_of_week %}
+                  {% for day in day_row %}
+                    {% if day %}
+                      <div class="heatmap-square level-{{ day.level }}" title="{{ day.count }} activities on {{ day.date }}"></div>
+                    {% else %}
+                      <div class="heatmap-square" style="background: transparent; border: none;"></div>
+                    {% endif %}
+                  {% endfor %}
+                {% endfor %}
+              </div>
+              <div class="flex justify-end items-center gap-2 mt-4 text-xs text-gray-600 dark:text-gray-400">
+                <span>Less</span>
+                <div class="flex gap-0.5">
+                  <div class="heatmap-square level-0"></div>
+                  <div class="heatmap-square level-1"></div>
+                  <div class="heatmap-square level-2"></div>
+                  <div class="heatmap-square level-3"></div>
+                  <div class="heatmap-square level-4"></div>
+                </div>
+                <span>More</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Daily Calories Heatmap -->
+      <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm p-6 hover:shadow-md transition-shadow col-span-full">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-1 flex items-center gap-2">
+              <span>🔥</span>
+              <span>Daily calories</span>
+            </h2>
+            <h3 class="text-sm text-gray-600 dark:text-gray-400">Calories burned heatmap for {{ selected_year }}</h3>
+          </div>
+          <span class="text-sm text-gray-600 dark:text-gray-400">
+            {{ daily_calories.total_calories|floatformat:0 }} calories
+          </span>
+        </div>
+        <div class="heatmap-container mt-4">
+          <div class="heatmap-wrapper" style="--num-weeks: {{ daily_calories.num_weeks }};">
+            <div class="heatmap-day-labels">
+              <div class="heatmap-day-label"></div>
+              <div class="heatmap-day-label">Mon</div>
+              <div class="heatmap-day-label"></div>
+              <div class="heatmap-day-label">Wed</div>
+              <div class="heatmap-day-label"></div>
+              <div class="heatmap-day-label">Fri</div>
+              <div class="heatmap-day-label"></div>
+              <div class="heatmap-day-label"></div>
+            </div>
+            <div class="heatmap-content" style="--num-weeks: {{ daily_calories.num_weeks }};">
+              <div class="heatmap-month-labels" style="--num-weeks: {{ daily_calories.num_weeks }};">
+                {% for month in daily_calories.month_labels %}
+                  {% if month.week_pos is not None %}
+                    <div class="heatmap-month-label" style="grid-column-start: {{ month.week_pos|add:1 }};">{{ month.name }}</div>
+                  {% endif %}
+                {% endfor %}
+              </div>
+              <div class="heatmap-squares" style="--num-weeks: {{ daily_calories.num_weeks }};">
+                {% for day_row in daily_calories.days_of_week %}
+                  {% for day in day_row %}
+                    {% if day %}
+                      <div class="heatmap-square calories-level-{{ day.level }}" title="{{ day.calories }} calories on {{ day.date }}"></div>
+                    {% else %}
+                      <div class="heatmap-square" style="background: transparent; border: none;"></div>
+                    {% endif %}
+                  {% endfor %}
+                {% endfor %}
+              </div>
+              <div class="flex justify-end items-center gap-2 mt-4 text-xs text-gray-600 dark:text-gray-400">
+                <span>Less</span>
+                <div class="flex gap-0.5">
+                  <div class="heatmap-square calories-level-0"></div>
+                  <div class="heatmap-square calories-level-1"></div>
+                  <div class="heatmap-square calories-level-2"></div>
+                  <div class="heatmap-square calories-level-3"></div>
+                  <div class="heatmap-square calories-level-4"></div>
+                  <div class="heatmap-square calories-level-5"></div>
+                </div>
+                <span>More</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Daily Power Output Heatmap -->
+      <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm p-6 hover:shadow-md transition-shadow col-span-full">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-1 flex items-center gap-2">
+              <span>⚡</span>
+              <span>Daily power output</span>
+            </h2>
+            <h3 class="text-sm text-gray-600 dark:text-gray-400">Power output heatmap for {{ selected_year }}</h3>
+          </div>
+          <span class="text-sm text-gray-600 dark:text-gray-400">
+            {{ daily_power.total_power|floatformat:1 }} kJ
+          </span>
+        </div>
+        <div class="heatmap-container mt-4">
+          <div class="heatmap-wrapper" style="--num-weeks: {{ daily_power.num_weeks }};">
+            <div class="heatmap-day-labels">
+              <div class="heatmap-day-label"></div>
+              <div class="heatmap-day-label">Mon</div>
+              <div class="heatmap-day-label"></div>
+              <div class="heatmap-day-label">Wed</div>
+              <div class="heatmap-day-label"></div>
+              <div class="heatmap-day-label">Fri</div>
+              <div class="heatmap-day-label"></div>
+              <div class="heatmap-day-label"></div>
+            </div>
+            <div class="heatmap-content" style="--num-weeks: {{ daily_power.num_weeks }};">
+              <div class="heatmap-month-labels" style="--num-weeks: {{ daily_power.num_weeks }};">
+                {% for month in daily_power.month_labels %}
+                  {% if month.week_pos is not None %}
+                    <div class="heatmap-month-label" style="grid-column-start: {{ month.week_pos|add:1 }};">{{ month.name }}</div>
+                  {% endif %}
+                {% endfor %}
+              </div>
+              <div class="heatmap-squares" style="--num-weeks: {{ daily_power.num_weeks }};">
+                {% for day_row in daily_power.days_of_week %}
+                  {% for day in day_row %}
+                    {% if day %}
+                      <div class="heatmap-square power-level-{{ day.level }}" title="{{ day.power }} kJ on {{ day.date }}"></div>
+                    {% else %}
+                      <div class="heatmap-square" style="background: transparent; border: none;"></div>
+                    {% endif %}
+                  {% endfor %}
+                {% endfor %}
+              </div>
+              <div class="flex justify-end items-center gap-2 mt-4 text-xs text-gray-600 dark:text-gray-400">
+                <span>Less</span>
+                <div class="flex gap-0.5">
+                  <div class="heatmap-square power-level-0"></div>
+                  <div class="heatmap-square power-level-1"></div>
+                  <div class="heatmap-square power-level-2"></div>
+                  <div class="heatmap-square power-level-3"></div>
+                  <div class="heatmap-square power-level-4"></div>
+                  <div class="heatmap-square power-level-5"></div>
+                </div>
+                <span>More</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Start Times -->
+      <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm p-6 hover:shadow-md transition-shadow col-span-full">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-1">Start times</h2>
+        <h3 class="text-sm text-gray-600 dark:text-gray-400 mb-4">Activity start times</h3>
+        <div class="chart-container medium">
+          <canvas id="startTimesChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Weekday Patterns -->
+      {% if weekday_patterns.weekday_data %}
+      <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm p-6 hover:shadow-md transition-shadow">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-1">📅 Weekday Patterns</h2>
+        <h3 class="text-sm text-gray-600 dark:text-gray-400 mb-4">Workouts by day of week</h3>
+        {% if weekday_patterns.most_active_day %}
+        <div class="text-sm text-gray-600 dark:text-gray-400 mb-2">
+          Most active: <strong>{{ weekday_patterns.most_active_day }}</strong>
+          {% if weekday_patterns.least_active_day %}
+          | Least active: <strong>{{ weekday_patterns.least_active_day }}</strong>
+          {% endif %}
+        </div>
+        {% endif %}
+        <div class="chart-container medium">
+          <canvas id="weekdayChart"></canvas>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Time of Day Patterns -->
+      {% if time_of_day_patterns.period_data %}
+      <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm p-6 hover:shadow-md transition-shadow">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-1">⏰ Time of Day Patterns</h2>
+        <h3 class="text-sm text-gray-600 dark:text-gray-400 mb-4">Workout distribution by time of day</h3>
+        {% if time_of_day_patterns.most_active_period %}
+        <div class="text-sm text-gray-600 dark:text-gray-400 mb-2">
+          Most active: <strong>{{ time_of_day_patterns.most_active_period }}</strong>
+        </div>
+        {% endif %}
+        <div class="chart-container small">
+          <canvas id="timeOfDayChart"></canvas>
+        </div>
+      </div>
+      {% endif %}
+      </div>
+    </div>
+
+    <!-- Performance Metrics Section -->
+    <div class="px-6 mb-8">
+      <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-3 border-b-2 border-gray-200 dark:border-gray-700">Performance Metrics</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+
+      <!-- Distance Chart -->
+      <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm p-6 hover:shadow-md transition-shadow col-span-full">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-1">
+          <span>Distance</span>
+          <span class="text-sm font-normal text-gray-600 dark:text-gray-400 ml-2">
+            Total: {{ distance_stats.total_distance_km|floatformat:0 }} km
+          </span>
+        </h2>
+        <h3 class="text-sm text-gray-600 dark:text-gray-400 mb-4">Total distance per month (by discipline)</h3>
+        <div class="chart-container large">
+          <canvas id="distanceChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Progress Over Time -->
+      {% if progress_over_time.monthly_data %}
+      <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm p-6 hover:shadow-md transition-shadow col-span-full">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-1">📈 Progress Over Time</h2>
+        <h3 class="text-sm text-gray-600 dark:text-gray-400 mb-4">Monthly average metrics</h3>
+        {% if progress_over_time.output_trend %}
+        <div class="text-sm text-gray-600 dark:text-gray-400 mb-2">
+          Output trend: <strong>{{ progress_over_time.output_trend|title }}</strong>
+          {% if progress_over_time.output_change_pct != 0 %}
+          ({{ progress_over_time.output_change_pct|floatformat:1 }}%)
+          {% endif %}
+        </div>
+        {% endif %}
+        <div class="chart-container large">
+          <canvas id="progressChart"></canvas>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Monthly Comparison -->
+      {% if monthly_comparison.monthly_data %}
+      <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm p-6 hover:shadow-md transition-shadow col-span-full">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-1">📅 Monthly Comparison</h2>
+        <h3 class="text-sm text-gray-600 dark:text-gray-400 mb-4">Key metrics side-by-side per month</h3>
+        <div class="chart-container large">
+          <canvas id="monthlyComparisonChart"></canvas>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Year-over-Year Comparison -->
+      {% if year_over_year.available %}
+      <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm p-6 hover:shadow-md transition-shadow col-span-full">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-1">📊 Year-over-Year Comparison</h2>
+        <h3 class="text-sm text-gray-600 dark:text-gray-400 mb-4">{{ year_over_year.current_year }} vs {{ year_over_year.previous_year }}</h3>
+        <div class="overflow-x-auto">
+          <table class="min-w-full border-collapse">
+            <thead>
+              <tr class="border-b-2 border-gray-300 dark:border-gray-600">
+                <th class="text-left py-3 px-4 text-sm font-semibold text-gray-600 dark:text-gray-400">Metric</th>
+                <th class="text-right py-3 px-4 text-sm font-semibold text-gray-600 dark:text-gray-400">{{ year_over_year.previous_year }}</th>
+                <th class="text-right py-3 px-4 text-sm font-semibold text-gray-600 dark:text-gray-400">{{ year_over_year.current_year }}</th>
+                <th class="text-right py-3 px-4 text-sm font-semibold text-gray-600 dark:text-gray-400">Change</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in year_over_year.comparison_data %}
+              <tr class="border-b border-gray-200 dark:border-gray-700">
+                <td class="py-3 px-4 font-medium">{{ item.metric }}</td>
+                <td class="py-3 px-4 text-right text-gray-600 dark:text-gray-400">{{ item.previous }}</td>
+                <td class="py-3 px-4 text-right font-semibold">{{ item.current }}</td>
+                <td class="py-3 px-4 text-right font-semibold {% if item.change_pct > 0 %}text-green-600{% elif item.change_pct < 0 %}text-red-600{% else %}text-gray-600{% endif %}">
+                  {% if item.change_pct > 0 %}+{% endif %}{{ item.change_pct|floatformat:1 }}%
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Activity Count -->
+      <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm p-6 hover:shadow-md transition-shadow col-span-full">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-1">
+          <span>Activity count</span>
+          <span class="text-sm font-normal text-gray-600 dark:text-gray-400 ml-2">
+            {{ activity_count.total_activities }} activities
+          </span>
+        </h2>
+        <h3 class="text-sm text-gray-600 dark:text-gray-400 mb-4">Number of activities per month</h3>
+        <div class="chart-container large">
+          <canvas id="activityCountChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Training Load -->
+      {% if training_load.total_tss > 0 %}
+      <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm p-6 hover:shadow-md transition-shadow col-span-full">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-1">
+          <span>📊 Training Stress Score (TSS)</span>
+          <span class="text-sm font-normal text-gray-600 dark:text-gray-400 ml-2">
+            Total: {{ training_load.total_tss|floatformat:0 }} | Avg: {{ training_load.avg_tss|floatformat:1 }}
+          </span>
+        </h2>
+        <h3 class="text-sm text-gray-600 dark:text-gray-400 mb-4">Training load per month</h3>
+        <div class="chart-container medium">
+          <canvas id="trainingLoadChart"></canvas>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Duration Distribution -->
+      {% if duration_distribution.distribution %}
+      <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm p-6 hover:shadow-md transition-shadow">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-1">⏱️ Workout Duration Distribution</h2>
+        <h3 class="text-sm text-gray-600 dark:text-gray-400 mb-4">Breakdown by duration ranges</h3>
+        <div class="chart-container medium">
+          <canvas id="durationDistributionChart"></canvas>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Peak Performance -->
+      {% if peak_performance.monthly_data %}
+      <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm p-6 hover:shadow-md transition-shadow col-span-full">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-1">⚡ Peak Performance</h2>
+        <h3 class="text-sm text-gray-600 dark:text-gray-400 mb-4">Monthly average output and top performing days</h3>
+        <div class="chart-container medium">
+          <canvas id="peakPerformanceChart"></canvas>
+        </div>
+        {% if peak_performance.best_month %}
+        <div class="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
           <div class="text-center">
-            <div class="text-lg font-semibold">{{ instructor.ride_detail__instructor__name }}</div>
-            <div class="text-sm text-gray-600 dark:text-gray-400">{{ instructor.count }} classes</div>
+            <div class="text-sm text-gray-600 dark:text-gray-400 mb-1">Best Month</div>
+            <div class="text-xl font-bold">{{ peak_performance.best_month }}</div>
+            <div class="text-sm text-gray-600 dark:text-gray-400">Avg: {{ peak_performance.best_month_avg }} kJ</div>
+          </div>
+          {% if peak_performance.worst_month %}
+          <div class="text-center">
+            <div class="text-sm text-gray-600 dark:text-gray-400 mb-1">Quietest Month</div>
+            <div class="text-xl font-bold">{{ peak_performance.worst_month }}</div>
+            <div class="text-sm text-gray-600 dark:text-gray-400">Avg: {{ peak_performance.worst_month_avg }} kJ</div>
+          </div>
+          {% endif %}
+        </div>
+        {% endif %}
+        {% if peak_performance.top_days %}
+        <div class="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+          <h4 class="text-sm font-semibold mb-3">Top 10 Days by Output</h4>
+          <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
+            {% for day in peak_performance.top_days %}
+            <div class="p-2 bg-gray-50 dark:bg-gray-700 rounded text-center">
+              <div class="text-xs text-gray-600 dark:text-gray-400 mb-1">{{ day.date|date:"M d" }}</div>
+              <div class="text-sm font-semibold">{{ day.output_kj }} kJ</div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
+      </div>
+      {% endif %}
+
+      </div>
+    </div>
+
+    <!-- Zones & Records Section -->
+    <div class="px-6 mb-8">
+      <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-3 border-b-2 border-gray-200 dark:border-gray-700">Zones & Records</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+
+      <!-- Power Zones (Cycling) -->
+      {% if intensity_zones.has_power_zone_data %}
+      <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm p-6 hover:shadow-md transition-shadow col-span-full">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-1">⚡ Power Zones (Cycling)</h2>
+        <h3 class="text-sm text-gray-600 dark:text-gray-400 mb-4">Time spent in power zones</h3>
+        <div class="chart-container medium">
+          <canvas id="powerZonesChart"></canvas>
+        </div>
+        <div class="grid grid-cols-2 md:grid-cols-7 gap-3 mt-4">
+          {% for zone in intensity_zones.power_zone_data %}
+          {% if zone.time_minutes > 0 %}
+          <div class="p-3 bg-gray-50 dark:bg-gray-700 rounded border-l-4" style="border-left-color: {{ zone.color }};">
+            <div class="text-xs text-gray-600 dark:text-gray-400 mb-1">{{ zone.name }}</div>
+            <div class="text-lg font-semibold">{{ zone.time_minutes }} min</div>
+            <div class="text-xs text-gray-600 dark:text-gray-400">{{ zone.percentage }}%</div>
+          </div>
+          {% endif %}
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Pace Zones (Running) -->
+      {% if intensity_zones.has_pace_zone_data %}
+      <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm p-6 hover:shadow-md transition-shadow col-span-full">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-1">🏃 Pace Zones (Running)</h2>
+        <h3 class="text-sm text-gray-600 dark:text-gray-400 mb-4">Time spent in pace zones</h3>
+        <div class="chart-container medium">
+          <canvas id="paceZonesChart"></canvas>
+        </div>
+        <div class="grid grid-cols-2 md:grid-cols-7 gap-3 mt-4">
+          {% for zone in intensity_zones.pace_zone_data %}
+          {% if zone.time_minutes > 0 %}
+          <div class="p-3 bg-gray-50 dark:bg-gray-700 rounded border-l-4" style="border-left-color: {{ zone.color }};">
+            <div class="text-xs text-gray-600 dark:text-gray-400 mb-1">{{ zone.name }}</div>
+            <div class="text-lg font-semibold">{{ zone.time_minutes }} min</div>
+            <div class="text-xs text-gray-600 dark:text-gray-400">{{ zone.percentage }}%</div>
+          </div>
+          {% endif %}
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Personal Records -->
+      {% if personal_records.records %}
+      <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm p-6 hover:shadow-md transition-shadow">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-1">🏆 Personal Records</h2>
+        <h3 class="text-sm text-gray-600 dark:text-gray-400 mb-4">Best achievements in {{ selected_year }}</h3>
+        <div class="space-y-3">
+          {% if personal_records.records.longest_distance %}
+          <div class="p-3 bg-gray-50 dark:bg-gray-700 rounded border-l-4 border-primary">
+            <div class="text-xs text-gray-600 dark:text-gray-400 mb-1">Longest Distance</div>
+            <div class="text-xl font-bold mb-1">{{ personal_records.records.longest_distance.value_km }} km</div>
+            {% if personal_records.records.longest_distance.workout.ride.title %}
+            <div class="text-sm text-gray-600 dark:text-gray-400 italic">{{ personal_records.records.longest_distance.workout.ride.title|truncatechars:40 }}</div>
+            {% endif %}
+          </div>
+          {% endif %}
+          
+          {% if personal_records.records.highest_power %}
+          <div class="p-3 bg-gray-50 dark:bg-gray-700 rounded border-l-4 border-primary">
+            <div class="text-xs text-gray-600 dark:text-gray-400 mb-1">Highest Power Output</div>
+            <div class="text-xl font-bold mb-1">{{ personal_records.records.highest_power.value_kj }} kJ</div>
+            {% if personal_records.records.highest_power.workout.ride.title %}
+            <div class="text-sm text-gray-600 dark:text-gray-400 italic">{{ personal_records.records.highest_power.workout.ride.title|truncatechars:40 }}</div>
+            {% endif %}
+          </div>
+          {% endif %}
+          
+          {% if personal_records.records.most_calories %}
+          <div class="p-3 bg-gray-50 dark:bg-gray-700 rounded border-l-4 border-primary">
+            <div class="text-xs text-gray-600 dark:text-gray-400 mb-1">Most Calories</div>
+            <div class="text-xl font-bold mb-1">{{ personal_records.records.most_calories.value|floatformat:0 }} cal</div>
+            {% if personal_records.records.most_calories.workout.ride.title %}
+            <div class="text-sm text-gray-600 dark:text-gray-400 italic">{{ personal_records.records.most_calories.workout.ride.title|truncatechars:40 }}</div>
+            {% endif %}
+          </div>
+          {% endif %}
+          
+          {% if personal_records.records.longest_duration %}
+          <div class="p-3 bg-gray-50 dark:bg-gray-700 rounded border-l-4 border-primary">
+            <div class="text-xs text-gray-600 dark:text-gray-400 mb-1">Longest Duration</div>
+            <div class="text-xl font-bold mb-1">{{ personal_records.records.longest_duration.hours }} hours</div>
+            {% if personal_records.records.longest_duration.workout.ride.title %}
+            <div class="text-sm text-gray-600 dark:text-gray-400 italic">{{ personal_records.records.longest_duration.workout.ride.title|truncatechars:40 }}</div>
+            {% endif %}
+          </div>
+          {% endif %}
+          
+          {% if personal_records.records.highest_tss %}
+          <div class="p-3 bg-gray-50 dark:bg-gray-700 rounded border-l-4 border-primary">
+            <div class="text-xs text-gray-600 dark:text-gray-400 mb-1">Highest TSS</div>
+            <div class="text-xl font-bold mb-1">{{ personal_records.records.highest_tss.value }}</div>
+            {% if personal_records.records.highest_tss.workout.ride.title %}
+            <div class="text-sm text-gray-600 dark:text-gray-400 italic">{{ personal_records.records.highest_tss.workout.ride.title|truncatechars:40 }}</div>
+            {% endif %}
+          </div>
+          {% endif %}
+        </div>
+      </div>
+      {% endif %}
+
+      </div>
+    </div>
+
+    <!-- Workouts & Instructors Section -->
+    <div class="px-6 mb-8">
+      <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4 pb-3 border-b-2 border-gray-200 dark:border-gray-700">Workouts & Instructors</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+
+      <!-- Best Workouts by Discipline -->
+      {% if best_workouts_by_discipline.best_workouts_by_discipline %}
+      <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm p-6 hover:shadow-md transition-shadow col-span-full">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-1">🏆 Best Workouts by Discipline</h2>
+        <h3 class="text-sm text-gray-600 dark:text-gray-400 mb-4">Top performing workouts in each category</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {% for discipline, workouts in best_workouts_by_discipline.best_workouts_by_discipline.items %}
+          <div>
+            <h4 class="font-semibold mb-3">
+              {% for disc_key, disc_label in best_workouts_by_discipline.discipline_labels.items %}
+                {% if disc_key == discipline %}{{ disc_label }}{% endif %}
+              {% empty %}
+                {{ discipline|title }}
+              {% endfor %}
+            </h4>
+            <div class="space-y-2">
+              {% for workout in workouts %}
+              <div class="p-3 bg-gray-50 dark:bg-gray-700 rounded">
+                <div class="font-medium text-sm mb-1">{{ workout.ride_title|truncatechars:50 }}</div>
+                <div class="text-xs text-gray-600 dark:text-gray-400 mb-2">
+                  {% if workout.instructor %}{{ workout.instructor }} • {% endif %}{{ workout.date_formatted }}
+                </div>
+                <div class="flex gap-3 text-xs">
+                  {% if workout.total_output_kj %}<span class="font-semibold text-primary">{{ workout.total_output_kj }} kJ</span>{% endif %}
+                  {% if workout.distance_km %}<span class="text-gray-600 dark:text-gray-400">{{ workout.distance_km }} km</span>{% endif %}
+                  {% if workout.calories %}<span class="text-gray-600 dark:text-gray-400">{{ workout.calories }} cal</span>{% endif %}
+                </div>
+              </div>
+              {% endfor %}
+            </div>
           </div>
           {% endfor %}
         </div>
       </div>
       {% endif %}
 
-      <!-- Monthly Breakdown -->
-      <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 md:col-span-2 lg:col-span-3">
-        <h2 class="text-xl font-semibold mb-4">📅 Monthly Breakdown</h2>
-        <div class="grid grid-cols-3 md:grid-cols-6 lg:grid-cols-12 gap-4">
-          {% for month in monthly_data %}
-          <div class="text-center">
-            <div class="text-sm font-semibold">{{ month.month|slice:":3" }}</div>
-            <div class="text-lg">{{ month.count }}</div>
+      <!-- Top Instructors -->
+      {% if top_instructors %}
+      <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm p-6 hover:shadow-md transition-shadow">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-1">👨‍🏫 Top Instructors</h2>
+        <h3 class="text-sm text-gray-600 dark:text-gray-400 mb-4">Most classes taken with each instructor</h3>
+        <div class="space-y-2">
+          {% for instructor in top_instructors %}
+          <div class="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700 rounded">
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center font-semibold text-sm">
+                {{ forloop.counter }}
+              </div>
+              <span class="font-medium">{{ instructor.ride_detail__instructor__name }}</span>
+            </div>
+            <span class="font-semibold">{{ instructor.count }}</span>
           </div>
           {% endfor %}
         </div>
+      </div>
+      {% endif %}
+
+      <!-- Workout Type Breakdown -->
+      {% if workout_type_breakdown.type_data %}
+      <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm p-6 hover:shadow-md transition-shadow">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-1">🏋️ Workout Types</h2>
+        <h3 class="text-sm text-gray-600 dark:text-gray-400 mb-4">Breakdown by workout type</h3>
+        <div class="chart-container small">
+          <canvas id="workoutTypeChart"></canvas>
+        </div>
+      </div>
+      {% endif %}
+
       </div>
     </div>
   {% endif %}
 </div>
 
-<!-- Hidden CSRF token for JavaScript access -->
+<!-- CSRF Token -->
 {% csrf_token %}
 
+<!-- Recap utility functions -->
+<script src="{% static 'js/recap-utils.js' %}"></script>
+
 <script>
-function getCSRFToken() {
-  // Try to get CSRF token from hidden input first
-  const hiddenInput = document.querySelector('[name=csrfmiddlewaretoken]');
-  if (hiddenInput && hiddenInput.value) {
-    return hiddenInput.value;
+function regenerateCache() {
+  const year = document.getElementById('year-select')?.value || '{{ selected_year }}';
+  const btn = document.getElementById('regenerate-btn');
+  
+  if (!confirm('This will regenerate the recap data for ' + year + '. This may take a moment. Continue?')) {
+    return;
   }
   
-  // Try to get from cookie
-  let token = getCookie('csrftoken');
-  if (token) return token;
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = '🔄 Regenerating...';
+    btn.classList.add('opacity-50', 'cursor-not-allowed');
+  }
   
-  // Try alternative cookie names
-  token = getCookie('csrf_token');
-  if (token) return token;
+  const formData = new FormData();
+  formData.append('year', year);
   
-  // Fallback: try to get from meta tag
-  const metaTag = document.querySelector('meta[name=csrf-token]');
-  if (metaTag) return metaTag.getAttribute('content');
+  const csrfToken = getCSRFToken();
+  if (!csrfToken) {
+    alert('CSRF token not found. Please refresh the page and try again.');
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = '🔄 Regenerate';
+      btn.classList.remove('opacity-50', 'cursor-not-allowed');
+    }
+    return;
+  }
   
-  console.error('CSRF token not found');
-  return null;
+  fetch('{% url "plans:recap_regenerate" %}', {
+    method: 'POST',
+    body: formData,
+    headers: {
+      'X-CSRFToken': csrfToken,
+      'X-Requested-With': 'XMLHttpRequest'
+    },
+    credentials: 'same-origin'
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      window.location.reload();
+    } else {
+      alert(data.error || 'Failed to regenerate cache');
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = '🔄 Regenerate';
+        btn.classList.remove('opacity-50', 'cursor-not-allowed');
+      }
+    }
+  })
+  .catch(error => {
+    console.error('Error:', error);
+    alert('An error occurred while regenerating the cache. Please try again.');
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = '🔄 Regenerate';
+      btn.classList.remove('opacity-50', 'cursor-not-allowed');
+    }
+  });
 }
 
 function createShare() {
@@ -202,19 +1149,498 @@ function createShare() {
   });
 }
 
-function getCookie(name) {
-  let cookieValue = null;
-  if (document.cookie && document.cookie !== '') {
-    const cookies = document.cookie.split(';');
-    for (let i = 0; i < cookies.length; i++) {
-      const cookie = cookies[i].trim();
-      if (cookie.substring(0, name.length + 1) === (name + '=')) {
-        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-        break;
-      }
-    }
+// Chart initialization
+document.addEventListener('DOMContentLoaded', function() {
+  if (typeof Chart === 'undefined') {
+    console.error('Chart.js is not loaded');
+    return;
   }
-  return cookieValue;
-}
+
+  // Rest Days Chart
+  const restDaysCtx = document.getElementById('restDaysChart');
+  if (restDaysCtx) {
+    new Chart(restDaysCtx, {
+      type: 'doughnut',
+      data: {
+        labels: ['Active days', 'Rest days'],
+        datasets: [{
+          data: [{{ rest_days.active_days }}, {{ rest_days.rest_days }}],
+          backgroundColor: ['#4A90E2', '#9BE9A8'],
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom' }
+        }
+      }
+    });
+  }
+
+  // Total Hours Chart
+  const hoursCtx = document.getElementById('hoursChart');
+  if (hoursCtx) {
+    const hoursLabels = [{% for disc in total_hours.all_disciplines %}'{{ disc.discipline_name }}'{% if not forloop.last %},{% endif %}{% endfor %}];
+    const hoursData = [{% for disc in total_hours.all_disciplines %}{{ disc.hours }}{% if not forloop.last %},{% endif %}{% endfor %}];
+    const hoursColors = [{% for disc in total_hours.all_disciplines %}'{{ disc.color }}'{% if not forloop.last %},{% endif %}{% endfor %}];
+    
+    new Chart(hoursCtx, {
+      type: 'pie',
+      data: {
+        labels: hoursLabels,
+        datasets: [{
+          data: hoursData,
+          backgroundColor: hoursColors,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom' }
+        }
+      }
+    });
+  }
+
+  // Distance Chart
+  const distanceCtx = document.getElementById('distanceChart');
+  if (distanceCtx) {
+    const disciplineColors = {
+      {% for disc, color in distance_stats.discipline_colors.items %}'{{ disc }}': '{{ color }}'{% if not forloop.last %},{% endif %}{% endfor %}
+    };
+    
+    const distanceData = {
+      labels: [{% for month in distance_stats.monthly_data %}'{{ month.month }}'{% if not forloop.last %},{% endif %}{% endfor %}],
+      datasets: [
+        {% for discipline in distance_stats.all_disciplines %}
+        {
+          label: '{{ discipline|title }}',
+          data: [
+            {% for month in distance_stats.monthly_data %}
+              {% for disc_data in month.discipline_data %}
+                {% if disc_data.discipline == discipline %}{{ disc_data.distance_km }}{% endif %}
+              {% endfor %}{% if not forloop.last %},{% endif %}
+            {% endfor %}
+          ],
+          backgroundColor: disciplineColors['{{ discipline }}'] || '#95A5A6',
+        }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+      ]
+    };
+    
+    new Chart(distanceCtx, {
+      type: 'bar',
+      data: distanceData,
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom' }
+        },
+        scales: {
+          x: { stacked: true },
+          y: { stacked: true, title: { display: true, text: 'Distance (km)' } }
+        }
+      }
+    });
+  }
+
+  // Start Times Chart
+  const startTimesCtx = document.getElementById('startTimesChart');
+  if (startTimesCtx) {
+    new Chart(startTimesCtx, {
+      type: 'line',
+      data: {
+        labels: [{% for hour_data in start_times.hourly_data %}'{{ hour_data.hour }}h'{% if not forloop.last %},{% endif %}{% endfor %}],
+        datasets: [{
+          label: 'Activities',
+          data: [{% for hour_data in start_times.hourly_data %}{{ hour_data.count }}{% if not forloop.last %},{% endif %}{% endfor %}],
+          borderColor: '#FF6B35',
+          backgroundColor: 'rgba(255, 107, 53, 0.1)',
+          fill: true,
+          tension: 0.4,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false }
+        },
+        scales: {
+          y: { beginAtZero: true, title: { display: true, text: 'Number of activities' } },
+          x: { title: { display: true, text: 'Time of day' } }
+        }
+      }
+    });
+  }
+
+  // Weekday Patterns Chart
+  const weekdayCtx = document.getElementById('weekdayChart');
+  if (weekdayCtx) {
+    new Chart(weekdayCtx, {
+      type: 'bar',
+      data: {
+        labels: [{% for day in weekday_patterns.weekday_data %}'{{ day.day_short }}'{% if not forloop.last %},{% endif %}{% endfor %}],
+        datasets: [{
+          label: 'Workouts',
+          data: [{% for day in weekday_patterns.weekday_data %}{{ day.count }}{% if not forloop.last %},{% endif %}{% endfor %}],
+          backgroundColor: '#4A90E2',
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false }
+        },
+        scales: {
+          y: { beginAtZero: true, ticks: { stepSize: 1 }, title: { display: true, text: 'Number of Workouts' } }
+        }
+      }
+    });
+  }
+
+  // Time of Day Patterns Chart
+  const timeOfDayCtx = document.getElementById('timeOfDayChart');
+  if (timeOfDayCtx) {
+    new Chart(timeOfDayCtx, {
+      type: 'pie',
+      data: {
+        labels: [{% for period in time_of_day_patterns.period_data %}'{{ period.period }}'{% if not forloop.last %},{% endif %}{% endfor %}],
+        datasets: [{
+          data: [{% for period in time_of_day_patterns.period_data %}{{ period.count }}{% if not forloop.last %},{% endif %}{% endfor %}],
+          backgroundColor: ['#FFD700', '#FFA500', '#FF6347', '#4A90E2'],
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom' }
+        }
+      }
+    });
+  }
+
+  // Progress Over Time Chart
+  const progressCtx = document.getElementById('progressChart');
+  if (progressCtx) {
+    new Chart(progressCtx, {
+      type: 'line',
+      data: {
+        labels: [{% for month in progress_over_time.monthly_data %}'{{ month.month }}'{% if not forloop.last %},{% endif %}{% endfor %}],
+        datasets: [
+          {
+            label: 'Avg Output (kJ)',
+            data: [{% for month in progress_over_time.monthly_data %}{{ month.avg_output_kj }}{% if not forloop.last %},{% endif %}{% endfor %}],
+            borderColor: '#4A90E2',
+            backgroundColor: 'rgba(74, 144, 226, 0.1)',
+            yAxisID: 'y',
+            tension: 0.4,
+          },
+          {
+            label: 'Avg Distance (km)',
+            data: [{% for month in progress_over_time.monthly_data %}{{ month.avg_distance_km }}{% if not forloop.last %},{% endif %}{% endfor %}],
+            borderColor: '#9BE9A8',
+            backgroundColor: 'rgba(155, 233, 168, 0.1)',
+            yAxisID: 'y1',
+            tension: 0.4,
+          },
+          {
+            label: 'Avg Calories',
+            data: [{% for month in progress_over_time.monthly_data %}{{ month.avg_calories }}{% if not forloop.last %},{% endif %}{% endfor %}],
+            borderColor: '#FF6B35',
+            backgroundColor: 'rgba(255, 107, 53, 0.1)',
+            yAxisID: 'y2',
+            tension: 0.4,
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom' }
+        },
+        scales: {
+          y: { type: 'linear', display: true, position: 'left', title: { display: true, text: 'Output (kJ)' }, beginAtZero: true },
+          y1: { type: 'linear', display: true, position: 'right', title: { display: true, text: 'Distance (km)' }, beginAtZero: true, grid: { drawOnChartArea: false } },
+          y2: { type: 'linear', display: false, beginAtZero: true },
+        }
+      }
+    });
+  }
+
+  // Monthly Comparison Chart
+  const monthlyComparisonCtx = document.getElementById('monthlyComparisonChart');
+  if (monthlyComparisonCtx) {
+    new Chart(monthlyComparisonCtx, {
+      type: 'bar',
+      data: {
+        labels: [{% for month in monthly_comparison.monthly_data %}'{{ month.month }}'{% if not forloop.last %},{% endif %}{% endfor %}],
+        datasets: [
+          {
+            label: 'Workouts',
+            data: [{% for month in monthly_comparison.monthly_data %}{{ month.workout_count }}{% if not forloop.last %},{% endif %}{% endfor %}],
+            backgroundColor: '#4A90E2',
+            yAxisID: 'y',
+          },
+          {
+            label: 'Hours',
+            data: [{% for month in monthly_comparison.monthly_data %}{{ month.total_hours }}{% if not forloop.last %},{% endif %}{% endfor %}],
+            backgroundColor: '#9BE9A8',
+            yAxisID: 'y1',
+          },
+          {
+            label: 'Distance (km)',
+            data: [{% for month in monthly_comparison.monthly_data %}{{ month.total_distance_km }}{% if not forloop.last %},{% endif %}{% endfor %}],
+            backgroundColor: '#FF6B35',
+            yAxisID: 'y2',
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom' }
+        },
+        scales: {
+          y: { type: 'linear', display: true, position: 'left', title: { display: true, text: 'Workouts' }, beginAtZero: true },
+          y1: { type: 'linear', display: true, position: 'right', title: { display: true, text: 'Hours' }, beginAtZero: true, grid: { drawOnChartArea: false } },
+          y2: { type: 'linear', display: false, beginAtZero: true },
+        }
+      }
+    });
+  }
+
+  // Activity Count Chart
+  const activityCountCtx = document.getElementById('activityCountChart');
+  if (activityCountCtx) {
+    const monthlyLabels = [{% for month in activity_count.monthly_data %}'{{ month.month }}'{% if not forloop.last %},{% endif %}{% endfor %}];
+    const activityDisciplineColors = {
+      {% for disc, color in activity_count.discipline_colors.items %}'{{ disc }}': '{{ color }}'{% if not forloop.last %},{% endif %}{% endfor %}
+    };
+    
+    const datasets = [];
+    {% for discipline in activity_count.all_disciplines %}
+    datasets.push({
+      label: '{{ discipline|title }}',
+      data: [
+        {% for month in activity_count.monthly_data %}
+          {% for disc_data in month.discipline_data %}
+            {% if disc_data.discipline == discipline %}{{ disc_data.count }}{% endif %}
+          {% endfor %}{% if not forloop.last %},{% endif %}
+        {% endfor %}
+      ],
+      backgroundColor: activityDisciplineColors['{{ discipline }}'] || '#95A5A6',
+    });
+    {% endfor %}
+    
+    new Chart(activityCountCtx, {
+      type: 'bar',
+      data: {
+        labels: monthlyLabels,
+        datasets: datasets
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom' }
+        },
+        scales: {
+          x: { stacked: true },
+          y: { stacked: true, beginAtZero: true, title: { display: true, text: 'Number of activities' } }
+        }
+      }
+    });
+  }
+
+  // Training Load Chart
+  const trainingLoadCtx = document.getElementById('trainingLoadChart');
+  if (trainingLoadCtx) {
+    new Chart(trainingLoadCtx, {
+      type: 'line',
+      data: {
+        labels: [{% for month in training_load.monthly_tss %}'{{ month.month }}'{% if not forloop.last %},{% endif %}{% endfor %}],
+        datasets: [{
+          label: 'Training Stress Score',
+          data: [{% for month in training_load.monthly_tss %}{{ month.tss }}{% if not forloop.last %},{% endif %}{% endfor %}],
+          backgroundColor: 'rgba(155, 89, 182, 0.2)',
+          borderColor: '#9B59B6',
+          borderWidth: 2,
+          fill: true,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false }
+        },
+        scales: {
+          y: { beginAtZero: true, title: { display: true, text: 'TSS' } }
+        }
+      }
+    });
+  }
+
+  // Duration Distribution Chart
+  const durationCtx = document.getElementById('durationDistributionChart');
+  if (durationCtx) {
+    new Chart(durationCtx, {
+      type: 'bar',
+      data: {
+        labels: [{% for item in duration_distribution.distribution %}'{{ item.range }}'{% if not forloop.last %},{% endif %}{% endfor %}],
+        datasets: [{
+          label: 'Workouts',
+          data: [{% for item in duration_distribution.distribution %}{{ item.count }}{% if not forloop.last %},{% endif %}{% endfor %}],
+          backgroundColor: '#4A90E2',
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false }
+        },
+        scales: {
+          y: { beginAtZero: true, ticks: { stepSize: 1 } }
+        }
+      }
+    });
+  }
+
+  // Peak Performance Chart
+  const peakCtx = document.getElementById('peakPerformanceChart');
+  if (peakCtx) {
+    new Chart(peakCtx, {
+      type: 'line',
+      data: {
+        labels: [{% for month in peak_performance.monthly_data %}'{{ month.month }}'{% if not forloop.last %},{% endif %}{% endfor %}],
+        datasets: [{
+          label: 'Average Output (kJ)',
+          data: [{% for month in peak_performance.monthly_data %}{{ month.avg_output_kj }}{% if not forloop.last %},{% endif %}{% endfor %}],
+          backgroundColor: 'rgba(255, 99, 71, 0.2)',
+          borderColor: '#FF6347',
+          borderWidth: 2,
+          fill: true,
+          tension: 0.4,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: true, position: 'bottom' }
+        },
+        scales: {
+          y: { beginAtZero: true, title: { display: true, text: 'Average Output (kJ)' } }
+        }
+      }
+    });
+  }
+
+  // Power Zones Chart
+  const powerZonesCtx = document.getElementById('powerZonesChart');
+  if (powerZonesCtx) {
+    const powerZonesData = {
+      labels: [{% for zone in intensity_zones.power_zone_data %}{% if zone.time_minutes > 0 %}'{{ zone.name }}'{% if not forloop.last %},{% endif %}{% endif %}{% endfor %}],
+      datasets: [{
+        label: 'Time (minutes)',
+        data: [{% for zone in intensity_zones.power_zone_data %}{% if zone.time_minutes > 0 %}{{ zone.time_minutes }}{% if not forloop.last %},{% endif %}{% endif %}{% endfor %}],
+        backgroundColor: [{% for zone in intensity_zones.power_zone_data %}{% if zone.time_minutes > 0 %}'{{ zone.color }}'{% if not forloop.last %},{% endif %}{% endif %}{% endfor %}],
+      }]
+    };
+    
+    new Chart(powerZonesCtx, {
+      type: 'bar',
+      data: powerZonesData,
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false }
+        },
+        scales: {
+          y: { beginAtZero: true, title: { display: true, text: 'Time (minutes)' } }
+        }
+      }
+    });
+  }
+
+  // Pace Zones Chart
+  const paceZonesCtx = document.getElementById('paceZonesChart');
+  if (paceZonesCtx) {
+    const paceZonesData = {
+      labels: [{% for zone in intensity_zones.pace_zone_data %}{% if zone.time_minutes > 0 %}'{{ zone.name }}'{% if not forloop.last %},{% endif %}{% endif %}{% endfor %}],
+      datasets: [{
+        label: 'Time (minutes)',
+        data: [{% for zone in intensity_zones.pace_zone_data %}{% if zone.time_minutes > 0 %}{{ zone.time_minutes }}{% if not forloop.last %},{% endif %}{% endif %}{% endfor %}],
+        backgroundColor: [{% for zone in intensity_zones.pace_zone_data %}{% if zone.time_minutes > 0 %}'{{ zone.color }}'{% if not forloop.last %},{% endif %}{% endif %}{% endfor %}],
+      }]
+    };
+    
+    new Chart(paceZonesCtx, {
+      type: 'bar',
+      data: paceZonesData,
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false }
+        },
+        scales: {
+          y: { beginAtZero: true, title: { display: true, text: 'Time (minutes)' } }
+        }
+      }
+    });
+  }
+
+  // Workout Type Breakdown Chart
+  const workoutTypeCtx = document.getElementById('workoutTypeChart');
+  if (workoutTypeCtx) {
+    new Chart(workoutTypeCtx, {
+      type: 'pie',
+      data: {
+        labels: [{% for type in workout_type_breakdown.type_data %}'{{ type.type_label }}'{% if not forloop.last %},{% endif %}{% endfor %}],
+        datasets: [{
+          data: [{% for type in workout_type_breakdown.type_data %}{{ type.count }}{% if not forloop.last %},{% endif %}{% endfor %}],
+          backgroundColor: [{% for type in workout_type_breakdown.type_data %}'{{ type.color }}'{% if not forloop.last %},{% endif %}{% endfor %}],
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom' }
+        }
+      }
+    });
+  }
+  
+  // Hide loading animation
+  {% if not use_cache %}
+  window.addEventListener('load', function() {
+    const loadingEl = document.getElementById('recap-loading');
+    if (loadingEl) {
+      setTimeout(function() {
+        loadingEl.classList.remove('active');
+        loadingEl.style.display = 'none';
+        {% if is_first_load %}
+        const successMsg = document.getElementById('first-load-success');
+        if (successMsg) {
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+        {% endif %}
+      }, 500);
+    }
+  });
+  {% endif %}
+});
 </script>
 {% endblock %}

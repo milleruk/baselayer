@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Eddington • Chase The Zones{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+  <div class="mb-6">
+    <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-4">Eddington</h1>
+    <div class="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg p-4 mb-6">
+      <p class="text-gray-700 dark:text-gray-300 text-sm leading-relaxed">
+        The <strong class="text-gray-900 dark:text-white font-semibold">Eddington number</strong> is the maximum number <strong class="text-gray-900 dark:text-white font-semibold">E</strong> such that the athlete has covered at least <strong class="text-gray-900 dark:text-white font-semibold">E km</strong> on at least <strong class="text-gray-900 dark:text-white font-semibold">E days</strong>.
+        <br><br>
+        For example, an Eddington number of <strong class="text-gray-900 dark:text-white font-semibold">70</strong> would imply that a cyclist has cycled at least 70 km in a day on at least 70 occasions.
+        <br><br>
+        Moving from, say, 70 to 75 will (probably) require more than five new long-distance workouts, since any workout shorter than 75 km will no longer be included in the reckoning.
+      </p>
+    </div>
+  </div>
+
+  {% if has_workouts %}
+    <!-- Discipline Selector -->
+    <div class="flex flex-wrap gap-2 mb-6 pb-4 border-b border-gray-200 dark:border-gray-700">
+      <a href="?discipline=all" class="px-4 py-2 rounded-lg text-sm font-medium transition-colors {% if discipline_filter == 'all' %}bg-primary text-white{% else %}bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600{% endif %}">
+        All
+      </a>
+      {% for key, data in discipline_breakdown.items %}
+        <a href="?discipline={{ key }}" class="px-4 py-2 rounded-lg text-sm font-medium transition-colors {% if discipline_filter == key %}bg-primary text-white{% else %}bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600{% endif %}">
+          {{ data.name }} (E={{ data.current_eddington }})
+        </a>
+      {% endfor %}
+    </div>
+
+    {% if eddington_data %}
+      <!-- Current Eddington Number Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+        <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm p-6">
+          <div class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Current Eddington Number</div>
+          <div class="text-5xl font-bold text-orange-500 dark:text-orange-400 mb-2">{{ eddington_data.current_eddington }}</div>
+          <div class="text-sm text-gray-600 dark:text-gray-400">You have completed at least {{ eddington_data.current_eddington }} km on {{ eddington_data.current_eddington }} days</div>
+        </div>
+        <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm p-6">
+          <div class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Total Active Days</div>
+          <div class="text-4xl font-bold text-gray-900 dark:text-white mb-2">{{ eddington_data.total_days }}</div>
+          <div class="text-sm text-gray-600 dark:text-gray-400">Days with recorded distance data</div>
+        </div>
+        <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm p-6">
+          <div class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Maximum Distance</div>
+          <div class="text-4xl font-bold text-gray-900 dark:text-white mb-2">{{ eddington_data.max_distance }}</div>
+          <div class="text-sm text-gray-600 dark:text-gray-400">Longest single-day distance (km)</div>
+        </div>
+      </div>
+
+      <!-- Times Completed vs Distance Chart -->
+      <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm p-6 mb-6">
+        <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Times Completed vs. Distance</h2>
+        <div class="relative" style="height: 400px;">
+          <canvas id="times-completed-chart"></canvas>
+        </div>
+      </div>
+
+      <!-- History Chart -->
+      <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm p-6 mb-6">
+        <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">History</h2>
+        <div class="relative" style="height: 400px;">
+          <canvas id="eddington-history-chart"></canvas>
+        </div>
+      </div>
+
+      <!-- Days Needed -->
+      <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm p-6">
+        <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Days Needed</h2>
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+          {% for item in eddington_data.days_needed_list %}
+            {% if item.distance <= eddington_data.current_eddington|add:25 %}
+              <div class="bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg p-4 text-center">
+                <div class="text-xs font-semibold text-gray-600 dark:text-gray-400 mb-2">{{ item.distance }}KM</div>
+                <div class="text-xl font-bold {% if item.days_needed == 0 %}text-green-600 dark:text-green-400{% else %}text-orange-500 dark:text-orange-400{% endif %}">
+                  {% if item.days_needed == 0 %}
+                    ✓
+                  {% else %}
+                    {{ item.days_needed }}
+                  {% endif %}
+                </div>
+              </div>
+            {% endif %}
+          {% endfor %}
+        </div>
+      </div>
+
+      {{ eddington_data.times_completed|json_script:"times-completed-data" }}
+      {{ eddington_data.history|json_script:"eddington-history-data" }}
+    {% else %}
+      <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm p-6">
+        <p class="text-gray-600 dark:text-gray-400">No data available for the selected discipline.</p>
+      </div>
+    {% endif %}
+  {% else %}
+    <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm p-6">
+      <p class="text-gray-600 dark:text-gray-400">No workouts found. Connect your Peloton account to start tracking Eddington scores!</p>
+    </div>
+  {% endif %}
+</div>
+
+{% if eddington_data %}
+  {{ eddington_data.current_eddington|json_script:"current-eddington" }}
+  <script>
+    // Pass current Eddington number to the script via data attribute
+    document.addEventListener('DOMContentLoaded', function() {
+      const timesCompletedDataEl = document.getElementById('times-completed-data');
+      const currentEddingtonEl = document.getElementById('current-eddington');
+      if (timesCompletedDataEl && currentEddingtonEl) {
+        const currentEddington = JSON.parse(currentEddingtonEl.textContent);
+        timesCompletedDataEl.dataset.eddington = currentEddington;
+      }
+    });
+  </script>
+  <script src="{% static 'js/eddington.js' %}"></script>
+{% endif %}
+{% endblock %}

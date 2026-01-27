@@ -13,6 +13,18 @@ UTC = dt_timezone.utc
 import json
 import re
 
+# Timezone handling for date conversion (for converting workout dates to match Peloton's timezone)
+try:
+    from zoneinfo import ZoneInfo
+    pytz = None
+except ImportError:
+    # Fallback for Python < 3.9
+    ZoneInfo = None
+    try:
+        import pytz
+    except ImportError:
+        pytz = None
+
 from .models import Workout, WorkoutType, Instructor, RideDetail, WorkoutDetails, Playlist
 from peloton.models import PelotonConnection
 import logging
@@ -2911,13 +2923,34 @@ def sync_workouts(request):
                             logger.debug(f"Could not parse start_time '{start_time}': {e}")
                             pass
                 
-                # Parse completed_date from start_time (for display - convert to user's timezone if needed)
-                # For now, we'll use UTC date (can be converted in templates if needed)
+                # Parse completed_date from start_time
+                # IMPORTANT: Convert to US Eastern Time (Peloton's timezone) before extracting date
+                # This ensures streaks match Peloton's calculation (they use local date, not UTC date)
+                # Example: Workout at 11 PM PST = 2 AM ET next day, but Peloton counts it as same day in PST
+                # So we use ET to match Peloton's behavior
+                try:
+                    if ZoneInfo:
+                        ET = ZoneInfo("America/New_York")  # US Eastern Time (handles DST automatically)
+                    elif pytz:
+                        ET = pytz.timezone("America/New_York")
+                    else:
+                        # No timezone library available, fallback to UTC
+                        ET = UTC
+                        logger.warning("No timezone library available, using UTC for completed_date (streaks may not match Peloton)")
+                except Exception as e:
+                    # Fallback to UTC if timezone conversion fails
+                    ET = UTC
+                    logger.warning(f"Failed to set ET timezone: {e}, using UTC for completed_date")
+                
                 if start_time:
                     if isinstance(start_time, (int, float)):
-                        # Unix timestamp - convert to UTC datetime then date
+                        # Unix timestamp - convert to UTC datetime, then to ET, then extract date
                         dt_utc = datetime.fromtimestamp(start_time, tz=UTC)
-                        completed_date = dt_utc.date()
+                        dt_et = dt_utc.astimezone(ET) if ET != UTC else dt_utc
+                        completed_date = dt_et.date()
+                        # Log timezone conversion for debugging
+                        if dt_utc.date() != completed_date:
+                            logger.debug(f"Timezone conversion: UTC date {dt_utc.date()} -> ET date {completed_date} (offset: {dt_et.utcoffset()})")
                     else:
                         try:
                             dt_str = str(start_time).replace('Z', '+00:00')
@@ -2926,11 +2959,28 @@ def sync_workouts(request):
                                 dt = timezone.make_aware(dt, UTC)
                             else:
                                 dt = dt.astimezone(UTC)
-                            completed_date = dt.date()
-                        except:
-                            completed_date = timezone.now().date()
+                            # Convert to ET before extracting date
+                            dt_et = dt.astimezone(ET) if ET != UTC else dt
+                            completed_date = dt_et.date()
+                            # Log timezone conversion for debugging
+                            if dt.date() != completed_date:
+                                logger.debug(f"Timezone conversion: UTC date {dt.date()} -> ET date {completed_date} (offset: {dt_et.utcoffset()})")
+                        except Exception as e:
+                            logger.debug(f"Error parsing start_time for completed_date: {e}")
+                            # Fallback: use UTC date if conversion fails
+                            try:
+                                dt_utc = datetime.fromtimestamp(start_time, tz=UTC) if isinstance(start_time, (int, float)) else timezone.now()
+                                dt_et = dt_utc.astimezone(ET) if ET != UTC else dt_utc
+                                completed_date = dt_et.date()
+                            except Exception:
+                                completed_date = timezone.now().date()
                 else:
-                    completed_date = timezone.now().date()
+                    # No start_time, use current date in ET
+                    try:
+                        dt_et = timezone.now().astimezone(ET) if ET != UTC else timezone.now()
+                        completed_date = dt_et.date()
+                    except Exception:
+                        completed_date = timezone.now().date()
                 
                 # If we still don't have a timestamp, use current time in UTC (shouldn't happen, but be safe)
                 if not workout_timestamp:

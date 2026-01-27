@@ -1,9 +1,35 @@
 {% extends "base.html" %}
+{% load static %}
 {% load medal_tags dict_filters %}
 {% block title %}Performance Metrics{% endblock %}
 {% block page_title %}Performance Metrics{% endblock %}
 
 {% block content %}
+<!-- Loading Overlay -->
+<div id="metrics-loading-overlay" class="fixed inset-0 bg-gray-900 dark:bg-gray-900 bg-opacity-90 dark:bg-opacity-90 z-50 flex items-center justify-center transition-opacity duration-300">
+  <div class="text-center">
+    <!-- Logo Animation -->
+    <div class="mb-8 animate-pulse">
+      <img src="{% static 'img/logo.png' %}" alt="Chase The Zones" class="h-20 w-auto mx-auto mb-4 animate-bounce" style="animation-duration: 2s;">
+    </div>
+    <!-- Spinner -->
+    <div class="relative w-16 h-16 mx-auto mb-4">
+      <div class="absolute inset-0 border-4 border-primary border-opacity-25 rounded-full"></div>
+      <div class="absolute inset-0 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+    </div>
+    <!-- Loading Text -->
+    <p class="text-white text-lg font-semibold mb-2">Loading Metrics</p>
+    <p class="text-gray-400 text-sm">Calculating your performance data...</p>
+    <!-- Progress Dots -->
+    <div class="flex justify-center gap-2 mt-4">
+      <div class="w-2 h-2 bg-primary rounded-full animate-bounce" style="animation-delay: 0s;"></div>
+      <div class="w-2 h-2 bg-primary rounded-full animate-bounce" style="animation-delay: 0.2s;"></div>
+      <div class="w-2 h-2 bg-primary rounded-full animate-bounce" style="animation-delay: 0.4s;"></div>
+    </div>
+  </div>
+</div>
+
+<div id="metrics-content" class="opacity-0 transition-opacity duration-300">
 <div class="mb-6">
   <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">Performance Metrics</h1>
   <p class="text-gray-600 dark:text-gray-400">Track your progress and celebrate your achievements</p>
@@ -456,6 +482,84 @@
   </div>
 </div>
 
+<!-- Time in Zones Section -->
+<div class="mb-8">
+  <!-- Cycling Time in Zones -->
+  <div class="mb-8">
+    <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4">Time in Zones</h2>
+    <h3 class="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-4">Cycling</h3>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <!-- Current Month -->
+      <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
+        <h4 class="text-lg font-bold text-gray-900 dark:text-white mb-2">Current Month</h4>
+        <div class="text-sm text-gray-600 dark:text-gray-400 mb-4" id="cycling-month-total">{{ cycling_zones_month.total_formatted }}</div>
+        <div class="relative" style="height: 250px;">
+          <canvas id="cyclingZonesMonthChart"></canvas>
+        </div>
+        <div class="mt-4 space-y-2" id="cycling-month-legend"></div>
+      </div>
+      
+      <!-- Current Year -->
+      <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
+        <h4 class="text-lg font-bold text-gray-900 dark:text-white mb-2">Current Year</h4>
+        <div class="text-sm text-gray-600 dark:text-gray-400 mb-4" id="cycling-year-total">{{ cycling_zones_year.total_formatted }}</div>
+        <div class="relative" style="height: 250px;">
+          <canvas id="cyclingZonesYearChart"></canvas>
+        </div>
+        <div class="mt-4 space-y-2" id="cycling-year-legend"></div>
+      </div>
+      
+      <!-- All Time -->
+      <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
+        <h4 class="text-lg font-bold text-gray-900 dark:text-white mb-2">All Time</h4>
+        <div class="text-sm text-gray-600 dark:text-gray-400 mb-4" id="cycling-all-total">{{ cycling_zones_all.total_formatted }}</div>
+        <div class="relative" style="height: 250px;">
+          <canvas id="cyclingZonesAllChart"></canvas>
+        </div>
+        <div class="mt-4 space-y-2" id="cycling-all-legend"></div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Running Time in Zones -->
+  <div class="mb-8">
+    <h3 class="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-4">Running</h3>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <!-- Current Month -->
+      <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
+        <h4 class="text-lg font-bold text-gray-900 dark:text-white mb-2">Current Month</h4>
+        <div class="text-sm text-gray-600 dark:text-gray-400 mb-4" id="running-month-total">{{ running_zones_month.total_formatted }}</div>
+        <div class="relative" style="height: 250px;">
+          <canvas id="runningZonesMonthChart"></canvas>
+        </div>
+        <div class="mt-4 space-y-2" id="running-month-legend"></div>
+      </div>
+      
+      <!-- Current Year -->
+      <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
+        <h4 class="text-lg font-bold text-gray-900 dark:text-white mb-2">Current Year</h4>
+        <div class="text-sm text-gray-600 dark:text-gray-400 mb-4" id="running-year-total">{{ running_zones_year.total_formatted }}</div>
+        <div class="relative" style="height: 250px;">
+          <canvas id="runningZonesYearChart"></canvas>
+        </div>
+        <div class="mt-4 space-y-2" id="running-year-legend"></div>
+      </div>
+      
+      <!-- All Time -->
+      <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
+        <h4 class="text-lg font-bold text-gray-900 dark:text-white mb-2">All Time</h4>
+        <div class="text-sm text-gray-600 dark:text-gray-400 mb-4" id="running-all-total">{{ running_zones_all.total_formatted }}</div>
+        <div class="relative" style="height: 250px;">
+          <canvas id="runningZonesAllChart"></canvas>
+        </div>
+        <div class="mt-4 space-y-2" id="running-all-legend"></div>
+      </div>
+    </div>
+  </div>
+</div>
+</div> <!-- End metrics-content -->
+
+<!-- Note: This script remains inline as it uses Django template variables extensively -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
   // Tab switching for Achievements/Milestones
@@ -1000,6 +1104,222 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
   {% endif %}
+  
+  // Cycling Zone Colors (matching Peloton standard)
+  const CYCLING_ZONE_COLORS = {
+    1: '#4c6ef5',  // Blue - Recovery
+    2: '#22c55e',  // Green - Endurance
+    3: '#f59e0b',  // Orange - Tempo
+    4: '#ef4444',  // Red - Threshold
+    5: '#ec4899',  // Pink/Purple - VO2 Max
+    6: '#a855f7',  // Light Purple - Anaerobic
+    7: '#9333ea',  // Darker Purple - Neuromuscular
+  };
+  
+  // Running Zone Colors
+  const RUNNING_ZONE_COLORS = {
+    'recovery': '#4c6ef5',  // Blue
+    'easy': '#22c55e',     // Green
+    'moderate': '#fbbf24', // Yellow-Orange
+    'challenging': '#f59e0b', // Orange
+    'hard': '#ef4444',     // Red
+    'very_hard': '#a855f7', // Purple
+    'max': '#ec4899',      // Pink
+  };
+  
+  // Helper function to create donut chart
+  function createZoneChart(canvasId, zoneData, colors, legendId) {
+    const ctx = document.getElementById(canvasId);
+    if (!ctx) return null;
+    
+    // Prepare data
+    const labels = [];
+    const data = [];
+    const backgroundColors = [];
+    
+    // For cycling, zones are numbered 1-7
+    if (zoneData.zones && typeof zoneData.zones[1] !== 'undefined') {
+      // Cycling zones
+      for (let zone = 1; zone <= 7; zone++) {
+        const zoneInfo = zoneData.zones[zone];
+        labels.push(zoneInfo.name);
+        data.push(zoneInfo.time_seconds);
+        backgroundColors.push(colors[zone] || '#888');
+      }
+    } else {
+      // Running zones
+      const zoneOrder = ['recovery', 'easy', 'moderate', 'challenging', 'hard', 'very_hard', 'max'];
+      for (const zoneKey of zoneOrder) {
+        const zoneInfo = zoneData.zones[zoneKey];
+        if (zoneInfo) {
+          labels.push(zoneInfo.name);
+          data.push(zoneInfo.time_seconds);
+          backgroundColors.push(colors[zoneKey] || '#888');
+        }
+      }
+    }
+    
+    // Create legend
+    const legendEl = document.getElementById(legendId);
+    if (legendEl) {
+      legendEl.innerHTML = '';
+      labels.forEach((label, index) => {
+        // Get the correct zone key based on whether it's cycling or running
+        let zoneKey;
+        if (typeof zoneData.zones[1] !== 'undefined') {
+          // Cycling zones (numbered 1-7)
+          zoneKey = index + 1;
+        } else {
+          // Running zones (named)
+          zoneKey = ['recovery', 'easy', 'moderate', 'challenging', 'hard', 'very_hard', 'max'][index];
+        }
+        const timeFormatted = zoneData.zones[zoneKey].time_formatted;
+        const color = backgroundColors[index];
+        const legendItem = document.createElement('div');
+        legendItem.className = 'flex items-center justify-between text-sm';
+        legendItem.innerHTML = `
+          <div class="flex items-center gap-2">
+            <div class="w-3 h-3 rounded-full" style="background-color: ${color};"></div>
+            <span class="text-gray-700 dark:text-gray-300">${label}</span>
+          </div>
+          <span class="text-gray-600 dark:text-gray-400 font-medium">${timeFormatted}</span>
+        `;
+        legendEl.appendChild(legendItem);
+      });
+    }
+    
+    const isDark = isDarkMode();
+    const textColor = isDark ? '#e5e7eb' : '#374151';
+    
+    return new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: labels,
+        datasets: [{
+          data: data,
+          backgroundColor: backgroundColors,
+          borderWidth: 0,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: false
+          },
+          tooltip: {
+            backgroundColor: isDark ? 'rgba(31, 41, 55, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+            titleColor: textColor,
+            bodyColor: textColor,
+            borderColor: isDark ? 'rgba(75, 85, 99, 1)' : 'rgba(229, 231, 235, 1)',
+            borderWidth: 1,
+            callbacks: {
+              label: function(context) {
+                const label = context.label || '';
+                const value = context.parsed || 0;
+                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                // Get the correct zone key based on whether it's cycling or running
+                let zoneKey;
+                if (typeof zoneData.zones[1] !== 'undefined') {
+                  // Cycling zones (numbered 1-7)
+                  zoneKey = context.dataIndex + 1;
+                } else {
+                  // Running zones (named)
+                  zoneKey = ['recovery', 'easy', 'moderate', 'challenging', 'hard', 'very_hard', 'max'][context.dataIndex];
+                }
+                const timeFormatted = zoneData.zones[zoneKey].time_formatted;
+                return `${label}: ${timeFormatted} (${percentage}%)`;
+              }
+            }
+          }
+        },
+        cutout: '60%'
+      }
+    });
+    
+    return chart;
+  }
+  
+  // Track chart creation - wrap createZoneChart to count charts
+  let chartsCreated = 0;
+  const expectedCharts = document.querySelectorAll('canvas').length;
+  const originalCreateZoneChart = createZoneChart;
+  
+  createZoneChart = function(...args) {
+    const result = originalCreateZoneChart.apply(this, args);
+    chartsCreated++;
+    
+    // If all expected charts are created, hide loading overlay
+    if (chartsCreated >= expectedCharts || expectedCharts === 0) {
+      setTimeout(() => {
+        hideLoadingOverlay();
+      }, 500);
+    }
+    
+    return result;
+  };
+  
+  // Initialize Cycling Zone Charts
+  {% if cycling_zones_month %}
+  const cyclingZonesMonthData = {{ cycling_zones_month|safe }};
+  createZoneChart('cyclingZonesMonthChart', cyclingZonesMonthData, CYCLING_ZONE_COLORS, 'cycling-month-legend');
+  {% endif %}
+  
+  {% if cycling_zones_year %}
+  const cyclingZonesYearData = {{ cycling_zones_year|safe }};
+  createZoneChart('cyclingZonesYearChart', cyclingZonesYearData, CYCLING_ZONE_COLORS, 'cycling-year-legend');
+  {% endif %}
+  
+  {% if cycling_zones_all %}
+  const cyclingZonesAllData = {{ cycling_zones_all|safe }};
+  createZoneChart('cyclingZonesAllChart', cyclingZonesAllData, CYCLING_ZONE_COLORS, 'cycling-all-legend');
+  {% endif %}
+  
+  // Initialize Running Zone Charts
+  {% if running_zones_month %}
+  const runningZonesMonthData = {{ running_zones_month|safe }};
+  createZoneChart('runningZonesMonthChart', runningZonesMonthData, RUNNING_ZONE_COLORS, 'running-month-legend');
+  {% endif %}
+  
+  {% if running_zones_year %}
+  const runningZonesYearData = {{ running_zones_year|safe }};
+  createZoneChart('runningZonesYearChart', runningZonesYearData, RUNNING_ZONE_COLORS, 'running-year-legend');
+  {% endif %}
+  
+  {% if running_zones_all %}
+  const runningZonesAllData = {{ running_zones_all|safe }};
+  createZoneChart('runningZonesAllChart', runningZonesAllData, RUNNING_ZONE_COLORS, 'running-all-legend');
+  {% endif %}
+  
+  // Hide loading overlay once all charts are initialized
+  function hideLoadingOverlay() {
+    const overlay = document.getElementById('metrics-loading-overlay');
+    const content = document.getElementById('metrics-content');
+    
+    if (overlay && content) {
+      // Fade out overlay and fade in content
+      overlay.style.opacity = '0';
+      content.style.opacity = '1';
+      
+      // Remove overlay from DOM after animation
+      setTimeout(() => {
+        if (overlay) {
+          overlay.style.display = 'none';
+        }
+      }, 300);
+    }
+  }
+  
+  // Fallback: Hide overlay after reasonable delay if still visible
+  // This ensures the overlay doesn't stay forever if something goes wrong
+  setTimeout(() => {
+    const overlay = document.getElementById('metrics-loading-overlay');
+    if (overlay && overlay.style.display !== 'none' && overlay.style.opacity !== '0') {
+      hideLoadingOverlay();
+    }
+  }, 3000); // Maximum 3 seconds wait time
 });
 </script>
 {% endblock %}

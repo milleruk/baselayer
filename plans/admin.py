@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Exercise, PlanTemplate, PlanTemplateDay, RecapShare
+from .models import Exercise, PlanTemplate, PlanTemplateDay, RecapShare, RecapCache
 
 @admin.register(Exercise)
 class ExerciseAdmin(admin.ModelAdmin):
@@ -41,3 +41,33 @@ class RecapShareAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
     )
+
+@admin.register(RecapCache)
+class RecapCacheAdmin(admin.ModelAdmin):
+    list_display = ['user', 'year', 'total_workouts_count', 'last_regenerated_at', 'updated_at', 'created_at']
+    list_filter = ['year', 'created_at', 'updated_at', 'last_regenerated_at']
+    search_fields = ['user__username', 'user__email']
+    readonly_fields = ['created_at', 'updated_at']
+    raw_id_fields = ['user']
+    
+    fieldsets = (
+        ('Cache Information', {
+            'fields': ('user', 'year', 'total_workouts_count')
+        }),
+        ('Metadata', {
+            'fields': ('last_workout_updated_at', 'last_regenerated_at')
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    actions = ['invalidate_cache']
+    
+    def invalidate_cache(self, request, queryset):
+        """Invalidate selected caches by deleting them"""
+        count = queryset.count()
+        queryset.delete()
+        self.message_user(request, f"Successfully invalidated {count} cache(s).")
+    invalidate_cache.short_description = "Invalidate selected caches"
