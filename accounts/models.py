@@ -232,10 +232,19 @@ class Profile(models.Model):
             7: (int(ftp * 1.50), None)              # Zone 7: 150%+ FTP
         }
     
-    def get_pace_zone_targets(self):
-        """Calculate pace zone targets based on pace target level (1-10)"""
-        if not self.pace_target_level:
-            return None
+    def get_pace_zone_targets(self, activity_type='running'):
+        """
+        Calculate pace zone targets based on user's current pace level (1-10).
+        Uses new PaceEntry system first, falls back to deprecated pace_target_level.
+        """
+        # Try to get current pace level from PaceEntry (new system)
+        pace_level = self.get_current_pace(activity_type=activity_type)
+        
+        # Fallback to deprecated pace_target_level if no PaceEntry
+        if pace_level is None:
+            if not self.pace_target_level:
+                return None
+            pace_level = self.pace_target_level
         
         # Base paces (min/mile) for each level - these will be adjusted based on user's actual fitness
         # Level 1 = slowest, Level 10 = fastest
@@ -252,7 +261,7 @@ class Profile(models.Model):
             10: 6.0    # 6:00/mile
         }
         
-        base_pace = base_paces.get(self.pace_target_level, 8.0)
+        base_pace = base_paces.get(pace_level, 8.0)
         
         # Calculate pace zones (faster pace = lower min/mile number)
         return {

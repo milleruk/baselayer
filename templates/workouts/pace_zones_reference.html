@@ -1,0 +1,542 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Pace Zones Reference - Running, Walking & Rowing{% endblock %}
+
+{% block content %}
+<div class="w-full px-4 py-8">
+  <div class="mb-8">
+    <h1 class="text-4xl font-bold text-gray-900 dark:text-white mb-4">Pace Zones Reference</h1>
+    <p class="text-lg text-gray-600 dark:text-gray-400 mb-6">
+      Reference guide for pace target zones across Running, Walking, and Rowing. Select an activity type below to view zone details for all levels.
+    </p>
+    
+    <!-- Activity Type Tabs - Back at the top -->
+    <div class="mb-8 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 sticky top-0 z-20 shadow-sm -mx-4 px-4">
+      <nav class="flex space-x-8" aria-label="Activity Types">
+        <button onclick="showActivity('running')" id="tab-running" class="activity-tab active py-4 px-1 border-b-2 font-medium text-sm text-blue-600 border-blue-600 dark:text-blue-400 dark:border-blue-400">
+          Running
+        </button>
+        <button onclick="showActivity('walking')" id="tab-walking" class="activity-tab py-4 px-1 border-b-2 font-medium text-sm text-gray-500 border-transparent hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300">
+          Walking
+        </button>
+        <button onclick="showActivity('rowing')" id="tab-rowing" class="activity-tab py-4 px-1 border-b-2 font-medium text-sm text-gray-500 border-transparent hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300">
+          Rowing
+        </button>
+      </nav>
+    </div>
+    
+    <!-- Information from Peloton Blog Post -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+      <!-- Main Info Card -->
+      <div class="lg:col-span-2 space-y-6">
+        <!-- What Are Pace Target Classes -->
+        <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-6">
+          <h2 class="text-2xl font-semibold text-gray-900 dark:text-white mb-4">What Are Pace Target Classes?</h2>
+          <div class="space-y-3 text-gray-700 dark:text-gray-300">
+            <p>
+              <strong>Pace Target classes</strong> calibrate instructor cues into paces that are more personal to you. When you take an instructor-led Pace Target class, personalized speed ranges show up on-screen to help guide you to the right intensity.
+            </p>
+            <p>
+              Think about them the same way you think about a <strong>Power Zone class</strong> on the Bike. If you take Power Zone classes, you work in specific zones, and in Pace Target classes you work at specific paces.
+            </p>
+            <p>
+              Peloton helps you find the best Pace Target Level for you by suggesting one based on your fastest 1-mile or 1K run or power walk on the Tread or Tread+. For rowing, levels are based on your rowing performance. You can also opt-in to a Level that feels right for you and <strong>change your Level at any time</strong>—before or during your workout.
+            </p>
+            <div class="mt-4 p-3 bg-white dark:bg-gray-800 rounded border border-blue-200 dark:border-blue-700">
+              <p class="text-sm font-semibold text-gray-900 dark:text-white mb-2">Activity-Specific Information:</p>
+              <ul class="text-sm space-y-1 text-gray-700 dark:text-gray-300 list-disc list-inside">
+                <li><strong>Running:</strong> 10 levels with 7 zones (Recovery, Easy, Moderate, Challenging, Hard, Very Hard, Max)</li>
+                <li><strong>Walking:</strong> 9 levels with 5 zones (Recovery, Easy, Brisk, Power, Max)</li>
+                <li><strong>Rowing:</strong> 10 levels with 4 zones (Easy, Moderate, Challenging, Max) - measured in min/500m</li>
+              </ul>
+            </div>
+            <p class="text-sm italic pt-2">
+              Source: <a href="https://www.onepeloton.com/blog/pace-targets" target="_blank" rel="noopener noreferrer" class="text-blue-600 dark:text-blue-400 hover:underline">Peloton's Pace Target Classes Blog Post</a>
+            </p>
+          </div>
+        </div>
+
+        <!-- Why You'll Love -->
+        <div class="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-6">
+          <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Why You'll Love Pace Target Classes</h3>
+          <div class="space-y-3 text-gray-700 dark:text-gray-300">
+            <div>
+              <p class="font-semibold text-gray-900 dark:text-white mb-1">Every Cue Is Relevant to You</p>
+              <p class="text-sm">
+                Pace Target classes ensure that you're being appropriately challenged in each class. That means you'll never get a cue from an instructor that feels too fast or slow from your current fitness level. Your workouts are more specific to you, what your abilities are, and what your goals are.
+              </p>
+            </div>
+            <div>
+              <p class="font-semibold text-gray-900 dark:text-white mb-1">You'll Be Able to See Your Progress Over Time</p>
+              <p class="text-sm">
+                Pace Target classes are a great way to measure how your speed is improving over time. You may start out at Level 2, but as you progress and take more classes, you might find that Level 3 is a better fit for you. Having pace targets helps you train smarter and become more strategic.
+              </p>
+              <p class="text-sm mt-2 italic">
+                <strong>Did you know?</strong> 25% of Peloton Members who have taken more than 10 Pace Target classes have advanced to a new Pace Target Level within 2 months.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Getting Started -->
+        <div class="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg p-6">
+          <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">How to Get Started</h3>
+          <div class="space-y-3 text-gray-700 dark:text-gray-300">
+            <p>
+              Pace Target classes are available to all App and All-Access Members. You can filter, search, schedule, and take Pace Target classes on your Tread, Tread+, Row, or on the Peloton App.
+            </p>
+            <div class="space-y-2">
+              <p class="font-semibold text-gray-900 dark:text-white">Steps to Get Started:</p>
+              <ol class="list-decimal list-inside space-y-2 text-sm ml-2">
+                <li><strong>Get to know Pace Targets:</strong> Follow the onboarding flow to get familiar with the paces you'll see in class. The number of paces varies by activity (7 for running, 5 for walking, 4 for rowing).</li>
+                <li><strong>Choose your Pace Target Level:</strong> Select from one of ten Pace Target Levels (9 for walking). Peloton will suggest one based on your best performance. You'll have separate Levels for running, walking, and rowing.</li>
+                <li><strong>Join a workout and follow the on-screen pace bar:</strong> During the workout, you'll see your exact pace, and a pace bar indicating the pace the instructor is cueing, along with the target speed/pace range for your selected Level.</li>
+              </ol>
+            </div>
+            <p class="text-sm mt-4 italic">
+              Source: <a href="https://www.onepeloton.com/blog/pace-targets" target="_blank" rel="noopener noreferrer" class="text-purple-600 dark:text-purple-400 hover:underline">Peloton's Pace Target Classes Blog Post</a>
+            </p>
+          </div>
+        </div>
+
+        <!-- FTP and Power Zones Section -->
+        <div class="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg p-6">
+          <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">FTP and Power Zones (Cycling)</h3>
+          <div class="space-y-3 text-gray-700 dark:text-gray-300">
+            <div>
+              <p class="font-semibold text-gray-900 dark:text-white mb-1">What is FTP?</p>
+              <p class="text-sm">
+                FTP (Functional Threshold Power) is a way to gauge your current level of fitness for cycling. When you take Peloton Power Zone classes, you have personalized metrics to guide you. Your FTP is calculated using the highest output (a combination of cadence and resistance) you can possibly muster on your best day and maintain for 20 minutes.
+              </p>
+            </div>
+            <div>
+              <p class="font-semibold text-gray-900 dark:text-white mb-1">How is FTP Calculated?</p>
+              <p class="text-sm">
+                The FTP test is a 20-minute fitness test on the Bike and Bike+ that should leave you absolutely spent but with a sense of accomplishment. Your FTP is determined by taking 95% of your average output during this 20-minute test. Taking the test for the first time will give you a jumping off point to get started with Power Zone training. You can retest regularly to make sure your personalized Power Zones are accurate, plus use the test as a way to track your progress.
+              </p>
+            </div>
+            <div>
+              <p class="font-semibold text-gray-900 dark:text-white mb-1">What are Power Zones Good For?</p>
+              <p class="text-sm">
+                Power Zones are personalized training zones based on your FTP. They ensure that you're being appropriately challenged in each class. That means you'll never get a cue from an instructor that feels too fast or slow from your current fitness level. Your workouts are more specific to you, what your abilities are, and what your goals are. Power Zone classes help you train smarter and become more strategic as a cyclist.
+              </p>
+            </div>
+            <div class="mt-4 p-3 bg-white dark:bg-gray-800 rounded border border-orange-200 dark:border-orange-700">
+              <p class="text-sm font-semibold text-gray-900 dark:text-white mb-2">The 7 Power Zones:</p>
+              <ul class="text-sm space-y-1 text-gray-700 dark:text-gray-300 list-disc list-inside">
+                <li><strong>Zone 1 (Active Recovery):</strong> 0-55% of FTP - Base building, recovery</li>
+                <li><strong>Zone 2 (Endurance):</strong> 55-75% of FTP - Conversational pace, sustainable for long rides</li>
+                <li><strong>Zone 3 (Tempo):</strong> 75-90% of FTP - Comfortably hard effort</li>
+                <li><strong>Zone 4 (Threshold):</strong> 90-105% of FTP - Lactate threshold, sustainable for moderate durations</li>
+                <li><strong>Zone 5 (VO2 Max):</strong> 105-120% of FTP - High intensity intervals</li>
+                <li><strong>Zone 6 (Anaerobic):</strong> 120-150% of FTP - Very high intensity, short bursts</li>
+                <li><strong>Zone 7 (Neuromuscular):</strong> 150%+ of FTP - All-out sprint effort</li>
+              </ul>
+            </div>
+            <p class="text-sm mt-4 italic">
+              Source: <a href="https://www.onepeloton.com/en-GB/blog/ftp-test-tips" target="_blank" rel="noopener noreferrer" class="text-orange-600 dark:text-orange-400 hover:underline">Peloton's FTP Test Tips Blog Post</a>
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sidebar: Pace Zones Summary -->
+      <div class="lg:col-span-1">
+        <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 sticky top-4">
+          <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-4" id="sidebar-title">Running Pace Zones</h3>
+          <div class="space-y-3 text-sm" id="sidebar-content">
+            <p class="text-gray-700 dark:text-gray-300 mb-3">
+              Throughout a Pace Target class, you may hear instructors cue these paces. A personalized speed range associated with each pace will appear on-screen when an instructor cues it.
+            </p>
+            <div id="zones-list">
+              {% for zone in running_levels.0.zones %}
+              <div class="flex items-start gap-2 pb-2 border-b border-gray-200 dark:border-gray-700 last:border-0">
+                <div class="w-3 h-3 rounded mt-1 flex-shrink-0" style="background-color: {{ zone.color }};"></div>
+                <div>
+                  <p class="font-semibold text-gray-900 dark:text-white">{{ zone.name }}</p>
+                  <p class="text-xs text-gray-600 dark:text-gray-400">{{ zone.description }}</p>
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Running Zone Tables Section -->
+  <div id="running-section" class="activity-section">
+    <div class="mb-8">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-3xl font-bold text-gray-900 dark:text-white">Running Pace Zone Reference Tables</h2>
+        <button onclick="expandAll('running')" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg transition-colors text-sm font-medium">
+          Expand All
+        </button>
+      </div>
+      <p class="text-gray-600 dark:text-gray-400 mb-6">
+        Click on any level below to view the detailed pace zones for that level. Each level shows speed ranges in MPH and pace ranges in min/mi.
+      </p>
+    </div>
+
+    <!-- Level Selector -->
+    <div class="mb-6 sticky top-16 z-10 bg-white dark:bg-gray-900 py-4 border-b border-gray-200 dark:border-gray-700 shadow-sm -mx-4 px-4">
+      <div class="flex flex-wrap gap-2 justify-center">
+        {% for level in running_levels %}
+        <button onclick="scrollToLevel('running', {{ level.level }})" class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors text-sm font-medium">
+          Level {{ level.level }}
+        </button>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Running Pace Levels Grid - Accordion Style -->
+    <div class="space-y-4">
+      {% for level_data in running_levels %}
+      <div id="running-level-{{ level_data.level }}" class="scroll-mt-8">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden">
+          <button onclick="toggleLevel('running', {{ level_data.level }})" class="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-6 py-4 flex items-center justify-between transition-colors" id="running-header-{{ level_data.level }}">
+            <h2 class="text-2xl font-bold">Running Pace Zones - Level {{ level_data.level }}</h2>
+            <svg id="running-icon-{{ level_data.level }}" class="w-6 h-6 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+            </svg>
+          </button>
+          <div id="running-content-{{ level_data.level }}" class="hidden overflow-x-auto">
+            <table class="w-full">
+              <thead class="bg-gray-50 dark:bg-gray-900">
+                <tr>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Zone</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Speed (MPH)</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Pace (min/mi)</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Description</th>
+                </tr>
+              </thead>
+              <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                {% for zone in level_data.zones %}
+                <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <div class="flex items-center">
+                      <div class="w-4 h-4 rounded mr-3 border border-gray-300 dark:border-gray-600" style="background-color: {{ zone.color }};"></div>
+                      <span class="text-sm font-semibold text-gray-900 dark:text-white">{{ zone.name }}</span>
+                    </div>
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <span class="text-sm text-gray-900 dark:text-gray-100 font-medium">{{ zone.min_mph }} - {{ zone.max_mph }} MPH</span>
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <span class="text-sm text-gray-900 dark:text-gray-100 font-mono font-medium">{{ zone.min_pace }} - {{ zone.max_pace }} min/mi</span>
+                  </td>
+                  <td class="px-6 py-4">
+                    <span class="text-sm text-gray-600 dark:text-gray-400">{{ zone.description }}</span>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Walking Zone Tables Section -->
+  <div id="walking-section" class="activity-section hidden">
+    <div class="mb-8">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-3xl font-bold text-gray-900 dark:text-white">Walking Pace Zone Reference Tables</h2>
+        <button onclick="expandAll('walking')" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg transition-colors text-sm font-medium">
+          Expand All
+        </button>
+      </div>
+      <p class="text-gray-600 dark:text-gray-400 mb-6">
+        Click on any level below to view the detailed pace zones for that level. Each level shows speed ranges in MPH and pace ranges in min/mi.
+      </p>
+    </div>
+
+    <div class="mb-6 sticky top-16 z-10 bg-white dark:bg-gray-900 py-4 border-b border-gray-200 dark:border-gray-700 shadow-sm -mx-4 px-4">
+      <div class="flex flex-wrap gap-2 justify-center">
+        {% for level in walking_levels %}
+        <button onclick="scrollToLevel('walking', {{ level.level }})" class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors text-sm font-medium">
+          Level {{ level.level }}
+        </button>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="space-y-4">
+      {% for level_data in walking_levels %}
+      <div id="walking-level-{{ level_data.level }}" class="scroll-mt-8">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden">
+          <button onclick="toggleLevel('walking', {{ level_data.level }})" class="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-6 py-4 flex items-center justify-between transition-colors" id="walking-header-{{ level_data.level }}">
+            <h2 class="text-2xl font-bold">Walking Pace Zones - Level {{ level_data.level }}</h2>
+            <svg id="walking-icon-{{ level_data.level }}" class="w-6 h-6 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+            </svg>
+          </button>
+          <div id="walking-content-{{ level_data.level }}" class="hidden overflow-x-auto">
+            <table class="w-full">
+              <thead class="bg-gray-50 dark:bg-gray-900">
+                <tr>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Zone</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Speed (MPH)</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Pace (min/mi)</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Description</th>
+                </tr>
+              </thead>
+              <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                {% for zone in level_data.zones %}
+                <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <div class="flex items-center">
+                      <div class="w-4 h-4 rounded mr-3 border border-gray-300 dark:border-gray-600" style="background-color: {{ zone.color }};"></div>
+                      <span class="text-sm font-semibold text-gray-900 dark:text-white">{{ zone.name }}</span>
+                    </div>
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <span class="text-sm text-gray-900 dark:text-gray-100 font-medium">{{ zone.min_mph }} - {{ zone.max_mph }} MPH</span>
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <span class="text-sm text-gray-900 dark:text-gray-100 font-mono font-medium">{{ zone.min_pace }} - {{ zone.max_pace }} min/mi</span>
+                  </td>
+                  <td class="px-6 py-4">
+                    <span class="text-sm text-gray-600 dark:text-gray-400">{{ zone.description }}</span>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Rowing Zone Tables Section -->
+  <div id="rowing-section" class="activity-section hidden">
+    <div class="mb-8">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-3xl font-bold text-gray-900 dark:text-white">Rowing Pace Zone Reference Tables</h2>
+        <button onclick="expandAll('rowing')" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg transition-colors text-sm font-medium">
+          Expand All
+        </button>
+      </div>
+      <p class="text-gray-600 dark:text-gray-400 mb-6">
+        Click on any level below to view the detailed pace zones for that level. Rowing paces are measured in min/500m.
+      </p>
+    </div>
+
+    <div class="mb-6 sticky top-16 z-10 bg-white dark:bg-gray-900 py-4 border-b border-gray-200 dark:border-gray-700 shadow-sm -mx-4 px-4">
+      <div class="flex flex-wrap gap-2 justify-center">
+        {% for level in rowing_levels %}
+        <button onclick="scrollToLevel('rowing', {{ level.level }})" class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors text-sm font-medium">
+          Level {{ level.level }}
+        </button>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="space-y-4">
+      {% for level_data in rowing_levels %}
+      <div id="rowing-level-{{ level_data.level }}" class="scroll-mt-8">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden">
+          <button onclick="toggleLevel('rowing', {{ level_data.level }})" class="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-6 py-4 flex items-center justify-between transition-colors" id="rowing-header-{{ level_data.level }}">
+            <h2 class="text-2xl font-bold">Rowing Pace Zones - Level {{ level_data.level }}</h2>
+            <svg id="rowing-icon-{{ level_data.level }}" class="w-6 h-6 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+            </svg>
+          </button>
+          <div id="rowing-content-{{ level_data.level }}" class="hidden overflow-x-auto">
+            <table class="w-full">
+              <thead class="bg-gray-50 dark:bg-gray-900">
+                <tr>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Zone</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Pace (min/500m)</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Description</th>
+                </tr>
+              </thead>
+              <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                {% for zone in level_data.zones %}
+                <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <div class="flex items-center">
+                      <div class="w-4 h-4 rounded mr-3 border border-gray-300 dark:border-gray-600" style="background-color: {{ zone.color }};"></div>
+                      <span class="text-sm font-semibold text-gray-900 dark:text-white">{{ zone.name }}</span>
+                    </div>
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <span class="text-sm text-gray-900 dark:text-gray-100 font-mono font-medium">{{ zone.pace }} min/500m</span>
+                  </td>
+                  <td class="px-6 py-4">
+                    <span class="text-sm text-gray-600 dark:text-gray-400">{{ zone.description }}</span>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<script>
+// Activity type switching
+function showActivity(activity) {
+  // Hide all sections
+  document.querySelectorAll('.activity-section').forEach(section => {
+    section.classList.add('hidden');
+  });
+  
+  // Remove active class from all tabs
+  document.querySelectorAll('.activity-tab').forEach(tab => {
+    tab.classList.remove('active', 'text-blue-600', 'border-blue-600', 'dark:text-blue-400', 'dark:border-blue-400');
+    tab.classList.add('text-gray-500', 'border-transparent', 'dark:text-gray-400');
+  });
+  
+  // Show selected section
+  document.getElementById(`${activity}-section`).classList.remove('hidden');
+  
+  // Activate selected tab
+  const tab = document.getElementById(`tab-${activity}`);
+  tab.classList.add('active', 'text-blue-600', 'border-blue-600', 'dark:text-blue-400', 'dark:border-blue-400');
+  tab.classList.remove('text-gray-500', 'border-transparent', 'dark:text-gray-400');
+  
+  // Update sidebar
+  updateSidebar(activity);
+}
+
+function updateSidebar(activity) {
+  const sidebarTitle = document.getElementById('sidebar-title');
+  const zonesList = document.getElementById('zones-list');
+  
+  if (activity === 'running') {
+    sidebarTitle.textContent = 'Running Pace Zones';
+    zonesList.innerHTML = `
+      {% for zone in running_levels.0.zones %}
+      <div class="flex items-start gap-2 pb-2 border-b border-gray-200 dark:border-gray-700 last:border-0">
+        <div class="w-3 h-3 rounded mt-1 flex-shrink-0" style="background-color: {{ zone.color }};"></div>
+        <div>
+          <p class="font-semibold text-gray-900 dark:text-white">{{ zone.name }}</p>
+          <p class="text-xs text-gray-600 dark:text-gray-400">{{ zone.description }}</p>
+        </div>
+      </div>
+      {% endfor %}
+    `;
+  } else if (activity === 'walking') {
+    sidebarTitle.textContent = 'Walking Pace Zones';
+    zonesList.innerHTML = `
+      {% for zone in walking_levels.0.zones %}
+      <div class="flex items-start gap-2 pb-2 border-b border-gray-200 dark:border-gray-700 last:border-0">
+        <div class="w-3 h-3 rounded mt-1 flex-shrink-0" style="background-color: {{ zone.color }};"></div>
+        <div>
+          <p class="font-semibold text-gray-900 dark:text-white">{{ zone.name }}</p>
+          <p class="text-xs text-gray-600 dark:text-gray-400">{{ zone.description }}</p>
+        </div>
+      </div>
+      {% endfor %}
+    `;
+  } else if (activity === 'rowing') {
+    sidebarTitle.textContent = 'Rowing Pace Zones';
+    zonesList.innerHTML = `
+      {% for zone in rowing_levels.0.zones %}
+      <div class="flex items-start gap-2 pb-2 border-b border-gray-200 dark:border-gray-700 last:border-0">
+        <div class="w-3 h-3 rounded mt-1 flex-shrink-0" style="background-color: {{ zone.color }};"></div>
+        <div>
+          <p class="font-semibold text-gray-900 dark:text-white">{{ zone.name }}</p>
+          <p class="text-xs text-gray-600 dark:text-gray-400">{{ zone.description }}</p>
+        </div>
+      </div>
+      {% endfor %}
+    `;
+  }
+}
+
+function toggleLevel(activity, level) {
+  const content = document.getElementById(`${activity}-content-${level}`);
+  const icon = document.getElementById(`${activity}-icon-${level}`);
+  const header = document.getElementById(`${activity}-header-${level}`);
+  
+  if (content.classList.contains('hidden')) {
+    content.classList.remove('hidden');
+    icon.classList.add('rotate-180');
+    header.setAttribute('aria-expanded', 'true');
+  } else {
+    content.classList.add('hidden');
+    icon.classList.remove('rotate-180');
+    header.setAttribute('aria-expanded', 'false');
+  }
+}
+
+function scrollToLevel(activity, level) {
+  const element = document.getElementById(`${activity}-level-${level}`);
+  if (element) {
+    element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setTimeout(() => {
+      const content = document.getElementById(`${activity}-content-${level}`);
+      if (content && content.classList.contains('hidden')) {
+        toggleLevel(activity, level);
+      }
+    }, 300);
+  }
+}
+
+function expandAll(activity) {
+  const btn = event.target;
+  const isExpanded = btn.textContent === 'Collapse All';
+  btn.textContent = isExpanded ? 'Expand All' : 'Collapse All';
+  
+  {% for level_data in running_levels %}
+  if (activity === 'running') {
+    const content = document.getElementById(`running-content-{{ level_data.level }}`);
+    const icon = document.getElementById(`running-icon-{{ level_data.level }}`);
+    if (content) {
+      if (isExpanded) {
+        content.classList.add('hidden');
+        icon.classList.remove('rotate-180');
+      } else {
+        content.classList.remove('hidden');
+        icon.classList.add('rotate-180');
+      }
+    }
+  }
+  {% endfor %}
+  
+  {% for level_data in walking_levels %}
+  if (activity === 'walking') {
+    const content = document.getElementById(`walking-content-{{ level_data.level }}`);
+    const icon = document.getElementById(`walking-icon-{{ level_data.level }}`);
+    if (content) {
+      if (isExpanded) {
+        content.classList.add('hidden');
+        icon.classList.remove('rotate-180');
+      } else {
+        content.classList.remove('hidden');
+        icon.classList.add('rotate-180');
+      }
+    }
+  }
+  {% endfor %}
+  
+  {% for level_data in rowing_levels %}
+  if (activity === 'rowing') {
+    const content = document.getElementById(`rowing-content-{{ level_data.level }}`);
+    const icon = document.getElementById(`rowing-icon-{{ level_data.level }}`);
+    if (content) {
+      if (isExpanded) {
+        content.classList.add('hidden');
+        icon.classList.remove('rotate-180');
+      } else {
+        content.classList.remove('hidden');
+        icon.classList.add('rotate-180');
+      }
+    }
+  }
+  {% endfor %}
+}
+</script>
+{% endblock %}

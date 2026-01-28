@@ -627,7 +627,11 @@ def class_library(request):
             
             # Method 2: Fallback to get_pace_segments if no chart data yet
             if not chart_segments and hasattr(ride, 'get_pace_segments'):
-                pace_zones = user_profile.get_pace_zone_targets() if user_profile else None
+                # Determine activity type for pace zone targets
+                activity_type = 'running'
+                if user_profile and ride.fitness_discipline in ['running', 'run', 'walking', 'walk']:
+                    activity_type = 'running' if ride.fitness_discipline in ['running', 'run'] else 'walking'
+                pace_zones = user_profile.get_pace_zone_targets(activity_type=activity_type) if user_profile else None
                 pace_segments = ride.get_pace_segments(user_pace_zones=pace_zones)
                 if pace_segments:
                     total_duration = ride.duration_seconds
@@ -822,6 +826,8 @@ def class_detail(request, pk):
     zone_distribution = []
     class_segments = []
     target_line_data = None  # Initialize outside block for scope
+    user_pace_level = None  # Initialize early to avoid UnboundLocalError for non-pace classes
+    user_pace_bands = None  # Initialize early to avoid UnboundLocalError for non-pace classes
     
     if ride.class_type == 'power_zone' or ride.is_power_zone_class:
         # Power Zone class - get user's FTP for zone calculations
@@ -1205,7 +1211,11 @@ def class_detail(request, pk):
         
         # Final fallback: use get_pace_segments if all else fails
         if not pace_chart:
-            pace_zones = user_profile.get_pace_zone_targets()
+            # Determine activity type for pace zone targets
+            activity_type = 'running'
+            if user_profile and ride.fitness_discipline in ['running', 'run', 'walking', 'walk']:
+                activity_type = 'running' if ride.fitness_discipline in ['running', 'run'] else 'walking'
+            pace_zones = user_profile.get_pace_zone_targets(activity_type=activity_type) if user_profile else None
             segments = ride.get_pace_segments(user_pace_zones=pace_zones)
             target_metrics = {
                 'type': 'pace',
@@ -1310,7 +1320,11 @@ def class_detail(request, pk):
         # Set target_metrics for backward compatibility
         if pace_chart:
             # Still create target_metrics structure for other parts of the template
-            pace_zones = user_profile.get_pace_zone_targets() if user_profile else None
+            # Determine activity type for pace zone targets
+            activity_type = 'running'
+            if user_profile and ride.fitness_discipline in ['running', 'run', 'walking', 'walk']:
+                activity_type = 'running' if ride.fitness_discipline in ['running', 'run'] else 'walking'
+            pace_zones = user_profile.get_pace_zone_targets(activity_type=activity_type) if user_profile else None
             segments = ride.get_pace_segments(user_pace_zones=pace_zones) if hasattr(ride, 'get_pace_segments') else []
             target_metrics = {
                 'type': 'pace',
@@ -1328,7 +1342,11 @@ def class_detail(request, pk):
         if 'target_metrics' not in locals() or not target_metrics:
             if pace_chart:
                 # Still create target_metrics structure for other parts of the template
-                pace_zones = user_profile.get_pace_zone_targets() if user_profile else None
+                # Determine activity type for pace zone targets
+                activity_type = 'running'
+                if user_profile and ride.fitness_discipline in ['running', 'run', 'walking', 'walk']:
+                    activity_type = 'running' if ride.fitness_discipline in ['running', 'run'] else 'walking'
+                pace_zones = user_profile.get_pace_zone_targets(activity_type=activity_type) if user_profile else None
                 segments = ride.get_pace_segments(user_pace_zones=pace_zones) if hasattr(ride, 'get_pace_segments') else []
                 target_metrics = {
                     'type': 'pace',
@@ -1525,7 +1543,11 @@ def class_detail(request, pk):
             # Fallback: use get_pace_segments if chart_data not available
             intensity_zones = ['recovery', 'easy', 'moderate', 'challenging', 'hard', 'very_hard', 'max']
             zone_times = {}
-            pace_zones = user_profile.get_pace_zone_targets() if user_profile else None
+            # Determine activity type for pace zone targets
+            activity_type = 'running'
+            if user_profile and ride.fitness_discipline in ['running', 'run', 'walking', 'walk']:
+                activity_type = 'running' if ride.fitness_discipline in ['running', 'run'] else 'walking'
+            pace_zones = user_profile.get_pace_zone_targets(activity_type=activity_type) if user_profile else None
             segments = ride.get_pace_segments(user_pace_zones=pace_zones) if hasattr(ride, 'get_pace_segments') else []
             if segments:
                 for segment in segments:
@@ -1672,7 +1694,10 @@ def class_detail(request, pk):
             
             # Get segments based on class type
             if ride.fitness_discipline in ['running', 'walking']:
-                pace_segs = ride.get_pace_segments(user_pace_zones=user_profile.get_pace_zone_targets() if hasattr(user_profile, 'get_pace_zone_targets') else None)
+                # Determine activity type for pace zone targets
+                activity_type = 'running' if ride.fitness_discipline in ['running', 'run'] else 'walking'
+                pace_zones = user_profile.get_pace_zone_targets(activity_type=activity_type) if hasattr(user_profile, 'get_pace_zone_targets') and user_profile else None
+                pace_segs = ride.get_pace_segments(user_pace_zones=pace_zones)
                 # Map zone numbers (1-7) and zone names to display names
                 pace_name_map = {
                     'recovery': 'Recovery',
@@ -2357,7 +2382,7 @@ def workout_detail(request, pk):
                     'max': base_pace - 2.0
                 }
             else:
-                pace_zones = user_profile.get_pace_zone_targets() if user_profile else None
+                pace_zones = user_profile.get_pace_zone_targets(activity_type=activity_type) if user_profile else None
             
             segments = ride_detail.get_pace_segments(user_pace_zones=pace_zones)
             target_metrics = {

@@ -1,8 +1,213 @@
 {% load playlist_filters %}
+{% load static %}
 
-<!-- Pace Target Interactive Chart Section - Full Width Above Grid -->
-{% if chart_data and chart_data.zones %}
-  {% include 'workouts/partials/pace_target_chart.html' %}
+<!-- Workout Player CSS -->
+<link rel="stylesheet" href="{% static 'css/workout-player.css' %}">
+
+<!-- Pace Target Chart Section with Timer Functionality -->
+{% if target_metrics and target_metrics.type == 'pace' %}
+<!-- Workout Player Section -->
+<div class="workout-player-section">
+  <!-- Workout Header -->
+  <div class="workout-header">
+    <div class="workout-info">
+      <p class="workout-instructor-label">Instructor name: <span class="workout-instructor-name">{% if ride.instructor %}{{ ride.instructor.name }}{% elif ride.instructor_name %}{{ ride.instructor_name }}{% else %}N/A{% endif %}</span></p>
+      <p class="workout-output">Pace Target</p>
+    </div>
+    <div class="workout-controls">
+      <div class="pace-level-control">
+        <label for="pace-level-select">Pace Level:</label>
+        <select id="pace-level-select" class="pace-level-select">
+          <option value="1" {% if user_pace_level == 1 %}selected{% endif %}>Level 1</option>
+          <option value="2" {% if user_pace_level == 2 %}selected{% endif %}>Level 2</option>
+          <option value="3" {% if user_pace_level == 3 %}selected{% endif %}>Level 3</option>
+          <option value="4" {% if user_pace_level == 4 %}selected{% endif %}>Level 4</option>
+          <option value="5" {% if user_pace_level == 5 or not user_pace_level %}selected{% endif %}>Level 5</option>
+          <option value="6" {% if user_pace_level == 6 %}selected{% endif %}>Level 6</option>
+          <option value="7" {% if user_pace_level == 7 %}selected{% endif %}>Level 7</option>
+          <option value="8" {% if user_pace_level == 8 %}selected{% endif %}>Level 8</option>
+          <option value="9" {% if user_pace_level == 9 %}selected{% endif %}>Level 9</option>
+          <option value="10" {% if user_pace_level == 10 %}selected{% endif %}>Level 10</option>
+        </select>
+      </div>
+      <button id="play-pause-btn" class="play-btn">▶</button>
+      <button id="fullscreen-btn" class="fullscreen-btn" title="Fullscreen view">⛶</button>
+      <div class="progress-controls">
+        <label class="progress-label">
+          <input type="checkbox" id="show-progress" checked> Show time into interval
+        </label>
+        <label class="sound-label">
+          <input type="checkbox" id="sound-toggle" checked> Sound on
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <!-- Current Status -->
+  <div class="workout-status">
+    <div class="status-item">
+      <span class="status-label">Time Left</span>
+      <span id="time-left" class="status-value">{% widthratio ride.duration_seconds 60 1 %}:00</span>
+    </div>
+    <div class="status-item">
+      <span class="status-label" id="interval-time-label">Interval Time</span>
+      <span id="interval-time" class="status-value">00:00</span>
+    </div>
+    <div class="status-item">
+      <span class="status-label">Target</span>
+      <span id="current-target" class="status-value">Loading...</span>
+    </div>
+  </div>
+  
+  <!-- Countdown Display -->
+  <div id="countdown-display" class="countdown-display" style="display: none;">
+    <div class="countdown-number">10</div>
+    <div class="countdown-label">Starting in...</div>
+  </div>
+  
+  <!-- Fullscreen Overlay -->
+  <div id="fullscreen-overlay" class="fullscreen-overlay" style="display: none;">
+    <div class="fullscreen-content">
+      <button id="exit-fullscreen-btn" class="exit-fullscreen-btn" title="Exit fullscreen">✕</button>
+      
+      <!-- Fullscreen Status -->
+      <div class="fullscreen-status">
+        <div class="fullscreen-status-item">
+          <span class="fullscreen-status-label">Time Left</span>
+          <span id="fullscreen-time-left" class="fullscreen-status-value">{% widthratio ride.duration_seconds 60 1 %}:00</span>
+        </div>
+        <div class="fullscreen-status-item">
+          <span class="fullscreen-status-label" id="fullscreen-interval-time-label">Interval Time</span>
+          <span id="fullscreen-interval-time" class="fullscreen-status-value">00:00</span>
+        </div>
+        <div class="fullscreen-status-item">
+          <span class="fullscreen-status-label">Target</span>
+          <span id="fullscreen-current-target" class="fullscreen-status-value">Loading...</span>
+        </div>
+      </div>
+      
+      <!-- Fullscreen Chart -->
+      <div class="fullscreen-chart-container">
+        <canvas id="fullscreen-performanceChart"></canvas>
+        <div id="fullscreen-powerChartReadout" class="fullscreen-chart-readout"></div>
+      </div>
+      
+      <!-- Fullscreen Controls -->
+      <div class="fullscreen-controls">
+        <div class="fullscreen-pace-level-control">
+          <label for="fullscreen-pace-level-select">Pace Level:</label>
+          <select id="fullscreen-pace-level-select" class="pace-level-select">
+            <option value="1" {% if user_pace_level == 1 %}selected{% endif %}>Level 1</option>
+            <option value="2" {% if user_pace_level == 2 %}selected{% endif %}>Level 2</option>
+            <option value="3" {% if user_pace_level == 3 %}selected{% endif %}>Level 3</option>
+            <option value="4" {% if user_pace_level == 4 %}selected{% endif %}>Level 4</option>
+            <option value="5" {% if user_pace_level == 5 or not user_pace_level %}selected{% endif %}>Level 5</option>
+            <option value="6" {% if user_pace_level == 6 %}selected{% endif %}>Level 6</option>
+            <option value="7" {% if user_pace_level == 7 %}selected{% endif %}>Level 7</option>
+            <option value="8" {% if user_pace_level == 8 %}selected{% endif %}>Level 8</option>
+            <option value="9" {% if user_pace_level == 9 %}selected{% endif %}>Level 9</option>
+            <option value="10" {% if user_pace_level == 10 %}selected{% endif %}>Level 10</option>
+          </select>
+        </div>
+        <button id="fullscreen-play-pause-btn" class="fullscreen-play-btn">▶</button>
+        <div class="fullscreen-progress-controls">
+          <label class="progress-label">
+            <input type="checkbox" id="fullscreen-show-progress" checked> Show time into interval
+          </label>
+          <label class="sound-label">
+            <input type="checkbox" id="fullscreen-sound-toggle" checked> Sound on
+          </label>
+        </div>
+      </div>
+      
+      <!-- Fullscreen Chart Controls -->
+      <div class="fullscreen-chart-controls">
+        <button id="fullscreen-save-chart" class="chart-control-btn">
+          <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"></path>
+          </svg>
+          Save
+        </button>
+        {% if target_line_data %}
+        <button id="fullscreen-toggle-target-line" class="chart-control-btn">Hide Target</button>
+        {% endif %}
+        <label class="chart-control-checkbox">
+          <input type="checkbox" id="fullscreen-toggle-zone-colors" checked>
+          <span>Pace Level Colors</span>
+        </label>
+      </div>
+      
+      <!-- Fullscreen Slider -->
+      <div class="fullscreen-slider-container">
+        <div class="fullscreen-slider-wrapper">
+          <input type="range" id="fullscreen-progress-slider" min="0" max="100" value="0" class="fullscreen-progress-slider">
+          <div id="fullscreen-slider-tooltip" class="slider-tooltip">0:00</div>
+        </div>
+        <div class="fullscreen-slider-labels">
+          <span>0:00</span>
+          <span id="fullscreen-slider-current-time">0:00</span>
+          <span>{% widthratio ride.duration_seconds 60 1 %}:00</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Chart Section -->
+  <div class="mb-3 sm:mb-4">
+    <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-2">
+      <div>
+        <h2 class="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-1">Pace Target Timeline</h2>
+        <p class="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Coach cues mapped against your pace effort.</p>
+      </div>
+      {% if playlist and playlist.songs %}
+      <label class="flex items-center gap-2 text-xs sm:text-sm text-gray-600 dark:text-gray-400 cursor-pointer">
+        <input type="checkbox" id="showMusicTimeline" checked class="rounded border-gray-300 dark:border-gray-600 text-primary focus:ring-primary bg-white dark:bg-gray-700">
+        <span>Show Music Timeline</span>
+      </label>
+      {% endif %}
+    </div>
+  </div>
+<div class="pace-target-chart relative px-1 sm:px-3 pt-2 overflow-x-auto">
+  {% if playlist and playlist.songs %}
+  <!-- Music Timeline Overlay - Above Chart -->
+  <div id="musicTimeline" class="mb-2 sm:mb-3 h-10 sm:h-12 relative bg-gray-800 dark:bg-gray-950 rounded border border-gray-700 dark:border-gray-600 overflow-hidden"></div>
+  {% endif %}
+  <div class="relative bg-gray-50 dark:bg-gray-900 rounded-lg min-h-[240px] sm:min-h-[320px] w-full">
+    <canvas id="performanceChart"></canvas>
+  </div>
+  <div id="powerChartReadout" class="mt-2 px-1 sm:px-3 text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-400 opacity-85 break-words"></div>
+  
+  <!-- Chart Controls (for pace target workouts) -->
+  {% if target_metrics and target_metrics.type == 'pace' %}
+  <div class="chart-controls mt-3 sm:mt-4">
+    <button id="toggle-target-line" class="chart-control-btn text-xs sm:text-sm">Hide Target</button>
+    <button id="save-chart" class="chart-control-btn text-xs sm:text-sm">
+      <svg class="w-3 h-3 sm:w-4 sm:h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"></path>
+      </svg>
+      Save
+    </button>
+    <label class="chart-control-checkbox text-xs sm:text-sm">
+      <input type="checkbox" id="toggle-zone-colors" checked class="w-3 h-3 sm:w-4 sm:h-4">
+      <span>Pace Level Colors</span>
+    </label>
+  </div>
+  {% endif %}
+  
+</div>
+  <!-- Progress Slider -->
+  <div class="progress-slider-container" style="margin-top: 1rem; margin-bottom: 1rem;">
+    <div class="slider-wrapper">
+      <input type="range" id="progress-slider" min="0" max="100" value="0" class="progress-slider">
+      <div id="slider-tooltip" class="slider-tooltip">0:00</div>
+    </div>
+    <div class="slider-labels">
+      <span>0:00</span>
+      <span id="slider-current-time">0:00</span>
+      <span>{% widthratio ride.duration_seconds 60 1 %}:00</span>
+    </div>
+  </div>
+</div>
 {% endif %}
 
 <!-- 2x2 Grid Layout for Pace Target Classes -->
@@ -147,3 +352,1925 @@
     </div>
   {% endif %}
 </div>
+
+{% if target_metrics %}
+{{ target_metrics|json_script:"target-metrics-json" }}
+{% endif %}
+
+{% if target_line_data %}
+{{ target_line_data|json_script:"target-line-data-json" }}
+{% endif %}
+
+<!-- Chart.js Library -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+<!-- Performance Graph Script (adapted for class library - no performance data) -->
+<script>
+  // Performance data from Django (empty for class library - no actual workout data)
+  const performanceData = [];
+
+  // Target line data (for power zone classes) - use json_script for safe encoding
+  let targetLineData = null;
+  {% if target_line_data %}
+  try {
+    const targetLineDataScript = document.getElementById('target-line-data-json');
+    if (targetLineDataScript) {
+      const targetLineDataStr = targetLineDataScript.textContent;
+      targetLineData = JSON.parse(targetLineDataStr);
+    }
+  } catch (e) {
+    console.warn('Error parsing target_line_data:', e);
+    targetLineData = null;
+  }
+  {% endif %}
+  
+  const workoutType = "{% if ride.workout_type %}{{ ride.workout_type.slug|escapejs }}{% else %}{{ ride.fitness_discipline|lower|escapejs }}{% endif %}";
+  
+  // Check if this is a power zone class
+  const isPowerZone = {% if target_metrics and target_metrics.type == 'power_zone' %}true{% elif ride.is_power_zone_class %}true{% elif ride.class_type == 'power_zone' %}true{% else %}false{% endif %};
+  // Check if this is a pace target class
+  const isPaceTarget = {% if target_metrics and target_metrics.type == 'pace' %}true{% elif ride.class_type == 'pace_target' %}true{% elif ride.fitness_discipline == 'running' or ride.fitness_discipline == 'walking' %}true{% else %}false{% endif %};
+  const userPaceLevel = {% if user_pace_level %}{{ user_pace_level }}{% else %}5{% endif %};
+  const workoutDuration = {{ ride.duration_seconds|default:1800 }}; // Duration in seconds
+  const userFTP = {% if user_ftp %}{{ user_ftp }}{% else %}null{% endif %};
+  // Get target metrics JSON (includes zone_ranges and pace_zones)
+  // Use json_script filter for safe JSON encoding
+  let targetMetricsJson = null;
+  {% if target_metrics %}
+  try {
+    const targetMetricsJsonScript = document.getElementById('target-metrics-json');
+    if (targetMetricsJsonScript) {
+      const targetMetricsJsonStr = targetMetricsJsonScript.textContent;
+      targetMetricsJson = JSON.parse(targetMetricsJsonStr);
+    }
+  } catch (e) {
+    console.warn('Error parsing target_metrics_json:', e);
+    targetMetricsJson = null;
+  }
+  {% endif %}
+  // Extract zone_ranges from target_metrics_json if available
+  const zoneRanges = (targetMetricsJson && targetMetricsJson.zone_ranges) ? targetMetricsJson.zone_ranges : null;
+  // Extract pace_zones from target_metrics_json if available
+  const paceZonesFromJson = (targetMetricsJson && targetMetricsJson.pace_zones) ? targetMetricsJson.pace_zones : null;
+  
+  // #region agent log
+  fetch('http://localhost:7242/ingest/2d1a7245-2209-4ba5-a6cc-73ffb0303c5e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'pace_target_content.html:232',message:'Variables initialized',data:{workoutType:workoutType,targetLineData:targetLineData?targetLineData.length:null,hasTargetMetrics:!!targetMetricsJson,paceZonesFromJson:!!paceZonesFromJson,sampleTargetLineData:targetLineData?targetLineData.slice(0,5):null,targetMetricsSegments:targetMetricsJson?.segments?.slice(0,3)||null},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
+  
+  // Playlist data for music timeline
+  const playlistData = {% if playlist and playlist.songs %}[
+    {% for song in playlist.songs %}
+    {
+      title: "{{ song.title|escapejs }}",
+      artists: [{% for artist in song.artists %}"{{ artist.artist_name|escapejs }}"{% if not forloop.last %}, {% endif %}{% endfor %}],
+      start_time: {{ song.start_time_offset|default:0 }},
+      duration: {{ song.duration|default:0 }}
+    }{% if not forloop.last %},{% endif %}
+    {% endfor %}
+  ]{% else %}null{% endif %};
+  
+  // Calculate song durations if not provided (from next song's start time)
+  if (playlistData && playlistData.length > 0) {
+    for (let i = 0; i < playlistData.length; i++) {
+      const song = playlistData[i];
+      if (!song.duration || song.duration <= 0) {
+        // Calculate duration from next song's start time
+        if (i < playlistData.length - 1) {
+          song.duration = playlistData[i + 1].start_time - song.start_time;
+        } else {
+          // Last song - use workout duration minus start time
+          song.duration = Math.max(180, workoutDuration - song.start_time);
+        }
+      }
+    }
+  }
+  
+  // Debug logging
+  console.log('Performance data count:', performanceData.length);
+  console.log('Target line data:', targetLineData ? targetLineData.length : 'null');
+  console.log('Is Power Zone:', isPowerZone);
+  console.log('Is Pace Target:', isPaceTarget);
+  console.log('User FTP:', userFTP);
+  console.log('User Pace Level:', userPaceLevel);
+  console.log('Zone ranges:', zoneRanges);
+  console.log('Target metrics:', targetMetricsJson);
+
+  // Format time from seconds to MM:SS
+  function formatTime(seconds) {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  }
+
+  // Prepare chart data - use timestamps directly for x-axis (like reference)
+  // For class library, generate time points based on workout duration
+  const timeSeconds = [];
+  const labels = [];
+  if (workoutDuration > 0) {
+    // Generate time points every 5 seconds for the workout duration
+    for (let t = 0; t <= workoutDuration; t += 5) {
+      timeSeconds.push(t);
+      labels.push(formatTime(t));
+    }
+  }
+  const outputData = []; // Empty - no performance data
+  const speedData = []; // Empty - no performance data
+  const heartRateData = []; // Empty - no performance data
+  
+  // Helper function to convert watts to zone (1-7) based on FTP
+  function wattsToZone(watts, ftp) {
+    if (!watts || !ftp || watts <= 0 || ftp <= 0) return 1;
+    const percentage = watts / ftp;
+    if (percentage < 0.55) return 1;  // Zone 1: < 55% FTP
+    if (percentage < 0.75) return 2;  // Zone 2: 55-75% FTP
+    if (percentage < 0.90) return 3;  // Zone 3: 75-90% FTP
+    if (percentage < 1.05) return 4;  // Zone 4: 90-105% FTP
+    if (percentage < 1.20) return 5;  // Zone 5: 105-120% FTP
+    if (percentage < 1.50) return 6;  // Zone 6: 120-150% FTP
+    return 7;  // Zone 7: >= 150% FTP
+  }
+  
+  // Calculate y-axis range for power zone charts (like reference)
+  let ymin = 0;
+  let ymax = null;
+  if (isPowerZone && (workoutType === 'cycling' || workoutType === 'ride')) {
+    const pool = [...outputData.filter(v => v !== null)];
+    if (targetLineData && targetLineData.length > 0) {
+      pool.push(...targetLineData.map(item => item.target_output).filter(v => v !== null));
+    }
+    if (pool.length > 0) {
+      ymin = Math.min(...pool);
+      ymax = Math.max(...pool);
+      if (Math.abs(ymax - ymin) < 10) {
+        ymax = ymin + 10;
+      }
+      // Add padding (6% like reference)
+      const pad = Math.max((ymax - ymin) * 0.06, 10);
+      ymin = Math.max(0, ymin - pad);
+      ymax = ymax + pad;
+    } else {
+      ymax = 300;  // Default max
+    }
+  }
+  
+  // Debug: Check if we have any output data
+  const hasOutputData = outputData.some(v => v !== null && v !== undefined);
+  console.log('Has output data:', hasOutputData, 'Output data sample:', outputData.slice(0, 10));
+  console.log('Y-axis range:', ymin, '-', ymax);
+
+  // Power Zone colors matching reference implementation
+  const POWER_ZONE_COLORS = {
+    1: "#6f42c1",  // Purple - Z1 • Active Recovery
+    2: "#17a2b8",  // Teal - Z2 • Endurance
+    3: "#28a745",  // Green - Z3 • Tempo
+    4: "#ffc107",  // Yellow - Z4 • Threshold
+    5: "#fd7e14",  // Orange - Z5 • VO2 Max
+    6: "#dc3545",  // Red - Z6 • Anaerobic
+    7: "#6610f2"   // Dark Purple - Z7 • Neuromuscular
+  };
+  
+  const POWER_ZONE_NAMES = {
+    1: "Z1 • Active Recovery",
+    2: "Z2 • Endurance",
+    3: "Z3 • Tempo",
+    4: "Z4 • Threshold",
+    5: "Z5 • VO2 Max",
+    6: "Z6 • Anaerobic",
+    7: "Z7 • Neuromuscular"
+  };
+
+  // Determine chart type and data based on workout type
+  let datasets = [];
+  let yAxisLabel = '';
+  let powerZoneBands = [];
+  let showTargetLine = true;  // Track target line visibility
+
+  // Build power zone bands for background (like reference implementation)
+  // Build in order Zone 1 to Zone 7, but they'll be drawn reversed (Zone 7 on top)
+  let showZoneColors = true;
+  if (zoneRanges && userFTP && isPowerZone) {
+    for (let zone = 1; zone <= 7; zone++) {
+      const zoneKey = String(zone);
+      if (zoneRanges[zoneKey]) {
+        const range = zoneRanges[zoneKey];
+        const lower = Array.isArray(range) ? range[0] : null;
+        const upper = Array.isArray(range) ? range[1] : null;
+        powerZoneBands.push({
+          zone: zone,
+          label: POWER_ZONE_NAMES[zone] || `Zone ${zone}`,
+          color: POWER_ZONE_COLORS[zone] || '#888',
+          lower: lower !== null && lower !== undefined ? lower : null,
+          upper: upper !== null && upper !== undefined ? upper : null
+        });
+      }
+    }
+  }
+  
+  // Pace target colors and names
+  const PACE_LEVEL_COLORS = {
+    1: "#6f42c1",  // Purple - Recovery
+    2: "#4c6ef5",  // Blue - Easy
+    3: "#228be6",  // Light Blue - Moderate
+    4: "#0ca678",  // Green - Challenging
+    5: "#ff922b",  // Orange - Hard
+    6: "#f76707",  // Dark Orange - Very Hard
+    7: "#fa5252"   // Red - Max
+  };
+  
+  const PACE_LEVEL_NAMES = {
+    1: "Recovery",
+    2: "Easy",
+    3: "Moderate",
+    4: "Challenging",
+    5: "Hard",
+    6: "Very Hard",
+    7: "Max"
+  };
+  
+  // Build pace level bands for pace target classes
+  let paceLevelBands = [];
+  if (isPaceTarget) {
+    for (let level = 1; level <= 7; level++) {
+      paceLevelBands.push({
+        level: level,
+        label: PACE_LEVEL_NAMES[level] || `Level ${level}`,
+        color: PACE_LEVEL_COLORS[level] || '#888',
+        lower: level - 0.5,
+        upper: level + 0.5
+      });
+    }
+  }
+
+  if (workoutType === 'cycling' || workoutType === 'ride') {
+    if (isPowerZone && userFTP) {
+      // For power zone charts, use zones (1-7) on Y-axis instead of watts
+      yAxisLabel = 'Zone';
+      
+      // Target output line (light blue, stepped) for power zone classes
+      if (targetLineData && targetLineData.length > 0) {
+        // Convert target output (watts) to zones using the same decimal conversion as actual
+        const targetZoneData = [];
+        for (let i = 0; i < timeSeconds.length; i++) {
+          if (i < targetLineData.length && targetLineData[i].target_output) {
+            const targetWatts = targetLineData[i].target_output;
+            const percentage = targetWatts / userFTP;
+            // Use the same decimal zone mapping as actual for consistency
+            let targetZone;
+            if (percentage < 0.55) {
+              targetZone = 1.0 + (percentage / 0.55) * 0.5;
+            } else if (percentage < 0.75) {
+              targetZone = 1.5 + ((percentage - 0.55) / 0.20) * 1.0;
+            } else if (percentage < 0.90) {
+              targetZone = 2.5 + ((percentage - 0.75) / 0.15) * 1.0;
+            } else if (percentage < 1.05) {
+              targetZone = 3.5 + ((percentage - 0.90) / 0.15) * 1.0;
+            } else if (percentage < 1.20) {
+              targetZone = 4.5 + ((percentage - 1.05) / 0.15) * 1.0;
+            } else if (percentage < 1.50) {
+              targetZone = 5.5 + ((percentage - 1.20) / 0.30) * 1.0;
+            } else {
+              targetZone = 6.5 + Math.min((percentage - 1.50) / 0.50, 1.0) * 0.5;
+            }
+            targetZoneData.push({ x: timeSeconds[i], y: targetZone });
+          } else {
+            targetZoneData.push({ x: timeSeconds[i], y: null });
+          }
+        }
+        
+        datasets.push({
+          label: 'Target',
+          data: targetZoneData,
+          borderColor: '#93c5fd',  // Light blue like reference
+          backgroundColor: 'rgba(147, 197, 253, 0.1)',
+          borderWidth: 2.8,
+          fill: false,
+          tension: 0,  // Stepped line (no smoothing)
+          stepped: 'before',  // Stepped line
+          pointRadius: 0,
+          pointHoverRadius: 4,
+          spanGaps: true,
+          hidden: !showTargetLine
+        });
+      }
+    } else {
+      // Non-power zone cycling charts - use watts
+      yAxisLabel = 'Output (Watts)';
+    }
+  } else if (workoutType === 'running' || workoutType === 'run' || workoutType === 'walking' || workoutType === 'walk') {
+    if (isPaceTarget) {
+      // Pace target class - use pace levels (1-7) on Y-axis
+      yAxisLabel = 'Pace Level';
+      
+      // Target pace line from segments
+      // Shift target line 60 seconds backwards (earlier) to match power zone behavior
+      const TIME_SHIFT = -60;
+      
+      if (targetMetricsJson && targetMetricsJson.segments && targetMetricsJson.segments.length > 0) {
+        const targetPaceData = [];
+        // Generate time points based on workout duration
+        const timePoints = timeSeconds.length > 0 ? timeSeconds : [];
+        if (timePoints.length === 0 && workoutDuration > 0) {
+          // Generate time points every 5 seconds for the workout duration
+          for (let t = 0; t <= workoutDuration; t += 5) {
+            timePoints.push(t);
+          }
+        }
+        
+        for (let i = 0; i < timePoints.length; i++) {
+          const currentTime = timePoints[i];
+          // Find which segment this time belongs to (with 60 second backward shift)
+          let targetPace = null;
+          for (const segment of targetMetricsJson.segments) {
+            // Apply 60 second backward shift to segment times
+            const segStart = Math.max(0, (segment.start || 0) + TIME_SHIFT);
+            const segEnd = Math.max(0, (segment.end || (segment.start || 0) + (segment.duration || 0)) + TIME_SHIFT);
+            if (currentTime >= segStart && currentTime < segEnd) {
+              // Convert zone from 0-6 to 1-7 scale
+              let zoneValue = segment.zone !== null && segment.zone !== undefined 
+                ? segment.zone 
+                : (segment.pace_level !== null && segment.pace_level !== undefined 
+                  ? segment.pace_level 
+                  : 1); // Default to Easy
+              targetPace = zoneValue + 1; // Convert 0-6 to 1-7
+              break;
+            }
+          }
+          // If no segment found, use the last segment's pace or default
+          if (targetPace === null && targetMetricsJson.segments.length > 0) {
+            const lastSegment = targetMetricsJson.segments[targetMetricsJson.segments.length - 1];
+            let zoneValue = lastSegment.zone !== null && lastSegment.zone !== undefined
+              ? lastSegment.zone
+              : (lastSegment.pace_level !== null && lastSegment.pace_level !== undefined
+                ? lastSegment.pace_level
+                : 1); // Default to Easy
+            targetPace = zoneValue + 1; // Convert 0-6 to 1-7
+          }
+          if (targetPace !== null) {
+            // Ensure pace level is in valid range (1-7)
+            const clampedPace = Math.max(1, Math.min(7, Math.round(targetPace)));
+            targetPaceData.push({ x: currentTime, y: clampedPace });
+          }
+        }
+        
+        datasets.push({
+          label: 'Target',
+          data: targetPaceData,
+          borderColor: '#93c5fd',  // Light blue
+          backgroundColor: 'rgba(147, 197, 253, 0.1)',
+          borderWidth: 2.8,
+          fill: false,
+          tension: 0,
+          stepped: 'before',
+          pointRadius: 0,
+          pointHoverRadius: 4,
+          spanGaps: true,
+          hidden: !showTargetLine
+        });
+      }
+    } else {
+      // Standard running chart - use speed
+      yAxisLabel = 'Speed (mph)';
+    }
+  } else {
+    yAxisLabel = 'Heart Rate (bpm)';
+  }
+
+  // Progress line plugin - draws vertical line at current time
+  const progressLinePlugin = {
+    id: 'progressLine',
+    afterDatasetsDraw(chart, args, opts) {
+      const {ctx, chartArea, scales} = chart;
+      const currentTime = chart.options?.plugins?.progressLine?.currentTime || 0;
+      if (currentTime <= 0) return;
+      
+      const xScale = scales.x;
+      const xPos = xScale.getPixelForValue(currentTime);
+      
+      // Only draw if within chart area
+      if (xPos < chartArea.left || xPos > chartArea.right) return;
+      
+      ctx.save();
+      ctx.strokeStyle = '#00ff00'; // Green color like old implementation
+      ctx.lineWidth = 3;
+      ctx.shadowColor = '#00ff00';
+      ctx.shadowBlur = 10;
+      ctx.beginPath();
+      ctx.moveTo(xPos, chartArea.top);
+      ctx.lineTo(xPos, chartArea.bottom);
+      ctx.stroke();
+      ctx.restore();
+    }
+  };
+  
+  // Zone bands plugin (like reference implementation) - can be toggled on/off
+  const zoneBandsPlugin = {
+    id: 'zoneBands',
+    beforeDatasetsDraw(chart, args, opts) {
+      if (!showZoneColors) return;
+      const {ctx, chartArea, scales} = chart;
+      ctx.save();
+      
+      if (isPowerZone && userFTP) {
+        // For power zone charts with zone-based Y-axis, draw bands by zone number (1-7)
+        // Draw bands across the full range from 0.5 to 7.5
+        for (let zone = 1; zone <= 7; zone++) {
+          const zoneColor = POWER_ZONE_COLORS[zone] || '#888';
+          // Each zone spans from (zone - 0.5) to (zone + 0.5)
+          const yTop = scales.y.getPixelForValue(zone - 0.5);
+          const yBot = scales.y.getPixelForValue(zone + 0.5);
+          ctx.fillStyle = zoneColor;
+          ctx.globalAlpha = 0.18;  // Match reference opacity
+          ctx.fillRect(chartArea.left, yTop, chartArea.right - chartArea.left, yBot - yTop);
+        }
+      } else if (isPaceTarget) {
+        // For pace target charts, draw bands by pace level (1-7)
+        for (let level = 1; level <= 7; level++) {
+          const levelColor = PACE_LEVEL_COLORS[level] || '#888';
+          // Each level spans from (level - 0.5) to (level + 0.5)
+          const yTop = scales.y.getPixelForValue(level - 0.5);
+          const yBot = scales.y.getPixelForValue(level + 0.5);
+          ctx.fillStyle = levelColor;
+          ctx.globalAlpha = 0.18;
+          ctx.fillRect(chartArea.left, yTop, chartArea.right - chartArea.left, yBot - yTop);
+        }
+      } else {
+        // For watt-based charts, use the bands from opts
+        const bands = opts?.bands || [];
+        [...bands].reverse().forEach(b => {
+          if (b.lower == null && b.upper == null) return;
+          const yTop = scales.y.getPixelForValue(b.upper ?? scales.y.max);
+          const yBot = scales.y.getPixelForValue(b.lower ?? scales.y.min);
+          ctx.fillStyle = b.color;
+          ctx.globalAlpha = 0.18;
+          ctx.fillRect(chartArea.left, yTop, chartArea.right - chartArea.left, yBot - yTop);
+        });
+      }
+      ctx.restore();
+    },
+    afterDraw(chart, args, opts) {
+      // Overlay zone/pace level labels on the chart (on the left side of the chart area)
+      if (isPowerZone && userFTP) {
+        const {ctx, chartArea, scales} = chart;
+        ctx.save();
+        ctx.font = '12px sans-serif';
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        
+        // Draw zone labels (ZONE 1 through ZONE 7) overlaid on the chart
+        for (let zone = 1; zone <= 7; zone++) {
+          const yPos = scales.y.getPixelForValue(zone);
+          // Position labels on the left side of the chart area
+          ctx.fillText(`ZONE ${zone}`, chartArea.left + 8, yPos);
+        }
+        ctx.restore();
+      } else if (isPaceTarget) {
+        const {ctx, chartArea, scales} = chart;
+        ctx.save();
+        ctx.font = '12px sans-serif';
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        
+        // Draw pace level labels overlaid on the chart
+        for (let level = 1; level <= 7; level++) {
+          const yPos = scales.y.getPixelForValue(level);
+          const levelName = PACE_LEVEL_NAMES[level] || `Level ${level}`;
+          ctx.fillText(levelName.toUpperCase(), chartArea.left + 8, yPos);
+        }
+        ctx.restore();
+      }
+    }
+  };
+  
+  // External tooltip/readout handler - now using built-in tooltip instead
+  // Keep readout for backward compatibility but tooltip will handle display
+  const readout = document.getElementById('powerChartReadout');
+  
+  // Legend removed - users can see output values on hover via tooltip
+
+  // Initialize chart when DOM is ready
+  function initChart() {
+    // Check if Chart.js is loaded
+    if (typeof Chart === 'undefined') {
+      console.error('Chart.js library not loaded');
+      return;
+    }
+    
+    // Create chart
+    const ctx = document.getElementById('performanceChart');
+    if (!ctx) {
+      console.error('Performance chart canvas not found');
+      return;
+    }
+    
+    // Check if we have data - allow rendering if we have target metrics even without performance data
+    const hasTargetMetrics = (isPowerZone || isPaceTarget) && targetMetricsJson && targetMetricsJson.segments && targetMetricsJson.segments.length > 0;
+    if (performanceData.length === 0 && !hasTargetMetrics) {
+      console.error('No performance data or target metrics available');
+      return;
+    }
+    
+    // Create chart configuration matching reference exactly
+    // For power zone charts, use time_seconds array as labels with linear scale
+    const chartConfig = {
+    type: 'line',
+    data: {
+      labels: (isPowerZone && userFTP) || isPaceTarget ? [] : (isPowerZone ? timeSeconds : labels),  // Empty labels for power zone/pace target when using x/y data points
+      datasets: datasets
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false,  // Disable animation like reference
+      interaction: {
+        intersect: false,
+        mode: 'index'
+      },
+      elements: {
+        line: {
+          tension: 1.0  // Maximum smoothness at element level
+        }
+      },
+      plugins: {
+        legend: {
+          display: false  // Hide legend (we show custom legend below)
+        },
+        tooltip: {
+          enabled: true,  // Enable tooltip for all charts
+          mode: 'index',
+          intersect: false,
+          callbacks: {
+            title: function(context) {
+              if (context.length > 0 && context[0].parsed) {
+                const timestamp = (isPowerZone || isPaceTarget) ? context[0].parsed.x : (performanceData[context[0].dataIndex]?.timestamp || 0);
+                return formatTime(timestamp);
+              }
+              return '';
+            },
+            label: function(context) {
+              if (isPowerZone && userFTP) {
+                const datasetLabel = context.dataset.label;
+                const zoneValue = context.parsed.y;
+                const dataIndex = context.dataIndex;
+                
+                if (datasetLabel === 'Actual') {
+                  const watts = outputData[dataIndex];
+                  if (watts !== null && watts !== undefined) {
+                    const zone = Math.round(zoneValue);
+                    return `Actual: ${Math.round(watts)} watts (Zone ${zone})`;
+                  }
+                } else if (datasetLabel === 'Target') {
+                  if (targetLineData && dataIndex < targetLineData.length && targetLineData[dataIndex].target_output) {
+                    const targetWatts = targetLineData[dataIndex].target_output;
+                    const zone = Math.round(zoneValue);
+                    return `Target: ${Math.round(targetWatts)} watts (Zone ${zone})`;
+                  }
+                }
+              } else if (isPaceTarget) {
+                const datasetLabel = context.dataset.label;
+                const paceValue = context.parsed.y;
+                const dataIndex = context.dataIndex;
+                
+                if (datasetLabel === 'Actual') {
+                  const speed = speedData[dataIndex];
+                  if (speed !== null && speed !== undefined && speed > 0) {
+                    const paceMinPerMile = 60.0 / speed;
+                    const minutes = Math.floor(paceMinPerMile);
+                    const seconds = Math.round((paceMinPerMile - minutes) * 60);
+                    const paceStr = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                    const level = Math.round(paceValue);
+                    const levelName = PACE_LEVEL_NAMES[level] || `Level ${level}`;
+                    return `Actual: ${paceStr}/mi (${levelName})`;
+                  }
+                } else if (datasetLabel === 'Target') {
+                  // Use getCurrentTargetForTime with tooltipTime for consistency with metrics box
+                  const tooltipTime = context.parsed.x;
+                  let targetPaceZone = null;
+                  
+                  if (typeof getCurrentTargetForTime === 'function') {
+                    targetPaceZone = getCurrentTargetForTime(tooltipTime);
+                  } else {
+                    // Fallback to chart data
+                    targetPaceZone = Math.round(paceValue) - 1; // Convert from 1-7 to 0-6
+                  }
+                  
+                  // Convert from 0-6 scale to 1-7 scale for display
+                  const displayLevel = Math.round(targetPaceZone) + 1;
+                  const levelName = PACE_LEVEL_NAMES[displayLevel] || `Level ${displayLevel}`;
+                  return `Target: ${levelName}`;
+                }
+              }
+              return context.dataset.label + ': ' + context.parsed.y;
+            }
+          },
+          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+          titleColor: 'rgba(255, 255, 255, 0.9)',
+          bodyColor: 'rgba(255, 255, 255, 0.9)',
+          borderColor: 'rgba(255, 255, 255, 0.2)',
+          borderWidth: 1,
+          padding: 12
+        },
+        zoneBands: (isPowerZone && userFTP) ? { bands: [] } : (isPaceTarget ? { bands: paceLevelBands } : (powerZoneBands.length > 0 ? { bands: powerZoneBands } : undefined))
+      },
+      scales: {
+        x: {
+          type: (isPowerZone || isPaceTarget) ? 'linear' : 'category',  // Linear scale for power zone/pace target (time-based)
+          min: (isPowerZone || isPaceTarget) ? 0 : undefined,
+          max: (isPowerZone || isPaceTarget) ? (timeSeconds.length > 0 ? timeSeconds[timeSeconds.length - 1] : (workoutDuration || 2700)) : undefined,
+          grid: {
+            color: 'rgba(255,255,255,0.06)'  // Match reference
+          },
+          ticks: {
+            autoSkip: true,
+            maxTicksLimit: 9,
+            callback: function(value, index) {
+              if (isPowerZone || isPaceTarget) {
+                // For linear scale, value is the timestamp
+                return formatTime(value);
+              } else {
+                // For category scale, use index
+                if (index >= 0 && index < performanceData.length) {
+                  return formatTime(performanceData[index].timestamp);
+                }
+                return formatTime(value);
+              }
+            },
+            color: 'rgba(255,255,255,0.7)'
+          }
+        },
+        y: {
+          min: (isPowerZone || isPaceTarget) ? 0.5 : ((ymax) ? ymin : 0),
+          max: (isPowerZone || isPaceTarget) ? 7.5 : ((ymax) ? ymax : undefined),
+          title: {
+            display: false,  // Hide y-axis title
+            text: yAxisLabel.toLowerCase(),
+            color: 'rgba(255,255,255,0.7)'
+          },
+          grid: {
+            color: 'rgba(255,255,255,0.1)',
+            drawOnChartArea: true,
+            drawTicks: false
+          },
+          ticks: {
+            stepSize: (isPowerZone || isPaceTarget) ? 1 : undefined,
+            maxTicksLimit: (isPowerZone || isPaceTarget) ? 8 : undefined,
+            display: false,  // Hide ticks on left - we'll overlay zone/pace labels on chart
+            callback: function(value) {
+              if (isPowerZone) {
+                const zone = Math.round(value);
+                // Show labels for all zones (1-7)
+                if (zone >= 1 && zone <= 7) {
+                  return `ZONE ${zone}`;
+                }
+                return '';
+              } else if (isPaceTarget) {
+                const level = Math.round(value);
+                // Show labels for all pace levels (1-7)
+                if (level >= 1 && level <= 7) {
+                  return PACE_LEVEL_NAMES[level] || `Level ${level}`;
+                }
+                return '';
+              } else {
+                return value.toFixed(0);
+              }
+            },
+            color: 'rgba(255,255,255,0.7)'
+          }
+        }
+      }
+    },
+    plugins: [
+      progressLinePlugin,
+      ...((isPowerZone && userFTP) ? [zoneBandsPlugin] : (isPaceTarget ? [zoneBandsPlugin] : (powerZoneBands.length > 0 ? [zoneBandsPlugin] : [])))
+    ]
+  };
+  
+    const chart = new Chart(ctx, chartConfig);
+    // Store chart globally for timer access
+    window.performanceChart = chart;
+    // Store chart config globally for fullscreen chart creation
+    window.chartConfig = chartConfig;
+    
+    // Chart control handlers
+    const toggleTargetLineBtn = document.getElementById('toggle-target-line');
+    const toggleZoneColorsCheckbox = document.getElementById('toggle-zone-colors');
+    const saveChartBtn = document.getElementById('save-chart');
+    
+    // Toggle target line visibility
+    if (toggleTargetLineBtn && (isPowerZone || isPaceTarget)) {
+        toggleTargetLineBtn.addEventListener('click', function() {
+            showTargetLine = !showTargetLine;
+            const targetDataset = chart.data.datasets.find(d => d.label === 'Target');
+            if (targetDataset) {
+                targetDataset.hidden = !showTargetLine;
+                chart.update('none');
+                this.textContent = showTargetLine ? 'Hide Target' : 'Show Target';
+            }
+        });
+    }
+    
+    // Toggle zone/pace level colors visibility
+    if (toggleZoneColorsCheckbox && (isPowerZone || isPaceTarget)) {
+        toggleZoneColorsCheckbox.addEventListener('change', function() {
+            showZoneColors = this.checked;
+            chart.update('none');
+        });
+    }
+    
+    // Save chart functionality
+    if (saveChartBtn) {
+        saveChartBtn.addEventListener('click', function() {
+            // Convert chart to image and download
+            const url = chart.toBase64Image();
+            const link = document.createElement('a');
+            link.download = (isPaceTarget ? 'pace-target' : 'power-zone') + '-chart.png';
+            link.href = url;
+            link.click();
+        });
+    }
+    
+    // Music timeline overlay (for both power zone and pace target classes)
+    if (playlistData && playlistData.length > 0 && (isPowerZone || isPaceTarget)) {
+      const musicTimelineEl = document.getElementById('musicTimeline');
+      const showMusicCheckbox = document.getElementById('showMusicTimeline');
+      
+      function renderMusicTimeline() {
+        if (!musicTimelineEl || !showMusicCheckbox) return;
+        
+        if (!showMusicCheckbox.checked) {
+          musicTimelineEl.classList.add('hidden');
+          return;
+        }
+        
+        musicTimelineEl.classList.remove('hidden');
+        musicTimelineEl.innerHTML = '';
+        
+        // Get max time from chart or workout duration
+        const maxTime = timeSeconds.length > 0 ? timeSeconds[timeSeconds.length - 1] : workoutDuration;
+        const timelineWidth = musicTimelineEl.offsetWidth || 800;
+        
+        // Color palette for different songs (like reference)
+        const songColors = [
+          'rgba(91, 124, 250, 0.4)',   // Blue
+          'rgba(34, 197, 94, 0.4)',    // Green
+          'rgba(234, 179, 8, 0.4)',    // Yellow
+          'rgba(239, 68, 68, 0.4)',    // Red
+          'rgba(168, 85, 247, 0.4)',   // Purple
+          'rgba(236, 72, 153, 0.4)',   // Pink
+          'rgba(20, 184, 166, 0.4)',   // Teal
+          'rgba(251, 146, 60, 0.4)',   // Orange
+        ];
+        
+        playlistData.forEach((song, idx) => {
+          const startTime = song.start_time || 0;
+          const duration = song.duration || 180;
+          
+          // Calculate percentages based on max time (align with chart's time axis)
+          const startPercent = maxTime > 0 ? (startTime / maxTime) * 100 : 0;
+          const widthPercent = maxTime > 0 ? (duration / maxTime) * 100 : 0;
+          
+          // Ensure we don't go beyond 100%
+          const actualStartPercent = Math.max(0, Math.min(startPercent, 100));
+          const actualWidthPercent = Math.max(0, Math.min(widthPercent, 100 - actualStartPercent));
+          
+          // Skip if segment is too small or outside bounds
+          if (actualWidthPercent < 0.5 || actualStartPercent >= 100) {
+            return;
+          }
+          
+          const segment = document.createElement('div');
+          const color = songColors[idx % songColors.length];
+          const artistName = song.artists && song.artists.length > 0 ? song.artists[0] : '';
+          
+          segment.style.cssText = `
+            position: absolute;
+            left: ${actualStartPercent}%;
+            width: ${actualWidthPercent}%;
+            height: 100%;
+            background: ${color};
+            border-right: 1px solid rgba(255,255,255,0.25);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 2px 6px;
+            font-size: 10px;
+            line-height: 1.2;
+            color: rgba(255,255,255,0.95);
+            overflow: hidden;
+            cursor: pointer;
+            transition: opacity 0.2s, background 0.2s;
+            min-width: 60px;
+          `;
+          
+          segment.onmouseenter = () => {
+            segment.style.opacity = '0.85';
+            segment.style.background = color.replace('0.4', '0.6');
+          };
+          segment.onmouseleave = () => {
+            segment.style.opacity = '1';
+            segment.style.background = color;
+          };
+          
+          // Create title element (truncate if too long)
+          const titleEl = document.createElement('div');
+          titleEl.style.cssText = 'font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; font-size: 10px;';
+          titleEl.textContent = song.title || 'Unknown';
+          
+          // Create artist element (only if there's space)
+          if (artistName && actualWidthPercent > 5) {
+            const artistEl = document.createElement('div');
+            artistEl.style.cssText = 'font-size: 9px; opacity: 0.8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; margin-top: 1px;';
+            artistEl.textContent = artistName;
+            segment.appendChild(artistEl);
+          }
+          
+          segment.insertBefore(titleEl, segment.firstChild);
+          
+          // Tooltip with full info
+          const fullInfo = `${song.title}${artistName ? ' • ' + artistName : ''}`;
+          segment.title = fullInfo;
+          
+          musicTimelineEl.appendChild(segment);
+        });
+      }
+      
+      if (showMusicCheckbox) {
+        showMusicCheckbox.addEventListener('change', renderMusicTimeline);
+        // Initial render after a short delay to ensure chart is rendered
+        setTimeout(renderMusicTimeline, 200);
+      }
+    }
+    
+    console.log('Chart initialized successfully');
+    
+    // Initialize timer functionality after chart is ready
+    initTimer();
+  }
+  
+  // Helper functions - make them global so tooltip can access them
+  function getCurrentSegmentForTime(time) {
+    if (!targetMetricsJson || !targetMetricsJson.segments || targetMetricsJson.segments.length === 0) return null;
+    const segments = targetMetricsJson.segments;
+    
+    // Segments use 'start' and 'end' fields directly (not duration)
+    for (let i = 0; i < segments.length; i++) {
+      const segment = segments[i];
+      const segmentStart = segment.start !== undefined ? segment.start : 0;
+      const segmentEnd = segment.end !== undefined ? segment.end : (segmentStart + (segment.duration || 0));
+      
+      // Handle last segment - include time at or after segmentEnd if it's the last segment
+      const isLastSegment = i === segments.length - 1;
+      
+      if ((time >= segmentStart && time < segmentEnd) || (isLastSegment && time >= segmentStart)) {
+        return {
+          ...segment,
+          startTime: segmentStart,
+          endTime: segmentEnd
+        };
+      }
+    }
+    
+    // If time is before first segment, return first segment (for warm-up period)
+    if (segments.length > 0 && time < segments[0].start) {
+      const firstSegment = segments[0];
+      const segmentStart = firstSegment.start !== undefined ? firstSegment.start : 0;
+      const segmentEnd = firstSegment.end !== undefined ? firstSegment.end : (segmentStart + (firstSegment.duration || 0));
+      
+      return {
+        ...firstSegment,
+        startTime: segmentStart,
+        endTime: segmentEnd
+      };
+    }
+    
+    return null;
+  }
+  
+  function getCurrentTargetForTime(time) {
+    // Read directly from targetLineData to match the chart's target line exactly
+    // For pace targets, targetLineData has target_pace_zone (0-6 scale)
+    if (targetLineData && targetLineData.length > 0) {
+      // Find the closest targetLineData point for this time
+      let closestIndex = 0;
+      let minDiff = Math.abs((targetLineData[0]?.timestamp || 0) - time);
+      
+      for (let i = 1; i < targetLineData.length; i++) {
+        const timestamp = targetLineData[i]?.timestamp || 0;
+        const diff = Math.abs(timestamp - time);
+        if (diff < minDiff) {
+          minDiff = diff;
+          closestIndex = i;
+        }
+      }
+      
+      const dataPoint = targetLineData[closestIndex];
+      const targetPaceZone = dataPoint?.target_pace_zone;
+      // #region agent log
+      fetch('http://localhost:7242/ingest/2d1a7245-2209-4ba5-a6cc-73ffb0303c5e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'pace_target_content.html:getCurrentTargetForTime',message:'Reading from targetLineData',data:{time:time,closestIndex:closestIndex,closestTimestamp:dataPoint?.timestamp,targetPaceZone:targetPaceZone,dataPointKeys:dataPoint?Object.keys(dataPoint):[],sampleDataPoint:targetLineData[0],sampleDataPointKeys:targetLineData[0]?Object.keys(targetLineData[0]):[],minDiff:minDiff},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
+      if (targetPaceZone !== null && targetPaceZone !== undefined) {
+        // target_pace_zone is 0-6 scale, return as-is (will be converted to 1-7 for display)
+        return targetPaceZone;
+      }
+    }
+    
+    // Fallback to segments if targetLineData not available
+    if (!targetMetricsJson || !targetMetricsJson.segments || targetMetricsJson.segments.length === 0) return 5;
+    const segments = targetMetricsJson.segments;
+    
+    // Segments use 'start' and 'end' fields directly (not duration)
+    for (let i = 0; i < segments.length; i++) {
+      const segment = segments[i];
+      const segmentStart = segment.start !== undefined ? segment.start : 0;
+      const segmentEnd = segment.end !== undefined ? segment.end : (segmentStart + (segment.duration || 0));
+      const isLastSegment = i === segments.length - 1;
+      
+      if ((time >= segmentStart && time < segmentEnd) || (isLastSegment && time >= segmentStart)) {
+        return segment.pace_level || segment.level || segment.zone || 5;
+      }
+    }
+    
+    if (time < segments[0].start && segments[0].pace_level) {
+      return segments[0].pace_level || segments[0].level || segments[0].zone || 5;
+    }
+    
+    return 5;
+  }
+  
+  // Timer functionality for pace target
+  function initTimer() {
+    if (!targetMetricsJson || !targetMetricsJson.segments || targetMetricsJson.segments.length === 0) {
+      console.log('No segments data for timer');
+      return;
+    }
+    
+    // Timer state variables
+    let chartCurrentTime = 0;
+    const totalDuration = workoutDuration;
+    let isPlaying = false;
+    let startTime = 0;
+    let animationId = null;
+    let countdownInterval = null;
+    let hasStarted = false;
+    let lastUpdateTime = 0;
+    let lastSegmentIndex = -1;
+    const countdownBeepTimes = new Set();
+    
+    // Pace level names
+    const PACE_LEVEL_NAMES = {
+      1: 'Recovery', 2: 'Easy', 3: 'Moderate', 4: 'Moderate-Hard', 5: 'Hard', 6: 'Very Hard', 7: 'Maximum'
+    };
+    
+    // Get DOM elements
+    const playPauseBtn = document.getElementById('play-pause-btn');
+    const progressSlider = document.getElementById('progress-slider');
+    const timeLeftEl = document.getElementById('time-left');
+    const intervalTimeEl = document.getElementById('interval-time');
+    const currentTargetEl = document.getElementById('current-target');
+    const paceLevelSelect = document.getElementById('pace-level-select');
+    const sliderTooltip = document.getElementById('slider-tooltip');
+    const sliderCurrentTime = document.getElementById('slider-current-time');
+    
+    if (!playPauseBtn || !progressSlider || !timeLeftEl || !intervalTimeEl || !currentTargetEl || !paceLevelSelect) {
+      console.log('Timer elements not found');
+      return;
+    }
+    
+    // Helper functions
+    function getSegmentIndex(time) {
+      let segmentTime = 0;
+      const segments = targetMetricsJson.segments;
+      for (let i = 0; i < segments.length; i++) {
+        const segment = segments[i];
+        const segmentEnd = segmentTime + (segment.duration || 0);
+        if (time >= segmentTime && time < segmentEnd) {
+          return i;
+        }
+        segmentTime = segmentEnd;
+      }
+      return segments.length - 1;
+    }
+    
+    // Use global helper functions (defined above)
+    const getCurrentSegment = getCurrentSegmentForTime;
+    const getCurrentTarget = getCurrentTargetForTime;
+    
+    function playBeep(frequency = 800, duration = 100, type = 'sine') {
+      const soundToggle = document.getElementById('sound-toggle');
+      if (!soundToggle || !soundToggle.checked) return;
+      
+      try {
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.frequency.value = frequency;
+        oscillator.type = type;
+        
+        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration / 1000);
+        
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + duration / 1000);
+      } catch (e) {
+        console.warn('Error playing beep:', e);
+      }
+    }
+    
+    function startCountdown(callback) {
+      const soundToggle = document.getElementById('sound-toggle');
+      const soundEnabled = soundToggle && soundToggle.checked;
+      
+      let countdown = 10;
+      const countdownDisplay = document.getElementById('countdown-display');
+      const countdownNumber = countdownDisplay ? countdownDisplay.querySelector('.countdown-number') : null;
+      
+      if (countdownDisplay) {
+        countdownDisplay.style.display = 'block';
+        if (countdownNumber) {
+          countdownNumber.textContent = countdown;
+        }
+      }
+      
+      if (soundEnabled) {
+        playBeep(600, 100, 'sine');
+      }
+      
+      countdownInterval = setInterval(() => {
+        countdown--;
+        
+        if (countdownNumber) {
+          countdownNumber.textContent = countdown;
+        }
+        
+        if (soundEnabled && countdown > 0) {
+          playBeep(600, 100, 'sine');
+        }
+        
+        if (countdown <= 0) {
+          clearInterval(countdownInterval);
+          countdownInterval = null;
+          
+          if (countdownDisplay) {
+            countdownDisplay.style.display = 'none';
+          }
+          
+          if (soundEnabled) {
+            playBeep(1000, 200, 'sine');
+          }
+          
+          hasStarted = true;
+          callback();
+        }
+      }, 1000);
+    }
+    
+    function updateProgress() {
+      if (totalDuration === 0) return;
+      
+      const progress = (chartCurrentTime / totalDuration) * 100;
+      progressSlider.value = Math.round(progress * 100) / 100;
+      
+      if (sliderCurrentTime) {
+        const minutes = Math.floor(chartCurrentTime / 60);
+        const seconds = Math.floor(chartCurrentTime % 60);
+        sliderCurrentTime.textContent = minutes + ':' + String(seconds).padStart(2, '0');
+      }
+      
+      const timeLeft = Math.max(0, totalDuration - chartCurrentTime);
+      const minutesLeft = Math.floor(timeLeft / 60);
+      const secondsLeft = Math.floor(timeLeft % 60);
+      timeLeftEl.textContent = minutesLeft + ':' + String(secondsLeft).padStart(2, '0');
+      
+      // Calculate interval time based on checkbox state
+      // "Show time into interval" checked = time INTO current target
+      // "Show time into interval" unchecked = time UNTIL next target change
+      const showProgressCheckbox = document.getElementById('show-progress');
+      const showProgressUp = showProgressCheckbox ? showProgressCheckbox.checked : true;
+      
+      // Update label to indicate what the interval time represents
+      const intervalTimeLabel = document.getElementById('interval-time-label');
+      if (intervalTimeLabel) {
+        intervalTimeLabel.textContent = showProgressUp ? 'Time in Target' : 'Time to Next Target';
+      }
+      
+      let intervalTime = 0;
+      const currentTarget = getCurrentTargetForTime(chartCurrentTime);
+      
+      // #region agent log
+      fetch('http://localhost:7242/ingest/2d1a7245-2209-4ba5-a6cc-73ffb0303c5e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'pace_target_content.html:updateProgress',message:'updateProgress called',data:{chartCurrentTime:chartCurrentTime,currentTarget:currentTarget,hasTargetLineData:!!targetLineData,targetLineDataLength:targetLineData?targetLineData.length:0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
+      
+      if (showProgressUp) {
+        // Show time INTO current target (how long in current pace level)
+        // Find when current target started by going backwards in targetLineData
+        if (targetLineData && targetLineData.length > 0) {
+          let targetStartTime = 0;
+          for (let i = targetLineData.length - 1; i >= 0; i--) {
+            const dataPoint = targetLineData[i];
+            const timestamp = dataPoint?.timestamp || 0;
+            
+            // Only check points at or before current time
+            if (timestamp <= chartCurrentTime) {
+              const targetPaceZone = dataPoint?.target_pace_zone;
+              if (targetPaceZone !== null && targetPaceZone !== undefined) {
+                // If this point has the same pace level as current, check previous point
+                if (targetPaceZone === currentTarget) {
+                  // Check previous point to see if pace level was different
+                  if (i > 0) {
+                    const prevDataPoint = targetLineData[i - 1];
+                    const prevPaceZone = prevDataPoint?.target_pace_zone;
+                    if (prevPaceZone !== null && prevPaceZone !== undefined && prevPaceZone !== currentTarget) {
+                      // Previous pace level was different, this is where current target started
+                      targetStartTime = timestamp;
+                      break;
+                    }
+                  } else {
+                    // First point, use it as start
+                    targetStartTime = timestamp;
+                    break;
+                  }
+                }
+              }
+            }
+          }
+          intervalTime = Math.max(0, chartCurrentTime - targetStartTime);
+        } else {
+          // Fallback to segment-based
+          const currentSegment = getCurrentSegment(chartCurrentTime);
+          if (currentSegment) {
+            intervalTime = Math.max(0, chartCurrentTime - currentSegment.startTime);
+          }
+        }
+      } else {
+        // Show time UNTIL next target change (countdown)
+        if (targetLineData && targetLineData.length > 0) {
+          // Find the next time where the target pace level changes
+          for (let i = 0; i < targetLineData.length; i++) {
+            const dataPoint = targetLineData[i];
+            const timestamp = dataPoint?.timestamp || 0;
+            
+            // Only check points after current time
+            if (timestamp > chartCurrentTime) {
+              const targetPaceZone = dataPoint?.target_pace_zone;
+              if (targetPaceZone !== null && targetPaceZone !== undefined) {
+                // If pace level is different, this is the next change
+                if (targetPaceZone !== currentTarget) {
+                  intervalTime = timestamp - chartCurrentTime;
+                  break;
+                }
+              }
+            }
+          }
+        }
+        
+        // Fallback to segment-based calculation if targetLineData not available
+        if (intervalTime === 0) {
+          const currentSegment = getCurrentSegment(chartCurrentTime);
+          if (currentSegment) {
+            intervalTime = Math.max(0, currentSegment.endTime - chartCurrentTime);
+          }
+        }
+      }
+      
+      const intervalMinutes = Math.floor(Math.max(0, intervalTime) / 60);
+      const intervalSeconds = Math.floor(Math.max(0, intervalTime) % 60);
+      intervalTimeEl.textContent = intervalMinutes + ':' + String(intervalSeconds).padStart(2, '0');
+      
+      // Update current target - show pace level name (reuse currentTarget already calculated above)
+      if (currentTarget !== null && currentTarget !== undefined) {
+        // Convert from 0-6 scale to 1-7 scale for display
+        const displayLevel = Math.round(currentTarget) + 1;
+        const levelName = PACE_LEVEL_NAMES[displayLevel] || `Level ${displayLevel}`;
+        currentTargetEl.textContent = levelName + ' (Level ' + displayLevel + ')';
+      } else {
+        currentTargetEl.textContent = 'Loading...';
+      }
+      
+      // Update chart progress line
+      if (window.performanceChart) {
+        // Update progress line plugin currentTime
+        const progressLinePlugin = window.performanceChart.config.plugins?.find(p => p.id === 'progressLine');
+        if (progressLinePlugin) {
+          // Store currentTime in plugin options
+          if (!window.performanceChart.options.plugins) {
+            window.performanceChart.options.plugins = {};
+          }
+          if (!window.performanceChart.options.plugins.progressLine) {
+            window.performanceChart.options.plugins.progressLine = {};
+          }
+          window.performanceChart.options.plugins.progressLine.currentTime = chartCurrentTime;
+        }
+        window.performanceChart.update('none');
+      }
+      
+      // Update fullscreen display if in fullscreen
+      updateFullscreenDisplay();
+      
+      // Update fullscreen play button state
+      updateFullscreenPlayButton();
+    }
+    
+    function play() {
+      if (totalDuration === 0) return;
+      
+      if (!hasStarted && chartCurrentTime === 0) {
+        startCountdown(() => {
+          isPlaying = true;
+          playPauseBtn.textContent = '⏸';
+          playPauseBtn.classList.add('paused');
+          
+          startTime = Date.now();
+          
+          function animate() {
+            if (!isPlaying) return;
+            
+            const elapsed = (Date.now() - startTime) / 1000;
+            chartCurrentTime = Math.min(elapsed, totalDuration);
+            
+            const now = Date.now();
+            if (now - lastUpdateTime >= 100) {
+              updateProgress();
+              lastUpdateTime = now;
+            }
+            
+            if (chartCurrentTime >= totalDuration) {
+              pause();
+              return;
+            }
+            
+            animationId = requestAnimationFrame(animate);
+          }
+          
+          animate();
+        });
+        return;
+      }
+      
+      isPlaying = true;
+      playPauseBtn.textContent = '⏸';
+      playPauseBtn.classList.add('paused');
+      
+      startTime = Date.now() - (chartCurrentTime * 1000);
+      
+      function animate() {
+        if (!isPlaying) return;
+        
+        const elapsed = (Date.now() - startTime) / 1000;
+        chartCurrentTime = Math.min(elapsed, totalDuration);
+        
+        const now = Date.now();
+        if (now - lastUpdateTime >= 100) {
+          updateProgress();
+          lastUpdateTime = now;
+        }
+        
+        if (chartCurrentTime >= totalDuration) {
+          pause();
+          return;
+        }
+        
+        animationId = requestAnimationFrame(animate);
+      }
+      
+      animate();
+    }
+    
+    function pause() {
+      isPlaying = false;
+      playPauseBtn.textContent = '▶';
+      playPauseBtn.classList.remove('paused');
+      
+      if (countdownInterval) {
+        clearInterval(countdownInterval);
+        countdownInterval = null;
+        const countdownDisplay = document.getElementById('countdown-display');
+        if (countdownDisplay) {
+          countdownDisplay.style.display = 'none';
+        }
+      }
+      
+      if (animationId) {
+        cancelAnimationFrame(animationId);
+        animationId = null;
+      }
+    }
+    
+    // Event listeners
+    playPauseBtn.addEventListener('click', function() {
+      if (isPlaying) {
+        pause();
+      } else {
+        play();
+      }
+    });
+    
+    function updateSliderTooltip(value) {
+      if (!sliderTooltip || !sliderCurrentTime) return;
+      
+      const time = (value / 100) * totalDuration;
+      const minutes = Math.floor(time / 60);
+      const seconds = Math.floor(time % 60);
+      const timeString = minutes + ':' + String(seconds).padStart(2, '0');
+      
+      sliderTooltip.textContent = timeString;
+      sliderCurrentTime.textContent = timeString;
+      
+      const percentage = (value / 100);
+      sliderTooltip.style.left = (percentage * 100) + '%';
+    }
+    
+    progressSlider.addEventListener('input', function() {
+      const progress = parseFloat(this.value);
+      chartCurrentTime = (progress / 100) * totalDuration;
+      
+      // #region agent log
+      fetch('http://localhost:7242/ingest/2d1a7245-2209-4ba5-a6cc-73ffb0303c5e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'pace_target_content.html:slider-input',message:'Slider moved',data:{progress:progress,chartCurrentTime:chartCurrentTime,totalDuration:totalDuration},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+      // #endregion
+      
+      updateSliderTooltip(progress);
+      
+      if (isPlaying) {
+        startTime = Date.now() - (chartCurrentTime * 1000);
+      }
+      
+      updateProgress();
+    });
+    
+    progressSlider.addEventListener('mousemove', function(e) {
+      if (!sliderTooltip) return;
+      
+      const rect = this.getBoundingClientRect();
+      const percentage = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
+      const time = (percentage / 100) * totalDuration;
+      const minutes = Math.floor(time / 60);
+      const seconds = Math.floor(time % 60);
+      const timeString = minutes + ':' + String(seconds).padStart(2, '0');
+      
+      sliderTooltip.textContent = timeString;
+      sliderTooltip.style.left = percentage + '%';
+    });
+    
+    progressSlider.addEventListener('mouseenter', function() {
+      if (sliderTooltip) {
+        sliderTooltip.style.opacity = '1';
+      }
+    });
+    
+    progressSlider.addEventListener('mouseleave', function() {
+      if (sliderTooltip && document.activeElement !== progressSlider) {
+        sliderTooltip.style.opacity = '0';
+      }
+    });
+    
+    // Pace level select change handler (for updating target display if needed)
+    paceLevelSelect.addEventListener('change', function() {
+      // Update target display with current pace level
+      const currentTarget = getCurrentTargetForTime(chartCurrentTime);
+      if (currentTarget !== null && currentTarget !== undefined) {
+        // Convert from 0-6 scale to 1-7 scale for display
+        const displayLevel = Math.round(currentTarget) + 1;
+        const levelName = PACE_LEVEL_NAMES[displayLevel] || `Level ${displayLevel}`;
+        currentTargetEl.textContent = levelName + ' (Level ' + displayLevel + ')';
+      }
+    });
+    
+    // Show progress checkbox change handler
+    const showProgressCheckbox = document.getElementById('show-progress');
+    if (showProgressCheckbox) {
+      showProgressCheckbox.addEventListener('change', function() {
+        // Update interval time label
+        const intervalTimeLabel = document.getElementById('interval-time-label');
+        if (intervalTimeLabel) {
+          intervalTimeLabel.textContent = this.checked ? 'Time in Target' : 'Time to Next Target';
+        }
+        // Update interval time display when checkbox is toggled
+        updateProgress();
+      });
+    }
+    
+    // Set initial target
+    if (targetMetricsJson.segments && targetMetricsJson.segments.length > 0) {
+      const firstSegment = targetMetricsJson.segments[0];
+      const classPlanLevel = firstSegment.pace_level || firstSegment.level || 5;
+      const level = Math.round(classPlanLevel);
+      const levelName = PACE_LEVEL_NAMES[level] || `Level ${level}`;
+      currentTargetEl.textContent = levelName + ' (Level ' + level + ')';
+    }
+    
+    // Initialize segment tracking
+    if (targetMetricsJson.segments && targetMetricsJson.segments.length > 0) {
+      lastSegmentIndex = getSegmentIndex(0);
+    }
+    
+    // Fullscreen functionality
+    const fullscreenBtn = document.getElementById('fullscreen-btn');
+    const fullscreenOverlay = document.getElementById('fullscreen-overlay');
+    const exitFullscreenBtn = document.getElementById('exit-fullscreen-btn');
+    let fullscreenChart = null;
+    
+    function createFullscreenChart() {
+      const fullscreenCtx = document.getElementById('fullscreen-performanceChart');
+      if (!fullscreenCtx || fullscreenChart) return;
+      
+      if (!window.performanceChart || !window.chartConfig) return;
+      
+      // Clone the chart config and data
+      const fullscreenChartConfig = {
+        ...window.chartConfig,
+        data: {
+          datasets: window.chartConfig.data.datasets.map(dataset => ({
+            ...dataset,
+            hidden: dataset.hidden
+          }))
+        },
+        options: {
+          ...window.chartConfig.options,
+          maintainAspectRatio: false,
+          responsive: true
+        }
+      };
+      
+      fullscreenChart = new Chart(fullscreenCtx, fullscreenChartConfig);
+      
+      // Sync fullscreen chart controls
+      const fullscreenToggleZoneColorsCheckbox = document.getElementById('fullscreen-toggle-zone-colors');
+      const fullscreenToggleTargetLineBtn = document.getElementById('fullscreen-toggle-target-line');
+      const fullscreenSaveChartBtn = document.getElementById('fullscreen-save-chart');
+      const toggleZoneColorsCheckbox = document.getElementById('toggle-zone-colors');
+      const toggleTargetLineBtn = document.getElementById('toggle-target-line');
+      
+      // Sync initial states
+      if (fullscreenToggleZoneColorsCheckbox && toggleZoneColorsCheckbox) {
+        fullscreenToggleZoneColorsCheckbox.checked = toggleZoneColorsCheckbox.checked;
+      }
+      if (fullscreenToggleTargetLineBtn && toggleTargetLineBtn) {
+        fullscreenToggleTargetLineBtn.textContent = toggleTargetLineBtn.textContent;
+      }
+      
+      // Fullscreen zone colors toggle
+      if (fullscreenToggleZoneColorsCheckbox) {
+        fullscreenToggleZoneColorsCheckbox.addEventListener('change', function() {
+          const showZoneColors = this.checked;
+          if (window.performanceChart) window.performanceChart.update('none');
+          if (fullscreenChart) fullscreenChart.update('none');
+          if (toggleZoneColorsCheckbox) toggleZoneColorsCheckbox.checked = showZoneColors;
+        });
+      }
+      
+      // Fullscreen target line toggle
+      if (fullscreenToggleTargetLineBtn && targetLineData && targetLineData.length > 0) {
+        fullscreenToggleTargetLineBtn.addEventListener('click', function() {
+          const targetDataset = window.performanceChart?.data.datasets.find(d => d.label === 'Target');
+          const fullscreenTargetDataset = fullscreenChart?.data.datasets.find(d => d.label === 'Target');
+          const showTargetLine = !targetDataset?.hidden;
+          
+          if (targetDataset) {
+            targetDataset.hidden = !showTargetLine;
+            window.performanceChart.update('none');
+          }
+          if (fullscreenTargetDataset) {
+            fullscreenTargetDataset.hidden = !showTargetLine;
+            fullscreenChart.update('none');
+          }
+          this.textContent = showTargetLine ? 'Hide Target' : 'Show Target';
+          if (toggleTargetLineBtn) toggleTargetLineBtn.textContent = showTargetLine ? 'Hide Target' : 'Show Target';
+        });
+      }
+      
+      // Fullscreen save chart
+      if (fullscreenSaveChartBtn) {
+        fullscreenSaveChartBtn.addEventListener('click', function() {
+          const url = fullscreenChart.toBase64Image();
+          const link = document.createElement('a');
+          link.download = 'pace-target-chart.png';
+          link.href = url;
+          link.click();
+        });
+      }
+      
+      // Fullscreen controls
+      const fullscreenProgressSlider = document.getElementById('fullscreen-progress-slider');
+      const fullscreenPlayPauseBtn = document.getElementById('fullscreen-play-pause-btn');
+      const fullscreenPaceLevelSelect = document.getElementById('fullscreen-pace-level-select');
+      const fullscreenShowProgress = document.getElementById('fullscreen-show-progress');
+      const fullscreenSoundToggle = document.getElementById('fullscreen-sound-toggle');
+      
+      if (fullscreenPlayPauseBtn) {
+        fullscreenPlayPauseBtn.addEventListener('click', function() {
+          if (isPlaying) {
+            pause();
+          } else {
+            play();
+          }
+          updateFullscreenPlayButton();
+        });
+      }
+      
+      if (fullscreenPaceLevelSelect && paceLevelSelect) {
+        fullscreenPaceLevelSelect.value = paceLevelSelect.value;
+        fullscreenPaceLevelSelect.addEventListener('change', function() {
+          paceLevelSelect.value = this.value;
+          paceLevelSelect.dispatchEvent(new Event('change'));
+        });
+      }
+      
+      if (fullscreenShowProgress) {
+        const showProgressCheckbox = document.getElementById('show-progress');
+        if (showProgressCheckbox) fullscreenShowProgress.checked = showProgressCheckbox.checked;
+        fullscreenShowProgress.addEventListener('change', function() {
+          if (showProgressCheckbox) showProgressCheckbox.checked = this.checked;
+          // Update interval time labels
+          const intervalTimeLabel = document.getElementById('interval-time-label');
+          const fullscreenIntervalTimeLabel = document.getElementById('fullscreen-interval-time-label');
+          if (intervalTimeLabel) {
+            intervalTimeLabel.textContent = this.checked ? 'Time in Target' : 'Time to Next Target';
+          }
+          if (fullscreenIntervalTimeLabel) {
+            fullscreenIntervalTimeLabel.textContent = this.checked ? 'Time in Target' : 'Time to Next Target';
+          }
+          // Update interval time display when checkbox is toggled
+          updateProgress();
+        });
+      }
+      
+      if (fullscreenSoundToggle) {
+        const soundToggle = document.getElementById('sound-toggle');
+        if (soundToggle) fullscreenSoundToggle.checked = soundToggle.checked;
+        fullscreenSoundToggle.addEventListener('change', function() {
+          if (soundToggle) soundToggle.checked = this.checked;
+        });
+      }
+      
+      if (fullscreenProgressSlider) {
+        fullscreenProgressSlider.addEventListener('input', function() {
+          const fullscreenProgress = parseFloat(this.value);
+          const fullscreenTime = (fullscreenProgress / 100) * totalDuration;
+          
+          // Sync with non-fullscreen slider
+          progressSlider.value = this.value;
+          chartCurrentTime = fullscreenTime;
+          
+          if (isPlaying) {
+            startTime = Date.now() - (chartCurrentTime * 1000);
+          }
+          
+          // Update all displays
+          updateProgress();
+        });
+        
+        // Add mousemove handler for tooltip
+        const fullscreenSliderTooltip = document.getElementById('fullscreen-slider-tooltip');
+        fullscreenProgressSlider.addEventListener('mousemove', function(e) {
+          if (!fullscreenSliderTooltip) return;
+          
+          const rect = this.getBoundingClientRect();
+          const percentage = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
+          const time = (percentage / 100) * totalDuration;
+          const minutes = Math.floor(time / 60);
+          const seconds = Math.floor(time % 60);
+          const timeString = minutes + ':' + String(seconds).padStart(2, '0');
+          
+          fullscreenSliderTooltip.textContent = timeString;
+          fullscreenSliderTooltip.style.left = percentage + '%';
+        });
+        
+        fullscreenProgressSlider.addEventListener('mouseenter', function() {
+          if (fullscreenSliderTooltip) {
+            fullscreenSliderTooltip.style.opacity = '1';
+          }
+        });
+        
+        fullscreenProgressSlider.addEventListener('mouseleave', function() {
+          if (fullscreenSliderTooltip && document.activeElement !== fullscreenProgressSlider) {
+            fullscreenSliderTooltip.style.opacity = '0';
+          }
+        });
+      }
+      
+      updateFullscreenDisplay();
+    }
+    
+    function updateFullscreenDisplay() {
+      if (!fullscreenOverlay || fullscreenOverlay.style.display === 'none') return;
+      
+      const fullscreenTimeLeft = document.getElementById('fullscreen-time-left');
+      const fullscreenIntervalTime = document.getElementById('fullscreen-interval-time');
+      const fullscreenCurrentTarget = document.getElementById('fullscreen-current-target');
+      const fullscreenProgressSlider = document.getElementById('fullscreen-progress-slider');
+      const fullscreenSliderCurrentTime = document.getElementById('fullscreen-slider-current-time');
+      
+      if (fullscreenTimeLeft) {
+        const timeLeft = Math.max(0, totalDuration - chartCurrentTime);
+        const minutesLeft = Math.floor(timeLeft / 60);
+        const secondsLeft = Math.floor(timeLeft % 60);
+        fullscreenTimeLeft.textContent = minutesLeft + ':' + String(secondsLeft).padStart(2, '0');
+      }
+      
+      if (fullscreenIntervalTime) {
+        // Calculate interval time based on checkbox state (same as non-fullscreen)
+        const showProgressCheckbox = document.getElementById('fullscreen-show-progress');
+        const showProgressUp = showProgressCheckbox ? showProgressCheckbox.checked : true;
+        
+        // Update label to indicate what the interval time represents
+        const fullscreenIntervalTimeLabel = document.getElementById('fullscreen-interval-time-label');
+        if (fullscreenIntervalTimeLabel) {
+          fullscreenIntervalTimeLabel.textContent = showProgressUp ? 'Time in Target' : 'Time to Next Target';
+        }
+        
+        let intervalTime = 0;
+        const currentTarget = getCurrentTargetForTime(chartCurrentTime); // This uses the global function
+        
+        if (showProgressUp) {
+          // Show time INTO current target (how long in current pace level)
+          // Find when current target started by going backwards in targetLineData
+          if (targetLineData && targetLineData.length > 0) {
+            let targetStartTime = 0;
+            for (let i = targetLineData.length - 1; i >= 0; i--) {
+              const dataPoint = targetLineData[i];
+              const timestamp = dataPoint?.timestamp || 0;
+              
+              // Only check points at or before current time
+              if (timestamp <= chartCurrentTime) {
+                const targetPaceZone = dataPoint?.target_pace_zone; // Uses target_pace_zone
+                if (targetPaceZone !== null && targetPaceZone !== undefined) {
+                  // If this point has the same pace level as current, check previous point
+                  if (targetPaceZone === currentTarget) {
+                    // Check previous point to see if pace level was different
+                    if (i > 0) {
+                      const prevDataPoint = targetLineData[i - 1];
+                      const prevPaceZone = prevDataPoint?.target_pace_zone;
+                      if (prevPaceZone !== null && prevPaceZone !== undefined && prevPaceZone !== currentTarget) {
+                        // Previous pace level was different, this is where current target started
+                        targetStartTime = timestamp;
+                        break;
+                      }
+                    } else {
+                      // First point, use it as start
+                      targetStartTime = timestamp;
+                      break;
+                    }
+                  }
+                }
+              }
+            }
+            intervalTime = Math.max(0, chartCurrentTime - targetStartTime);
+          } else {
+            // Fallback to segment-based
+            const currentSegment = getCurrentSegment(chartCurrentTime);
+            if (currentSegment) {
+              intervalTime = Math.max(0, chartCurrentTime - currentSegment.startTime);
+            }
+          }
+        } else {
+          // Show time UNTIL next target change (countdown)
+          if (targetLineData && targetLineData.length > 0) {
+            // Find the next time where the target pace level changes
+            for (let i = 0; i < targetLineData.length; i++) {
+              const dataPoint = targetLineData[i];
+              const timestamp = dataPoint?.timestamp || 0;
+              
+              // Only check points after current time
+              if (timestamp > chartCurrentTime) {
+                const targetPaceZone = dataPoint?.target_pace_zone;
+                if (targetPaceZone !== null && targetPaceZone !== undefined) {
+                  // If pace level is different, this is the next change
+                  if (targetPaceZone !== currentTarget) {
+                    intervalTime = timestamp - chartCurrentTime;
+                    break;
+                  }
+                }
+              }
+            }
+            
+            // Fallback to segment-based calculation if targetLineData not available
+            if (intervalTime === 0) {
+              const currentSegment = getCurrentSegment(chartCurrentTime);
+              if (currentSegment) {
+                intervalTime = Math.max(0, currentSegment.endTime - chartCurrentTime);
+              }
+            }
+          }
+        }
+        const intervalMinutes = Math.floor(Math.max(0, intervalTime) / 60);
+        const intervalSeconds = Math.floor(Math.max(0, intervalTime) % 60);
+        fullscreenIntervalTime.textContent = intervalMinutes + ':' + String(intervalSeconds).padStart(2, '0');
+      }
+      
+      if (fullscreenCurrentTarget) {
+        const currentTarget = getCurrentTargetForTime(chartCurrentTime);
+        if (currentTarget !== null && currentTarget !== undefined) {
+          // Convert from 0-6 scale to 1-7 scale for display
+          const displayLevel = Math.round(currentTarget) + 1;
+          const levelName = PACE_LEVEL_NAMES[displayLevel] || `Level ${displayLevel}`;
+          fullscreenCurrentTarget.textContent = levelName + ' (Level ' + displayLevel + ')';
+        }
+      }
+      
+      if (fullscreenProgressSlider) {
+        const progress = (chartCurrentTime / totalDuration) * 100;
+        fullscreenProgressSlider.value = progress;
+        
+        if (fullscreenSliderCurrentTime) {
+          const minutes = Math.floor(chartCurrentTime / 60);
+          const seconds = Math.floor(chartCurrentTime % 60);
+          fullscreenSliderCurrentTime.textContent = minutes + ':' + String(seconds).padStart(2, '0');
+        }
+      }
+      
+      if (fullscreenChart) {
+        if (!fullscreenChart.options.plugins) {
+          fullscreenChart.options.plugins = {};
+        }
+        if (!fullscreenChart.options.plugins.progressLine) {
+          fullscreenChart.options.plugins.progressLine = {};
+        }
+        fullscreenChart.options.plugins.progressLine.currentTime = chartCurrentTime;
+        fullscreenChart.update('none');
+      }
+    }
+    
+    function updateFullscreenPlayButton() {
+      const fullscreenPlayPauseBtn = document.getElementById('fullscreen-play-pause-btn');
+      if (fullscreenPlayPauseBtn) {
+        fullscreenPlayPauseBtn.textContent = isPlaying ? '⏸' : '▶';
+        fullscreenPlayPauseBtn.classList.toggle('paused', isPlaying);
+      }
+    }
+    
+    if (fullscreenBtn && fullscreenOverlay) {
+      fullscreenBtn.addEventListener('click', function() {
+        fullscreenOverlay.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+        
+        // Create fullscreen chart after a short delay to ensure overlay is rendered
+        setTimeout(() => {
+          createFullscreenChart();
+        }, 100);
+      });
+    }
+    
+    if (exitFullscreenBtn && fullscreenOverlay) {
+      exitFullscreenBtn.addEventListener('click', function() {
+        fullscreenOverlay.style.display = 'none';
+        document.body.style.overflow = '';
+        
+        if (fullscreenChart) {
+          fullscreenChart.destroy();
+          fullscreenChart = null;
+        }
+      });
+    }
+    
+    // Initial progress update
+    updateProgress();
+  }
+  
+  // Initialize when DOM is ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initChart);
+  } else {
+    initChart();
+  }
+</script>
+
+<style>
+/* Chart Controls */
+.chart-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: center;
+  margin-top: 1rem;
+  padding: 0.5rem 0;
+}
+
+@media (min-width: 640px) {
+  .chart-controls {
+    gap: 0.75rem;
+    justify-content: flex-end;
+  }
+}
+
+.chart-control-btn {
+  padding: 0.375rem 0.75rem;
+  background: rgb(55 65 81); /* dark:bg-gray-700 */
+  color: white;
+  border: 1px solid rgb(75 85 99); /* dark:border-gray-600 */
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+@media (min-width: 640px) {
+  .chart-control-btn {
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+  }
+}
+
+.chart-control-btn:hover {
+  background: rgb(75 85 99); /* dark:hover:bg-gray-600 */
+  border-color: rgb(107 114 128); /* dark:hover:border-gray-500 */
+}
+
+@media (prefers-color-scheme: light) {
+  .chart-control-btn {
+    background: rgb(229 231 235); /* bg-gray-200 */
+    color: rgb(17 24 39); /* text-gray-900 */
+    border-color: rgb(209 213 219); /* border-gray-300 */
+  }
+  
+  .chart-control-btn:hover {
+    background: rgb(209 213 219); /* hover:bg-gray-300 */
+    border-color: rgb(156 163 175); /* hover:border-gray-400 */
+  }
+}
+
+.dark .chart-control-btn {
+  background: rgb(55 65 81); /* dark:bg-gray-700 */
+  color: white;
+  border-color: rgb(75 85 99); /* dark:border-gray-600 */
+}
+
+.dark .chart-control-btn:hover {
+  background: rgb(75 85 99); /* dark:hover:bg-gray-600 */
+  border-color: rgb(107 114 128); /* dark:hover:border-gray-500 */
+}
+
+.chart-control-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.75rem;
+  background: rgb(55 65 81); /* dark:bg-gray-700 */
+  border: 1px solid rgb(75 85 99); /* dark:border-gray-600 */
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+@media (min-width: 640px) {
+  .chart-control-checkbox {
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+  }
+}
+
+.chart-control-checkbox:hover {
+  background: rgb(75 85 99); /* dark:hover:bg-gray-600 */
+  border-color: rgb(107 114 128); /* dark:hover:border-gray-500 */
+}
+
+.chart-control-checkbox input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: rgb(59 130 246); /* accent-blue-500 */
+}
+
+@media (min-width: 640px) {
+  .chart-control-checkbox input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+  }
+}
+
+@media (prefers-color-scheme: light) {
+  .chart-control-checkbox {
+    background: rgb(229 231 235); /* bg-gray-200 */
+    color: rgb(17 24 39); /* text-gray-900 */
+    border-color: rgb(209 213 219); /* border-gray-300 */
+  }
+  
+  .chart-control-checkbox:hover {
+    background: rgb(209 213 219); /* hover:bg-gray-300 */
+    border-color: rgb(156 163 175); /* hover:border-gray-400 */
+  }
+}
+
+.dark .chart-control-checkbox {
+  background: rgb(55 65 81); /* dark:bg-gray-700 */
+  color: white;
+  border-color: rgb(75 85 99); /* dark:border-gray-600 */
+}
+
+.dark .chart-control-checkbox:hover {
+  background: rgb(75 85 99); /* dark:hover:bg-gray-600 */
+  border-color: rgb(107 114 128); /* dark:hover:border-gray-500 */
+}
+</style>
