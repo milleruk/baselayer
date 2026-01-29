@@ -4,6 +4,80 @@
 {% block page_title %}Analytics Dashboard{% endblock %}
 
 {% block content %}
+<!-- Time Period Filter & Refresh Controls -->
+<div class="flex items-center justify-between mb-6">
+  <div class="flex items-center gap-2">
+    <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Time Period:</span>
+    <div class="inline-flex rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-1">
+      <button
+        hx-get="{% url 'plans:dashboard' %}?period=7d"
+        hx-target="#dashboard-content"
+        hx-swap="innerHTML"
+        hx-indicator="#refresh-indicator"
+        hx-push-url="true"
+        class="period-filter px-4 py-2 text-sm font-medium rounded-md transition-colors {% if selected_period == '7d' %}bg-primary text-white{% else %}text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700{% endif %}"
+        data-period="7d"
+      >
+        Last 7 Days
+      </button>
+      <button
+        hx-get="{% url 'plans:dashboard' %}?period=30d"
+        hx-target="#dashboard-content"
+        hx-swap="innerHTML"
+        hx-indicator="#refresh-indicator"
+        hx-push-url="true"
+        class="period-filter px-4 py-2 text-sm font-medium rounded-md transition-colors {% if selected_period == '30d' %}bg-primary text-white{% else %}text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700{% endif %}"
+        data-period="30d"
+      >
+        Last 30 Days
+      </button>
+      <button
+        hx-get="{% url 'plans:dashboard' %}?period=90d"
+        hx-target="#dashboard-content"
+        hx-swap="innerHTML"
+        hx-indicator="#refresh-indicator"
+        hx-push-url="true"
+        class="period-filter px-4 py-2 text-sm font-medium rounded-md transition-colors {% if selected_period == '90d' %}bg-primary text-white{% else %}text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700{% endif %}"
+        data-period="90d"
+      >
+        Last 90 Days
+      </button>
+      <button
+        hx-get="{% url 'plans:dashboard' %}?period=all"
+        hx-target="#dashboard-content"
+        hx-swap="innerHTML"
+        hx-indicator="#refresh-indicator"
+        hx-push-url="true"
+        class="period-filter px-4 py-2 text-sm font-medium rounded-md transition-colors {% if selected_period == 'all' %}bg-primary text-white{% else %}text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700{% endif %}"
+        data-period="all"
+      >
+        All Time
+      </button>
+    </div>
+  </div>
+  
+  <!-- Refresh Button -->
+  <button
+    hx-get="{% url 'plans:dashboard' %}?period={{ selected_period }}"
+    hx-target="#dashboard-content"
+    hx-swap="innerHTML"
+    hx-indicator="#refresh-indicator"
+    class="inline-flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+    title="Refresh dashboard"
+  >
+    <svg id="refresh-icon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+    </svg>
+    <span>Refresh</span>
+    <svg id="refresh-indicator" class="htmx-indicator w-5 h-5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+    </svg>
+  </button>
+</div>
+
+<!-- Dashboard Content Container -->
+<div id="dashboard-content">
+
 <!-- Active Challenge Banner - Top of Page -->
 {% if active_challenge_instance %}
 <div class="rounded-lg border-2 border-yellow-400/50 dark:border-yellow-500/50 bg-gradient-to-r from-gray-800 to-gray-900 dark:from-gray-900 dark:to-gray-800 p-6 mb-6 shadow-2xl relative overflow-hidden">
@@ -72,309 +146,83 @@
 </div>
 {% endif %}
 
-<!-- Metric Cards - 3 Column Layout: 2 x 2 x 1 -->
-<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
-  <!-- Column 1: Challenges Completed -->
-  <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
-    <div class="flex items-center justify-between">
-      <div>
-        <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Challenges Completed</p>
-        <p class="text-2xl font-bold text-gray-900 dark:text-white mt-2">{{ completed_challenges_count|default:0 }}</p>
-        <p class="text-xs text-gray-500 dark:text-gray-500 mt-1">Fully completed challenges</p>
-      </div>
-      <div class="w-12 h-12 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
-        <svg class="w-6 h-6 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"></path>
-        </svg>
-      </div>
-    </div>
-  </div>
-
-  <!-- Column 2: Last 7 Days -->
-  <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
-    <div class="flex items-center justify-between">
-      <div>
-        <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Last 7 Days</p>
-        <p class="text-2xl font-bold text-gray-900 dark:text-white mt-2">{{ last_7_days_count }} <span class="text-base font-normal text-gray-500">workouts</span></p>
-        <div class="flex items-center gap-2 mt-1">
-          {% if previous_7_days_count > 0 %}
-            {% if last_7_days_diff > 0 %}
-              <span class="text-xs text-green-600 dark:text-green-400 font-semibold">↑ +{{ last_7_days_diff }}</span>
-              <span class="text-xs text-gray-500">vs previous 7 days</span>
-            {% elif last_7_days_diff < 0 %}
-              <span class="text-xs text-red-600 dark:text-red-400 font-semibold">↓ {{ last_7_days_diff }}</span>
-              <span class="text-xs text-gray-500">vs previous 7 days</span>
-            {% else %}
-              <span class="text-xs text-gray-500">Same as previous 7 days</span>
-            {% endif %}
-          {% else %}
-            <span class="text-xs text-gray-500">No previous data</span>
-          {% endif %}
-        </div>
-        {% if last_7_days_output > 0 %}
-          <p class="text-xs text-gray-500 dark:text-gray-500 mt-1">{{ last_7_days_output|floatformat:0 }} kJ output</p>
-        {% endif %}
-      </div>
-      <div class="w-12 h-12 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-        <svg class="w-6 h-6 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-        </svg>
-      </div>
-    </div>
-  </div>
-
-  <!-- Column 3: Current Week Plan (spans full height) -->
-  <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm lg:row-span-2">
-    <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Current Week Plan</h3>
-    {% if current_week_plan %}
-      <div class="space-y-4">
-        <div>
-          {% if current_week_plan.challenge_instance %}
-            <div class="flex items-center gap-2 mb-2">
-              <span class="px-2 py-1 text-xs font-bold text-primary bg-primary/10 border border-primary/20 rounded">CHALLENGE</span>
-              {% if current_week_plan.week_number %}
-                <span class="px-2 py-1 text-xs font-semibold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded">Week {{ current_week_plan.week_number }}</span>
-              {% endif %}
-            </div>
-            <p class="text-sm font-medium text-gray-900 dark:text-white">{{ current_week_plan.challenge_instance.challenge.name }}</p>
-            <p class="text-xs text-gray-600 dark:text-gray-400 mt-1">{{ current_week_plan.template_name }} • Week of {{ current_week_plan.week_start|date:"M d, Y" }}</p>
-          {% else %}
-            <p class="text-sm font-medium text-gray-900 dark:text-white">{{ current_week_plan.template_name }}</p>
-            <p class="text-xs text-gray-600 dark:text-gray-400 mt-1">Week of {{ current_week_plan.week_start|date:"M d, Y" }}</p>
-          {% endif %}
-        </div>
-        <div>
-          <div class="flex items-center justify-between mb-2">
-            <span class="text-xs font-medium text-gray-600 dark:text-gray-400">Progress</span>
-            <span class="text-xs font-semibold text-gray-900 dark:text-white">{{ current_week_plan.completion_rate|floatformat:0 }}%</span>
-          </div>
-          <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-            <div class="bg-primary h-2 rounded-full transition-all duration-300" style="width: {{ current_week_plan.completion_rate }}%"></div>
-          </div>
-        </div>
-        <div class="pt-4 border-t border-gray-200 dark:border-gray-700">
-          <div class="flex items-center justify-between mb-2">
-            <span class="text-xs font-medium text-gray-600 dark:text-gray-400">Points</span>
-            <span class="text-sm font-bold text-gray-900 dark:text-white">{{ current_week_plan.total_points }} / {{ current_week_plan.max_total_points }}</span>
-          </div>
-          <div class="flex items-center justify-between">
-            <span class="text-xs font-medium text-gray-600 dark:text-gray-400">Status</span>
-            {% if current_week_plan.is_completed %}
-              <span class="px-2 py-1 text-xs font-semibold text-green-800 dark:text-green-200 bg-green-100 dark:bg-green-900/30 rounded">Completed</span>
-            {% elif current_week_plan.is_current_week %}
-              <span class="px-2 py-1 text-xs font-semibold text-orange-800 dark:text-orange-200 bg-orange-100 dark:bg-orange-900/30 rounded">Active</span>
-            {% else %}
-              <span class="px-2 py-1 text-xs font-semibold text-gray-800 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 rounded">Upcoming</span>
-            {% endif %}
-          </div>
-        </div>
-        {% if current_week_plan.challenge_instance %}
-          {% if current_week_plan.week_number %}
-            <a href="{% url 'challenges:challenge_detail_week' current_week_plan.challenge_instance.challenge.id current_week_plan.week_number %}" class="block w-full text-center px-4 py-2 bg-primary hover:bg-primary-dark text-white font-medium rounded-lg transition-colors">
-              View Plan
-            </a>
-          {% else %}
-            <a href="{% url 'challenges:challenge_detail' current_week_plan.challenge_instance.challenge.id %}" class="block w-full text-center px-4 py-2 bg-primary hover:bg-primary-dark text-white font-medium rounded-lg transition-colors">
-              View Plan
-            </a>
-          {% endif %}
-        {% else %}
-          <a href="{% url 'tracker:plan_detail' current_week_plan.id %}" class="block w-full text-center px-4 py-2 bg-primary hover:bg-primary-dark text-white font-medium rounded-lg transition-colors">
-            View Plan
-          </a>
-        {% endif %}
-      </div>
-    {% else %}
-      <div class="text-center py-8">
-        <div class="text-4xl mb-3">📋</div>
-        <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">No plan for this week</p>
-        <div class="flex flex-col gap-2">
-          <a href="{% url 'challenges:challenges_list' %}" class="px-4 py-2 bg-primary hover:bg-primary-dark text-white font-medium rounded-lg transition-colors text-sm">
-            Browse Challenges
-          </a>
-          <a href="{% url 'tracker:generate' %}" class="px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 font-medium rounded-lg transition-colors text-sm">
-            Generate Week
-          </a>
-        </div>
-      </div>
-    {% endif %}
-  </div>
-
-  <!-- Column 1 (second row): Total Workouts -->
-  {% if total_workouts_count > 0 %}
-  <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
-    <div class="flex items-center justify-between">
-      <div>
-        <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Total Workouts</p>
-        <p class="text-2xl font-bold text-gray-900 dark:text-white mt-2">{{ total_workouts_count }}</p>
-        <p class="text-xs text-gray-500 dark:text-gray-500 mt-1">All-time workouts</p>
-      </div>
-      <div class="w-12 h-12 rounded-full bg-cyan-100 dark:bg-cyan-900/30 flex items-center justify-center">
-        <svg class="w-6 h-6 text-cyan-600 dark:text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
-        </svg>
-      </div>
-    </div>
-  </div>
-  {% endif %}
-
-  <!-- Column 2 (second row): This Month -->
-  <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
-    <div class="flex items-center justify-between">
-      <div>
-        <p class="text-sm font-medium text-gray-600 dark:text-gray-400">This Month</p>
-        <p class="text-2xl font-bold text-gray-900 dark:text-white mt-2">{{ this_month_count }} <span class="text-base font-normal text-gray-500">workouts</span></p>
-        <div class="flex items-center gap-2 mt-1">
-          {% if previous_month_count > 0 %}
-            {% if this_month_diff > 0 %}
-              <span class="text-xs text-green-600 dark:text-green-400 font-semibold">↑ +{{ this_month_diff }}</span>
-              <span class="text-xs text-gray-500">vs last month</span>
-            {% elif this_month_diff < 0 %}
-              <span class="text-xs text-red-600 dark:text-red-400 font-semibold">↓ {{ this_month_diff }}</span>
-              <span class="text-xs text-gray-500">vs last month</span>
-            {% else %}
-              <span class="text-xs text-gray-500">Same as last month</span>
-            {% endif %}
-          {% else %}
-            <span class="text-xs text-gray-500">No previous data</span>
-          {% endif %}
-        </div>
-        {% if this_month_output > 0 %}
-          <p class="text-xs text-gray-500 dark:text-gray-500 mt-1">{{ this_month_output|floatformat:0 }} kJ output</p>
-        {% endif %}
-      </div>
-      <div class="w-12 h-12 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
-        <svg class="w-6 h-6 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-        </svg>
-      </div>
-    </div>
-  </div>
-</div>
+<!-- Include Stats Partial -->
+{% include 'plans/partials/dashboard_stats.html' %}
 
 
-<!-- Charts Section -->
-<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-  <!-- Workout Frequency Chart -->
-  <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
-    <div class="flex items-center justify-between mb-4">
-      <div>
-        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Workout Frequency</h3>
-        <p class="text-sm text-gray-600 dark:text-gray-400">Workouts per week (last 30 days)</p>
-      </div>
-    </div>
-    <div class="h-64">
-      <canvas id="workoutFrequencyChart"></canvas>
-    </div>
-  </div>
-
-  <!-- Workout Type Breakdown Chart -->
-  <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
-    <div class="flex items-center justify-between mb-4">
-      <div>
-        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Workout Types</h3>
-        <p class="text-sm text-gray-600 dark:text-gray-400">Breakdown by activity type</p>
-      </div>
-    </div>
-    <div class="h-64">
-      <canvas id="workoutTypeChart"></canvas>
-    </div>
-  </div>
-</div>
-
-<!-- Output Trends Chart -->
-{% if workouts_by_week|length > 0 %}
-<div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm mb-6">
-  <div class="flex items-center justify-between mb-4">
-    <div>
-      <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Output Trends</h3>
-      <p class="text-sm text-gray-600 dark:text-gray-400">Weekly output and calories (last 30 days)</p>
-    </div>
-  </div>
-  <div class="h-80">
-    <canvas id="outputTrendsChart"></canvas>
-  </div>
-</div>
-{% endif %}
+<!-- Include Charts Partial -->
+{% include 'plans/partials/dashboard_charts.html' %}
 
 
 
-<!-- Recent Orders / Recent Workouts Table -->
+<!-- Recent Workouts Table -->
 <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
   <div class="flex items-center justify-between mb-4">
     <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Recent Workouts</h3>
     <a href="{% url 'workouts:history' %}" class="text-sm font-medium text-primary hover:text-primary-dark">See all</a>
   </div>
-  <div class="overflow-x-auto">
-    <table class="w-full">
-      <thead>
-        <tr class="border-b border-gray-200 dark:border-gray-700">
-          <th class="text-left py-3 px-4 text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Workout</th>
-          <th class="text-left py-3 px-4 text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Instructor</th>
-          <th class="text-left py-3 px-4 text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Date</th>
-          <th class="text-left py-3 px-4 text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Duration</th>
-          <th class="text-left py-3 px-4 text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Type</th>
-        </tr>
-      </thead>
-      <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
-        {% if recent_workouts %}
-          {% for workout in recent_workouts %}
-            <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-              <td class="py-3 px-4 text-sm font-medium text-gray-900 dark:text-white">
-                <a href="{% url 'workouts:detail' workout.id %}" class="hover:text-primary">
-                  {{ workout.title }}
-                </a>
-              </td>
-              <td class="py-3 px-4 text-sm text-gray-600 dark:text-gray-400">
-                {% if workout.instructor %}{{ workout.instructor.name }}{% else %}—{% endif %}
-              </td>
-              <td class="py-3 px-4 text-sm text-gray-600 dark:text-gray-400">
-                {{ workout.completed_date|date:"d/m/Y" }}
-              </td>
-              <td class="py-3 px-4 text-sm text-gray-600 dark:text-gray-400">
-                {{ workout.duration_minutes }} min
-              </td>
-              <td class="py-3 px-4">
-                <span class="px-2 py-1 text-xs font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded">
-                  {% if workout.workout_type %}{{ workout.workout_type.name }}{% else %}—{% endif %}
-                </span>
-              </td>
-            </tr>
-          {% endfor %}
-        {% else %}
-          <tr>
-            <td colspan="5" class="py-8 px-4 text-center text-sm text-gray-600 dark:text-gray-400">
-              Recent workout data will appear here once Peloton integration is connected.
-              <br>
-              <a href="{% url 'workouts:history' %}" class="text-primary hover:underline mt-2 inline-block">Sync your workouts</a> to see them here.
-            </td>
-          </tr>
-        {% endif %}
-      </tbody>
-    </table>
-  </div>
+  {% include 'plans/partials/dashboard_recent_workouts.html' %}
+</div>
+
+<!-- Close Dashboard Content Container -->
 </div>
 
 <!-- Chart.js Library -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
 <script>
-  document.addEventListener('DOMContentLoaded', function() {
+  // Store chart instances globally so we can destroy them
+  let chartInstances = {
+    frequency: null,
+    type: null,
+    trends: null
+  };
+  
+  // Initialize charts function
+  function initializeCharts() {
     const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     const textColor = isDark ? 'rgba(255, 255, 255, 0.8)' : 'rgba(0, 0, 0, 0.8)';
     const gridColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)';
     
+    // Get chart data from script tag
+    const chartDataEl = document.getElementById('chart-data');
+    if (!chartDataEl) return;
+    
+    let chartData;
+    try {
+      chartData = JSON.parse(chartDataEl.textContent || '{}');
+    } catch (e) {
+      console.error('Error parsing chart data:', e);
+      return;
+    }
+    
+    const workouts_by_week = chartData.workouts_by_week || [];
+    const workouts_by_type = chartData.workouts_by_type || {};
+    
+    // Destroy existing charts before creating new ones
+    if (chartInstances.frequency) {
+      chartInstances.frequency.destroy();
+      chartInstances.frequency = null;
+    }
+    if (chartInstances.type) {
+      chartInstances.type.destroy();
+      chartInstances.type = null;
+    }
+    if (chartInstances.trends) {
+      chartInstances.trends.destroy();
+      chartInstances.trends = null;
+    }
+    
     // Workout Frequency Chart
     const frequencyCtx = document.getElementById('workoutFrequencyChart');
     if (frequencyCtx) {
-      const frequencyData = {{ workouts_by_week|safe|default:"[]" }};
-      const frequencyLabels = frequencyData.map(w => {
+      const frequencyLabels = workouts_by_week.map(w => {
         const date = new Date(w.date);
         return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
       });
-      const frequencyCounts = frequencyData.map(w => w.count);
+      const frequencyCounts = workouts_by_week.map(w => w.count);
       
-      new Chart(frequencyCtx, {
+      chartInstances.frequency = new Chart(frequencyCtx, {
         type: 'bar',
         data: {
           labels: frequencyLabels,
@@ -425,9 +273,8 @@
     // Workout Type Breakdown Chart
     const typeCtx = document.getElementById('workoutTypeChart');
     if (typeCtx) {
-      const typeData = {{ workouts_by_type|safe|default:"{}" }};
-      const typeLabels = Object.keys(typeData);
-      const typeCounts = Object.values(typeData);
+      const typeLabels = Object.keys(workouts_by_type);
+      const typeCounts = Object.values(workouts_by_type);
       
       const colors = [
         'rgba(59, 130, 246, 0.8)',   // Blue
@@ -440,7 +287,7 @@
         'rgba(251, 146, 60, 0.8)',  // Orange
       ];
       
-      new Chart(typeCtx, {
+      chartInstances.type = new Chart(typeCtx, {
         type: 'doughnut',
         data: {
           labels: typeLabels,
@@ -481,15 +328,14 @@
     // Output Trends Chart
     const trendsCtx = document.getElementById('outputTrendsChart');
     if (trendsCtx) {
-      const trendsData = {{ workouts_by_week|safe|default:"[]" }};
-      const trendsLabels = trendsData.map(w => {
+      const trendsLabels = workouts_by_week.map(w => {
         const date = new Date(w.date);
         return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
       });
-      const outputData = trendsData.map(w => w.total_output || 0);
-      const caloriesData = trendsData.map(w => w.total_calories || 0);
+      const outputData = workouts_by_week.map(w => w.total_output || 0);
+      const caloriesData = workouts_by_week.map(w => w.total_calories || 0);
       
-      new Chart(trendsCtx, {
+      chartInstances.trends = new Chart(trendsCtx, {
         type: 'line',
         data: {
           labels: trendsLabels,
@@ -575,7 +421,49 @@
         }
       });
     }
-    
+  }
+  
+  // Initialize charts on page load
+  document.addEventListener('DOMContentLoaded', initializeCharts);
+  
+  // Function to update active button states
+  function updateActiveButton(period) {
+    document.querySelectorAll('.period-filter').forEach(btn => {
+      const btnPeriod = btn.getAttribute('data-period');
+      if (btnPeriod === period) {
+        btn.classList.add('bg-primary', 'text-white');
+        btn.classList.remove('text-gray-700', 'dark:text-gray-300', 'hover:bg-gray-100', 'dark:hover:bg-gray-700');
+      } else {
+        btn.classList.remove('bg-primary', 'text-white');
+        btn.classList.add('text-gray-700', 'dark:text-gray-300', 'hover:bg-gray-100', 'dark:hover:bg-gray-700');
+      }
+    });
+  }
+  
+  // Re-initialize charts after HTMX swaps
+  document.body.addEventListener('htmx:afterSwap', function(event) {
+    if (event.detail.target.id === 'dashboard-content') {
+      // Wait for DOM to settle, then initialize charts
+      setTimeout(initializeCharts, 100);
+      
+      // Update active filter button states - extract period from the request URL
+      const xhr = event.detail.xhr;
+      if (xhr && xhr.responseURL) {
+        const url = new URL(xhr.responseURL);
+        const period = url.searchParams.get('period') || '7d';
+        updateActiveButton(period);
+      }
+    }
+  });
+  
+  // Also update buttons on direct click (for immediate visual feedback)
+  document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.period-filter').forEach(btn => {
+      btn.addEventListener('click', function() {
+        const period = this.getAttribute('data-period');
+        updateActiveButton(period);
+      });
+    });
   });
 </script>
 {% endblock %}

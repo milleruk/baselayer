@@ -15,6 +15,40 @@ from accounts.rowing_pace_levels_data import DEFAULT_ROWING_PACE_LEVELS
 
 @login_required
 def dashboard(request):
+    # Get time period from request (default to 7d)
+    period = request.GET.get('period', '7d')
+    
+    # Calculate date range based on period
+    today = timezone.now().date()
+    if period == '7d':
+        start_date = today - timedelta(days=7)
+        period_label = "Last 7 Days"
+        period_description = "last 7 days"
+        comparison_label = "previous 7 days"
+        comparison_start = today - timedelta(days=14)
+        comparison_end = start_date
+    elif period == '30d':
+        start_date = today - timedelta(days=30)
+        period_label = "Last 30 Days"
+        period_description = "last 30 days"
+        comparison_label = "previous 30 days"
+        comparison_start = today - timedelta(days=60)
+        comparison_end = start_date
+    elif period == '90d':
+        start_date = today - timedelta(days=90)
+        period_label = "Last 90 Days"
+        period_description = "last 90 days"
+        comparison_label = "previous 90 days"
+        comparison_start = today - timedelta(days=180)
+        comparison_end = start_date
+    else:  # 'all'
+        start_date = None
+        period_label = "All Time"
+        period_description = "all time"
+        comparison_label = "N/A"
+        comparison_start = None
+        comparison_end = None
+    
     # Get active challenge instance (only truly active ones)
     active_challenge_instance = ChallengeInstance.objects.filter(
         user=request.user,
@@ -153,13 +187,15 @@ def dashboard(request):
             type_name = workout.ride_detail.workout_type.name
             workouts_by_type[type_name] = workouts_by_type.get(type_name, 0) + 1
     
-    # Workouts over time (last 30 days, grouped by week)
-    thirty_days_ago = timezone.now().date() - timedelta(days=30)
-    recent_workouts_30d = all_workouts.filter(completed_date__gte=thirty_days_ago)
+    # Workouts over time (based on selected period, grouped by week)
+    if start_date:
+        period_workouts = all_workouts.filter(completed_date__gte=start_date)
+    else:
+        period_workouts = all_workouts  # All time
     
     # Group workouts by week for chart
     workouts_by_week = {}
-    for workout in recent_workouts_30d:
+    for workout in period_workouts:
         week_start = workout.completed_date - timedelta(days=workout.completed_date.weekday())
         week_key = week_start.strftime('%Y-%m-%d')
         if week_key not in workouts_by_week:
@@ -182,13 +218,7 @@ def dashboard(request):
     # Sort by date
     workouts_by_week_list = sorted(workouts_by_week.values(), key=lambda x: x['date'])
     
-    # This week's workouts
-    today = timezone.now().date()
-    week_start = today - timedelta(days=today.weekday())
-    this_week_workouts = all_workouts.filter(
-        completed_date__gte=week_start
-    )
-    this_week_count = this_week_workouts.count()
+    # Helper functions
     def safe_get_output(workout):
         try:
             return workout.details.total_output if workout.details and workout.details.total_output else 0
@@ -201,10 +231,36 @@ def dashboard(request):
         except (WorkoutDetails.DoesNotExist, AttributeError):
             return 0
     
+    # Period workouts stats
+    if start_date:
+        period_workouts_filtered = all_workouts.filter(completed_date__gte=start_date)
+    else:
+        period_workouts_filtered = all_workouts
+    
+    period_count = period_workouts_filtered.count()
+    period_output = sum(safe_get_output(w) for w in period_workouts_filtered) or 0
+    
+    # Comparison period stats
+    if comparison_start and comparison_end:
+        comparison_workouts = all_workouts.filter(completed_date__gte=comparison_start, completed_date__lt=comparison_end)
+        comparison_count = comparison_workouts.count()
+        comparison_output = sum(safe_get_output(w) for w in comparison_workouts) or 0
+    else:
+        comparison_count = 0
+        comparison_output = 0
+    
+    period_diff = period_count - comparison_count
+    
+    # This week's workouts (for static card)
+    week_start = today - timedelta(days=today.weekday())
+    this_week_workouts = all_workouts.filter(
+        completed_date__gte=week_start
+    )
+    this_week_count = this_week_workouts.count()
     this_week_output = sum(safe_get_output(w) for w in this_week_workouts) or 0
     this_week_calories = sum(safe_get_calories(w) for w in this_week_workouts) or 0
     
-    # Last 7 days workouts
+    # Last 7 days workouts (for backward compatibility)
     seven_days_ago = today - timedelta(days=7)
     last_7_days_workouts = all_workouts.filter(completed_date__gte=seven_days_ago)
     last_7_days_count = last_7_days_workouts.count()
@@ -239,7 +295,7 @@ def dashboard(request):
     previous_month_count = previous_month_workouts.count()
     previous_month_output = sum(safe_get_output(w) for w in previous_month_workouts) or 0
     
-    # Calculate differences for comparison display
+    # Calculate differences for comparison display  
     last_7_days_diff = last_7_days_count - previous_7_days_count
     this_month_diff = this_month_count - previous_month_count
     
@@ -289,7 +345,20 @@ def dashboard(request):
         'previous_month_output': previous_month_output,
         'last_7_days_diff': last_7_days_diff,
         'this_month_diff': this_month_diff,
+        # Time period filter data
+        'selected_period': period,
+        'period_label': period_label,
+        'period_description': period_description,
+        'period_count': period_count,
+        'period_output': period_output,
+        'period_diff': period_diff,
+        'comparison_label': comparison_label,
+        'comparison_count': comparison_count,
     }
+    
+    # If HTMX request, return only dashboard content partial
+    if request.headers.get('HX-Request'):
+        return render(request, 'plans/partials/dashboard_content.html', context)
     
     return render(request, "plans/dashboard.html", context)
 

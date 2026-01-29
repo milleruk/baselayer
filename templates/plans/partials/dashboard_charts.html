@@ -1,0 +1,51 @@
+<!-- Charts Section -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+  <!-- Workout Frequency Chart -->
+  <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
+    <div class="flex items-center justify-between mb-4">
+      <div>
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Workout Frequency</h3>
+        <p class="text-sm text-gray-600 dark:text-gray-400">Workouts per week ({{ period_description }})</p>
+      </div>
+    </div>
+    <div class="h-64">
+      <canvas id="workoutFrequencyChart"></canvas>
+    </div>
+  </div>
+
+  <!-- Workout Type Breakdown Chart -->
+  <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
+    <div class="flex items-center justify-between mb-4">
+      <div>
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Workout Types</h3>
+        <p class="text-sm text-gray-600 dark:text-gray-400">Breakdown by activity type</p>
+      </div>
+    </div>
+    <div class="h-64">
+      <canvas id="workoutTypeChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- Output Trends Chart -->
+{% if workouts_by_week|length > 0 %}
+<div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm mb-6">
+  <div class="flex items-center justify-between mb-4">
+    <div>
+      <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Output Trends</h3>
+      <p class="text-sm text-gray-600 dark:text-gray-400">Weekly output and calories ({{ period_description }})</p>
+    </div>
+  </div>
+  <div class="h-80">
+    <canvas id="outputTrendsChart"></canvas>
+  </div>
+</div>
+{% endif %}
+
+<!-- Store chart data for re-initialization -->
+<script id="chart-data" type="application/json">
+{
+  "workouts_by_week": {{ workouts_by_week|safe }},
+  "workouts_by_type": {{ workouts_by_type|safe }}
+}
+</script>
