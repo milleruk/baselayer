@@ -2379,16 +2379,18 @@ def workout_history(request):
     # Ordering - title ordering uses ride_detail__title via SQL join
     order_by = request.GET.get('order_by', '-completed_date')
     if order_by in ['completed_date', '-completed_date', 'recorded_date', '-recorded_date']:
-        # Add stable tie-breakers so "latest on the day" comes first
-        if order_by.startswith('-'):
-            workouts = workouts.order_by(order_by, '-id')
-        else:
-            workouts = workouts.order_by(order_by, '-id')
+        # Stable tie-breakers for same-day workouts.
+        #
+        # Workout IDs reflect sync insert order. Since the Peloton API list is typically newest-first,
+        # the *smaller* ID can represent the more recent activity within the same completed_date.
+        # Tie-break accordingly so "most recent activity on the day" comes first.
+        tie_breaker = 'id' if order_by.startswith('-') else '-id'
+        workouts = workouts.order_by(order_by, tie_breaker)
     elif order_by in ['title', '-title']:
         # Order by ride_detail title via SQL join
         workouts = workouts.order_by('ride_detail__title' if order_by == 'title' else '-ride_detail__title', '-id')
     else:
-        workouts = workouts.order_by('-completed_date', '-id')
+        workouts = workouts.order_by('-completed_date', 'id')
     
     # Pagination
     paginator = Paginator(workouts, 12)  # 12 workouts per page
