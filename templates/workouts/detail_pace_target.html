@@ -177,9 +177,6 @@
     <button id="toggleTargetLine" class="px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors border border-gray-300 dark:border-gray-600">
       Hide Target
     </button>
-    <button id="bringActualForward" class="px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors border border-gray-300 dark:border-gray-600">
-      Bring Actual Forward
-    </button>
     <button id="saveChart" class="px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors border border-gray-300 dark:border-gray-600 inline-flex items-center gap-2">
       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"></path>
@@ -511,7 +508,33 @@ document.addEventListener('DOMContentLoaded', function() {
   
   // Target metrics and segments
   const targetMetrics = {% if target_metrics_json %}{{ target_metrics_json|safe }}{% else %}null{% endif %};
-  const workoutDuration = {{ workout.duration_seconds|default:1800 }};
+  const rideDetailDurationSeconds = {% if workout.ride_detail and workout.ride_detail.duration_seconds %}{{ workout.ride_detail.duration_seconds }}{% else %}null{% endif %};
+  const workoutDurationFromWorkout = {% if workout.duration_seconds %}{{ workout.duration_seconds }}{% else %}null{% endif %};
+  let workoutDuration = rideDetailDurationSeconds || workoutDurationFromWorkout || 1800;
+  
+  // Last-resort: derive duration from data if needed (avoid 30-min fallback)
+  if (!workoutDuration || workoutDuration <= 0) {
+    // Prefer target metrics if they include offsets
+    if (targetMetrics && Array.isArray(targetMetrics.segments) && targetMetrics.segments.length > 0) {
+      let maxEnd = 0;
+      for (const seg of targetMetrics.segments) {
+        const end = (seg && typeof seg.end === 'number') ? seg.end : null;
+        if (end !== null && end > maxEnd) maxEnd = end;
+      }
+      if (maxEnd > 0) workoutDuration = maxEnd;
+    }
+  }
+  if (!workoutDuration || workoutDuration <= 0) {
+    // Fallback to performance data timestamps
+    if (Array.isArray(performanceData) && performanceData.length > 0) {
+      let maxTs = 0;
+      for (const p of performanceData) {
+        const ts = (p && typeof p.timestamp === 'number') ? p.timestamp : null;
+        if (ts !== null && ts > maxTs) maxTs = ts;
+      }
+      if (maxTs > 0) workoutDuration = maxTs;
+    }
+  }
   
   // Playlist data for music timeline
   const playlistData = {% if playlist and playlist.songs %}[
@@ -692,8 +715,9 @@ document.addEventListener('DOMContentLoaded', function() {
   const zoneBandsPlugin = {
     id: 'zoneBands',
     beforeDatasetsDraw(chart, args, opts) {
-      if (!zoneBandsEnabled) return;
       if (!targetMetrics || !targetMetrics.pace_ranges) return;
+      // Toggle only affects the colored bands (zone labels should always display)
+      if (!zoneBandsEnabled) return;
       const {ctx, chartArea, scales} = chart;
       ctx.save();
       
@@ -715,8 +739,7 @@ document.addEventListener('DOMContentLoaded', function() {
       ctx.restore();
     },
     afterDraw(chart, args, opts) {
-      // Overlay zone labels on the chart
-      if (!zoneBandsEnabled) return;
+      // Overlay zone labels on the chart (always on; toggle only hides colors)
       if (!targetMetrics || !targetMetrics.pace_ranges) return;
       const {ctx, chartArea, scales} = chart;
       ctx.save();
@@ -969,7 +992,6 @@ document.addEventListener('DOMContentLoaded', function() {
   const saveChartBtn = document.getElementById('saveChart');
   const toggleSpeedGraphBtn = document.getElementById('toggleSpeedGraph');
   const toggleKilometersBtn = document.getElementById('toggleKilometers');
-  const bringActualForwardBtn = document.getElementById('bringActualForward');
   const toggleActualLineStyleBtn = document.getElementById('toggleActualLineStyle');
   let actualLineIsStepped = false;
   
@@ -1183,19 +1205,6 @@ document.addEventListener('DOMContentLoaded', function() {
       this.textContent = showingKm ? 'Show Miles' : 'Show Kilometers';
       // TODO: Implement miles/km toggle functionality
       alert('Kilometers toggle coming soon!');
-    });
-  }
-  
-  // Bring Actual Forward (swap dataset order)
-  if (bringActualForwardBtn && paceChartInstance) {
-    bringActualForwardBtn.addEventListener('click', function() {
-      const datasets = paceChartInstance.data.datasets;
-      if (datasets.length >= 2) {
-        // Swap the two datasets
-        [datasets[0], datasets[1]] = [datasets[1], datasets[0]];
-        this.textContent = datasets[0].label === 'Actual' ? 'Bring Target Forward' : 'Bring Actual Forward';
-        paceChartInstance.update();
-      }
     });
   }
   
