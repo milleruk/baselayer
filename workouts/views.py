@@ -563,7 +563,16 @@ def class_library(request):
                                 ]
                             }))
         
-        elif ride.class_type == 'pace_target' or ride.fitness_discipline in ['running', 'walking', 'run']:
+        elif ride.class_type == 'pace_target' or ride.fitness_discipline in ['running', 'walking', 'run', 'walk']:
+            # Determine activity type for this class (MUST be first!)
+            activity_type = 'running'  # default
+            if ride.fitness_discipline in ['walking', 'walk']:
+                activity_type = 'walking'
+            elif ride.workout_type and ride.workout_type.slug in ['walking', 'walk']:
+                activity_type = 'walking'
+            elif 'walk' in (ride.title or '').lower():
+                activity_type = 'walking'
+            
             # Always try to generate chart data for running/walking classes
             chart_segments = []
             zone_times = {}
@@ -627,10 +636,6 @@ def class_library(request):
             
             # Method 2: Fallback to get_pace_segments if no chart data yet
             if not chart_segments and hasattr(ride, 'get_pace_segments'):
-                # Determine activity type for pace zone targets
-                activity_type = 'running'
-                if user_profile and ride.fitness_discipline in ['running', 'run', 'walking', 'walk']:
-                    activity_type = 'running' if ride.fitness_discipline in ['running', 'run'] else 'walking'
                 pace_zones = user_profile.get_pace_zone_targets(activity_type=activity_type) if user_profile else None
                 pace_segments = ride.get_pace_segments(user_pace_zones=pace_zones)
                 if pace_segments:
@@ -678,6 +683,7 @@ def class_library(request):
             if chart_segments:
                 ride_data['chart_data'] = mark_safe(json.dumps({
                     'type': 'pace_target',
+                    'activity_type': activity_type,  # Add activity type (running or walking)
                     'segments': chart_segments,
                     'total_duration': ride.duration_seconds,
                     'zones': [
@@ -775,6 +781,33 @@ def class_library(request):
             'has_more': page_obj.has_next(),
         })
     
+    # Get user's pace zones for both running and walking from the pace level data files
+    user_running_pace_zones = None
+    user_walking_pace_zones = None
+    if request.user.is_authenticated and hasattr(request.user, 'profile'):
+        from accounts.pace_converter import DEFAULT_RUNNING_PACE_LEVELS
+        from accounts.walking_pace_levels_data import DEFAULT_WALKING_PACE_LEVELS
+        
+        # Running pace zones (7 zones)
+        running_pace_entry = request.user.pace_entries.filter(activity_type='running', is_active=True).first()
+        if running_pace_entry and running_pace_entry.level in DEFAULT_RUNNING_PACE_LEVELS:
+            level_data = DEFAULT_RUNNING_PACE_LEVELS[running_pace_entry.level]
+            user_running_pace_zones = {}
+            for zone_name, (min_mph, max_mph, min_pace, max_pace, desc) in level_data.items():
+                # Use min_pace (the faster/lower end of the range) as target
+                # Convert decimal minutes to seconds
+                user_running_pace_zones[zone_name] = int(min_pace * 60)
+        
+        # Walking pace zones (5 zones)
+        walking_pace_entry = request.user.pace_entries.filter(activity_type='walking', is_active=True).first()
+        if walking_pace_entry and walking_pace_entry.level in DEFAULT_WALKING_PACE_LEVELS:
+            level_data = DEFAULT_WALKING_PACE_LEVELS[walking_pace_entry.level]
+            user_walking_pace_zones = {}
+            for zone_name, (min_mph, max_mph, min_pace, max_pace, desc) in level_data.items():
+                # Use min_pace (the faster/lower end of the range) as target
+                # Convert decimal minutes to seconds
+                user_walking_pace_zones[zone_name] = int(min_pace * 60)
+    
     context = {
         'rides_with_metrics': rides_with_metrics,
         'page_obj': page_obj,
@@ -792,6 +825,8 @@ def class_library(request):
         'instructors': instructors,
         'durations': durations,
         'order_by': order_by,
+        'user_running_pace_zones': user_running_pace_zones,
+        'user_walking_pace_zones': user_walking_pace_zones,
     }
     
     # Add year/month filter variables to context
@@ -802,6 +837,12 @@ def class_library(request):
         'available_months': available_months,
     })
     
+    # If HTMX request, return appropriate partial
+    if request.headers.get('HX-Request'):
+        # For filters/pagination, return full class list
+        return render(request, 'workouts/partials/class_list.html', context)
+    
+    # Otherwise return full page
     return render(request, "workouts/class_library.html", context)
 
 
@@ -1016,7 +1057,9 @@ def class_detail(request, pk):
                 'veryhard': 5,
                 'very_hard': 5,
                 'max': 6,
-                'maximum': 6
+                'maximum': 6,
+                'drills': 1,  # Map drills to Easy pace (not a measured pace target)
+                'drill': 1
             }
             
             for seg in segment_list:
@@ -1024,17 +1067,30 @@ def class_detail(request, pk):
                 section_start = seg.get('start_time_offset', 0)
                 
                 for subseg in subsegments:
-                    subseg_offset = subseg.get('offset', 0)
+                    # NOTE: subseg 'offset' is already absolute from class start, not relative to section
+                    subseg_offset = subseg.get('offset', 0)  # Absolute offset from class start
                     subseg_length = subseg.get('length', 0)
                     display_name = subseg.get('display_name', '')
                     
                     if subseg_length > 0 and display_name:
                         # Calculate absolute start/end times
-                        abs_start = section_start + subseg_offset
+                        # offset is already absolute, so use it directly
+                        abs_start = subseg_offset
                         abs_end = abs_start + subseg_length
                         
+                        # Skip segments that start beyond the class duration
+                        if abs_start >= total_duration:
+                            continue
+                        
+                        # Clamp end time to class duration
+                        abs_end = min(abs_end, total_duration)
+                        subseg_length = abs_end - abs_start
+                        
+                        if subseg_length <= 0:
+                            continue
+                        
                         # Extract pace level from display_name (e.g., "Recovery", "Easy", "Moderate", etc.)
-                        # Try exact match first, then substring match
+                        # Try exact match first, then substring match (longest phrases first to avoid partial matches)
                         pace_level = 2  # Default to Moderate
                         display_lower = display_name.lower().strip()
                         
@@ -1043,7 +1099,9 @@ def class_detail(request, pk):
                             pace_level = pace_name_to_zone[display_lower]
                         else:
                             # Try substring match (handle cases like "Moderate Pace" or "Easy Run")
-                            for pace_name, zone_num in pace_name_to_zone.items():
+                            # Sort by length descending to match longer phrases first (e.g., "very hard" before "hard")
+                            sorted_pace_names = sorted(pace_name_to_zone.items(), key=lambda x: len(x[0]), reverse=True)
+                            for pace_name, zone_num in sorted_pace_names:
                                 # Check if pace name is at the start of display_name or as a whole word
                                 if display_lower.startswith(pace_name) or \
                                    f' {pace_name} ' in f' {display_lower} ' or \
@@ -1145,7 +1203,9 @@ def class_detail(request, pk):
                 'veryhard': 5,
                 'very_hard': 5,
                 'max': 6,
-                'maximum': 6
+                'maximum': 6,
+                'drills': 1,  # Map drills to Easy pace (not a measured pace target)
+                'drill': 1
             }
             
             for seg in segment_list:
@@ -1153,17 +1213,30 @@ def class_detail(request, pk):
                 section_start = seg.get('start_time_offset', 0)
                 
                 for subseg in subsegments:
-                    subseg_offset = subseg.get('offset', 0)
+                    # NOTE: subseg 'offset' is already absolute from class start, not relative to section
+                    subseg_offset = subseg.get('offset', 0)  # Absolute offset from class start
                     subseg_length = subseg.get('length', 0)
                     display_name = subseg.get('display_name', '')
                     
                     if subseg_length > 0 and display_name:
                         # Calculate absolute start/end times
-                        abs_start = section_start + subseg_offset
+                        # offset is already absolute, so use it directly
+                        abs_start = subseg_offset
                         abs_end = abs_start + subseg_length
                         
+                        # Skip segments that start beyond the class duration
+                        if abs_start >= total_duration:
+                            continue
+                        
+                        # Clamp end time to class duration
+                        abs_end = min(abs_end, total_duration)
+                        subseg_length = abs_end - abs_start
+                        
+                        if subseg_length <= 0:
+                            continue
+                        
                         # Extract pace level from display_name (e.g., "Recovery", "Easy", "Moderate", etc.)
-                        # Try exact match first, then substring match
+                        # Try exact match first, then substring match (longest phrases first to avoid partial matches)
                         pace_level = 2  # Default to Moderate
                         display_lower = display_name.lower().strip()
                         
@@ -1172,7 +1245,9 @@ def class_detail(request, pk):
                             pace_level = pace_name_to_zone[display_lower]
                         else:
                             # Try substring match (handle cases like "Moderate Pace" or "Easy Run")
-                            for pace_name, zone_num in pace_name_to_zone.items():
+                            # Sort by length descending to match longer phrases first (e.g., "very hard" before "hard")
+                            sorted_pace_names = sorted(pace_name_to_zone.items(), key=lambda x: len(x[0]), reverse=True)
+                            for pace_name, zone_num in sorted_pace_names:
                                 # Check if pace name is at the start of display_name or as a whole word
                                 if display_lower.startswith(pace_name) or \
                                    f' {pace_name} ' in f' {display_lower} ' or \
@@ -1316,7 +1391,6 @@ def class_detail(request, pk):
                 chart_segments,
                 timestamps
             )
-        
         # Set target_metrics for backward compatibility
         if pace_chart:
             # Still create target_metrics structure for other parts of the template
@@ -1655,14 +1729,28 @@ def class_detail(request, pk):
             section_start = seg.get('start_time_offset', 0)
             
             for subseg in subsegments:
-                subseg_offset = subseg.get('offset', 0)
+                # NOTE: subseg 'offset' is already absolute from class start, not relative to section
+                subseg_offset = subseg.get('offset', 0)  # Absolute offset from class start
                 subseg_length = subseg.get('length', 0)
                 display_name = subseg.get('display_name', '')
                 
                 if subseg_length > 0 and display_name:
                     # Calculate absolute start/end times
-                    abs_start = section_start + subseg_offset
+                    # offset is already absolute, so use it directly
+                    abs_start = subseg_offset
                     abs_end = abs_start + subseg_length
+                    
+                    # Skip segments that start at or beyond the class duration
+                    total_duration = ride.duration_seconds
+                    if abs_start >= total_duration:
+                        continue
+                    
+                    # Clamp end time to class duration
+                    abs_end = min(abs_end, total_duration)
+                    subseg_length = abs_end - abs_start
+                    
+                    if subseg_length <= 0:
+                        continue
                     
                     class_sections[section_key]['segments'].append({
                         'name': display_name,
@@ -2034,7 +2122,6 @@ def class_detail(request, pk):
     # Format class date (matching reference template)
     class_date = None
     if ride.original_air_time:
-        from datetime import datetime
         try:
             # Peloton timestamps are in milliseconds
             timestamp = ride.original_air_time
@@ -2231,6 +2318,15 @@ def workout_history(request):
         'is_paginated': is_paginated,
     }
     
+    # If HTMX request, return appropriate partial
+    if request.headers.get('HX-Request'):
+        # For infinite scroll, return just the workout cards
+        if request.GET.get('infinite') == 'true':
+            return render(request, 'workouts/partials/workout_cards.html', context)
+        # For filters/pagination, return full workout list
+        return render(request, 'workouts/partials/workout_list.html', context)
+    
+    # Otherwise return full page
     return render(request, 'workouts/history.html', context)
 
 
@@ -2363,32 +2459,41 @@ def workout_detail(request, pk):
             if current_pace_level is None and user_profile:
                 current_pace_level = user_profile.pace_target_level
             
-            # Get pace zones using the correct level
-            # We need to use get_pace_zone_targets() but with the correct level
-            # Since get_pace_zone_targets() uses self.pace_target_level, we'll calculate zones manually
-            if current_pace_level and user_profile:
-                # Calculate pace zones based on the current pace level
-                base_paces = {
-                    1: 12.0, 2: 11.0, 3: 10.0, 4: 9.0, 5: 8.5, 6: 8.0, 7: 7.5, 8: 7.0, 9: 6.5, 10: 6.0
-                }
-                base_pace = base_paces.get(current_pace_level, 8.0)
-                pace_zones = {
-                    'recovery': base_pace + 2.0,
-                    'easy': base_pace + 1.0,
-                    'moderate': base_pace,
-                    'challenging': base_pace - 0.5,
-                    'hard': base_pace - 1.0,
-                    'very_hard': base_pace - 1.5,
-                    'max': base_pace - 2.0
-                }
-            else:
-                pace_zones = user_profile.get_pace_zone_targets(activity_type=activity_type) if user_profile else None
+            # Get full pace range data from the pace levels definitions
+            from accounts.pace_converter import DEFAULT_RUNNING_PACE_LEVELS
+            from accounts.walking_pace_levels_data import DEFAULT_WALKING_PACE_LEVELS
+            
+            pace_zones = None
+            pace_ranges = None  # Full range data (min/max mph for each zone)
+            
+            if current_pace_level:
+                if activity_type == 'running':
+                    pace_level_data = DEFAULT_RUNNING_PACE_LEVELS.get(current_pace_level)
+                else:
+                    pace_level_data = DEFAULT_WALKING_PACE_LEVELS.get(current_pace_level)
+                
+                if pace_level_data:
+                    # pace_level_data format: {zone_name: (min_mph, max_mph, min_pace, max_pace, description)}
+                    pace_zones = {}
+                    pace_ranges = {}
+                    for zone_name, (min_mph, max_mph, min_pace, max_pace, desc) in pace_level_data.items():
+                        # Use middle of mph range for target
+                        middle_mph = (min_mph + max_mph) / 2
+                        pace_zones[zone_name] = int(min_pace * 60)  # Keep old format for compatibility
+                        pace_ranges[zone_name] = {
+                            'min_mph': min_mph,
+                            'max_mph': max_mph,
+                            'middle_mph': middle_mph,  # This is what we'll use for target line
+                            'min_pace': min_pace,
+                            'max_pace': max_pace
+                        }
             
             segments = ride_detail.get_pace_segments(user_pace_zones=pace_zones)
             target_metrics = {
                 'type': 'pace',
                 'segments': segments,
-                'pace_zones': pace_zones
+                'pace_zones': pace_zones,
+                'pace_ranges': pace_ranges  # Add full range data for target line
             }
             # Set is_pace_target flag for running/walking classes
             is_pace_target = True
@@ -2721,22 +2826,22 @@ def workout_detail(request, pk):
             # Get user's pace zones for comparison
             for perf in performance_data:
                 if perf.speed and perf.speed > 0:
-                    # Convert speed (mph) to pace (min/mile)
-                    pace_min_per_mile = 60.0 / perf.speed if perf.speed > 0 else None
+                    # Convert speed (mph) to pace (seconds/mile) because pace_zones thresholds are in seconds
+                    pace_sec_per_mile = (3600.0 / perf.speed) if perf.speed > 0 else None
                     
-                    if pace_min_per_mile:
-                        # Map pace to zone based on user's pace zones
-                        if pace_min_per_mile >= pace_zones.get('recovery', 20.0):
+                    if pace_sec_per_mile:
+                        # Map pace to zone based on user's pace zones (higher seconds = slower)
+                        if pace_sec_per_mile >= pace_zones.get('recovery', 1200.0):  # 20:00/mi
                             pace_actual_times[1] += segment_length
-                        elif pace_min_per_mile >= pace_zones.get('easy', 15.0):
+                        elif pace_sec_per_mile >= pace_zones.get('easy', 900.0):     # 15:00/mi
                             pace_actual_times[2] += segment_length
-                        elif pace_min_per_mile >= pace_zones.get('moderate', 12.0):
+                        elif pace_sec_per_mile >= pace_zones.get('moderate', 720.0): # 12:00/mi
                             pace_actual_times[3] += segment_length
-                        elif pace_min_per_mile >= pace_zones.get('challenging', 10.0):
+                        elif pace_sec_per_mile >= pace_zones.get('challenging', 600.0): # 10:00/mi
                             pace_actual_times[4] += segment_length
-                        elif pace_min_per_mile >= pace_zones.get('hard', 8.5):
+                        elif pace_sec_per_mile >= pace_zones.get('hard', 510.0):    # 8:30/mi
                             pace_actual_times[5] += segment_length
-                        elif pace_min_per_mile >= pace_zones.get('very_hard', 7.5):
+                        elif pace_sec_per_mile >= pace_zones.get('very_hard', 450.0): # 7:30/mi
                             pace_actual_times[6] += segment_length
                         else:
                             pace_actual_times[7] += segment_length
@@ -2834,6 +2939,183 @@ def workout_detail(request, pk):
         if user_pace_level is None:
             user_pace_level = user_profile.pace_target_level or 5  # Default to level 5
     
+    # Build class_sections from ride_detail if available
+    class_sections = {}
+    if workout.ride_detail and hasattr(workout.ride_detail, 'target_metrics_data') and workout.ride_detail.target_metrics_data:
+        # Get segments from ride detail
+        if is_pace_target and user_profile:
+            activity_type = 'running' if workout.ride_detail.fitness_discipline in ['running', 'run'] else 'walking'
+            pace_zones = user_profile.get_pace_zone_targets(activity_type=activity_type) if hasattr(user_profile, 'get_pace_zone_targets') else None
+            pace_segs = workout.ride_detail.get_pace_segments(user_pace_zones=pace_zones)
+            
+            # Organize into sections
+            section_templates = {
+                'warm_up': {'name': 'Warm Up', 'icon': '🔥', 'description': 'Gradually increase your effort to prepare for the main workout.'},
+                'main': {'name': 'Running', 'icon': 'X', 'description': 'Main run workout segment.'},
+                'cool_down': {'name': 'Cool Down', 'icon': '❄️', 'description': 'Gradually decrease your effort to recover from the workout.'}
+            }
+            
+            for key, template in section_templates.items():
+                class_sections[key] = {
+                    'name': template['name'],
+                    'icon': template['icon'],
+                    'description': template['description'],
+                    'segments': [],
+                    'duration': 0
+                }
+            
+            total_duration = workout.ride_detail.duration_seconds
+            if total_duration > 0:
+                warm_up_cutoff = total_duration * 0.15
+                cool_down_start = total_duration * 0.90
+                
+                pace_name_map = {
+                    'recovery': 'Recovery', 'easy': 'Easy', 'moderate': 'Moderate',
+                    'challenging': 'Challenging', 'hard': 'Hard', 'very_hard': 'Very Hard', 'max': 'Max'
+                }
+                
+                for pace_seg in pace_segs:
+                    seg_start = pace_seg['start']
+                    seg_end = pace_seg['end']
+                    seg_duration = seg_end - seg_start
+                    
+                    if seg_start < warm_up_cutoff:
+                        section_key = 'warm_up'
+                    elif seg_start >= cool_down_start:
+                        section_key = 'cool_down'
+                    else:
+                        section_key = 'main'
+                    
+                    zone_name = pace_seg.get('zone_name', '')
+                    if not zone_name:
+                        zone_num = pace_seg.get('zone', 1)
+                        zone_map = {1: 'recovery', 2: 'easy', 3: 'moderate', 4: 'challenging', 
+                                   5: 'hard', 6: 'very_hard', 7: 'max'}
+                        zone_name = zone_map.get(zone_num, 'moderate')
+                    
+                    pace_name = pace_name_map.get(zone_name.lower(), zone_name.replace('_', ' ').title())
+                    
+                    class_sections[section_key]['segments'].append({
+                        'name': pace_name,
+                        'start': seg_start,
+                        'end': seg_end,
+                        'duration': seg_duration,
+                        'duration_str': f"{seg_duration // 60}:{(seg_duration % 60):02d}"
+                    })
+                    class_sections[section_key]['duration'] += seg_duration
+            
+            # Remove empty sections
+            for section_key in list(class_sections.keys()):
+                if not class_sections[section_key]['segments']:
+                    del class_sections[section_key]
+    
+    # Workout summary metrics (for UI cards)
+    workout_summary = {}
+    details = getattr(workout, 'details', None)
+    if details:
+        def _pace_str_from_mph(mph):
+            try:
+                mph = float(mph)
+            except (TypeError, ValueError):
+                return None
+            if mph <= 0:
+                return None
+            total_seconds = int(round(3600.0 / mph))
+            mins = total_seconds // 60
+            secs = total_seconds % 60
+            return f"{mins}:{secs:02d}"
+
+        workout_summary = {
+            'distance_mi': details.distance,
+            'total_calories': details.total_calories,
+            'avg_output_w': details.avg_output,
+            'total_output_kj': details.total_output,
+            'avg_speed_mph': details.avg_speed,
+            'max_speed_mph': details.max_speed,
+            'avg_pace_str': _pace_str_from_mph(details.avg_speed),
+            'avg_heart_rate': details.avg_heart_rate,
+            'max_heart_rate': details.max_heart_rate,
+            'tss': details.tss,
+        }
+    else:
+        # If we don't have WorkoutDetails, still allow pace from performance data if present
+        def _pace_str_from_mph(mph):
+            try:
+                mph = float(mph)
+            except (TypeError, ValueError):
+                return None
+            if mph <= 0:
+                return None
+            total_seconds = int(round(3600.0 / mph))
+            mins = total_seconds // 60
+            secs = total_seconds % 60
+            return f"{mins}:{secs:02d}"
+
+    # Fallback: derive avg speed/pace from stored performance_data (no API call)
+    if (not workout_summary.get('avg_speed_mph')) and performance_data.exists():
+        speeds = list(performance_data.values_list('speed', flat=True))
+        speeds = [s for s in speeds if isinstance(s, (int, float)) and s and s > 0]
+        if speeds:
+            avg_speed = sum(speeds) / len(speeds)
+            workout_summary['avg_speed_mph'] = avg_speed
+            if not workout_summary.get('avg_pace_str'):
+                workout_summary['avg_pace_str'] = _pace_str_from_mph(avg_speed)
+
+    # Fallback: fetch elevation (and missing summaries) from Peloton performance graph if available
+    # Only do this if we have a Peloton workout id and no elevation yet.
+    if workout.peloton_workout_id and workout_summary.get('elevation_ft') is None:
+        try:
+            connection = PelotonConnection.objects.filter(user=request.user, is_active=True).first()
+            if connection:
+                client = connection.get_client()
+                # Larger every_n reduces payload; summaries are unaffected.
+                performance_graph = client.fetch_performance_graph(workout.peloton_workout_id, every_n=30)
+                summaries_array = performance_graph.get('summaries', []) or []
+                for summary in summaries_array:
+                    if not isinstance(summary, dict):
+                        continue
+                    if summary.get('slug') == 'elevation' and summary.get('value') is not None:
+                        workout_summary['elevation_ft'] = summary.get('value')
+                        break
+
+                # Fill distance / total output / calories if missing in WorkoutDetails
+                if summaries_array:
+                    if workout_summary.get('distance_mi') is None:
+                        for s in summaries_array:
+                            if isinstance(s, dict) and s.get('slug') == 'distance' and s.get('value') is not None:
+                                workout_summary['distance_mi'] = s.get('value')
+                                break
+                    if workout_summary.get('total_output_kj') is None:
+                        for s in summaries_array:
+                            if isinstance(s, dict) and s.get('slug') == 'total_output' and s.get('value') is not None:
+                                workout_summary['total_output_kj'] = s.get('value')
+                                break
+                    if workout_summary.get('total_calories') is None:
+                        for s in summaries_array:
+                            if isinstance(s, dict) and s.get('slug') in ('total_calories', 'calories') and s.get('value') is not None:
+                                workout_summary['total_calories'] = s.get('value')
+                                break
+
+                # Fill avg_speed from average_summaries if missing (and thus avg pace)
+                if workout_summary.get('avg_speed_mph') is None:
+                    avg_summaries = performance_graph.get('average_summaries', []) or []
+                    for s in avg_summaries:
+                        if isinstance(s, dict) and s.get('slug') == 'avg_speed' and s.get('value') is not None:
+                            workout_summary['avg_speed_mph'] = s.get('value')
+                            break
+                    if workout_summary.get('avg_speed_mph') is None:
+                        # Some graphs use metrics[].slug == 'speed' with average_value
+                        metrics = performance_graph.get('metrics', []) or []
+                        for m in metrics:
+                            if isinstance(m, dict) and m.get('slug') == 'speed' and m.get('average_value') is not None:
+                                workout_summary['avg_speed_mph'] = m.get('average_value')
+                                break
+                if workout_summary.get('avg_speed_mph') is not None and not workout_summary.get('avg_pace_str'):
+                    workout_summary['avg_pace_str'] = _pace_str_from_mph(workout_summary.get('avg_speed_mph'))
+        except Exception:
+            # Keep page resilient even if Peloton API fails
+            pass
+
     context = {
         'workout': workout,
         'performance_data': performance_data,
@@ -2843,16 +3125,32 @@ def workout_detail(request, pk):
         'user_profile': user_profile,
         'user_ftp': user_ftp,  # Pass FTP explicitly for template
         'user_pace_level': user_pace_level,  # Pass pace level for pace target classes
+        'workout_summary': workout_summary,
         'playlist': playlist,
         'power_profile': power_profile,
         'zone_targets': zone_targets,
         'class_notes': class_notes,
         'pace_targets': pace_targets,  # Pace target distribution
         'pace_class_notes': pace_class_notes,  # Pace class notes
+        'class_sections': class_sections,  # Class sections for collapsible details
         'is_pace_target': is_pace_target,  # Flag to identify pace target classes
     }
     
-    return render(request, 'workouts/detail.html', context)
+    # Determine which template to use based on workout type
+    template_name = 'workouts/detail_general.html'  # Default template
+    
+    if workout.ride_detail:
+        ride_detail = workout.ride_detail
+        
+        # Power Zone classes
+        if ride_detail.is_power_zone_class or ride_detail.class_type == 'power_zone':
+            template_name = 'workouts/detail_power_zone.html'
+        
+        # Pace Target classes (Running/Walking)
+        elif ride_detail.fitness_discipline in ['running', 'walking', 'run', 'walk'] or ride_detail.class_type == 'pace_target':
+            template_name = 'workouts/detail_pace_target.html'
+    
+    return render(request, template_name, context)
 
 
 def _calculate_target_line_from_segments(segments, zone_ranges, seconds_array):
@@ -2867,6 +3165,7 @@ def _calculate_target_line_from_segments(segments, zone_ranges, seconds_array):
     
     sample_count = len(seconds_array)
     target_series = [None] * sample_count
+    max_timestamp = seconds_array[-1] if seconds_array else None
     
     # Shift target line 60 seconds backwards
     TIME_SHIFT = -60
@@ -2894,6 +3193,10 @@ def _calculate_target_line_from_segments(segments, zone_ranges, seconds_array):
         end_time = max(0, segment.get('end', 0) + TIME_SHIFT)
         
         if end_time <= start_time:
+            continue
+        
+        # Skip segments that start after the workout ends (prevents index lookup failure)
+        if max_timestamp is not None and start_time > max_timestamp:
             continue
         
         # Calculate target watts for this zone (middle of zone range)
@@ -2943,10 +3246,11 @@ def _calculate_pace_target_line_from_segments(segments, seconds_array):
         return []
     
     sample_count = len(seconds_array)
+    max_timestamp = seconds_array[-1] if seconds_array else None
     target_series = [None] * sample_count
     
     # Process each segment from the class plan
-    for segment in segments:
+    for idx, segment in enumerate(segments):
         # Get pace zone/level (0-6)
         zone_num = segment.get('zone') or segment.get('pace_level')
         if zone_num is None:
@@ -2960,6 +3264,10 @@ def _calculate_pace_target_line_from_segments(segments, seconds_array):
         end_time = max(0, segment.get('end', 0))
         
         if end_time <= start_time:
+            continue
+        
+        # Skip segments that start after the workout ends (prevents index lookup failure)
+        if max_timestamp is not None and start_time > max_timestamp:
             continue
         
         # Map time offsets to array indices using seconds_array
@@ -3026,6 +3334,7 @@ def _calculate_power_zone_target_line(target_metrics_list, user_ftp, seconds_arr
     # Create target series array matching seconds_array length
     sample_count = len(seconds_array)
     target_series = [None] * sample_count
+    max_timestamp = seconds_array[-1] if seconds_array else None
     
     # Helper function to calculate target watts from zone number
     def _zone_to_watts(zone_num):
@@ -3044,6 +3353,10 @@ def _calculate_power_zone_target_line(target_metrics_list, user_ftp, seconds_arr
         end_offset = max(0, offsets.get('end', 0) + TIME_SHIFT)
         
         if start_offset is None or end_offset is None or end_offset <= start_offset:
+            continue
+        
+        # Skip segments that start after the workout ends (prevents index lookup failure)
+        if max_timestamp is not None and start_offset > max_timestamp:
             continue
         
         # Extract zone number from metrics
@@ -3164,6 +3477,16 @@ def sync_workouts(request):
     # Check if sync is already in progress
     if connection.sync_in_progress:
         messages.warning(request, 'A sync is already in progress. Please wait for it to complete.')
+        # If HTMX request, return partial
+        if request.headers.get('HX-Request'):
+            context = {
+                'peloton_connection': connection,
+                'sync_in_progress': True,
+                'sync_cooldown_until': None,
+                'cooldown_remaining_minutes': None,
+                'can_sync': False,
+            }
+            return render(request, 'workouts/partials/sync_status.html', context)
         return redirect('workouts:history')
     
     # Check if sync is in cooldown period (60 minutes)
@@ -3171,6 +3494,16 @@ def sync_workouts(request):
     if connection.sync_cooldown_until and timezone.now() < connection.sync_cooldown_until:
         remaining_minutes = int((connection.sync_cooldown_until - timezone.now()).total_seconds() / 60)
         messages.warning(request, f'Sync is on cooldown. Please wait {remaining_minutes} more minute(s) before syncing again.')
+        # If HTMX request, return partial
+        if request.headers.get('HX-Request'):
+            context = {
+                'peloton_connection': connection,
+                'sync_in_progress': False,
+                'sync_cooldown_until': connection.sync_cooldown_until,
+                'cooldown_remaining_minutes': remaining_minutes,
+                'can_sync': False,
+            }
+            return render(request, 'workouts/partials/sync_status.html', context)
         return redirect('workouts:history')
     
     # Mark sync as in progress
@@ -4042,7 +4375,18 @@ def sync_workouts(request):
         logger.info(f"  - Success rate: {((workouts_synced + workouts_updated) / total_processed * 100) if total_processed > 0 else 0:.1f}%")
         logger.info(f"  - Next sync will be incremental (after {sync_completed_at})")
         
-        # If AJAX request, return JSON
+        # If HTMX request, return partial
+        if request.headers.get('HX-Request'):
+            context = {
+                'peloton_connection': connection,
+                'sync_in_progress': False,
+                'sync_cooldown_until': connection.sync_cooldown_until,
+                'cooldown_remaining_minutes': 60,  # Just started cooldown
+                'can_sync': False,
+            }
+            return render(request, 'workouts/partials/sync_status.html', context)
+        
+        # If AJAX request, return JSON (backwards compatibility)
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return JsonResponse({
                 'status': 'success',
@@ -4093,28 +4437,57 @@ def sync_workouts(request):
 @login_required
 @require_http_methods(["GET"])
 def sync_status(request):
-    """Return sync status for AJAX polling"""
+    """Return sync status for AJAX/HTMX polling"""
     try:
-        connection = PelotonConnection.objects.get(user=request.user)
+        peloton_connection = PelotonConnection.objects.get(user=request.user)
         
         # Check if sync is in progress or cooldown
-        sync_in_progress = connection.sync_in_progress
+        sync_in_progress = peloton_connection.sync_in_progress
         sync_cooldown_until = None
         cooldown_remaining_minutes = None
+        can_sync = True
         
-        if connection.sync_cooldown_until and timezone.now() < connection.sync_cooldown_until:
-            sync_cooldown_until = connection.sync_cooldown_until.isoformat()
-            cooldown_remaining_minutes = int((connection.sync_cooldown_until - timezone.now()).total_seconds() / 60)
+        if peloton_connection.sync_cooldown_until and timezone.now() < peloton_connection.sync_cooldown_until:
+            sync_cooldown_until = peloton_connection.sync_cooldown_until
+            cooldown_remaining_minutes = int((peloton_connection.sync_cooldown_until - timezone.now()).total_seconds() / 60)
+            can_sync = False
         
+        if sync_in_progress:
+            can_sync = False
+        
+        # If HTMX request, return HTML partial
+        if request.headers.get('HX-Request'):
+            context = {
+                'peloton_connection': peloton_connection,
+                'sync_in_progress': sync_in_progress,
+                'sync_cooldown_until': sync_cooldown_until,
+                'cooldown_remaining_minutes': cooldown_remaining_minutes,
+                'can_sync': can_sync,
+            }
+            return render(request, 'workouts/partials/sync_status.html', context)
+        
+        # Otherwise return JSON (for backwards compatibility)
         status = {
             'connected': True,
-            'last_sync_at': connection.last_sync_at.isoformat() if connection.last_sync_at else None,
+            'last_sync_at': peloton_connection.last_sync_at.isoformat() if peloton_connection.last_sync_at else None,
             'sync_in_progress': sync_in_progress,
-            'sync_cooldown_until': sync_cooldown_until,
+            'sync_cooldown_until': sync_cooldown_until.isoformat() if sync_cooldown_until else None,
             'cooldown_remaining_minutes': cooldown_remaining_minutes,
             'workout_count': Workout.objects.filter(user=request.user).count(),
         }
     except PelotonConnection.DoesNotExist:
+        # If HTMX request, return HTML partial
+        if request.headers.get('HX-Request'):
+            context = {
+                'peloton_connection': None,
+                'sync_in_progress': False,
+                'sync_cooldown_until': None,
+                'cooldown_remaining_minutes': None,
+                'can_sync': False,
+            }
+            return render(request, 'workouts/partials/sync_status.html', context)
+        
+        # Otherwise return JSON
         status = {
             'connected': False,
             'last_sync_at': None,

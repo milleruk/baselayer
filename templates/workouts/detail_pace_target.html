@@ -1,0 +1,1224 @@
+{% extends "base.html" %}
+{% load playlist_filters %}
+{% block title %}{{ workout.title }}{% endblock %}
+{% block page_title %}{{ workout.title }}{% endblock %}
+
+{% block content %}
+<!-- Back Button -->
+<a href="{% url 'workouts:history' %}" class="inline-flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white mb-6 transition-colors">
+  <span>←</span> Back to Workout History
+</a>
+
+<!-- Workout Header -->
+<div class="mb-6">
+  <div class="flex flex-col sm:flex-row justify-between items-start gap-4 mb-4">
+    <div class="flex-1">
+      <div class="flex items-center gap-3 mb-3">
+        <span class="px-3 py-1 text-sm font-semibold text-gray-900 dark:text-white bg-primary/20 dark:bg-primary/30 rounded-lg">
+          {{ workout.duration_minutes }}min
+        </span>
+        <span class="px-3 py-1 text-sm font-medium text-white bg-gradient-to-r from-blue-500 to-teal-500 rounded-lg">
+          {% if workout.ride_detail.fitness_discipline == 'walking' %}Walking{% else %}Running{% endif %}
+        </span>
+      </div>
+      <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">{{ workout.title }}</h1>
+      {% if workout.instructor %}
+        <p class="text-gray-600 dark:text-gray-400">{{ workout.instructor.name }}</p>
+      {% endif %}
+    </div>
+    <div class="flex flex-wrap gap-2">
+      {% if workout.peloton_url %}
+        <a href="{{ workout.peloton_url }}" target="_blank" rel="noopener noreferrer" class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors">
+          View In Peloton ↗
+        </a>
+      {% endif %}
+      {% if workout.ride_detail %}
+
+        <a href="{% url 'workouts:class_detail' workout.ride_detail.pk %}" class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors">
+          View in Library ↗
+        </a>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Dates -->
+  <div class="flex flex-wrap gap-4 text-sm text-gray-600 dark:text-gray-400">
+    <div>
+      <strong class="font-semibold">Recorded:</strong> {{ workout.recorded_date|date:"F d, Y" }}
+    </div>
+    <div>
+      <strong class="font-semibold">Completed:</strong> {{ workout.completed_date|date:"F d, Y" }}
+    </div>
+  </div>
+</div>
+
+{% if workout_summary %}
+<div id="workoutSummaryCard" class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 sm:p-6 shadow-sm mb-6">
+  <div id="shareHeader" class="mb-4">
+    <div class="flex items-start justify-between gap-4">
+      <div>
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white leading-tight">{{ workout.title }}</h2>
+        <div class="text-sm text-gray-600 dark:text-gray-400 mt-1">
+          {% if workout.instructor %}Instructor: <span class="font-medium text-gray-700 dark:text-gray-300">{{ workout.instructor.name }}</span>{% endif %}
+          {% if user_profile and user_profile.peloton_leaderboard_name %}
+            <span class="mx-2">•</span>
+            Name: <span class="font-medium text-gray-700 dark:text-gray-300">{{ user_profile.peloton_leaderboard_name }}</span>
+          {% endif %}
+        </div>
+      </div>
+      <div class="text-xs text-gray-500 dark:text-gray-500 text-right whitespace-nowrap">
+        {% if workout.completed_date %}{{ workout.completed_date|date:"d/m/Y" }}{% endif %}
+      </div>
+    </div>
+  </div>
+  <div id="workoutSummaryMetrics" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+    {% if workout_summary.distance_mi %}
+      <div>
+        <div class="text-xl font-bold text-gray-900 dark:text-white">{{ workout_summary.distance_mi|floatformat:2 }}</div>
+        <div class="text-xs text-gray-600 dark:text-gray-400">Distance (mi)</div>
+      </div>
+    {% endif %}
+    {% if workout_summary.avg_output_w %}
+      <div>
+        <div class="text-xl font-bold text-gray-900 dark:text-white">{{ workout_summary.avg_output_w|floatformat:0 }} W</div>
+        <div class="text-xs text-gray-600 dark:text-gray-400">Avg Output</div>
+      </div>
+    {% endif %}
+    {% if workout_summary.total_output_kj %}
+      <div>
+        <div class="text-xl font-bold text-gray-900 dark:text-white">{{ workout_summary.total_output_kj|floatformat:0 }} kJ</div>
+        <div class="text-xs text-gray-600 dark:text-gray-400">Total Output</div>
+      </div>
+    {% endif %}
+    {% if workout_summary.elevation_ft %}
+      <div>
+        <div class="text-xl font-bold text-gray-900 dark:text-white">{{ workout_summary.elevation_ft|floatformat:0 }} ft</div>
+        <div class="text-xs text-gray-600 dark:text-gray-400">Elevation</div>
+      </div>
+    {% endif %}
+    {% if workout_summary.avg_pace_str %}
+      <div>
+        <div class="text-xl font-bold text-gray-900 dark:text-white">{{ workout_summary.avg_pace_str }} /mi</div>
+        <div class="text-xs text-gray-600 dark:text-gray-400">Avg Pace</div>
+      </div>
+    {% endif %}
+    {% if workout_summary.avg_speed_mph %}
+      <div>
+        <div class="text-xl font-bold text-gray-900 dark:text-white">{{ workout_summary.avg_speed_mph|floatformat:1 }}</div>
+        <div class="text-xs text-gray-600 dark:text-gray-400">Avg Speed (mph)</div>
+      </div>
+    {% endif %}
+    {% if workout_summary.max_speed_mph %}
+      <div>
+        <div class="text-xl font-bold text-gray-900 dark:text-white">{{ workout_summary.max_speed_mph|floatformat:1 }}</div>
+        <div class="text-xs text-gray-600 dark:text-gray-400">Max Speed (mph)</div>
+      </div>
+    {% endif %}
+    {% if workout_summary.avg_heart_rate %}
+      <div>
+        <div class="text-xl font-bold text-gray-900 dark:text-white">{{ workout_summary.avg_heart_rate }}</div>
+        <div class="text-xs text-gray-600 dark:text-gray-400">Avg HR (bpm)</div>
+      </div>
+    {% endif %}
+    {% if workout_summary.max_heart_rate %}
+      <div>
+        <div class="text-xl font-bold text-gray-900 dark:text-white">{{ workout_summary.max_heart_rate }}</div>
+        <div class="text-xs text-gray-600 dark:text-gray-400">Max HR (bpm)</div>
+      </div>
+    {% endif %}
+    {% if workout_summary.total_calories %}
+      <div>
+        <div class="text-xl font-bold text-gray-900 dark:text-white">{{ workout_summary.total_calories }}</div>
+        <div class="text-xs text-gray-600 dark:text-gray-400">Calories</div>
+      </div>
+    {% endif %}
+    {% if workout_summary.tss %}
+      <div>
+        <div class="text-xl font-bold text-gray-900 dark:text-white">{{ workout_summary.tss|floatformat:0 }}</div>
+        <div class="text-xs text-gray-600 dark:text-gray-400">TSS</div>
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+<!-- Pace Target Timeline Chart -->
+{% if performance_data or target_metrics %}
+<div class="bg-white dark:bg-gray-800 shadow-sm p-6 sm:p-8 rounded-lg border border-gray-200 dark:border-gray-700 mb-6">
+  <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
+    <div>
+      <h2 class="text-xl sm:text-xl md:text-2xl font-semibold text-gray-900 dark:text-white leading-tight mb-1">Pace Target Timeline</h2>
+      <p class="text-sm text-gray-600 dark:text-gray-400">Coach cues mapped against your pace effort.</p>
+    </div>
+    {% if playlist and playlist.songs %}
+    <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+      <input type="checkbox" id="showMusicTimeline" checked class="rounded border-gray-600 text-primary focus:ring-primary bg-gray-700">
+      <span>Show Music Timeline</span>
+    </label>
+    {% endif %}
+  </div>
+  
+  <div class="pace-target-chart relative">
+    {% if playlist and playlist.songs %}
+    <!-- Music Timeline Overlay - Above Chart -->
+    <div id="musicTimeline" class="mb-3 h-12 relative bg-gray-950 rounded border border-gray-600 overflow-hidden"></div>
+    {% endif %}
+    
+    <div class="relative bg-gray-900 rounded-lg min-h-[320px] w-full">
+      <canvas id="paceChart"></canvas>
+    </div>
+  </div>
+  
+  <!-- Chart Controls -->
+  <div class="flex flex-wrap items-center justify-end gap-2 mt-4">
+    <button id="toggleActualLineStyle" class="px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors border border-gray-300 dark:border-gray-600">
+      Actual: Smooth
+    </button>
+    <button id="toggleTargetLine" class="px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors border border-gray-300 dark:border-gray-600">
+      Hide Target
+    </button>
+    <button id="bringActualForward" class="px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors border border-gray-300 dark:border-gray-600">
+      Bring Actual Forward
+    </button>
+    <button id="saveChart" class="px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors border border-gray-300 dark:border-gray-600 inline-flex items-center gap-2">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"></path>
+      </svg>
+      Share
+    </button>
+    <label class="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors border border-gray-300 dark:border-gray-600 cursor-pointer">
+      <input type="checkbox" id="toggleZoneColors" checked class="rounded border-gray-400 text-primary focus:ring-primary">
+      <span>Zone Colors</span>
+    </label>
+  </div>
+</div>
+{% endif %}
+
+<!-- Grid Layout for Pace Target Classes -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 mb-6">
+  <!-- Top-Left: Class Info Card -->
+  <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 sm:p-6 shadow-sm">
+    <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Class Info</h3>
+    <div class="space-y-3">
+      <div>
+        <div class="text-sm text-gray-600 dark:text-gray-400 mb-1">Discipline</div>
+        <div class="text-lg font-bold text-gray-900 dark:text-white">{{ workout.fitness_discipline }}</div>
+      </div>
+      <div>
+        <div class="text-sm text-gray-600 dark:text-gray-400 mb-1">Type</div>
+        <div class="text-lg font-bold text-gray-900 dark:text-white">Pace Target</div>
+      </div>
+      {% if tss %}
+        <div>
+          <div class="text-sm text-gray-600 dark:text-gray-400 mb-1">TSS</div>
+          <div class="text-lg font-bold text-gray-900 dark:text-white">{{ tss|floatformat:0 }}</div>
+        </div>
+      {% endif %}
+      {% if if_value %}
+        <div>
+          <div class="text-sm text-gray-600 dark:text-gray-400 mb-1">IF (Intensity Factor)</div>
+          <div class="text-lg font-bold text-gray-900 dark:text-white">{{ if_value }}</div>
+        </div>
+      {% endif %}
+      {% if user_pace_level %}
+        <div>
+          <div class="text-sm text-gray-600 dark:text-gray-400 mb-1">Pace Level Used</div>
+          <div class="text-lg font-bold text-gray-900 dark:text-white">Level {{ user_pace_level }}</div>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+  
+  <!-- Top-Right: Instructor Card -->
+  <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 sm:p-6 shadow-sm">
+    <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Instructor</h3>
+    {% if workout.instructor %}
+      <div class="flex items-center gap-3">
+        {% if workout.instructor.image_url %}
+          <img src="{{ workout.instructor.image_url }}" alt="{{ workout.instructor.name }}" class="w-12 h-12 rounded-full object-cover">
+        {% else %}
+          <div class="w-12 h-12 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center">
+            <span class="text-gray-600 dark:text-gray-400 text-xl">👤</span>
+          </div>
+        {% endif %}
+        <div class="text-lg font-semibold text-gray-900 dark:text-white">{{ workout.instructor.name }}</div>
+      </div>
+    {% else %}
+      <div class="text-gray-600 dark:text-gray-400">No instructor information</div>
+    {% endif %}
+  </div>
+
+  <!-- Top-Row: Main Set Pace Targets -->
+  {% if pace_targets and pace_targets.zones %}
+  <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 sm:p-6 shadow-sm">
+    <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Main Set Pace Targets</h3>
+
+    <!-- Overall -->
+    <div class="mb-4">
+      <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-10 relative overflow-hidden">
+        <div class="bg-gradient-to-r from-blue-500 to-teal-400 h-full rounded-full flex items-center justify-center"
+             style="width: {{ pace_targets.overall_percentage }}%">
+          <span class="text-white font-bold text-base">{{ pace_targets.overall_percentage|floatformat:2 }}%</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Zone Breakdown -->
+    <div class="space-y-3">
+      {% for pace_info in pace_targets.zones|dictsortreversed:"zone" %}
+        <div class="flex items-center justify-between gap-3">
+          <div class="min-w-[110px] text-sm font-medium text-gray-700 dark:text-gray-300">{{ pace_info.name }}</div>
+          <div class="flex-1">
+            <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 overflow-hidden">
+              <div class="h-full pace-color-{{ pace_info.zone }}" style="width: {{ pace_info.percentage }}%"></div>
+            </div>
+          </div>
+          <div class="text-xs text-gray-600 dark:text-gray-400 min-w-[92px] text-right">
+            {{ pace_info.actual_time_str }} ({{ pace_info.percentage|floatformat:1 }}%)
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% else %}
+  <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 sm:p-6 shadow-sm">
+    <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Main Set Pace Targets</h3>
+    <div class="text-sm text-gray-600 dark:text-gray-400">No pace target comparison data available</div>
+  </div>
+  {% endif %}
+  
+  <!-- Bottom-Left: Zone Distribution / Time in Pace Levels -->
+  {% if pace_targets.zones %}
+    <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 sm:p-6 shadow-sm">
+      <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Zone Distribution</h3>
+      <div class="space-y-2">
+        {% for zone_info in pace_targets.zones|dictsortreversed:"zone" %}
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              {% if zone_info.zone == 7 or zone_info.name == 'Max' %}
+                <div class="w-4 h-4 rounded" style="background-color: #fa5252;"></div>
+              {% elif zone_info.zone == 6 or zone_info.name == 'Very Hard' %}
+                <div class="w-4 h-4 rounded" style="background-color: #f76707;"></div>
+              {% elif zone_info.zone == 5 or zone_info.name == 'Hard' %}
+                <div class="w-4 h-4 rounded" style="background-color: #ff922b;"></div>
+              {% elif zone_info.zone == 4 or zone_info.name == 'Challenging' %}
+                <div class="w-4 h-4 rounded" style="background-color: #0ca678;"></div>
+              {% elif zone_info.zone == 3 or zone_info.name == 'Moderate' %}
+                <div class="w-4 h-4 rounded" style="background-color: #228be6;"></div>
+              {% elif zone_info.zone == 2 or zone_info.name == 'Easy' %}
+                <div class="w-4 h-4 rounded" style="background-color: #4c6ef5;"></div>
+              {% elif zone_info.zone == 1 or zone_info.name == 'Recovery' %}
+                <div class="w-4 h-4 rounded" style="background-color: #6f42c1;"></div>
+              {% endif %}
+              <span class="text-sm text-gray-700 dark:text-gray-300">{{ zone_info.name }}</span>
+            </div>
+            <div class="text-sm text-gray-600 dark:text-gray-400">
+              {{ zone_info.target_time_str }} ({{ zone_info.blocks }} block{{ zone_info.blocks|pluralize }})
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  {% else %}
+    <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
+      <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Zone Distribution</h3>
+      <div class="text-sm text-gray-600 dark:text-gray-400">No zone distribution data available</div>
+    </div>
+  {% endif %}
+  
+  <!-- Bottom-Right: Class Details -->
+  {% if class_sections %}
+    <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 sm:p-6 shadow-sm md:col-span-2">
+      <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">CLASS DETAILS</h3>
+      <div class="space-y-2">
+        {% for section_key, section in class_sections.items %}
+          <div class="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+            <button 
+              type="button"
+              class="w-full flex items-center justify-between p-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors section-toggle"
+              data-section="{{ section_key }}"
+              aria-expanded="false">
+              <div class="flex items-center gap-3">
+                <span class="text-lg">{{ section.icon }}</span>
+                <span class="text-sm font-medium text-gray-900 dark:text-white">{{ section.name }}</span>
+              </div>
+              <div class="flex items-center gap-3">
+                <span class="text-sm text-gray-600 dark:text-gray-400">
+                  {{ section.duration|format_duration_seconds }}
+                </span>
+                <svg class="w-4 h-4 text-gray-400 transition-transform section-chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                </svg>
+              </div>
+            </button>
+            
+            <div class="section-content hidden border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50">
+              <div class="p-4 space-y-3">
+                {% if section.description %}
+                  <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">{{ section.description }}</p>
+                {% endif %}
+                
+                {% if section.segments %}
+                  <div class="space-y-2">
+                    {% for segment in section.segments %}
+                      <div class="flex items-center justify-between p-2 bg-white dark:bg-gray-800 rounded text-sm">
+                        <span class="text-gray-700 dark:text-gray-300">
+                          {{ segment.start|format_duration_seconds }} - {{ segment.name }}{% if 'Pace' not in segment.name and 'Drill' not in segment.name %} Pace{% endif %}
+                        </span>
+                        <span class="text-yellow-500 font-medium">{{ segment.duration_str }}</span>
+                      </div>
+                    {% endfor %}
+                  </div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  {% else %}
+    <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
+      <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">CLASS DETAILS</h3>
+      <div class="text-sm text-gray-600 dark:text-gray-400">No class details available</div>
+    </div>
+  {% endif %}
+</div>
+
+<!-- Playlist Section -->
+{% if playlist and playlist.songs %}
+  <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 sm:p-6 shadow-sm mb-6">
+    <div class="flex items-center justify-between mb-4">
+      <div>
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Class Playlist</h3>
+        <div class="text-sm text-gray-600 dark:text-gray-400 mt-1">
+          {{ playlist.songs|length }} song{{ playlist.songs|length|pluralize }}
+        </div>
+      </div>
+    </div>
+    
+    <!-- Songs List -->
+    <div class="space-y-2 max-h-96 overflow-y-auto">
+      {% for song in playlist.songs %}
+        <div class="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group">
+          <!-- Song Number -->
+          <div class="flex-shrink-0 w-8 h-8 flex items-center justify-center text-sm font-semibold text-gray-600 dark:text-gray-400 bg-gray-200 dark:bg-gray-600 rounded-full">
+            {{ forloop.counter }}
+          </div>
+          
+          <!-- Album Art -->
+          {% if song.album.image_url %}
+            <img src="{{ song.album.image_url }}" alt="{{ song.album.name }}" class="w-12 h-12 rounded object-cover flex-shrink-0">
+          {% else %}
+            <div class="w-12 h-12 rounded bg-gray-300 dark:bg-gray-600 flex items-center justify-center flex-shrink-0">
+              <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"></path>
+              </svg>
+            </div>
+          {% endif %}
+          
+          <!-- Song Info -->
+          <div class="flex-1 min-w-0">
+            <div class="font-semibold text-gray-900 dark:text-white truncate">{{ song.title }}</div>
+            <div class="text-sm text-gray-600 dark:text-gray-400 truncate">
+              {% for artist in song.artists %}
+                {% if not forloop.first %}, {% endif %}{{ artist.artist_name }}
+              {% endfor %}
+            </div>
+            {% if song.album.name %}
+              <div class="text-xs text-gray-500 dark:text-gray-500 truncate">{{ song.album.name }}</div>
+            {% endif %}
+          </div>
+          
+          <!-- Song Timing -->
+          <div class="flex-shrink-0 text-sm text-gray-500 dark:text-gray-400 mr-2">
+            {% if song.start_time_offset %}
+              {{ song.start_time_offset|format_song_time }}
+            {% endif %}
+          </div>
+          
+          <!-- Spotify Link -->
+          {% with spotify_url=song|spotify_search_url %}
+            {% if spotify_url %}
+              <a href="{{ spotify_url }}" target="_blank" rel="noopener noreferrer" 
+                 class="flex-shrink-0 p-2 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                 title="Open in Spotify">
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.42 1.56-.299.421-1.02.599-1.559.3z"/>
+                </svg>
+              </a>
+            {% endif %}
+          {% endwith %}
+          
+          <!-- Explicit Badge -->
+          {% if song.explicit_rating == 1 %}
+            <div class="flex-shrink-0 px-2 py-1 text-xs font-semibold text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-600 rounded">
+              E
+            </div>
+          {% endif %}
+        </div>
+      {% endfor %}
+    </div>
+    
+    <!-- Top Artists -->
+    {% if playlist.top_artists %}
+      <div class="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+        <h4 class="text-sm font-semibold text-gray-900 dark:text-white mb-3">Top Artists</h4>
+        <div class="flex flex-wrap gap-2">
+          {% for artist in playlist.top_artists %}
+            <div class="flex items-center gap-2 px-3 py-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+              {% if artist.image_url %}
+                <img src="{{ artist.image_url }}" alt="{{ artist.artist_name }}" class="w-8 h-8 rounded-full object-cover">
+              {% endif %}
+              <span class="text-sm text-gray-700 dark:text-gray-300">{{ artist.artist_name }}</span>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    {% endif %}
+  </div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_body %}
+<style>
+/* Pace zone colors - for zone distribution display */
+.pace-color-1 { background: linear-gradient(to right, #a855f7, #9333ea); } /* Recovery */
+.pace-color-2 { background: linear-gradient(to right, #6366f1, #4f46e5); } /* Easy */
+.pace-color-3 { background: linear-gradient(to right, #3b82f6, #2563eb); } /* Moderate */
+.pace-color-4 { background: linear-gradient(to right, #10b981, #059669); } /* Challenging */
+.pace-color-5 { background: linear-gradient(to right, #f97316, #ea580c); } /* Hard */
+.pace-color-6 { background: linear-gradient(to right, #f97316, #ea580c); } /* Very Hard */
+.pace-color-7 { background: linear-gradient(to right, #ef4444, #dc2626); } /* Max */
+
+/* Music timeline */
+#musicTimeline.hidden { display: none; }
+</style>
+
+{% if performance_data or target_metrics %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Performance data
+  const performanceData = [
+    {% for data in performance_data %}
+      {
+        timestamp: {{ data.timestamp }},
+        speed: {{ data.speed|default:"null" }}
+      }{% if not forloop.last %},{% endif %}
+    {% endfor %}
+  ];
+  
+  // Target metrics and segments
+  const targetMetrics = {% if target_metrics_json %}{{ target_metrics_json|safe }}{% else %}null{% endif %};
+  const workoutDuration = {{ workout.duration_seconds|default:1800 }};
+  
+  // Playlist data for music timeline
+  const playlistData = {% if playlist and playlist.songs %}[
+    {% for song in playlist.songs %}
+    {
+      title: "{{ song.title|escapejs }}",
+      artists: [{% for artist in song.artists %}"{{ artist.artist_name|escapejs }}"{% if not forloop.last %}, {% endif %}{% endfor %}],
+      start_time: {{ song.start_time_offset|default:0 }},
+      duration: {{ song.duration|default:0 }}
+    }{% if not forloop.last %},{% endif %}
+    {% endfor %}
+  ]{% else %}null{% endif %};
+  
+  // Calculate song durations
+  if (playlistData && playlistData.length > 0) {
+    for (let i = 0; i < playlistData.length; i++) {
+      const song = playlistData[i];
+      if (!song.duration || song.duration <= 0) {
+        if (i < playlistData.length - 1) {
+          song.duration = playlistData[i + 1].start_time - song.start_time;
+        } else {
+          song.duration = Math.max(180, workoutDuration - song.start_time);
+        }
+      }
+    }
+  }
+  
+  // Pace level colors and names (matching class library)
+  const PACE_LEVEL_COLORS = {
+    1: "#6f42c1",  // Purple - Recovery
+    2: "#4c6ef5",  // Blue - Easy  
+    3: "#228be6",  // Light Blue - Moderate
+    4: "#0ca678",  // Green - Challenging
+    5: "#ff922b",  // Orange - Hard
+    6: "#f76707",  // Dark Orange - Very Hard
+    7: "#fa5252"   // Red - Max
+  };
+  
+  const PACE_LEVEL_NAMES = {
+    1: "RECOVERY", 2: "EASY", 3: "MODERATE", 4: "CHALLENGING",
+    5: "HARD", 6: "VERY HARD", 7: "MAX"
+  };
+  
+  // Helper: Convert speed (mph) to min/mile pace for display
+  function speedToPace(speed) {
+    if (!speed || speed <= 0) return null;
+    const minPerMile = 60 / speed;
+    const mins = Math.floor(minPerMile);
+    const secs = Math.round((minPerMile - mins) * 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  }
+  
+  function mphToZoneLevel(mph) {
+    if (!mph || mph <= 0) return null;
+    if (targetMetrics && targetMetrics.pace_ranges) {
+      const zones = ['', 'recovery', 'easy', 'moderate', 'challenging', 'hard', 'very_hard', 'max'];
+      for (let level = 7; level >= 1; level--) {
+        const range = targetMetrics.pace_ranges[zones[level]];
+        if (!range) continue;
+        if (typeof range.min_mph === 'number' && typeof range.max_mph === 'number') {
+          if (mph >= range.min_mph && mph <= range.max_mph) return level;
+        }
+      }
+    }
+    return null;
+  }
+  
+  function mphToZoneLabel(mph) {
+    const level = mphToZoneLevel(mph);
+    return level ? (PACE_LEVEL_NAMES[level] || `Level ${level}`) : null;
+  }
+  
+  // Build target pace line as mph midpoints (STEPPED)
+  const targetPaceLine = [];
+  if (targetMetrics && targetMetrics.segments) {
+    const segments = targetMetrics.segments;
+    
+    segments.forEach(segment => {
+      const startTime = Math.max(0, (segment.start || 0) - 60);  // Shift back 60s
+      const endTime = Math.max(0, (segment.end || 0) - 60);
+      const zoneLevel = segment.zone || null; // expected 1-7
+      const zones = ['', 'recovery', 'easy', 'moderate', 'challenging', 'hard', 'very_hard', 'max'];
+      const zoneKey = zoneLevel ? zones[zoneLevel] : null;
+      const middleMph = zoneKey && targetMetrics.pace_ranges && targetMetrics.pace_ranges[zoneKey]
+        ? targetMetrics.pace_ranges[zoneKey].middle_mph
+        : null;
+      
+      if (middleMph && startTime < endTime) {
+        // Add points every 5 seconds for better tooltip coverage
+        for (let t = startTime; t <= endTime; t += 5) {
+          targetPaceLine.push({ x: t, y: middleMph });
+        }
+        // Ensure end point
+        if ((endTime - startTime) % 5 !== 0) {
+          targetPaceLine.push({ x: endTime, y: middleMph });
+        }
+      }
+    });
+  }
+  
+  // Actual line uses real mph so you can see deviation within zones
+  const actualSpeedData = performanceData.map(d => ({
+    x: d.timestamp,
+    y: (typeof d.speed === 'number' && d.speed > 0) ? d.speed : null,
+    speed: d.speed
+  }));
+  
+  // Determine y-axis bounds from pace ranges (mph)
+  let yMinMph = null;
+  let yMaxMph = null;
+  if (targetMetrics && targetMetrics.pace_ranges) {
+    const ranges = Object.values(targetMetrics.pace_ranges);
+    for (const r of ranges) {
+      if (!r) continue;
+      if (typeof r.min_mph === 'number') yMinMph = (yMinMph === null) ? r.min_mph : Math.min(yMinMph, r.min_mph);
+      if (typeof r.max_mph === 'number') yMaxMph = (yMaxMph === null) ? r.max_mph : Math.max(yMaxMph, r.max_mph);
+    }
+  }
+  // Fallback to actual data if ranges are missing
+  if ((yMinMph === null || yMaxMph === null) && performanceData && performanceData.length) {
+    const speeds = performanceData.map(p => p.speed).filter(v => typeof v === 'number' && v > 0);
+    if (speeds.length) {
+      yMinMph = Math.min(...speeds);
+      yMaxMph = Math.max(...speeds);
+    }
+  }
+  // Add small padding
+  if (yMinMph !== null) yMinMph = Math.max(0, yMinMph - 0.3);
+  if (yMaxMph !== null) yMaxMph = yMaxMph + 0.3;
+
+  // Build datasets (mph on y-axis; zone bands are background)
+  const datasets = [];
+  
+  // Add target pace line FIRST (background layer) - positioned at zone level
+  if (targetPaceLine.length > 0) {
+    datasets.push({
+      label: 'Target',
+      data: targetPaceLine,
+      borderColor: '#93c5fd',  // Light blue
+      backgroundColor: 'rgba(147, 197, 253, 0.1)',
+      borderWidth: 2.8,
+      fill: false,
+      tension: 0,
+      stepped: 'before',  // Stepped line
+      pointRadius: 0,
+      pointHoverRadius: 6,
+      pointHitRadius: 20,
+      spanGaps: true,
+      order: 1
+    });
+  }
+  
+  // Add actual speed data SECOND (foreground layer) - real mph
+  if (actualSpeedData.length > 0) {
+    datasets.push({
+      label: 'Actual',
+      data: actualSpeedData,
+      borderColor: '#e0fe48',  // Yellow/lime
+      backgroundColor: 'rgba(224, 254, 72, 0.1)',
+      borderWidth: 2.5,
+      fill: false,
+      tension: 0.2,  // Slight smoothing
+      stepped: false,
+      pointRadius: 0,
+      pointHoverRadius: 6,
+      pointHitRadius: 20,
+      spanGaps: true,
+      order: 2,
+      parsing: {
+        xAxisKey: 'x',
+        yAxisKey: 'y'
+      }
+    });
+  }
+  
+  // Zone bands plugin - draws colored background bands (like class library)
+  let zoneBandsEnabled = true;
+  const zoneBandsPlugin = {
+    id: 'zoneBands',
+    beforeDatasetsDraw(chart, args, opts) {
+      if (!zoneBandsEnabled) return;
+      if (!targetMetrics || !targetMetrics.pace_ranges) return;
+      const {ctx, chartArea, scales} = chart;
+      ctx.save();
+      
+      const zones = ['', 'recovery', 'easy', 'moderate', 'challenging', 'hard', 'very_hard', 'max'];
+      // Draw bands using mph ranges
+      for (let level = 1; level <= 7; level++) {
+        const range = targetMetrics.pace_ranges[zones[level]];
+        if (!range || typeof range.min_mph !== 'number' || typeof range.max_mph !== 'number') continue;
+        const levelColor = PACE_LEVEL_COLORS[level] || '#888';
+        const yA = scales.y.getPixelForValue(range.min_mph);
+        const yB = scales.y.getPixelForValue(range.max_mph);
+        const yTop = Math.min(yA, yB);
+        const yBot = Math.max(yA, yB);
+        ctx.fillStyle = levelColor;
+        ctx.globalAlpha = 0.18;
+        ctx.fillRect(chartArea.left, yTop, chartArea.right - chartArea.left, yBot - yTop);
+      }
+      
+      ctx.restore();
+    },
+    afterDraw(chart, args, opts) {
+      // Overlay zone labels on the chart
+      if (!zoneBandsEnabled) return;
+      if (!targetMetrics || !targetMetrics.pace_ranges) return;
+      const {ctx, chartArea, scales} = chart;
+      ctx.save();
+      ctx.font = '12px sans-serif';
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      
+      const zones = ['', 'recovery', 'easy', 'moderate', 'challenging', 'hard', 'very_hard', 'max'];
+      for (let level = 1; level <= 7; level++) {
+        const range = targetMetrics.pace_ranges[zones[level]];
+        if (!range || typeof range.middle_mph !== 'number') continue;
+        const yPos = scales.y.getPixelForValue(range.middle_mph);
+        const levelName = PACE_LEVEL_NAMES[level] || `Level ${level}`;
+        ctx.fillText(levelName, chartArea.left + 8, yPos);
+      }
+      
+      ctx.restore();
+    }
+  };
+  
+  // Format time helper
+  function formatTime(seconds) {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  }
+  
+  // Create chart
+  const ctx = document.getElementById('paceChart');
+  let paceChartInstance = null;
+  if (ctx) {
+    paceChartInstance = new Chart(ctx, {
+      type: 'line',
+      data: {
+        datasets: datasets
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        interaction: {
+          mode: 'index',
+          intersect: false,
+          axis: 'x'  // Snap to nearest x position to show both lines
+        },
+        plugins: {
+          legend: {
+            display: true,
+            position: 'top',
+            labels: {
+              color: 'rgba(255, 255, 255, 0.8)',
+              font: { size: 14, family: "'Inter', sans-serif" },
+              padding: 15,
+              usePointStyle: true
+            }
+          },
+          tooltip: {
+            enabled: true,
+            mode: 'index',
+            intersect: false,
+            backgroundColor: 'rgba(30, 30, 30, 0.9)',
+            titleColor: '#ffffff',
+            bodyColor: '#ffffff',
+            borderColor: 'rgba(255, 255, 255, 0.2)',
+            borderWidth: 1,
+            padding: 12,
+            displayColors: true,  // Show color boxes
+            callbacks: {
+              title: function(context) {
+                if (context.length > 0 && context[0].parsed) {
+                  return formatTime(context[0].parsed.x);
+                }
+                return '';
+              },
+              label: function(context) {
+                const label = context.dataset.label || '';
+                const mph = context.parsed.y;
+                
+                if (mph === null || mph === undefined) {
+                  return `${label}: No data`;
+                }
+                
+                const zoneLabel = mphToZoneLabel(mph);
+                
+                // For Actual line, get speed from raw data
+                if (label === 'Actual') {
+                  const pace = speedToPace(context.raw && context.raw.speed ? context.raw.speed : mph);
+                  return `${label}: ${pace} /mi${zoneLabel ? ` (${zoneLabel})` : ''}`;
+                }
+                
+                if (label === 'Target') {
+                  const pace = speedToPace(mph);
+                  return `${label}: ${pace} /mi${zoneLabel ? ` (${zoneLabel})` : ''}`;
+                }
+                
+                return `${label}: ${zoneLabel || ''}`.trim();
+              },
+              // Don't filter out any items - show both lines
+              filter: function(tooltipItem) {
+                return true;
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            type: 'linear',
+            min: 0,
+            max: workoutDuration,
+            title: {
+              display: false
+            },
+            grid: {
+              color: 'rgba(255, 255, 255, 0.06)',
+              drawBorder: false
+            },
+            ticks: {
+              autoSkip: true,
+              maxTicksLimit: 9,
+              callback: function(value) {
+                return formatTime(value);
+              },
+              color: 'rgba(255, 255, 255, 0.7)',
+              font: { size: 12 }
+            },
+            border: { display: false }
+          },
+          y: {
+            type: 'linear',
+            min: (yMinMph !== null ? yMinMph : 0),
+            max: (yMaxMph !== null ? yMaxMph : 12),
+            title: {
+              display: false
+            },
+            grid: {
+              color: 'rgba(255, 255, 255, 0.1)',
+              drawOnChartArea: true,
+              drawTicks: false
+            },
+            ticks: {
+              display: false,  // Hide ticks - zone labels are overlaid
+              color: 'rgba(255, 255, 255, 0.7)'
+            },
+            border: { display: false }
+          }
+        }
+      },
+      plugins: [zoneBandsPlugin]
+    });
+  }
+  
+  // Music timeline rendering
+  if (playlistData && playlistData.length > 0) {
+    const musicTimelineEl = document.getElementById('musicTimeline');
+    const showMusicCheckbox = document.getElementById('showMusicTimeline');
+    
+    function renderMusicTimeline() {
+      if (!musicTimelineEl || !showMusicCheckbox) return;
+      
+      if (!showMusicCheckbox.checked) {
+        musicTimelineEl.classList.add('hidden');
+        return;
+      }
+      
+      musicTimelineEl.classList.remove('hidden');
+      musicTimelineEl.innerHTML = '';
+      
+      const maxTime = workoutDuration;
+      const songColors = [
+        'rgba(91, 124, 250, 0.4)', 'rgba(34, 197, 94, 0.4)',
+        'rgba(234, 179, 8, 0.4)', 'rgba(239, 68, 68, 0.4)',
+        'rgba(168, 85, 247, 0.4)', 'rgba(236, 72, 153, 0.4)',
+        'rgba(20, 184, 166, 0.4)', 'rgba(251, 146, 60, 0.4)'
+      ];
+      
+      playlistData.forEach((song, idx) => {
+        const startTime = song.start_time || 0;
+        const duration = song.duration || 180;
+        
+        const startPercent = maxTime > 0 ? (startTime / maxTime) * 100 : 0;
+        const widthPercent = maxTime > 0 ? (duration / maxTime) * 100 : 0;
+        
+        const actualStartPercent = Math.max(0, Math.min(startPercent, 100));
+        const actualWidthPercent = Math.max(0, Math.min(widthPercent, 100 - actualStartPercent));
+        
+        if (actualWidthPercent < 0.5 || actualStartPercent >= 100) return;
+        
+        const segment = document.createElement('div');
+        const color = songColors[idx % songColors.length];
+        const artistName = song.artists && song.artists.length > 0 ? song.artists[0] : '';
+        
+        segment.style.cssText = `
+          position: absolute;
+          left: ${actualStartPercent}%;
+          width: ${actualWidthPercent}%;
+          height: 100%;
+          background: ${color};
+          border-right: 1px solid rgba(255,255,255,0.25);
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          align-items: flex-start;
+          padding: 2px 6px;
+          font-size: 10px;
+          line-height: 1.2;
+          color: rgba(255,255,255,0.95);
+          overflow: hidden;
+          cursor: pointer;
+          transition: opacity 0.2s, background 0.2s;
+          min-width: 60px;
+        `;
+        
+        segment.onmouseenter = () => {
+          segment.style.opacity = '0.85';
+          segment.style.background = color.replace('0.4', '0.6');
+        };
+        segment.onmouseleave = () => {
+          segment.style.opacity = '1';
+          segment.style.background = color;
+        };
+        
+        const titleEl = document.createElement('div');
+        titleEl.style.cssText = 'font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; font-size: 10px;';
+        titleEl.textContent = song.title || 'Unknown';
+        
+        if (artistName && actualWidthPercent > 5) {
+          const artistEl = document.createElement('div');
+          artistEl.style.cssText = 'font-size: 9px; opacity: 0.8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; margin-top: 1px;';
+          artistEl.textContent = artistName;
+          segment.appendChild(artistEl);
+        }
+        
+        segment.insertBefore(titleEl, segment.firstChild);
+        segment.title = `${song.title}${artistName ? ' • ' + artistName : ''}`;
+        
+        musicTimelineEl.appendChild(segment);
+      });
+    }
+    
+    if (showMusicCheckbox) {
+      showMusicCheckbox.addEventListener('change', renderMusicTimeline);
+      setTimeout(renderMusicTimeline, 200);
+    }
+  }
+  
+  // Chart control buttons
+  const toggleTargetBtn = document.getElementById('toggleTargetLine');
+  const toggleZoneColorsCheckbox = document.getElementById('toggleZoneColors');
+  const saveChartBtn = document.getElementById('saveChart');
+  const toggleSpeedGraphBtn = document.getElementById('toggleSpeedGraph');
+  const toggleKilometersBtn = document.getElementById('toggleKilometers');
+  const bringActualForwardBtn = document.getElementById('bringActualForward');
+  const toggleActualLineStyleBtn = document.getElementById('toggleActualLineStyle');
+  let actualLineIsStepped = false;
+  
+  // Hide/Show Target Line
+  if (toggleTargetBtn && paceChartInstance) {
+    toggleTargetBtn.addEventListener('click', function() {
+      const targetDataset = paceChartInstance.data.datasets.find(ds => ds.label === 'Target');
+      if (targetDataset) {
+        targetDataset.hidden = !targetDataset.hidden;
+        this.textContent = targetDataset.hidden ? 'Show Target' : 'Hide Target';
+        paceChartInstance.update();
+      }
+    });
+  }
+  
+  // Toggle Zone Colors (background bands)
+  if (toggleZoneColorsCheckbox && paceChartInstance) {
+    toggleZoneColorsCheckbox.addEventListener('change', function() {
+      zoneBandsEnabled = !!this.checked;
+      paceChartInstance.update('none');
+    });
+  }
+  
+  // Share chart image (or download fallback)
+  if (saveChartBtn && paceChartInstance) {
+    saveChartBtn.addEventListener('click', async function() {
+      try {
+        const chartCanvas = paceChartInstance.canvas;
+        if (!chartCanvas) return;
+
+        // Build a social-share image: header + key metrics + chart
+        const headerEl = document.getElementById('shareHeader');
+        const metricsEl = document.getElementById('workoutSummaryMetrics');
+
+        const dpr = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
+        const width = chartCanvas.width;   // chart internal px
+        const height = chartCanvas.height; // chart internal px
+
+        // Layout constants (in chart px space)
+        const pad = 28;
+        const headerHeight = headerEl ? 72 : 0;
+        const metricsHeight = metricsEl ? 96 : 0;
+        const gap = (headerEl || metricsEl) ? 18 : 0;
+        const topBlockHeight = headerHeight + metricsHeight + gap;
+
+        const outCanvas = document.createElement('canvas');
+        outCanvas.width = width;
+        outCanvas.height = height + topBlockHeight;
+
+        const outCtx = outCanvas.getContext('2d');
+        if (!outCtx) return;
+
+        // Background (dark, social-friendly)
+        outCtx.save();
+        outCtx.fillStyle = '#121212';
+        outCtx.fillRect(0, 0, outCanvas.width, outCanvas.height);
+
+        // Border
+        outCtx.strokeStyle = 'rgba(224, 254, 72, 0.9)';
+        outCtx.lineWidth = 3;
+        outCtx.strokeRect(1.5, 1.5, outCanvas.width - 3, outCanvas.height - 3);
+
+        // Header text (title + instructor + leaderboard)
+        let y = pad;
+        if (headerEl) {
+          const title = headerEl.querySelector('h2')?.textContent?.trim() || '';
+          const sub = headerEl.querySelector('.text-sm')?.textContent?.replace(/\s+/g, ' ')?.trim() || '';
+          const date = headerEl.querySelector('.text-xs')?.textContent?.trim() || '';
+
+          outCtx.fillStyle = 'rgba(255,255,255,0.95)';
+          outCtx.font = '700 26px Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
+          outCtx.fillText(title, pad, y + 26);
+
+          outCtx.fillStyle = 'rgba(255,255,255,0.75)';
+          outCtx.font = '500 16px Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
+          outCtx.fillText(sub, pad, y + 52);
+
+          if (date) {
+            outCtx.fillStyle = 'rgba(255,255,255,0.55)';
+            outCtx.font = '500 14px Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
+            const dateWidth = outCtx.measureText(date).width;
+            outCtx.fillText(date, outCanvas.width - pad - dateWidth, y + 18);
+          }
+
+          y += headerHeight;
+        }
+
+        // Metrics row (small tiles)
+        if (metricsEl) {
+          const tiles = Array.from(metricsEl.querySelectorAll(':scope > div')).slice(0, 6);
+          const cols = Math.min(6, Math.max(3, tiles.length || 0));
+          const tileGap = 14;
+          const tileW = (outCanvas.width - pad * 2 - tileGap * (cols - 1)) / cols;
+          const tileH = 66;
+
+          tiles.forEach((tile, idx) => {
+            const value = tile.querySelector('div:first-child')?.textContent?.trim() || '';
+            const label = tile.querySelector('div:last-child')?.textContent?.trim() || '';
+
+            const col = idx % cols;
+            const x = pad + col * (tileW + tileGap);
+            const ty = y + 10;
+
+            // tile bg
+            outCtx.fillStyle = 'rgba(255,255,255,0.06)';
+            outCtx.fillRect(x, ty, tileW, tileH);
+            outCtx.strokeStyle = 'rgba(255,255,255,0.10)';
+            outCtx.lineWidth = 1;
+            outCtx.strokeRect(x + 0.5, ty + 0.5, tileW - 1, tileH - 1);
+
+            outCtx.fillStyle = 'rgba(255,255,255,0.92)';
+            outCtx.font = '700 20px Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
+            outCtx.fillText(value, x + 12, ty + 28);
+
+            outCtx.fillStyle = 'rgba(255,255,255,0.65)';
+            outCtx.font = '500 12px Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
+            outCtx.fillText(label, x + 12, ty + 50);
+          });
+
+          y += metricsHeight;
+        }
+
+        // Draw chart (current state)
+        // Create bitmap from chart for crisp output
+        const chartBlob = await new Promise((resolve) => chartCanvas.toBlob(resolve, 'image/png', 1.0));
+        if (!chartBlob) return;
+        const chartBitmap = await createImageBitmap(chartBlob);
+        outCtx.drawImage(chartBitmap, 0, topBlockHeight);
+        outCtx.restore();
+
+        const outBlob = await new Promise((resolve) => outCanvas.toBlob(resolve, 'image/png', 1.0));
+        if (!outBlob) return;
+
+        const safeTitle = (document.title || 'pace-target').replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '-').toLowerCase();
+        const filename = `${safeTitle || 'pace-target'}-share.png`;
+        const file = new File([outBlob], filename, { type: 'image/png' });
+
+        // Prefer native share sheet (mobile + supported desktop browsers)
+        if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            title: document.title || 'Workout',
+            text: 'Workout share',
+            files: [file],
+          });
+          return;
+        }
+
+        // Fallback: download
+        const url = URL.createObjectURL(outBlob);
+        const link = document.createElement('a');
+        link.download = filename;
+        link.href = url;
+        link.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      } catch (e) {
+        // Last-resort fallback to base64 download
+        const url = paceChartInstance.toBase64Image('image/png', 1.0);
+        const link = document.createElement('a');
+        link.download = 'pace-target-share.png';
+        link.href = url;
+        link.click();
+      }
+    });
+  }
+
+  // Toggle Actual line style (smooth <-> stepped)
+  if (toggleActualLineStyleBtn && paceChartInstance) {
+    // Initialize label based on current dataset settings (defensive)
+    const actualDsInit = paceChartInstance.data.datasets.find(ds => ds.label === 'Actual');
+    if (actualDsInit && (actualDsInit.stepped === true || typeof actualDsInit.stepped === 'string')) {
+      actualLineIsStepped = true;
+      toggleActualLineStyleBtn.textContent = 'Actual: Stepped';
+    }
+
+    toggleActualLineStyleBtn.addEventListener('click', function() {
+      const actualDs = paceChartInstance.data.datasets.find(ds => ds.label === 'Actual');
+      if (!actualDs) return;
+
+      actualLineIsStepped = !actualLineIsStepped;
+
+      if (actualLineIsStepped) {
+        actualDs.tension = 0;
+        actualDs.stepped = 'before';
+        this.textContent = 'Actual: Stepped';
+      } else {
+        actualDs.stepped = false;
+        actualDs.tension = 0.2;
+        this.textContent = 'Actual: Smooth';
+      }
+
+      paceChartInstance.update('none');
+    });
+  }
+  
+  // Toggle Speed Graph (convert between pace and speed)
+  if (toggleSpeedGraphBtn) {
+    let showingSpeed = false;
+    toggleSpeedGraphBtn.addEventListener('click', function() {
+      showingSpeed = !showingSpeed;
+      this.textContent = showingSpeed ? 'Show Pace Graph' : 'Show Speed Graph';
+      // TODO: Implement speed/pace toggle functionality
+      alert('Speed graph toggle coming soon!');
+    });
+  }
+  
+  // Toggle Kilometers (convert between miles and kilometers)
+  if (toggleKilometersBtn) {
+    let showingKm = false;
+    toggleKilometersBtn.addEventListener('click', function() {
+      showingKm = !showingKm;
+      this.textContent = showingKm ? 'Show Miles' : 'Show Kilometers';
+      // TODO: Implement miles/km toggle functionality
+      alert('Kilometers toggle coming soon!');
+    });
+  }
+  
+  // Bring Actual Forward (swap dataset order)
+  if (bringActualForwardBtn && paceChartInstance) {
+    bringActualForwardBtn.addEventListener('click', function() {
+      const datasets = paceChartInstance.data.datasets;
+      if (datasets.length >= 2) {
+        // Swap the two datasets
+        [datasets[0], datasets[1]] = [datasets[1], datasets[0]];
+        this.textContent = datasets[0].label === 'Actual' ? 'Bring Target Forward' : 'Bring Actual Forward';
+        paceChartInstance.update();
+      }
+    });
+  }
+  
+  // Collapsible sections for CLASS DETAILS
+  const sectionToggles = document.querySelectorAll('.section-toggle');
+  sectionToggles.forEach(toggle => {
+    toggle.addEventListener('click', function() {
+      const content = this.nextElementSibling;
+      const chevron = this.querySelector('.section-chevron');
+      const isExpanded = this.getAttribute('aria-expanded') === 'true';
+      
+      if (isExpanded) {
+        content.classList.add('hidden');
+        this.setAttribute('aria-expanded', 'false');
+        chevron.style.transform = 'rotate(0deg)';
+      } else {
+        content.classList.remove('hidden');
+        this.setAttribute('aria-expanded', 'true');
+        chevron.style.transform = 'rotate(180deg)';
+      }
+    });
+  });
+});
+</script>
+{% endif %}
+{% endblock %}
