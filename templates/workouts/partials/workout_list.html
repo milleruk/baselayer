@@ -48,8 +48,15 @@
         
         <!-- Dates -->
         <div class="flex flex-col gap-1 text-xs text-gray-400 mb-4">
-          <div>Recorded: {{ workout.recorded_date|date:"m/d/Y" }}</div>
-          <div>Completed: {{ workout.completed_date|date:"m/d/Y" }}</div>
+          <div>
+            Recorded:
+            {% if workout.ride_detail and workout.ride_detail.original_air_date %}
+              {{ workout.ride_detail.original_air_date|date:"d/m/Y" }}
+            {% else %}
+              {{ workout.recorded_date|date:"d/m/Y" }}
+            {% endif %}
+          </div>
+          <div>Completed: {{ workout.completed_date|date:"d/m/Y" }}</div>
         </div>
         
         <!-- Performance Metrics -->

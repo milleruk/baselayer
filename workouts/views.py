@@ -2237,16 +2237,37 @@ def workout_history(request):
             workouts = workouts.filter(details__tss__gte=tss_value)
         except (ValueError, TypeError):
             pass
+
+    # Filter: only workouts with performance charts (time-series data exists)
+    has_charts_raw = (request.GET.get('has_charts', '') or '').strip().lower()
+    has_charts_filter = has_charts_raw in ['1', 'true', 'yes', 'on']
+    if has_charts_filter:
+        try:
+            from django.db.models import Exists, OuterRef
+            from workouts.models import WorkoutPerformanceData
+
+            workouts = workouts.annotate(
+                has_charts=Exists(
+                    WorkoutPerformanceData.objects.filter(workout_id=OuterRef('pk'))
+                )
+            ).filter(has_charts=True)
+        except Exception:
+            # Fallback: may create duplicates; keep stable ordering via distinct()
+            workouts = workouts.filter(performance_data__isnull=False).distinct()
     
     # Ordering - title ordering uses ride_detail__title via SQL join
     order_by = request.GET.get('order_by', '-completed_date')
     if order_by in ['completed_date', '-completed_date', 'recorded_date', '-recorded_date']:
-        workouts = workouts.order_by(order_by)
+        # Add stable tie-breakers so "latest on the day" comes first
+        if order_by.startswith('-'):
+            workouts = workouts.order_by(order_by, '-id')
+        else:
+            workouts = workouts.order_by(order_by, '-id')
     elif order_by in ['title', '-title']:
         # Order by ride_detail title via SQL join
-        workouts = workouts.order_by('ride_detail__title' if order_by == 'title' else '-ride_detail__title')
+        workouts = workouts.order_by('ride_detail__title' if order_by == 'title' else '-ride_detail__title', '-id')
     else:
-        workouts = workouts.order_by('-completed_date')
+        workouts = workouts.order_by('-completed_date', '-id')
     
     # Pagination
     paginator = Paginator(workouts, 12)  # 12 workouts per page
@@ -2336,12 +2357,14 @@ def workout_history(request):
         'instructor_filter': instructor_filter,
         'duration_filter': duration_filter,
         'tss_filter': tss_filter,
+        'has_charts_filter': has_charts_filter,
         'order_by': order_by,
         'total_workouts': paginator.count,
         'is_paginated': is_paginated,
         # Query strings for building links while preserving filters
         'qs_without_page': None,
         'qs_without_type_and_page': None,
+        'qs_remove': {},
     }
 
     # Pre-compute querystrings for templates (preserve multi-filter combinations)
@@ -2356,9 +2379,20 @@ def workout_history(request):
         qs2.pop('infinite', None)
         qs2.pop('type', None)
         context['qs_without_type_and_page'] = qs2.urlencode()
+
+        # Query strings for removing a single filter while preserving others
+        qs_remove = {}
+        for key in ['search', 'instructor', 'duration', 'tss', 'has_charts', 'type']:
+            q = request.GET.copy()
+            q.pop('page', None)
+            q.pop('infinite', None)
+            q.pop(key, None)
+            qs_remove[key] = q.urlencode()
+        context['qs_remove'] = qs_remove
     except Exception:
         context['qs_without_page'] = ''
         context['qs_without_type_and_page'] = ''
+        context['qs_remove'] = {}
 
     # Build per-card mini chart data (SVG sparkline + optional zone bands)
     try:

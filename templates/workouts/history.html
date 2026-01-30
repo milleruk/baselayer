@@ -64,6 +64,18 @@
     
     <!-- Filter Dropdowns -->
     <div class="flex flex-wrap gap-2">
+      <!-- Charts Only Toggle -->
+      <label class="inline-flex items-center gap-2 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm cursor-pointer">
+        <input
+          type="checkbox"
+          name="has_charts"
+          value="1"
+          {% if has_charts_filter %}checked{% endif %}
+          class="h-4 w-4 rounded border-gray-300 dark:border-gray-600 text-primary focus:ring-primary"
+        >
+        <span>Charts only</span>
+      </label>
+
       <!-- TSS Filter -->
       <div class="relative">
         <input type="number" name="tss" value="{{ tss_filter }}" placeholder="TSS" min="0" step="0.1"
@@ -140,13 +152,13 @@
   </div>
   
   <!-- Active Filters Display -->
-  {% if search_query or instructor_filter or duration_filter or tss_filter %}
+  {% if search_query or instructor_filter or duration_filter or tss_filter or has_charts_filter %}
     <div class="flex flex-wrap gap-2 items-center">
       <span class="text-sm text-gray-600 dark:text-gray-400">Active filters:</span>
       {% if search_query %}
         <span class="inline-flex items-center gap-1 px-3 py-1 text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full">
           Search: "{{ search_query }}"
-          <a href="?{% if workout_type_filter %}type={{ workout_type_filter }}&{% endif %}{% if instructor_filter %}instructor={{ instructor_filter }}&{% endif %}{% if duration_filter %}duration={{ duration_filter }}&{% endif %}{% if tss_filter %}tss={{ tss_filter }}{% endif %}" class="hover:text-gray-900 dark:hover:text-white">×</a>
+          <a href="{% if qs_remove.search %}?{{ qs_remove.search }}{% else %}{% url 'workouts:history' %}{% endif %}" class="hover:text-gray-900 dark:hover:text-white">×</a>
         </span>
       {% endif %}
       {% if instructor_filter %}
@@ -154,7 +166,7 @@
           {% if instructor.id|stringformat:"s" == instructor_filter %}
             <span class="inline-flex items-center gap-1 px-3 py-1 text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full">
               Instructor: {{ instructor.name }}
-              <a href="?{% if workout_type_filter %}type={{ workout_type_filter }}&{% endif %}{% if search_query %}search={{ search_query }}&{% endif %}{% if duration_filter %}duration={{ duration_filter }}&{% endif %}{% if tss_filter %}tss={{ tss_filter }}{% endif %}" class="hover:text-gray-900 dark:hover:text-white">×</a>
+              <a href="{% if qs_remove.instructor %}?{{ qs_remove.instructor }}{% else %}{% url 'workouts:history' %}{% endif %}" class="hover:text-gray-900 dark:hover:text-white">×</a>
             </span>
           {% endif %}
         {% endfor %}
@@ -162,13 +174,19 @@
       {% if duration_filter %}
         <span class="inline-flex items-center gap-1 px-3 py-1 text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full">
           Duration: {{ duration_filter }} min
-          <a href="?{% if workout_type_filter %}type={{ workout_type_filter }}&{% endif %}{% if search_query %}search={{ search_query }}&{% endif %}{% if instructor_filter %}instructor={{ instructor_filter }}&{% endif %}{% if tss_filter %}tss={{ tss_filter }}{% endif %}" class="hover:text-gray-900 dark:hover:text-white">×</a>
+          <a href="{% if qs_remove.duration %}?{{ qs_remove.duration }}{% else %}{% url 'workouts:history' %}{% endif %}" class="hover:text-gray-900 dark:hover:text-white">×</a>
         </span>
       {% endif %}
       {% if tss_filter %}
         <span class="inline-flex items-center gap-1 px-3 py-1 text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full">
           TSS: ≥{{ tss_filter }}
-          <a href="?{% if workout_type_filter %}type={{ workout_type_filter }}&{% endif %}{% if search_query %}search={{ search_query }}&{% endif %}{% if instructor_filter %}instructor={{ instructor_filter }}&{% endif %}{% if duration_filter %}duration={{ duration_filter }}{% endif %}" class="hover:text-gray-900 dark:hover:text-white">×</a>
+          <a href="{% if qs_remove.tss %}?{{ qs_remove.tss }}{% else %}{% url 'workouts:history' %}{% endif %}" class="hover:text-gray-900 dark:hover:text-white">×</a>
+        </span>
+      {% endif %}
+      {% if has_charts_filter %}
+        <span class="inline-flex items-center gap-1 px-3 py-1 text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full">
+          Charts only
+          <a href="{% if qs_remove.has_charts %}?{{ qs_remove.has_charts }}{% else %}{% url 'workouts:history' %}{% endif %}" class="hover:text-gray-900 dark:hover:text-white">×</a>
         </span>
       {% endif %}
     </div>
