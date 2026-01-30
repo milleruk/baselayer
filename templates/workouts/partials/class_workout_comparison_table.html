@@ -1,0 +1,140 @@
+{% comment %}
+Renders a paginated comparison table of past workouts for the current class.
+Expected context:
+- times_taken (int)
+- workouts_page_obj (django Page)
+- qs_without_workouts_page (urlencoded query string without workouts_page)
+{% endcomment %}
+
+<div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 sm:p-6 shadow-sm mb-6">
+  <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
+    <div>
+      <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Past Workouts</h3>
+      <div class="text-sm text-gray-600 dark:text-gray-400 mt-1">
+        Taken <span class="font-semibold text-gray-900 dark:text-white">{{ times_taken }}</span> time{{ times_taken|pluralize }}.
+        {% if workouts_page_obj %}
+          <span class="mx-2">•</span>
+          Showing {{ workouts_page_obj.start_index }}–{{ workouts_page_obj.end_index }}
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  {% if not workouts_page_obj or times_taken == 0 %}
+    <div class="text-sm text-gray-600 dark:text-gray-400">No completed workouts for this class yet.</div>
+  {% else %}
+    <div class="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
+      <table class="min-w-full text-sm">
+        <thead class="bg-gray-50 dark:bg-gray-900/60">
+          {% with fd=ride.fitness_discipline|default:""|lower %}
+            {% if ride.class_type == 'pace_target' or fd == 'running' or fd == 'walking' or fd == 'run' or fd == 'walk' %}
+              <tr>
+                <th class="px-3 py-2 text-left font-semibold text-gray-700 dark:text-gray-200 whitespace-nowrap">Completed</th>
+                <th class="px-3 py-2 text-left font-semibold text-gray-700 dark:text-gray-200 whitespace-nowrap">Avg Pace</th>
+                <th class="px-3 py-2 text-left font-semibold text-gray-700 dark:text-gray-200 whitespace-nowrap">Avg Speed</th>
+                <th class="px-3 py-2 text-left font-semibold text-gray-700 dark:text-gray-200 whitespace-nowrap">Distance</th>
+                <th class="px-3 py-2 text-left font-semibold text-gray-700 dark:text-gray-200 whitespace-nowrap">Avg HR</th>
+                <th class="px-3 py-2 text-left font-semibold text-gray-700 dark:text-gray-200 whitespace-nowrap">Calories</th>
+                <th class="px-3 py-2 text-left font-semibold text-gray-700 dark:text-gray-200 whitespace-nowrap">IF</th>
+                <th class="px-3 py-2 text-right font-semibold text-gray-700 dark:text-gray-200 whitespace-nowrap"></th>
+              </tr>
+            {% else %}
+              <tr>
+                <th class="px-3 py-2 text-left font-semibold text-gray-700 dark:text-gray-200 whitespace-nowrap">Completed</th>
+                <th class="px-3 py-2 text-left font-semibold text-gray-700 dark:text-gray-200 whitespace-nowrap">Avg Output</th>
+                <th class="px-3 py-2 text-left font-semibold text-gray-700 dark:text-gray-200 whitespace-nowrap">Total Output</th>
+                <th class="px-3 py-2 text-left font-semibold text-gray-700 dark:text-gray-200 whitespace-nowrap">TSS</th>
+                <th class="px-3 py-2 text-left font-semibold text-gray-700 dark:text-gray-200 whitespace-nowrap">Avg Cadence</th>
+                <th class="px-3 py-2 text-left font-semibold text-gray-700 dark:text-gray-200 whitespace-nowrap">Avg Resistance</th>
+                <th class="px-3 py-2 text-left font-semibold text-gray-700 dark:text-gray-200 whitespace-nowrap">Distance</th>
+                <th class="px-3 py-2 text-right font-semibold text-gray-700 dark:text-gray-200 whitespace-nowrap"></th>
+              </tr>
+            {% endif %}
+          {% endwith %}
+        </thead>
+        <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+          {% for w in workouts_page_obj.object_list %}
+            <tr class="bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/40 transition-colors">
+              {% with fd=ride.fitness_discipline|default:""|lower %}
+                {% if ride.class_type == 'pace_target' or fd == 'running' or fd == 'walking' or fd == 'run' or fd == 'walk' %}
+                  <td class="px-3 py-2 whitespace-nowrap text-gray-900 dark:text-white">
+                    {{ w.completed_date|date:"d/m/Y" }}
+                  </td>
+                  <td class="px-3 py-2 whitespace-nowrap text-gray-700 dark:text-gray-300">
+                    {% if w.derived_avg_pace_str %}{{ w.derived_avg_pace_str }}{% else %}—{% endif %}
+                  </td>
+                  <td class="px-3 py-2 whitespace-nowrap text-gray-700 dark:text-gray-300">
+                    {% if w.derived_avg_speed_mph %}{{ w.derived_avg_speed_mph|floatformat:1 }} mph{% else %}—{% endif %}
+                  </td>
+                  <td class="px-3 py-2 whitespace-nowrap text-gray-700 dark:text-gray-300">
+                    {% if w.details and w.details.distance is not None %}{{ w.details.distance|floatformat:2 }} mi{% else %}—{% endif %}
+                  </td>
+                  <td class="px-3 py-2 whitespace-nowrap text-gray-700 dark:text-gray-300">
+                    {% if w.details and w.details.avg_heart_rate is not None %}{{ w.details.avg_heart_rate }} bpm{% else %}—{% endif %}
+                  </td>
+                  <td class="px-3 py-2 whitespace-nowrap text-gray-700 dark:text-gray-300">
+                    {% if w.details and w.details.total_calories is not None %}{{ w.details.total_calories }}{% else %}—{% endif %}
+                  </td>
+                  <td class="px-3 py-2 whitespace-nowrap text-gray-700 dark:text-gray-300">
+                    {% if w.derived_if %}{{ w.derived_if|floatformat:2 }}{% else %}—{% endif %}
+                  </td>
+                  <td class="px-3 py-2 whitespace-nowrap text-right">
+                    <a href="{% url 'workouts:detail' w.id %}" class="text-primary hover:text-primary-dark font-medium">View</a>
+                  </td>
+                {% else %}
+                  <td class="px-3 py-2 whitespace-nowrap text-gray-900 dark:text-white">
+                    {{ w.completed_date|date:"d/m/Y" }}
+                  </td>
+                  <td class="px-3 py-2 whitespace-nowrap text-gray-700 dark:text-gray-300">
+                    {% if w.details and w.details.avg_output is not None %}{{ w.details.avg_output|floatformat:0 }} W{% else %}—{% endif %}
+                  </td>
+                  <td class="px-3 py-2 whitespace-nowrap text-gray-700 dark:text-gray-300">
+                    {% if w.details and w.details.total_output is not None %}{{ w.details.total_output|floatformat:0 }} kJ{% else %}—{% endif %}
+                  </td>
+                  <td class="px-3 py-2 whitespace-nowrap text-gray-700 dark:text-gray-300">
+                    {% if w.details and w.details.tss is not None %}{{ w.details.tss|floatformat:0 }}{% else %}—{% endif %}
+                  </td>
+                  <td class="px-3 py-2 whitespace-nowrap text-gray-700 dark:text-gray-300">
+                    {% if w.details and w.details.avg_cadence is not None %}{{ w.details.avg_cadence|floatformat:0 }} rpm{% else %}—{% endif %}
+                  </td>
+                  <td class="px-3 py-2 whitespace-nowrap text-gray-700 dark:text-gray-300">
+                    {% if w.details and w.details.avg_resistance is not None %}{{ w.details.avg_resistance|floatformat:0 }}{% else %}—{% endif %}
+                  </td>
+                  <td class="px-3 py-2 whitespace-nowrap text-gray-700 dark:text-gray-300">
+                    {% if w.details and w.details.distance is not None %}{{ w.details.distance|floatformat:2 }} mi{% else %}—{% endif %}
+                  </td>
+                  <td class="px-3 py-2 whitespace-nowrap text-right">
+                    <a href="{% url 'workouts:detail' w.id %}" class="text-primary hover:text-primary-dark font-medium">View</a>
+                  </td>
+                {% endif %}
+              {% endwith %}
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% if workouts_page_obj.paginator.num_pages > 1 %}
+      <div class="flex items-center justify-between mt-4">
+        <div class="text-xs text-gray-600 dark:text-gray-400">
+          Page {{ workouts_page_obj.number }} of {{ workouts_page_obj.paginator.num_pages }}
+        </div>
+        <div class="flex items-center gap-2">
+          {% if workouts_page_obj.has_previous %}
+            <a class="px-3 py-1.5 text-xs font-medium rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/40"
+               href="?workouts_page={{ workouts_page_obj.previous_page_number }}{% if qs_without_workouts_page %}&{{ qs_without_workouts_page }}{% endif %}">
+              Prev
+            </a>
+          {% endif %}
+          {% if workouts_page_obj.has_next %}
+            <a class="px-3 py-1.5 text-xs font-medium rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/40"
+               href="?workouts_page={{ workouts_page_obj.next_page_number }}{% if qs_without_workouts_page %}&{{ qs_without_workouts_page }}{% endif %}">
+              Next
+            </a>
+          {% endif %}
+        </div>
+      </div>
+    {% endif %}
+  {% endif %}
+</div>
+

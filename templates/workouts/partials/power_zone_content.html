@@ -188,6 +188,8 @@
 </div>
 {% endif %}
 
+{% include 'workouts/partials/class_workout_comparison_table.html' %}
+
 <!-- 2x2 Grid Layout for Power Zone Classes -->
 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 mb-6">
   <!-- Top-Left: Class Info Card -->
@@ -390,11 +392,7 @@
   const zoneRanges = (targetMetricsJson && targetMetricsJson.zone_ranges) ? targetMetricsJson.zone_ranges : null;
   // Extract pace_zones from target_metrics_json if available
   const paceZonesFromJson = (targetMetricsJson && targetMetricsJson.pace_zones) ? targetMetricsJson.pace_zones : null;
-  
-  // #region agent log
-  fetch('http://localhost:7242/ingest/2d1a7245-2209-4ba5-a6cc-73ffb0303c5e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'power_zone_content.html:232',message:'Variables initialized',data:{workoutType:workoutType,targetLineData:targetLineData?targetLineData.length:null,hasTargetMetrics:!!targetMetricsJson,paceZonesFromJson:!!paceZonesFromJson},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-  // #endregion
-  
+
   // Playlist data for music timeline
   const playlistData = {% if playlist and playlist.songs %}[
     {% for song in playlist.songs %}
@@ -894,10 +892,6 @@
                 // Get actual time from parsed x-coordinate (more accurate than dataIndex)
                 const tooltipTime = context.parsed.x;
                 
-                // #region agent log
-                fetch('http://localhost:7242/ingest/2d1a7245-2209-4ba5-a6cc-73ffb0303c5e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'power_zone_content.html:tooltip',message:'Tooltip label',data:{datasetLabel:datasetLabel,tooltipTime:tooltipTime,dataIndex:dataIndex,chartCurrentTime:window.chartCurrentTime,zoneValue:zoneValue},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'J'})}).catch(()=>{});
-                // #endregion
-                
                 if (datasetLabel === 'Actual') {
                   const watts = outputData[dataIndex];
                   if (watts !== null && watts !== undefined) {
@@ -914,10 +908,6 @@
                     targetZone = getCurrentTargetForTime(tooltipTime);
                     const ftp = parseInt(document.getElementById('ftp-input')?.value || userFTP) || 250;
                     targetWatts = Math.round(ftp * getZonePercentage(targetZone));
-                    
-                    // #region agent log
-                    fetch('http://localhost:7242/ingest/2d1a7245-2209-4ba5-a6cc-73ffb0303c5e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'power_zone_content.html:tooltip',message:'Tooltip target calculated',data:{tooltipTime:tooltipTime,targetZone:targetZone,targetWatts:targetWatts,ftp:ftp},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'J'})}).catch(()=>{});
-                    // #endregion
                   } else if (targetLineData && dataIndex < targetLineData.length && targetLineData[dataIndex].target_output) {
                     // Fallback to targetLineData if helper function not available
                     targetWatts = targetLineData[dataIndex].target_output;
@@ -1040,10 +1030,6 @@
     window.performanceChart = chart;
     // Store chart config globally for fullscreen chart creation
     window.chartConfig = chartConfig;
-    
-    // #region agent log
-    fetch('http://localhost:7242/ingest/2d1a7245-2209-4ba5-a6cc-73ffb0303c5e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'power_zone_content.html:985',message:'Chart created',data:{hasChart:!!chart,chartType:chart?.config?.type,hasPlugins:!!chart?.config?.plugins,pluginCount:chart?.config?.plugins?.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-    // #endregion
     
     // Chart control handlers
     const toggleTargetLineBtn = document.getElementById('toggle-target-line');
@@ -1317,11 +1303,6 @@
         
         // Ensure zone is in valid range (1-7)
         targetZone = Math.max(1, Math.min(7, targetZone));
-        
-        // #region agent log
-        fetch('http://localhost:7242/ingest/2d1a7245-2209-4ba5-a6cc-73ffb0303c5e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'power_zone_content.html:getCurrentTargetForTime',message:'Target from targetLineData',data:{time:time,closestIndex:closestIndex,targetWatts:targetWatts,percentage:percentage,targetZone:targetZone,userFTP:userFTP},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'N'})}).catch(()=>{});
-        // #endregion
-        
         return targetZone;
       }
     }
@@ -1333,10 +1314,6 @@
     // Apply -60 second shift to match chart line (target line is shifted 60s earlier)
     const TIME_SHIFT = -60;
     const shiftedTime = Math.max(0, time + TIME_SHIFT);
-    
-    // #region agent log
-    fetch('http://localhost:7242/ingest/2d1a7245-2209-4ba5-a6cc-73ffb0303c5e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'power_zone_content.html:getCurrentTargetForTime',message:'Fallback to segments',data:{time:time,shiftedTime:shiftedTime,segmentCount:segments.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'N'})}).catch(()=>{});
-    // #endregion
     
     // Segments use 'start' and 'end' fields directly (not duration)
     for (let i = 0; i < segments.length; i++) {
@@ -1367,15 +1344,8 @@
   
   // Timer functionality
   function initTimer() {
-    // #region agent log
-    fetch('http://localhost:7242/ingest/2d1a7245-2209-4ba5-a6cc-73ffb0303c5e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'power_zone_content.html:1195',message:'initTimer called',data:{hasTargetMetrics:!!targetMetricsJson,hasSegments:!!(targetMetricsJson?.segments),segmentCount:targetMetricsJson?.segments?.length,hasChart:!!window.performanceChart},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-    // #endregion
-    
     if (!targetMetricsJson || !targetMetricsJson.segments || targetMetricsJson.segments.length === 0) {
       console.log('No segments data for timer');
-      // #region agent log
-      fetch('http://localhost:7242/ingest/2d1a7245-2209-4ba5-a6cc-73ffb0303c5e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'power_zone_content.html:1197',message:'Timer init failed - no segments',data:{hasTargetMetrics:!!targetMetricsJson},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-      // #endregion
       return;
     }
     
@@ -1503,11 +1473,7 @@
       
       const progress = (chartCurrentTime / totalDuration) * 100;
       progressSlider.value = Math.round(progress * 100) / 100;
-      
-      // #region agent log
-      fetch('http://localhost:7242/ingest/2d1a7245-2209-4ba5-a6cc-73ffb0303c5e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'power_zone_content.html:updateProgress',message:'updateProgress called',data:{chartCurrentTime:chartCurrentTime,progress:progress,isFullscreen:fullscreenOverlay?.style.display !== 'none'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'L'})}).catch(()=>{});
-      // #endregion
-      
+
       if (sliderCurrentTime) {
         const minutes = Math.floor(chartCurrentTime / 60);
         const seconds = Math.floor(chartCurrentTime % 60);
@@ -1658,11 +1624,7 @@
                 // If zone is different, this is the next change
                 if (nextZone !== currentTarget) {
                   intervalTime = timestamp - chartCurrentTime;
-                  
-                  // #region agent log
-                  fetch('http://localhost:7242/ingest/2d1a7245-2209-4ba5-a6cc-73ffb0303c5e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'power_zone_content.html:intervalTime',message:'Next target change found',data:{chartCurrentTime:chartCurrentTime,currentTarget:currentTarget,nextZone:nextZone,nextChangeTime:timestamp,intervalTime:intervalTime},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'O'})}).catch(()=>{});
-                  // #endregion
-                  
+
                   break;
                 }
               }
@@ -1679,48 +1641,24 @@
         }
       }
       
-      // #region agent log
-      fetch('http://localhost:7242/ingest/2d1a7245-2209-4ba5-a6cc-73ffb0303c5e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'power_zone_content.html:intervalTime',message:'Interval time calculated',data:{chartCurrentTime:chartCurrentTime,intervalTime:intervalTime,currentTarget:currentTarget},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'O'})}).catch(()=>{});
-      // #endregion
-      
       const intervalMinutes = Math.floor(Math.max(0, intervalTime) / 60);
       const intervalSeconds = Math.floor(Math.max(0, intervalTime) % 60);
       intervalTimeEl.textContent = intervalMinutes + ':' + String(intervalSeconds).padStart(2, '0');
       
       // Update current target (reuse currentTarget already calculated above)
-      
-      // #region agent log
-      fetch('http://localhost:7242/ingest/2d1a7245-2209-4ba5-a6cc-73ffb0303c5e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'power_zone_content.html:1385',message:'getCurrentTarget result',data:{chartCurrentTime:chartCurrentTime,currentTarget:currentTarget,hasTargetMetrics:!!targetMetricsJson,segmentCount:targetMetricsJson?.segments?.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
-      // #endregion
-      
+
       if (currentTarget !== null && currentTarget !== undefined) {
         const ftp = parseInt(ftpInput.value) || 250;
         const targetOutput = Math.round(ftp * getZonePercentage(currentTarget));
         currentTargetEl.textContent = String(targetOutput) + 'W @ Zone ' + currentTarget;
-        
-        // #region agent log
-        fetch('http://localhost:7242/ingest/2d1a7245-2209-4ba5-a6cc-73ffb0303c5e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'power_zone_content.html:1389',message:'Target updated',data:{currentTarget:currentTarget,ftp:ftp,targetOutput:targetOutput},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
-        // #endregion
       } else {
         currentTargetEl.textContent = 'Loading...';
-        
-        // #region agent log
-        fetch('http://localhost:7242/ingest/2d1a7245-2209-4ba5-a6cc-73ffb0303c5e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'power_zone_content.html:1391',message:'Target is null/undefined',data:{currentTarget:currentTarget},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
-        // #endregion
       }
       
       // Update chart progress line
-      // #region agent log
-      fetch('http://localhost:7242/ingest/2d1a7245-2209-4ba5-a6cc-73ffb0303c5e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'power_zone_content.html:1381',message:'Updating chart progress',data:{hasChart:!!window.performanceChart,chartCurrentTime:chartCurrentTime,isPlaying:isPlaying},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-      // #endregion
-      
       if (window.performanceChart) {
         // Update progress line plugin currentTime
         const progressLinePlugin = window.performanceChart.config.plugins?.find(p => p.id === 'progressLine');
-        
-        // #region agent log
-        fetch('http://localhost:7242/ingest/2d1a7245-2209-4ba5-a6cc-73ffb0303c5e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'power_zone_content.html:1384',message:'Progress line plugin check',data:{hasPlugin:!!progressLinePlugin,pluginId:progressLinePlugin?.id,currentTime:chartCurrentTime},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-        // #endregion
         
         if (progressLinePlugin) {
           // Store currentTime in plugin options
@@ -1735,18 +1673,9 @@
         
         try {
           window.performanceChart.update('none');
-          // #region agent log
-          fetch('http://localhost:7242/ingest/2d1a7245-2209-4ba5-a6cc-73ffb0303c5e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'power_zone_content.html:1395',message:'Chart update called',data:{success:true},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-          // #endregion
         } catch (e) {
-          // #region agent log
-          fetch('http://localhost:7242/ingest/2d1a7245-2209-4ba5-a6cc-73ffb0303c5e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'power_zone_content.html:1395',message:'Chart update error',data:{error:e.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-          // #endregion
         }
       } else {
-        // #region agent log
-        fetch('http://localhost:7242/ingest/2d1a7245-2209-4ba5-a6cc-73ffb0303c5e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'power_zone_content.html:1382',message:'Chart not found',data:{hasChart:false},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-        // #endregion
       }
       
       // Update fullscreen display if in fullscreen
@@ -1757,10 +1686,6 @@
     }
     
     function play() {
-      // #region agent log
-      fetch('http://localhost:7242/ingest/2d1a7245-2209-4ba5-a6cc-73ffb0303c5e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'power_zone_content.html:1404',message:'Play function called',data:{totalDuration:totalDuration,hasStarted:hasStarted,chartCurrentTime:chartCurrentTime,hasChart:!!window.performanceChart},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-      // #endregion
-      
       if (totalDuration === 0) return;
       
       if (!hasStarted && chartCurrentTime === 0) {
@@ -1879,10 +1804,6 @@
       // Update global chartCurrentTime for tooltip access
       window.chartCurrentTime = chartCurrentTime;
       
-      // #region agent log
-      fetch('http://localhost:7242/ingest/2d1a7245-2209-4ba5-a6cc-73ffb0303c5e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'power_zone_content.html:progressSlider-input',message:'Non-fullscreen slider moved',data:{progress:progress,chartCurrentTime:chartCurrentTime,totalDuration:totalDuration,isFullscreen:fullscreenOverlay?.style.display !== 'none'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'L'})}).catch(()=>{});
-      // #endregion
-      
       updateSliderTooltip(progress);
       
       if (isPlaying) {
@@ -1963,23 +1884,13 @@
     const exitFullscreenBtn = document.getElementById('exit-fullscreen-btn');
     let fullscreenChart = null;
     
-    // #region agent log
-    fetch('http://localhost:7242/ingest/2d1a7245-2209-4ba5-a6cc-73ffb0303c5e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'power_zone_content.html:1576',message:'Fullscreen button setup',data:{hasFullscreenBtn:!!fullscreenBtn,hasFullscreenOverlay:!!fullscreenOverlay,hasMainChart:!!window.performanceChart},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
-    
     function createFullscreenChart() {
       const fullscreenCtx = document.getElementById('fullscreen-performanceChart');
       if (!fullscreenCtx || fullscreenChart) {
-        // #region agent log
-        fetch('http://localhost:7242/ingest/2d1a7245-2209-4ba5-a6cc-73ffb0303c5e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'power_zone_content.html:createFullscreenChart',message:'Cannot create fullscreen chart',data:{hasCanvas:!!fullscreenCtx,hasExistingChart:!!fullscreenChart},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-        // #endregion
         return;
       }
       
       if (!window.performanceChart || !window.chartConfig) {
-        // #region agent log
-        fetch('http://localhost:7242/ingest/2d1a7245-2209-4ba5-a6cc-73ffb0303c5e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'power_zone_content.html:createFullscreenChart',message:'Main chart not ready',data:{hasMainChart:!!window.performanceChart,hasChartConfig:!!window.chartConfig},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-        // #endregion
         return;
       }
       
@@ -2000,11 +1911,7 @@
       };
       
       fullscreenChart = new Chart(fullscreenCtx, fullscreenChartConfig);
-      
-      // #region agent log
-      fetch('http://localhost:7242/ingest/2d1a7245-2209-4ba5-a6cc-73ffb0303c5e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'power_zone_content.html:createFullscreenChart',message:'Fullscreen chart created',data:{success:true,hasChart:!!fullscreenChart},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
-      
+
       // Sync fullscreen chart controls
       const fullscreenToggleZoneColorsCheckbox = document.getElementById('fullscreen-toggle-zone-colors');
       const fullscreenToggleTargetLineBtn = document.getElementById('fullscreen-toggle-target-line');
@@ -2118,10 +2025,6 @@
           const fullscreenProgress = parseFloat(this.value);
           const fullscreenTime = (fullscreenProgress / 100) * totalDuration;
           
-          // #region agent log
-          fetch('http://localhost:7242/ingest/2d1a7245-2209-4ba5-a6cc-73ffb0303c5e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'power_zone_content.html:fullscreenProgressSlider-input',message:'Fullscreen slider moved',data:{fullscreenProgress:fullscreenProgress,fullscreenTime:fullscreenTime,totalDuration:totalDuration,currentChartCurrentTime:chartCurrentTime},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'L'})}).catch(()=>{});
-          // #endregion
-          
           progressSlider.value = this.value;
           progressSlider.dispatchEvent(new Event('input'));
         });
@@ -2132,11 +2035,7 @@
     
     function updateFullscreenDisplay() {
       if (!fullscreenOverlay || fullscreenOverlay.style.display === 'none') return;
-      
-      // #region agent log
-      fetch('http://localhost:7242/ingest/2d1a7245-2209-4ba5-a6cc-73ffb0303c5e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'power_zone_content.html:updateFullscreenDisplay',message:'updateFullscreenDisplay called',data:{chartCurrentTime:chartCurrentTime,totalDuration:totalDuration},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'L'})}).catch(()=>{});
-      // #endregion
-      
+
       const fullscreenTimeLeft = document.getElementById('fullscreen-time-left');
       const fullscreenIntervalTime = document.getElementById('fullscreen-interval-time');
       const fullscreenCurrentTarget = document.getElementById('fullscreen-current-target');
@@ -2345,10 +2244,6 @@
     
     if (fullscreenBtn && fullscreenOverlay) {
       fullscreenBtn.addEventListener('click', function() {
-        // #region agent log
-        fetch('http://localhost:7242/ingest/2d1a7245-2209-4ba5-a6cc-73ffb0303c5e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'power_zone_content.html:1581',message:'Fullscreen button clicked',data:{hasFullscreenChart:!!fullscreenChart,hasMainChart:!!window.performanceChart},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-        // #endregion
-        
         fullscreenOverlay.style.display = 'flex';
         document.body.style.overflow = 'hidden';
         

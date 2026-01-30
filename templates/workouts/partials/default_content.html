@@ -11,6 +11,10 @@
   </div>
 {% endif %}
 
+{% if ride.fitness_discipline == 'cycling' %}
+  {% include 'workouts/partials/class_workout_comparison_table.html' %}
+{% endif %}
+
 <!-- Information Cards -->
 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 mb-6">
   <!-- Class Info Card -->

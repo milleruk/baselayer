@@ -2205,6 +2205,43 @@ def class_detail(request, pk):
     elif hasattr(ride, 'created_at') and ride.created_at:
         class_date = ride.created_at.strftime("%d/%m/%y @ %I:%M%p ET")
     
+    # Past workouts for this class (used for Power Zone / Pace Target / Cycling comparisons)
+    times_taken = 0
+    workouts_page_obj = None
+    qs_workouts = request.GET.copy()
+    try:
+        qs_workouts.pop('workouts_page')
+    except Exception:
+        pass
+    qs_without_workouts_page = qs_workouts.urlencode()
+
+    try:
+        class_workouts_qs = (
+            Workout.objects.filter(user=request.user, ride_detail=ride)
+            .select_related('ride_detail', 'details')
+            .order_by('-completed_date', 'id')
+        )
+        times_taken = class_workouts_qs.count()
+        if times_taken > 0:
+            paginator = Paginator(class_workouts_qs, 20)
+            workouts_page_number = request.GET.get('workouts_page', 1)
+            workouts_page_obj = paginator.get_page(workouts_page_number)
+
+            # Derived fields for run/walk tables (pace/speed/IF)
+            fd = (getattr(ride, 'fitness_discipline', '') or '').lower()
+            is_run_walk = (ride.class_type == 'pace_target') or (fd in ['running', 'walking', 'run', 'walk'])
+            if is_run_walk:
+                for w in workouts_page_obj.object_list:
+                    avg_speed_mph = _estimate_workout_avg_speed_mph(w)
+                    w.derived_avg_speed_mph = avg_speed_mph
+                    w.derived_avg_pace_str = _pace_str_from_mph(avg_speed_mph) if avg_speed_mph else None
+                    w.derived_if = _estimate_workout_if_from_tss(w)
+        else:
+            workouts_page_obj = None
+    except Exception:
+        times_taken = 0
+        workouts_page_obj = None
+
     # Generate Peloton URL (matching reference template)
     peloton_url = None
     if ride.peloton_class_url:
@@ -2249,6 +2286,9 @@ def class_detail(request, pk):
         'class_date': class_date,
         'peloton_url': peloton_url,
         'user_ftp': user_ftp if 'user_ftp' in locals() else (user_profile.get_current_ftp() if user_profile else None),
+        'times_taken': times_taken,
+        'workouts_page_obj': workouts_page_obj,
+        'qs_without_workouts_page': qs_without_workouts_page,
     }
     
     return render(request, 'workouts/class_detail.html', context)
@@ -2654,6 +2694,42 @@ def _estimate_workout_avg_speed_mph(workout):
     if not speeds:
         return None
     return sum(speeds) / float(len(speeds))
+
+
+def _pace_str_from_mph(mph):
+    """Convert mph -> mm:ss/mi pace string."""
+    try:
+        mph = float(mph)
+        if mph <= 0:
+            return None
+        pace_min_per_mile = 60.0 / mph
+        minutes = int(pace_min_per_mile)
+        seconds = int(round((pace_min_per_mile - minutes) * 60.0))
+        if seconds == 60:
+            minutes += 1
+            seconds = 0
+        return f"{minutes}:{seconds:02d}/mi"
+    except Exception:
+        return None
+
+
+def _estimate_workout_if_from_tss(workout):
+    """Estimate IF from stored TSS + duration when available."""
+    try:
+        details = getattr(workout, "details", None)
+        tss = getattr(details, "tss", None) if details else None
+        if tss is None:
+            return None
+        ride = getattr(workout, "ride_detail", None)
+        duration_seconds = getattr(ride, "duration_seconds", None) if ride else None
+        if not isinstance(duration_seconds, int) or duration_seconds <= 0:
+            return None
+        hours = duration_seconds / 3600.0
+        if hours <= 0:
+            return None
+        return (float(tss) / (hours * 100.0)) ** 0.5
+    except Exception:
+        return None
 
 
 def _estimate_workout_tss(workout, user_profile=None):
