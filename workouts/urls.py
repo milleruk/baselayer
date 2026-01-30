@@ -1,10 +1,20 @@
 from django.urls import path
-from .views import workout_history, workout_detail, sync_workouts, connect, sync_status, class_library, class_detail
+from .views import (
+    workout_history,
+    workout_history_suggest,
+    workout_detail,
+    sync_workouts,
+    connect,
+    sync_status,
+    class_library,
+    class_detail,
+)
 
 app_name = "workouts"
 
 urlpatterns = [
     path("", workout_history, name="history"),
+    path("history/suggest/", workout_history_suggest, name="history_suggest"),
     path("library/", class_library, name="library"),
     path("library/<int:pk>/", class_detail, name="class_detail"),
     path("<int:pk>/", workout_detail, name="detail"),

@@ -2238,6 +2238,52 @@ def workout_history(request):
         except (ValueError, TypeError):
             pass
 
+    # Filter by Peloton class type (from RideDetail.class_type_ids via ClassType model)
+    # We support both:
+    # - class_type=<peloton_id> (legacy/backward-compatible)
+    # - class_type_name=<human name> (preferred; de-duplicates labels)
+    class_type_filter = (request.GET.get('class_type', '') or '').strip()
+    class_type_name_filter = (request.GET.get('class_type_name', '') or '').strip()
+    class_type_label = None
+    class_type_ids = []
+    try:
+        from workouts.models import ClassType
+        if class_type_name_filter:
+            class_type_label = class_type_name_filter
+            class_type_ids = list(
+                ClassType.objects.filter(is_active=True, name__iexact=class_type_name_filter)
+                .values_list('peloton_id', flat=True)
+            )
+        elif class_type_filter:
+            class_type_label = class_type_filter
+            class_type_ids = [class_type_filter]
+    except Exception:
+        class_type_ids = [class_type_filter] if class_type_filter else []
+
+    if class_type_ids:
+        try:
+            from django.db import connection
+            vendor = getattr(connection, 'vendor', '')
+            q_obj = Q()
+            for ct_id in class_type_ids:
+                if not ct_id:
+                    continue
+                if vendor in ['postgresql', 'mysql']:
+                    q_obj |= Q(ride_detail__class_type_ids__contains=[ct_id])
+                else:
+                    token = f"\\\"{ct_id}\\\""
+                    q_obj |= Q(ride_detail__class_type_ids__icontains=token)
+            if q_obj:
+                workouts = workouts.filter(q_obj)
+        except Exception:
+            # Fallback: OR across raw substring matches
+            q_obj = Q()
+            for ct_id in class_type_ids:
+                if ct_id:
+                    q_obj |= Q(ride_detail__class_type_ids__icontains=ct_id)
+            if q_obj:
+                workouts = workouts.filter(q_obj)
+
     # Filter: only workouts with performance charts (time-series data exists)
     has_charts_raw = (request.GET.get('has_charts', '') or '').strip().lower()
     has_charts_filter = has_charts_raw in ['1', 'true', 'yes', 'on']
@@ -2248,12 +2294,18 @@ def workout_history(request):
 
             workouts = workouts.annotate(
                 has_charts=Exists(
-                    WorkoutPerformanceData.objects.filter(workout_id=OuterRef('pk'))
+                    # Only count as "charted" if we have usable series for our cards
+                    # (stretches often only have HR, which we don't chart on cards)
+                    WorkoutPerformanceData.objects.filter(workout_id=OuterRef('pk')).filter(
+                        Q(output__isnull=False) | Q(speed__isnull=False)
+                    )
                 )
             ).filter(has_charts=True)
         except Exception:
             # Fallback: may create duplicates; keep stable ordering via distinct()
-            workouts = workouts.filter(performance_data__isnull=False).distinct()
+            workouts = workouts.filter(
+                Q(performance_data__output__isnull=False) | Q(performance_data__speed__isnull=False)
+            ).distinct()
     
     # Ordering - title ordering uses ride_detail__title via SQL join
     order_by = request.GET.get('order_by', '-completed_date')
@@ -2358,6 +2410,9 @@ def workout_history(request):
         'duration_filter': duration_filter,
         'tss_filter': tss_filter,
         'has_charts_filter': has_charts_filter,
+        'class_type_filter': class_type_filter,
+        'class_type_name_filter': class_type_name_filter,
+        'class_type_label': class_type_label,
         'order_by': order_by,
         'total_workouts': paginator.count,
         'is_paginated': is_paginated,
@@ -2365,7 +2420,26 @@ def workout_history(request):
         'qs_without_page': None,
         'qs_without_type_and_page': None,
         'qs_remove': {},
+        'class_types_by_discipline': {},
     }
+
+    # Class types for dropdown (grouped)
+    try:
+        from workouts.models import ClassType
+        class_types = ClassType.objects.filter(is_active=True).order_by('fitness_discipline', 'name', 'peloton_id')
+        grouped = {}
+        seen = set()
+        for ct in class_types:
+            key = (ct.fitness_discipline or 'other').strip() or 'other'
+            # De-dupe within a discipline by display name (Peloton can have multiple IDs with same name)
+            sig = (key, (ct.name or '').strip().lower())
+            if sig in seen:
+                continue
+            seen.add(sig)
+            grouped.setdefault(key, []).append(ct)
+        context['class_types_by_discipline'] = grouped
+    except Exception:
+        context['class_types_by_discipline'] = {}
 
     # Pre-compute querystrings for templates (preserve multi-filter combinations)
     try:
@@ -2382,7 +2456,7 @@ def workout_history(request):
 
         # Query strings for removing a single filter while preserving others
         qs_remove = {}
-        for key in ['search', 'instructor', 'duration', 'tss', 'has_charts', 'type']:
+        for key in ['search', 'instructor', 'duration', 'tss', 'has_charts', 'class_type', 'class_type_name', 'type']:
             q = request.GET.copy()
             q.pop('page', None)
             q.pop('infinite', None)
@@ -2398,6 +2472,9 @@ def workout_history(request):
     try:
         user_profile = getattr(request.user, "profile", None)
         for w in page_obj.object_list:
+            # Derived metrics for cards (avoid blanks when Peloton didn't send metrics)
+            w.derived_tss = _estimate_workout_tss(w, user_profile=user_profile)
+            w.derived_avg_speed = _estimate_workout_avg_speed_mph(w)
             w.card_chart = _build_workout_card_chart(w, user_profile=user_profile)
     except Exception:
         # Keep page usable even if chart derivation fails for an edge case.
@@ -2405,6 +2482,63 @@ def workout_history(request):
     
     # Otherwise return full page
     return render(request, 'workouts/history.html', context)
+
+
+@login_required
+def workout_history_suggest(request):
+    """
+    Lightweight JSON suggestions for the workout history search box.
+    Returns titles and instructor names matching the query.
+    """
+    from django.http import JsonResponse
+    from django.db.models import Q
+
+    q = (request.GET.get('q', '') or '').strip()
+    if len(q) < 2:
+        return JsonResponse({'results': []})
+    # Guard against expensive regex / huge inputs
+    if len(q) > 64:
+        q = q[:64]
+
+    # Build a safe "fuzzy" regex: characters in order, allowing gaps.
+    # Example: "pzr" -> "p.*z.*r"
+    import re
+    q_compact = re.sub(r"\s+", "", q)
+    # Keep alphanumerics only for the regex pattern to avoid special chars
+    q_alnum = re.sub(r"[^0-9A-Za-z]+", "", q_compact)
+    fuzzy_regex = None
+    if len(q_alnum) >= 2 and len(q_alnum) <= 32:
+        fuzzy_regex = ".*".join(re.escape(ch) for ch in q_alnum)
+
+    base = Workout.objects.filter(user=request.user, ride_detail__isnull=False).select_related(
+        'ride_detail', 'ride_detail__instructor'
+    )
+    base = base.filter(
+        Q(ride_detail__title__icontains=q) |
+        Q(ride_detail__instructor__name__icontains=q) |
+        (
+            Q(ride_detail__title__iregex=fuzzy_regex) |
+            Q(ride_detail__instructor__name__iregex=fuzzy_regex)
+        if fuzzy_regex else Q()
+        )
+    )
+
+    titles = list(
+        base.order_by('ride_detail__title')
+        .values_list('ride_detail__title', flat=True)
+        .distinct()[:7]
+    )
+    instructors = list(
+        base.exclude(ride_detail__instructor__name__isnull=True)
+        .order_by('ride_detail__instructor__name')
+        .values_list('ride_detail__instructor__name', flat=True)
+        .distinct()[:5]
+    )
+
+    results = [{'label': t, 'value': t, 'kind': 'title'} for t in titles if t]
+    results.extend([{'label': f'Instructor: {n}', 'value': n, 'kind': 'instructor'} for n in instructors if n])
+
+    return JsonResponse({'results': results})
 
 
 def _downsample_points(values, max_points=48):
@@ -2426,6 +2560,114 @@ def _downsample_points(values, max_points=48):
             idx = len(cleaned) - 1
         out.append(cleaned[idx])
     return out
+
+
+def _estimate_workout_avg_speed_mph(workout):
+    """Estimate avg speed (mph) from details or time-series speed."""
+    try:
+        details = getattr(workout, "details", None)
+        if details and getattr(details, "avg_speed", None) is not None:
+            return float(details.avg_speed)
+    except Exception:
+        pass
+
+    try:
+        perf = list(workout.performance_data.all())
+    except Exception:
+        perf = []
+    speeds = []
+    for p in perf:
+        v = getattr(p, "speed", None)
+        if isinstance(v, (int, float)):
+            speeds.append(float(v))
+    if not speeds:
+        return None
+    return sum(speeds) / float(len(speeds))
+
+
+def _estimate_workout_tss(workout, user_profile=None):
+    """
+    Estimate cycling TSS when Peloton didn't provide it.
+
+    Uses a common approximation:
+      IF ≈ avg_power / FTP
+      TSS ≈ hours * IF^2 * 100
+    """
+    ride = getattr(workout, "ride_detail", None)
+    if not ride:
+        return None
+
+    discipline = (getattr(ride, "fitness_discipline", "") or "").lower()
+    if discipline not in ["cycling", "ride", "bike", "bike_bootcamp", "circuit"]:
+        return None
+
+    # Prefer stored avg_output if available
+    avg_power = None
+    try:
+        details = getattr(workout, "details", None)
+        if details and getattr(details, "avg_output", None) is not None:
+            avg_power = float(details.avg_output)
+        if details and getattr(details, "tss", None) is not None:
+            return float(details.tss)
+    except Exception:
+        pass
+
+    try:
+        perf = list(workout.performance_data.all())
+    except Exception:
+        perf = []
+    outputs = []
+    max_t = None
+    for p in perf:
+        t = getattr(p, "timestamp", None)
+        if isinstance(t, int):
+            max_t = t if max_t is None else max(max_t, t)
+        v = getattr(p, "output", None)
+        if isinstance(v, (int, float)):
+            outputs.append(float(v))
+
+    if avg_power is None:
+        if not outputs:
+            return None
+        avg_power = sum(outputs) / float(len(outputs))
+
+    # Duration: prefer class duration; fallback to last timestamp
+    duration_seconds = getattr(ride, "duration_seconds", None)
+    if not isinstance(duration_seconds, int) or duration_seconds <= 0:
+        duration_seconds = (max_t + 1) if isinstance(max_t, int) else None
+    if not duration_seconds or duration_seconds <= 0:
+        return None
+
+    # FTP at workout date
+    ftp = None
+    workout_date = getattr(workout, "completed_date", None) or getattr(workout, "recorded_date", None)
+    if user_profile and workout_date and hasattr(user_profile, "get_ftp_at_date"):
+        try:
+            ftp = user_profile.get_ftp_at_date(workout_date)
+        except Exception:
+            ftp = None
+    if not ftp and user_profile and hasattr(user_profile, "get_current_ftp"):
+        try:
+            ftp = user_profile.get_current_ftp()
+        except Exception:
+            ftp = None
+    try:
+        ftp = float(ftp) if ftp is not None else None
+    except Exception:
+        ftp = None
+    if not ftp or ftp <= 0:
+        return None
+
+    intensity_factor = avg_power / ftp
+    # Keep within a sane range
+    if intensity_factor < 0:
+        intensity_factor = 0.0
+    if intensity_factor > 2.0:
+        intensity_factor = 2.0
+
+    hours = float(duration_seconds) / 3600.0
+    tss = hours * (intensity_factor ** 2) * 100.0
+    return tss
 
 
 def _downsample_series(series, max_points=48):

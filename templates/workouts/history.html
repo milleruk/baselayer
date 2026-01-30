@@ -48,145 +48,369 @@
 
 <!-- Filters and Search -->
 <div class="mb-6 space-y-4">
-  <!-- Search Bar -->
-  <form 
-    method="get" 
-    class="flex flex-col sm:flex-row gap-3">
-    <div class="flex-1 relative">
-      <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-        <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-        </svg>
-      </div>
-      <input type="text" name="search" value="{{ search_query }}" placeholder="Search workouts by title or instructor" 
-             class="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-primary focus:border-transparent">
-    </div>
-    
-    <!-- Filter Dropdowns -->
-    <div class="flex flex-wrap gap-2">
-      <!-- Charts Only Toggle -->
-      <label class="inline-flex items-center gap-2 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm cursor-pointer">
-        <input
-          type="checkbox"
-          name="has_charts"
-          value="1"
-          {% if has_charts_filter %}checked{% endif %}
-          class="h-4 w-4 rounded border-gray-300 dark:border-gray-600 text-primary focus:ring-primary"
-        >
-        <span>Charts only</span>
-      </label>
+  <div class="relative z-40 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm">
+    <div class="p-4 sm:p-5">
+      <form id="historyFiltersForm" method="get" class="space-y-3">
+        {% if workout_type_filter %}
+          <input type="hidden" name="type" value="{{ workout_type_filter }}">
+        {% endif %}
 
-      <!-- TSS Filter -->
-      <div class="relative">
-        <input type="number" name="tss" value="{{ tss_filter }}" placeholder="TSS" min="0" step="0.1"
-               class="w-20 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-primary focus:border-transparent">
-      </div>
-      
-      <!-- Instructor Filter -->
-      <div class="relative min-w-[140px]">
-        <select name="instructor" 
-                class="w-full appearance-none bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 pr-8 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent cursor-pointer text-sm filter-select">
-          <option value="">Add Instructor</option>
-          {% for instructor in instructors %}
-            <option value="{{ instructor.id }}" {% if instructor_filter == instructor.id|stringformat:"s" %}selected{% endif %}>
-              {{ instructor.name }}
-            </option>
-          {% endfor %}
-        </select>
-        <div class="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
-          <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-          </svg>
+        <div class="flex flex-col lg:flex-row gap-3 lg:items-center">
+          <div class="flex-1 relative">
+            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+              </svg>
+            </div>
+            <input
+              type="text"
+              id="historySearchInput"
+              name="search"
+              value="{{ search_query }}"
+              placeholder="Search title or instructor…"
+              autocomplete="off"
+              class="block w-full pl-10 pr-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900/40 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-primary focus:border-transparent"
+            >
+
+            <!-- JSON suggestions dropdown -->
+            <div
+              id="historySearchSuggestions"
+              class="hidden absolute left-0 right-0 mt-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-xl overflow-hidden z-50"
+            >
+              <div class="px-3 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/60">
+                Suggestions
+              </div>
+              <div id="historySearchSuggestionsList" class="max-h-64 overflow-y-auto"></div>
+            </div>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-2">
+            <!-- Charts-only Toggle (auto-filters) -->
+            {% if has_charts_filter %}
+              <input type="hidden" name="has_charts" value="1" id="has-charts-input">
+            {% endif %}
+            <button
+              type="button"
+              id="has-charts-toggle"
+              aria-pressed="{% if has_charts_filter %}true{% else %}false{% endif %}"
+              class="inline-flex items-center gap-2 px-3 py-2.5 rounded-lg border text-sm font-semibold transition-colors
+                {% if has_charts_filter %}
+                  bg-primary text-white border-primary shadow-[0_0_0_3px_rgba(59,130,246,0.15)]
+                {% else %}
+                  bg-white dark:bg-gray-900/40 text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700/40
+                {% endif %}"
+            >
+              <span class="inline-block h-2 w-2 rounded-full {% if has_charts_filter %}bg-white{% else %}bg-primary{% endif %}"></span>
+              Charts
+            </button>
+
+            <!-- Min TSS -->
+            <div class="relative">
+              <input
+                type="number"
+                name="tss"
+                value="{{ tss_filter }}"
+                placeholder="Min TSS"
+                min="0"
+                step="0.1"
+                class="w-28 px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900/40 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
+              >
+            </div>
+
+            <!-- Instructor -->
+            <div class="relative min-w-[160px]">
+              <select
+                name="instructor"
+                class="w-full appearance-none bg-white dark:bg-gray-900/40 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2.5 pr-9 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent cursor-pointer text-sm"
+              >
+                <option value="">Instructor</option>
+                {% for instructor in instructors %}
+                  <option value="{{ instructor.id }}" {% if instructor_filter == instructor.id|stringformat:"s" %}selected{% endif %}>
+                    {{ instructor.name }}
+                  </option>
+                {% endfor %}
+              </select>
+              <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                </svg>
+              </div>
+            </div>
+
+            <!-- Class Type -->
+            <div class="relative min-w-[160px]">
+              <select
+                name="class_type_name"
+                class="w-full appearance-none bg-white dark:bg-gray-900/40 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2.5 pr-9 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent cursor-pointer text-sm"
+              >
+                <option value="">Class type</option>
+                {% for discipline, types in class_types_by_discipline.items %}
+                  {% if discipline != 'other' %}
+                    <optgroup label="{{ discipline|title }}">
+                      {% for ct in types %}
+                        <option value="{{ ct.name }}" {% if class_type_name_filter|lower == ct.name|lower %}selected{% endif %}>{{ ct.name }}</option>
+                      {% endfor %}
+                    </optgroup>
+                  {% endif %}
+                {% endfor %}
+                {% if class_types_by_discipline.other %}
+                  <optgroup label="Other">
+                    {% for ct in class_types_by_discipline.other %}
+                      <option value="{{ ct.name }}" {% if class_type_name_filter|lower == ct.name|lower %}selected{% endif %}>{{ ct.name }}</option>
+                    {% endfor %}
+                  </optgroup>
+                {% endif %}
+              </select>
+              <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                </svg>
+              </div>
+            </div>
+
+            <!-- Duration -->
+            <div class="relative min-w-[132px]">
+              <select
+                name="duration"
+                class="w-full appearance-none bg-white dark:bg-gray-900/40 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2.5 pr-9 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent cursor-pointer text-sm"
+              >
+                <option value="">Duration</option>
+                {% for duration in durations %}
+                  <option value="{{ duration }}" {% if duration_filter == duration|stringformat:"s" %}selected{% endif %}>
+                    {{ duration }} min
+                  </option>
+                {% endfor %}
+              </select>
+              <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                </svg>
+              </div>
+            </div>
+
+            {% if search_query or instructor_filter or duration_filter or tss_filter or has_charts_filter or class_type_filter or class_type_name_filter %}
+              <a
+                href="{% url 'workouts:history' %}{% if workout_type_filter %}?type={{ workout_type_filter }}{% endif %}"
+                class="inline-flex items-center px-3 py-2.5 rounded-lg text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/40 border border-transparent"
+              >
+                Clear
+              </a>
+            {% endif %}
+
+            <noscript>
+              <button type="submit" class="px-4 py-2.5 text-sm font-semibold text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors whitespace-nowrap">
+                Apply
+              </button>
+            </noscript>
+          </div>
         </div>
-      </div>
-      
-      <!-- Duration Filter -->
-      <div class="relative min-w-[120px]">
-        <select name="duration" 
-                class="w-full appearance-none bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 pr-8 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent cursor-pointer text-sm filter-select">
-          <option value="">Add Duration</option>
-          {% for duration in durations %}
-            <option value="{{ duration }}" {% if duration_filter == duration|stringformat:"s" %}selected{% endif %}>
-              {{ duration }} min
-            </option>
-          {% endfor %}
-        </select>
-        <div class="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
-          <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-          </svg>
-        </div>
-      </div>
-      
-      <!-- Preserve other filters -->
-      {% if workout_type_filter %}
-        <input type="hidden" name="type" value="{{ workout_type_filter }}">
-      {% endif %}
-      
-      <button type="submit" id="filter-submit-btn" class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors whitespace-nowrap">
-        Search
-        <span id="filter-loading" class="htmx-indicator hidden ml-2 inline-block">
-          <svg class="animate-spin h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-          </svg>
-        </span>
-      </button>
+      </form>
     </div>
-  </form>
+  </div>
+
+  <script>
+    (function () {
+      const form = document.getElementById('historyFiltersForm');
+      const btn = document.getElementById('has-charts-toggle');
+      if (!form) return;
+
+      const submitNow = () => form.submit();
+
+      // Charts toggle
+      if (btn) {
+        btn.addEventListener('click', function () {
+          const existing = document.getElementById('has-charts-input');
+          if (existing) {
+            existing.remove();
+          } else {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'has_charts';
+            input.value = '1';
+            input.id = 'has-charts-input';
+            form.appendChild(input);
+          }
+          submitNow();
+        });
+      }
+
+      // Auto-submit on selects
+      form.querySelectorAll('select').forEach((el) => {
+        el.addEventListener('change', submitNow);
+      });
+
+      // Debounced auto-submit on text/number inputs
+      let timer = null;
+      const debounceSubmit = () => {
+        if (timer) window.clearTimeout(timer);
+        timer = window.setTimeout(submitNow, 450);
+      };
+      // Only auto-submit numeric inputs; search uses suggestions + Enter
+      form.querySelectorAll('input[type="number"]').forEach((el) => {
+        el.addEventListener('input', debounceSubmit);
+      });
+
+      // JSON-backed suggestions for search input
+      const searchInput = document.getElementById('historySearchInput');
+      const suggWrap = document.getElementById('historySearchSuggestions');
+      const suggList = document.getElementById('historySearchSuggestionsList');
+      if (!searchInput || !suggWrap || !suggList) return;
+
+      let suggestTimer = null;
+      let lastQ = '';
+
+      const hideSuggestions = () => {
+        suggWrap.classList.add('hidden');
+        suggList.innerHTML = '';
+      };
+
+      const escapeHtml = (s) =>
+        String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+      const renderSuggestions = (items) => {
+        if (!Array.isArray(items) || items.length === 0) {
+          hideSuggestions();
+          return;
+        }
+
+        suggList.innerHTML = items
+          .map((item) => {
+            const label = escapeHtml(item.label || item.value || '');
+            const value = escapeHtml(item.value || '');
+            const kind = String(item.kind || '');
+            const badge = kind === 'instructor' ? 'Instructor' : 'Title';
+            return `
+              <button type="button" data-value="${value}" class="w-full text-left px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-800/70 transition-colors flex items-center justify-between gap-3">
+                <span class="text-sm text-gray-900 dark:text-white line-clamp-1">${label}</span>
+                <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-800/60">${badge}</span>
+              </button>
+            `;
+          })
+          .join('');
+
+        suggWrap.classList.remove('hidden');
+
+        suggList.querySelectorAll('button[data-value]').forEach((btn) => {
+          btn.addEventListener('mousedown', (e) => {
+            // mousedown prevents blur hiding before click
+            e.preventDefault();
+            const val = btn.getAttribute('data-value') || '';
+            searchInput.value = val;
+            hideSuggestions();
+            submitNow();
+          });
+        });
+      };
+
+      const fetchSuggestions = async (q) => {
+        try {
+          const url = new URL("{% url 'workouts:history_suggest' %}", window.location.origin);
+          url.searchParams.set('q', q);
+          const resp = await fetch(url.toString(), { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+          if (!resp.ok) return [];
+          const data = await resp.json();
+          return data && Array.isArray(data.results) ? data.results : [];
+        } catch (e) {
+          return [];
+        }
+      };
+
+      searchInput.addEventListener('input', () => {
+        const q = (searchInput.value || '').trim();
+        lastQ = q;
+        if (suggestTimer) window.clearTimeout(suggestTimer);
+        if (q.length < 2) {
+          hideSuggestions();
+          return;
+        }
+        suggestTimer = window.setTimeout(async () => {
+          const items = await fetchSuggestions(q);
+          if (lastQ !== q) return;
+          renderSuggestions(items);
+        }, 160);
+      });
+
+      searchInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') hideSuggestions();
+      });
+
+      document.addEventListener('click', (e) => {
+        if (!suggWrap.contains(e.target) && e.target !== searchInput) hideSuggestions();
+      });
+    })();
+  </script>
   
   <!-- Workout Type Tabs -->
-  <div class="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
-    <div class="flex gap-1 border-b border-gray-200 dark:border-gray-700 min-w-max sm:min-w-0">
-    <a href="{% url 'workouts:history' %}{% if qs_without_type_and_page %}?{{ qs_without_type_and_page }}{% endif %}" 
-       class="workout-type-tab px-4 py-2 text-sm font-medium {% if not workout_type_filter %}text-primary border-b-2 border-primary{% else %}text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white{% endif %} transition-colors cursor-pointer">
-      All
-    </a>
-    {% for workout_type in workout_types %}
-      <a href="{% url 'workouts:history' %}?type={{ workout_type.slug }}{% if qs_without_type_and_page %}&{{ qs_without_type_and_page }}{% endif %}" 
-         class="workout-type-tab px-4 py-2 text-sm font-medium {% if workout_type_filter == workout_type.slug %}text-primary border-b-2 border-primary{% else %}text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white{% endif %} transition-colors cursor-pointer">
-        {{ workout_type.name }}
+  <div class="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm p-2 overflow-hidden">
+    <div class="flex gap-2 overflow-x-auto no-scrollbar py-1 px-1">
+      <a
+        href="{% url 'workouts:history' %}{% if qs_without_type_and_page %}?{{ qs_without_type_and_page }}{% endif %}"
+        class="px-4 py-2 rounded-full text-sm font-semibold border transition-colors whitespace-nowrap
+          {% if not workout_type_filter %}
+            bg-primary/10 text-primary border-primary/30
+          {% else %}
+            bg-transparent text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/40
+          {% endif %}"
+      >
+        All
       </a>
-    {% endfor %}
+      {% for workout_type in workout_types %}
+        <a
+          href="{% url 'workouts:history' %}?type={{ workout_type.slug }}{% if qs_without_type_and_page %}&{{ qs_without_type_and_page }}{% endif %}"
+          class="px-4 py-2 rounded-full text-sm font-semibold border transition-colors whitespace-nowrap
+            {% if workout_type_filter == workout_type.slug %}
+              bg-primary/10 text-primary border-primary/30
+            {% else %}
+              bg-transparent text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/40
+            {% endif %}"
+        >
+          {{ workout_type.name }}
+        </a>
+      {% endfor %}
     </div>
   </div>
   
   <!-- Active Filters Display -->
-  {% if search_query or instructor_filter or duration_filter or tss_filter or has_charts_filter %}
+  {% if search_query or instructor_filter or duration_filter or tss_filter or has_charts_filter or class_type_filter or class_type_name_filter %}
     <div class="flex flex-wrap gap-2 items-center">
-      <span class="text-sm text-gray-600 dark:text-gray-400">Active filters:</span>
       {% if search_query %}
-        <span class="inline-flex items-center gap-1 px-3 py-1 text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full">
-          Search: "{{ search_query }}"
+        <span class="inline-flex items-center gap-1 px-3 py-1 text-sm bg-gray-100 dark:bg-gray-700/60 text-gray-800 dark:text-gray-200 rounded-full border border-gray-200 dark:border-gray-700">
+          “{{ search_query }}”
           <a href="{% if qs_remove.search %}?{{ qs_remove.search }}{% else %}{% url 'workouts:history' %}{% endif %}" class="hover:text-gray-900 dark:hover:text-white">×</a>
         </span>
       {% endif %}
       {% if instructor_filter %}
         {% for instructor in instructors %}
           {% if instructor.id|stringformat:"s" == instructor_filter %}
-            <span class="inline-flex items-center gap-1 px-3 py-1 text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full">
-              Instructor: {{ instructor.name }}
+            <span class="inline-flex items-center gap-1 px-3 py-1 text-sm bg-gray-100 dark:bg-gray-700/60 text-gray-800 dark:text-gray-200 rounded-full border border-gray-200 dark:border-gray-700">
+              {{ instructor.name }}
               <a href="{% if qs_remove.instructor %}?{{ qs_remove.instructor }}{% else %}{% url 'workouts:history' %}{% endif %}" class="hover:text-gray-900 dark:hover:text-white">×</a>
             </span>
           {% endif %}
         {% endfor %}
       {% endif %}
       {% if duration_filter %}
-        <span class="inline-flex items-center gap-1 px-3 py-1 text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full">
-          Duration: {{ duration_filter }} min
+        <span class="inline-flex items-center gap-1 px-3 py-1 text-sm bg-gray-100 dark:bg-gray-700/60 text-gray-800 dark:text-gray-200 rounded-full border border-gray-200 dark:border-gray-700">
+          {{ duration_filter }} min
           <a href="{% if qs_remove.duration %}?{{ qs_remove.duration }}{% else %}{% url 'workouts:history' %}{% endif %}" class="hover:text-gray-900 dark:hover:text-white">×</a>
         </span>
       {% endif %}
       {% if tss_filter %}
-        <span class="inline-flex items-center gap-1 px-3 py-1 text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full">
-          TSS: ≥{{ tss_filter }}
+        <span class="inline-flex items-center gap-1 px-3 py-1 text-sm bg-gray-100 dark:bg-gray-700/60 text-gray-800 dark:text-gray-200 rounded-full border border-gray-200 dark:border-gray-700">
+          Min TSS {{ tss_filter }}
           <a href="{% if qs_remove.tss %}?{{ qs_remove.tss }}{% else %}{% url 'workouts:history' %}{% endif %}" class="hover:text-gray-900 dark:hover:text-white">×</a>
         </span>
       {% endif %}
       {% if has_charts_filter %}
-        <span class="inline-flex items-center gap-1 px-3 py-1 text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full">
-          Charts only
+        <span class="inline-flex items-center gap-1 px-3 py-1 text-sm bg-gray-100 dark:bg-gray-700/60 text-gray-800 dark:text-gray-200 rounded-full border border-gray-200 dark:border-gray-700">
+          Charts
           <a href="{% if qs_remove.has_charts %}?{{ qs_remove.has_charts }}{% else %}{% url 'workouts:history' %}{% endif %}" class="hover:text-gray-900 dark:hover:text-white">×</a>
+        </span>
+      {% endif %}
+      {% if class_type_filter or class_type_name_filter %}
+        <span class="inline-flex items-center gap-1 px-3 py-1 text-sm bg-gray-100 dark:bg-gray-700/60 text-gray-800 dark:text-gray-200 rounded-full border border-gray-200 dark:border-gray-700">
+          {{ class_type_label|default:"Type" }}
+          <a href="{% if qs_remove.class_type_name %}?{{ qs_remove.class_type_name }}{% else %}{% if qs_remove.class_type %}?{{ qs_remove.class_type }}{% else %}{% url 'workouts:history' %}{% endif %}{% endif %}" class="hover:text-gray-900 dark:hover:text-white">×</a>
         </span>
       {% endif %}
     </div>

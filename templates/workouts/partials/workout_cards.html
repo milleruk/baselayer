@@ -50,143 +50,135 @@
     </div>
     
     <!-- Performance Metrics -->
-    {% if workout.details %}
-      {% comment %}Determine which metrics to show based on workout type{% endcomment %}
-      {% if workout.workout_type %}
-        {% if workout.workout_type.slug == 'cycling' or workout.workout_type.slug == 'ride' %}
-          {% comment %}Cycling: Show TSS, Output metrics{% endcomment %}
-          <div class="grid grid-cols-4 gap-2 mb-4 py-3 border-t border-b border-gray-700">
-            <!-- TSS -->
-            <div class="text-center">
-              <div class="text-white font-semibold text-sm">
-                {% if workout.details.tss %}
-                  {% if workout.details.tss_target %}
-                    {{ workout.details.tss|floatformat:0 }}/{{ workout.details.tss_target|floatformat:0 }}
-                  {% else %}
-                    {{ workout.details.tss|floatformat:0 }}
-                  {% endif %}
+    {% comment %}Determine which metrics to show based on discipline/available metrics{% endcomment %}
+    {% with discipline=workout.ride_detail.fitness_discipline|default_if_none:""|lower %}
+      {% if discipline == "cycling" or discipline == "ride" or discipline == "bike" or discipline == "bike_bootcamp" or discipline == "circuit" %}
+        {% comment %}Cycling: Show TSS, Output metrics{% endcomment %}
+        <div class="grid grid-cols-4 gap-2 mb-4 py-3 border-t border-b border-gray-700">
+          <!-- TSS -->
+          <div class="text-center">
+            <div class="text-white font-semibold text-sm">
+              {% if workout.details and workout.details.tss %}
+                {% if workout.details.tss_target %}
+                  {{ workout.details.tss|floatformat:0 }}/{{ workout.details.tss_target|floatformat:0 }}
                 {% else %}
-                  —
+                  {{ workout.details.tss|floatformat:0 }}
                 {% endif %}
-              </div>
-              <div class="text-xs text-gray-400 mt-1">TSS</div>
+              {% elif workout.derived_tss %}
+                {{ workout.derived_tss|floatformat:0 }}
+              {% else %}
+                —
+              {% endif %}
             </div>
-            
-            <!-- Avg Output -->
-            <div class="text-center border-l border-gray-700 pl-2">
-              <div class="text-white font-semibold text-sm">
-                {% if workout.details.avg_output %}
-                  {{ workout.details.avg_output|floatformat:0 }}W
-                {% else %}
-                  —
-                {% endif %}
-              </div>
-              <div class="text-xs text-gray-400 mt-1">Avg Output</div>
-            </div>
-            
-            <!-- Total Output -->
-            <div class="text-center border-l border-gray-700 pl-2">
-              <div class="text-white font-semibold text-sm">
-                {% if workout.details.total_output %}
-                  {{ workout.details.total_output|floatformat:0 }} kJ
-                {% else %}
-                  —
-                {% endif %}
-              </div>
-              <div class="text-xs text-gray-400 mt-1">Total Output</div>
-            </div>
-            
-            <!-- Calories -->
-            <div class="text-center border-l border-gray-700 pl-2">
-              <div class="text-white font-semibold text-sm">
-                {% if workout.details.total_calories %}
-                  {{ workout.details.total_calories }}
-                {% else %}
-                  —
-                {% endif %}
-              </div>
-              <div class="text-xs text-gray-400 mt-1">Calories</div>
-            </div>
+            <div class="text-xs text-gray-400 mt-1">TSS</div>
           </div>
-        {% elif workout.workout_type.slug == 'running' or workout.workout_type.slug == 'run' or workout.workout_type.slug == 'walking' %}
-          {% comment %}Running/Walking: Show Distance, Speed, Calories{% endcomment %}
-          <div class="grid grid-cols-3 gap-2 mb-4 py-3 border-t border-b border-gray-700">
-            <!-- Distance -->
-            <div class="text-center">
-              <div class="text-white font-semibold text-sm">
-                {% if workout.details.distance %}
-                  {{ workout.details.distance|floatformat:2 }} mi
-                {% else %}
-                  —
-                {% endif %}
-              </div>
-              <div class="text-xs text-gray-400 mt-1">Distance</div>
+          
+          <!-- Avg Output -->
+          <div class="text-center border-l border-gray-700 pl-2">
+            <div class="text-white font-semibold text-sm">
+              {% if workout.details and workout.details.avg_output %}
+                {{ workout.details.avg_output|floatformat:0 }}W
+              {% else %}
+                —
+              {% endif %}
             </div>
-            
-            <!-- Avg Speed -->
-            <div class="text-center border-l border-gray-700 pl-2">
-              <div class="text-white font-semibold text-sm">
-                {% if workout.details.avg_speed %}
-                  {{ workout.details.avg_speed|floatformat:1 }} mph
-                {% else %}
-                  —
-                {% endif %}
-              </div>
-              <div class="text-xs text-gray-400 mt-1">Avg Speed</div>
-            </div>
-            
-            <!-- Calories -->
-            <div class="text-center border-l border-gray-700 pl-2">
-              <div class="text-white font-semibold text-sm">
-                {% if workout.details.total_calories %}
-                  {{ workout.details.total_calories }}
-                {% else %}
-                  —
-                {% endif %}
-              </div>
-              <div class="text-xs text-gray-400 mt-1">Calories</div>
-            </div>
+            <div class="text-xs text-gray-400 mt-1">Avg Output</div>
           </div>
-        {% else %}
-          {% comment %}Other types (yoga, meditation, strength, etc.): Show only Calories and Heart Rate if available{% endcomment %}
+          
+          <!-- Total Output -->
+          <div class="text-center border-l border-gray-700 pl-2">
+            <div class="text-white font-semibold text-sm">
+              {% if workout.details and workout.details.total_output %}
+                {{ workout.details.total_output|floatformat:0 }} kJ
+              {% else %}
+                —
+              {% endif %}
+            </div>
+            <div class="text-xs text-gray-400 mt-1">Total Output</div>
+          </div>
+          
+          <!-- Calories -->
+          <div class="text-center border-l border-gray-700 pl-2">
+            <div class="text-white font-semibold text-sm">
+              {% if workout.details and workout.details.total_calories %}
+                {{ workout.details.total_calories }}
+              {% else %}
+                —
+              {% endif %}
+            </div>
+            <div class="text-xs text-gray-400 mt-1">Calories</div>
+          </div>
+        </div>
+      {% elif discipline == "running" or discipline == "run" or discipline == "walking" or discipline == "walk" %}
+        {% comment %}Running/Walking: Show Distance, Avg Speed, Calories{% endcomment %}
+        <div class="grid grid-cols-3 gap-2 mb-4 py-3 border-t border-b border-gray-700">
+          <!-- Distance -->
+          <div class="text-center">
+            <div class="text-white font-semibold text-sm">
+              {% if workout.details and workout.details.distance %}
+                {{ workout.details.distance|floatformat:2 }} mi
+              {% else %}
+                —
+              {% endif %}
+            </div>
+            <div class="text-xs text-gray-400 mt-1">Distance</div>
+          </div>
+          
+          <!-- Avg Speed -->
+          <div class="text-center border-l border-gray-700 pl-2">
+            <div class="text-white font-semibold text-sm">
+              {% if workout.details and workout.details.avg_speed %}
+                {{ workout.details.avg_speed|floatformat:1 }} mph
+              {% elif workout.derived_avg_speed %}
+                {{ workout.derived_avg_speed|floatformat:1 }} mph
+              {% else %}
+                —
+              {% endif %}
+            </div>
+            <div class="text-xs text-gray-400 mt-1">Avg Speed</div>
+          </div>
+          
+          <!-- Calories -->
+          <div class="text-center border-l border-gray-700 pl-2">
+            <div class="text-white font-semibold text-sm">
+              {% if workout.details and workout.details.total_calories %}
+                {{ workout.details.total_calories }}
+              {% else %}
+                —
+              {% endif %}
+            </div>
+            <div class="text-xs text-gray-400 mt-1">Calories</div>
+          </div>
+        </div>
+      {% else %}
+        {% comment %}Other types (yoga, meditation, strength, etc.): Show only Calories and Heart Rate if available{% endcomment %}
+        {% if workout.details %}
           {% if workout.details.total_calories or workout.details.avg_heart_rate %}
-            <div class="grid grid-cols-{% if workout.details.total_calories and workout.details.avg_heart_rate %}2{% else %}1{% endif %} gap-2 mb-4 py-3 border-t border-b border-gray-700">
-              {% if workout.details.total_calories %}
-                <!-- Calories -->
-                <div class="text-center">
-                  <div class="text-white font-semibold text-sm">
-                    {{ workout.details.total_calories }}
-                  </div>
-                  <div class="text-xs text-gray-400 mt-1">Calories</div>
+          <div class="grid grid-cols-{% if workout.details.total_calories and workout.details.avg_heart_rate %}2{% else %}1{% endif %} gap-2 mb-4 py-3 border-t border-b border-gray-700">
+            {% if workout.details.total_calories %}
+              <!-- Calories -->
+              <div class="text-center">
+                <div class="text-white font-semibold text-sm">
+                  {{ workout.details.total_calories }}
                 </div>
-              {% endif %}
-              
-              {% if workout.details.avg_heart_rate %}
-                <!-- Avg Heart Rate -->
-                <div class="text-center {% if workout.details.total_calories %}border-l border-gray-700 pl-2{% endif %}">
-                  <div class="text-white font-semibold text-sm">
-                    {{ workout.details.avg_heart_rate }} bpm
-                  </div>
-                  <div class="text-xs text-gray-400 mt-1">Avg HR</div>
+                <div class="text-xs text-gray-400 mt-1">Calories</div>
+              </div>
+            {% endif %}
+            
+            {% if workout.details.avg_heart_rate %}
+              <!-- Avg Heart Rate -->
+              <div class="text-center {% if workout.details.total_calories %}border-l border-gray-700 pl-2{% endif %}">
+                <div class="text-white font-semibold text-sm">
+                  {{ workout.details.avg_heart_rate }} bpm
                 </div>
-              {% endif %}
-            </div>
+                <div class="text-xs text-gray-400 mt-1">Avg HR</div>
+              </div>
+            {% endif %}
+          </div>
           {% endif %}
         {% endif %}
-      {% else %}
-        {% comment %}Fallback: Show basic metrics if workout type is unknown{% endcomment %}
-        {% if workout.details.total_calories %}
-          <div class="grid grid-cols-1 gap-2 mb-4 py-3 border-t border-b border-gray-700">
-            <div class="text-center">
-              <div class="text-white font-semibold text-sm">
-                {{ workout.details.total_calories }}
-              </div>
-              <div class="text-xs text-gray-400 mt-1">Calories</div>
-            </div>
-          </div>
-        {% endif %}
       {% endif %}
-    {% endif %}
+    {% endwith %}
     
     <!-- Action Buttons -->
     <div class="flex gap-2 mt-4">
