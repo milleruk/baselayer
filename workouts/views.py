@@ -1435,11 +1435,15 @@ def class_detail(request, pk):
                 }
         
         # Pace Target class - get user's pace level for pace calculations (matching FTP pattern)
+        # (Class library override is client-side only; server provides defaults + full ranges)
+        activity_type = 'running' if ride.fitness_discipline in ['running', 'run'] else 'walking'
         user_pace_level = None
         user_pace_bands = None  # Pace bands data for JavaScript
+        pace_ranges_by_level = None  # {level: {zone_name: {min_mph, max_mph, middle_mph, min_pace, max_pace}}}
+        pace_ranges = None  # Active level's ranges (same shape as above)
+        pace_zones_from_level = None  # Legacy compatibility (seconds-per-mile-ish ints)
         
         if user_profile and ride.fitness_discipline in ['running', 'run', 'walking', 'walk']:
-            activity_type = 'running' if ride.fitness_discipline in ['running', 'run'] else 'walking'
             # Get the latest active pace target from user's profile (matching get_current_ftp pattern)
             user_pace_level = user_profile.get_current_pace(activity_type=activity_type)
             
@@ -1459,6 +1463,41 @@ def class_detail(request, pk):
                     user_pace_level = user_profile.pace_target_level
                 else:
                     user_pace_level = 5  # Default to level 5
+
+            # Build full pace range data (mph) for the active level and all levels (for client-side override)
+            default_data = DEFAULT_RUNNING_PACE_LEVELS if activity_type == 'running' else DEFAULT_WALKING_PACE_LEVELS
+            if default_data:
+                pace_ranges_by_level = {}
+                for lvl, lvl_data in default_data.items():
+                    if not isinstance(lvl_data, dict):
+                        continue
+                    lvl_ranges = {}
+                    lvl_pace_zones = {}
+                    for zone_name, (min_mph, max_mph, min_pace, max_pace, _desc) in lvl_data.items():
+                        middle_mph = (min_mph + max_mph) / 2
+                        lvl_ranges[zone_name] = {
+                            'min_mph': min_mph,
+                            'max_mph': max_mph,
+                            'middle_mph': middle_mph,
+                            'min_pace': min_pace,
+                            'max_pace': max_pace,
+                        }
+                        # Keep "pace_zones" compatibility (older code expects ints)
+                        try:
+                            lvl_pace_zones[zone_name] = int(float(min_pace) * 60)
+                        except Exception:
+                            pass
+                    pace_ranges_by_level[int(lvl)] = lvl_ranges
+
+                if user_pace_level in pace_ranges_by_level:
+                    pace_ranges = pace_ranges_by_level.get(int(user_pace_level))
+                    # Also provide "pace_zones" for this level if template logic wants it
+                    pace_zones_from_level = {}
+                    for zone_name, r in (pace_ranges or {}).items():
+                        try:
+                            pace_zones_from_level[zone_name] = int(float(r.get('min_pace')) * 60)
+                        except Exception:
+                            pass
             
             # Get the PaceLevel object with bands for this level (similar to how FTP is used for power zones)
             if user_pace_level:
@@ -1471,8 +1510,6 @@ def class_detail(request, pk):
                 
                 # If no PaceLevel found, use defaults
                 if not user_pace_level_obj:
-                    from accounts.pace_levels_data import DEFAULT_RUNNING_PACE_LEVELS
-                    from accounts.walking_pace_levels_data import DEFAULT_WALKING_PACE_LEVELS
                     from datetime import date
                     from decimal import Decimal
                     
@@ -1528,6 +1565,38 @@ def class_detail(request, pk):
                 user_pace_level = user_profile.pace_target_level
             else:
                 user_pace_level = 5
+
+            # Provide defaults for chart rendering / client-side override even without a user profile
+            default_data = DEFAULT_RUNNING_PACE_LEVELS if activity_type == 'running' else DEFAULT_WALKING_PACE_LEVELS
+            if default_data:
+                pace_ranges_by_level = {}
+                for lvl, lvl_data in default_data.items():
+                    if not isinstance(lvl_data, dict):
+                        continue
+                    lvl_ranges = {}
+                    for zone_name, (min_mph, max_mph, min_pace, max_pace, _desc) in lvl_data.items():
+                        middle_mph = (min_mph + max_mph) / 2
+                        lvl_ranges[zone_name] = {
+                            'min_mph': min_mph,
+                            'max_mph': max_mph,
+                            'middle_mph': middle_mph,
+                            'min_pace': min_pace,
+                            'max_pace': max_pace,
+                        }
+                    pace_ranges_by_level[int(lvl)] = lvl_ranges
+                pace_ranges = pace_ranges_by_level.get(int(user_pace_level))
+
+        # Ensure target_metrics carries mph pace range data (workout-parity) for the chart
+        try:
+            if target_metrics and isinstance(target_metrics, dict) and target_metrics.get('type') == 'pace':
+                target_metrics['pace_level'] = user_pace_level
+                if pace_zones_from_level is not None:
+                    # Only set if we successfully computed (don't clobber existing meaningful values)
+                    target_metrics['pace_zones'] = target_metrics.get('pace_zones') or pace_zones_from_level
+                target_metrics['pace_ranges'] = pace_ranges
+                target_metrics['pace_ranges_by_level'] = pace_ranges_by_level
+        except Exception:
+            pass
         
         # Calculate time in zones for running (L0-L6 format matching reference template)
         time_in_zones = {}

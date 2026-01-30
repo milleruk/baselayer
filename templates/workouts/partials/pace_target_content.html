@@ -583,18 +583,118 @@
     7: "Max"
   };
   
-  // Build pace level bands for pace target classes
-  let paceLevelBands = [];
-  if (isPaceTarget) {
-    for (let level = 1; level <= 7; level++) {
-      paceLevelBands.push({
-        level: level,
+  // Pace target range data (mph bands) - parity with workout detail view
+  const PACE_ZONE_KEYS = ['recovery', 'easy', 'moderate', 'challenging', 'hard', 'very_hard', 'max'];
+  const paceRangesByLevel = (targetMetricsJson && targetMetricsJson.pace_ranges_by_level) ? targetMetricsJson.pace_ranges_by_level : null;
+  let activePaceRanges = (targetMetricsJson && targetMetricsJson.pace_ranges) ? targetMetricsJson.pace_ranges : null;
+
+  function mphToPaceStr(mph) {
+    if (!mph || mph <= 0) return '–';
+    const paceMinPerMile = 60.0 / mph;
+    const minutes = Math.floor(paceMinPerMile);
+    const seconds = Math.round((paceMinPerMile - minutes) * 60);
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  }
+
+  function buildPaceBandsFromRanges(ranges) {
+    const bands = [];
+    if (!ranges) return bands;
+    for (let i = 0; i < PACE_ZONE_KEYS.length; i++) {
+      const zoneKey = PACE_ZONE_KEYS[i];
+      const r = ranges[zoneKey];
+      if (!r) continue;
+      const level = i + 1; // Recovery=1 ... Max=7
+      const lower = r.min_mph;
+      const upper = r.max_mph;
+      const middle = r.middle_mph != null ? r.middle_mph : ((lower + upper) / 2);
+      bands.push({
+        zoneKey,
+        level,
         label: PACE_LEVEL_NAMES[level] || `Level ${level}`,
         color: PACE_LEVEL_COLORS[level] || '#888',
-        lower: level - 0.5,
-        upper: level + 0.5
+        lower,
+        upper,
+        middle
       });
     }
+    return bands;
+  }
+
+  function computePaceYBounds(bands) {
+    if (!bands || bands.length === 0) return { ymin: 0, ymax: 10 };
+    const mins = bands.map(b => b.lower).filter(v => v != null);
+    const maxs = bands.map(b => b.upper).filter(v => v != null);
+    const ymin = Math.min(...mins);
+    const ymax = Math.max(...maxs);
+    const pad = Math.max((ymax - ymin) * 0.06, 0.2);
+    return { ymin: Math.max(0, ymin - pad), ymax: ymax + pad };
+  }
+
+  function paceZoneKeyFromSegment(segment) {
+    // Prefer explicit zone_name if present (workout parity: segments often carry this)
+    const zoneName = (segment && typeof segment.zone_name === 'string') ? segment.zone_name.toLowerCase() : null;
+    if (zoneName && PACE_ZONE_KEYS.includes(zoneName)) return zoneName;
+
+    // Otherwise infer numeric scheme:
+    // - workout_detail segments are typically 1-7 (1=recovery ... 7=max)
+    // - some chart data uses 0-6 (0=recovery ... 6=max)
+    let zoneValue = (segment && segment.zone !== null && segment.zone !== undefined)
+      ? parseInt(segment.zone, 10)
+      : ((segment && segment.pace_level !== null && segment.pace_level !== undefined) ? parseInt(segment.pace_level, 10) : null);
+
+    if (Number.isNaN(zoneValue) || zoneValue === null) return 'easy';
+
+    if (zoneValue >= 1 && zoneValue <= 7) {
+      const zones1to7 = ['', 'recovery', 'easy', 'moderate', 'challenging', 'hard', 'very_hard', 'max'];
+      return zones1to7[zoneValue] || 'easy';
+    }
+
+    // Fallback: treat as 0-6
+    zoneValue = Math.max(0, Math.min(6, zoneValue));
+    return PACE_ZONE_KEYS[zoneValue] || 'easy';
+  }
+
+  function buildPaceTargetLineData(timePoints, segments, ranges, timeShiftSeconds) {
+    const out = [];
+    if (!segments || segments.length === 0 || !ranges) return out;
+    const TIME_SHIFT = timeShiftSeconds || 0;
+    for (let i = 0; i < timePoints.length; i++) {
+      const currentTime = timePoints[i];
+      // Choose the segment that contains the time; if there's a tiny gap (common after TIME_SHIFT),
+      // snap to the most recent segment instead of falling back to the last segment.
+      let chosen = null;
+      let lastStarted = null;
+      for (const seg of segments) {
+        const segStart = Math.max(0, (seg.start || 0) + TIME_SHIFT);
+        const segEnd = Math.max(0, (seg.end || (seg.start || 0) + (seg.duration || 0)) + TIME_SHIFT);
+
+        if (currentTime >= segStart) lastStarted = seg;
+        if (currentTime >= segStart && currentTime < segEnd) {
+          chosen = seg;
+          break;
+        }
+
+        // segments are chronological; once we're before segStart, stop scanning
+        if (currentTime < segStart) break;
+      }
+      if (!chosen) chosen = lastStarted || segments[0];
+      const zoneKey = paceZoneKeyFromSegment(chosen);
+      const r = ranges[zoneKey];
+      const y = r && r.middle_mph != null ? r.middle_mph : null;
+      out.push({ x: currentTime, y });
+    }
+    return out;
+  }
+
+  // Build pace bands + y bounds for pace target classes
+  let paceBands = [];
+  let paceYMin = null;
+  let paceYMax = null;
+  if (isPaceTarget) {
+    paceBands = buildPaceBandsFromRanges(activePaceRanges);
+    const b = computePaceYBounds(paceBands);
+    paceYMin = b.ymin;
+    paceYMax = b.ymax;
   }
 
   if (workoutType === 'cycling' || workoutType === 'ride') {
@@ -654,15 +754,14 @@
     }
   } else if (workoutType === 'running' || workoutType === 'run' || workoutType === 'walking' || workoutType === 'walk') {
     if (isPaceTarget) {
-      // Pace target class - use pace levels (1-7) on Y-axis
-      yAxisLabel = 'Pace Level';
+      // Pace target class - use mph ranges on Y-axis (matches workout detail view)
+      yAxisLabel = 'Speed (mph)';
       
       // Target pace line from segments
       // Shift target line 60 seconds backwards (earlier) to match power zone behavior
       const TIME_SHIFT = -60;
       
       if (targetMetricsJson && targetMetricsJson.segments && targetMetricsJson.segments.length > 0) {
-        const targetPaceData = [];
         // Generate time points based on workout duration
         const timePoints = timeSeconds.length > 0 ? timeSeconds : [];
         if (timePoints.length === 0 && workoutDuration > 0) {
@@ -671,42 +770,12 @@
             timePoints.push(t);
           }
         }
-        
-        for (let i = 0; i < timePoints.length; i++) {
-          const currentTime = timePoints[i];
-          // Find which segment this time belongs to (with 60 second backward shift)
-          let targetPace = null;
-          for (const segment of targetMetricsJson.segments) {
-            // Apply 60 second backward shift to segment times
-            const segStart = Math.max(0, (segment.start || 0) + TIME_SHIFT);
-            const segEnd = Math.max(0, (segment.end || (segment.start || 0) + (segment.duration || 0)) + TIME_SHIFT);
-            if (currentTime >= segStart && currentTime < segEnd) {
-              // Convert zone from 0-6 to 1-7 scale
-              let zoneValue = segment.zone !== null && segment.zone !== undefined 
-                ? segment.zone 
-                : (segment.pace_level !== null && segment.pace_level !== undefined 
-                  ? segment.pace_level 
-                  : 1); // Default to Easy
-              targetPace = zoneValue + 1; // Convert 0-6 to 1-7
-              break;
-            }
-          }
-          // If no segment found, use the last segment's pace or default
-          if (targetPace === null && targetMetricsJson.segments.length > 0) {
-            const lastSegment = targetMetricsJson.segments[targetMetricsJson.segments.length - 1];
-            let zoneValue = lastSegment.zone !== null && lastSegment.zone !== undefined
-              ? lastSegment.zone
-              : (lastSegment.pace_level !== null && lastSegment.pace_level !== undefined
-                ? lastSegment.pace_level
-                : 1); // Default to Easy
-            targetPace = zoneValue + 1; // Convert 0-6 to 1-7
-          }
-          if (targetPace !== null) {
-            // Ensure pace level is in valid range (1-7)
-            const clampedPace = Math.max(1, Math.min(7, Math.round(targetPace)));
-            targetPaceData.push({ x: currentTime, y: clampedPace });
-          }
-        }
+        const targetPaceData = buildPaceTargetLineData(
+          timePoints,
+          targetMetricsJson.segments,
+          activePaceRanges,
+          TIME_SHIFT
+        );
         
         datasets.push({
           label: 'Target',
@@ -778,19 +847,8 @@
           ctx.globalAlpha = 0.18;  // Match reference opacity
           ctx.fillRect(chartArea.left, yTop, chartArea.right - chartArea.left, yBot - yTop);
         }
-      } else if (isPaceTarget) {
-        // For pace target charts, draw bands by pace level (1-7)
-        for (let level = 1; level <= 7; level++) {
-          const levelColor = PACE_LEVEL_COLORS[level] || '#888';
-          // Each level spans from (level - 0.5) to (level + 0.5)
-          const yTop = scales.y.getPixelForValue(level - 0.5);
-          const yBot = scales.y.getPixelForValue(level + 0.5);
-          ctx.fillStyle = levelColor;
-          ctx.globalAlpha = 0.18;
-          ctx.fillRect(chartArea.left, yTop, chartArea.right - chartArea.left, yBot - yTop);
-        }
       } else {
-        // For watt-based charts, use the bands from opts
+        // For watt-based and pace-target charts, use the bands from opts
         const bands = opts?.bands || [];
         [...bands].reverse().forEach(b => {
           if (b.lower == null && b.upper == null) return;
@@ -828,11 +886,12 @@
         ctx.textAlign = 'left';
         ctx.textBaseline = 'middle';
         
-        // Draw pace level labels overlaid on the chart
-        for (let level = 1; level <= 7; level++) {
-          const yPos = scales.y.getPixelForValue(level);
-          const levelName = PACE_LEVEL_NAMES[level] || `Level ${level}`;
-          ctx.fillText(levelName.toUpperCase(), chartArea.left + 8, yPos);
+        // Draw pace level labels overlaid on the chart (use band midpoints)
+        const bands = opts?.bands || [];
+        for (const b of bands) {
+          const yPos = scales.y.getPixelForValue(b.middle != null ? b.middle : ((b.lower + b.upper) / 2));
+          const label = (b.label || '').toUpperCase();
+          if (label) ctx.fillText(label, chartArea.left + 8, yPos);
         }
         ctx.restore();
       }
@@ -925,19 +984,13 @@
                 }
               } else if (isPaceTarget) {
                 const datasetLabel = context.dataset.label;
-                const paceValue = context.parsed.y;
                 const dataIndex = context.dataIndex;
                 
                 if (datasetLabel === 'Actual') {
                   const speed = speedData[dataIndex];
                   if (speed !== null && speed !== undefined && speed > 0) {
-                    const paceMinPerMile = 60.0 / speed;
-                    const minutes = Math.floor(paceMinPerMile);
-                    const seconds = Math.round((paceMinPerMile - minutes) * 60);
-                    const paceStr = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-                    const level = Math.round(paceValue);
-                    const levelName = PACE_LEVEL_NAMES[level] || `Level ${level}`;
-                    return `Actual: ${paceStr}/mi (${levelName})`;
+                    const paceStr = mphToPaceStr(speed);
+                    return `Actual: ${paceStr}/mi`;
                   }
                 } else if (datasetLabel === 'Target') {
                   // Use getCurrentTargetForTime with tooltipTime for consistency with metrics box
@@ -947,14 +1000,18 @@
                   if (typeof getCurrentTargetForTime === 'function') {
                     targetPaceZone = getCurrentTargetForTime(tooltipTime);
                   } else {
-                    // Fallback to chart data
-                    targetPaceZone = Math.round(paceValue) - 1; // Convert from 1-7 to 0-6
+                    // Fallback to a reasonable default
+                    targetPaceZone = 1;
                   }
                   
-                  // Convert from 0-6 scale to 1-7 scale for display
-                  const displayLevel = Math.round(targetPaceZone) + 1;
+                  const zoneIdx = Math.max(0, Math.min(6, parseInt(targetPaceZone, 10)));
+                  const zoneKey = PACE_ZONE_KEYS[zoneIdx] || 'easy';
+                  const r = activePaceRanges ? activePaceRanges[zoneKey] : null;
+                  const mph = r && r.middle_mph != null ? r.middle_mph : null;
+                  const paceStr = mphToPaceStr(mph);
+                  const displayLevel = zoneIdx + 1;
                   const levelName = PACE_LEVEL_NAMES[displayLevel] || `Level ${displayLevel}`;
-                  return `Target: ${levelName}`;
+                  return `Target: ${paceStr}/mi (${levelName})`;
                 }
               }
               return context.dataset.label + ': ' + context.parsed.y;
@@ -967,7 +1024,7 @@
           borderWidth: 1,
           padding: 12
         },
-        zoneBands: (isPowerZone && userFTP) ? { bands: [] } : (isPaceTarget ? { bands: paceLevelBands } : (powerZoneBands.length > 0 ? { bands: powerZoneBands } : undefined))
+        zoneBands: (isPowerZone && userFTP) ? { bands: [] } : (isPaceTarget ? { bands: paceBands } : (powerZoneBands.length > 0 ? { bands: powerZoneBands } : undefined))
       },
       scales: {
         x: {
@@ -996,8 +1053,8 @@
           }
         },
         y: {
-          min: (isPowerZone || isPaceTarget) ? 0.5 : ((ymax) ? ymin : 0),
-          max: (isPowerZone || isPaceTarget) ? 7.5 : ((ymax) ? ymax : undefined),
+          min: (isPowerZone ? 0.5 : (isPaceTarget ? paceYMin : ((ymax) ? ymin : 0))),
+          max: (isPowerZone ? 7.5 : (isPaceTarget ? paceYMax : ((ymax) ? ymax : undefined))),
           title: {
             display: false,  // Hide y-axis title
             text: yAxisLabel.toLowerCase(),
@@ -1009,8 +1066,8 @@
             drawTicks: false
           },
           ticks: {
-            stepSize: (isPowerZone || isPaceTarget) ? 1 : undefined,
-            maxTicksLimit: (isPowerZone || isPaceTarget) ? 8 : undefined,
+            stepSize: (isPowerZone ? 1 : undefined),
+            maxTicksLimit: (isPowerZone ? 8 : undefined),
             display: false,  // Hide ticks on left - we'll overlay zone/pace labels on chart
             callback: function(value) {
               if (isPowerZone) {
@@ -1018,13 +1075,6 @@
                 // Show labels for all zones (1-7)
                 if (zone >= 1 && zone <= 7) {
                   return `ZONE ${zone}`;
-                }
-                return '';
-              } else if (isPaceTarget) {
-                const level = Math.round(value);
-                // Show labels for all pace levels (1-7)
-                if (level >= 1 && level <= 7) {
-                  return PACE_LEVEL_NAMES[level] || `Level ${level}`;
                 }
                 return '';
               } else {
@@ -1047,6 +1097,45 @@
     window.performanceChart = chart;
     // Store chart config globally for fullscreen chart creation
     window.chartConfig = chartConfig;
+
+    // Client-side-only pace level override (Class Library)
+    window.applyPaceLevelOverride = function(level) {
+      if (!isPaceTarget || !paceRangesByLevel) return;
+      const lvl = parseInt(level, 10);
+      if (!lvl || !paceRangesByLevel[lvl]) return;
+
+      activePaceRanges = paceRangesByLevel[lvl];
+      paceBands = buildPaceBandsFromRanges(activePaceRanges);
+      const b = computePaceYBounds(paceBands);
+      paceYMin = b.ymin;
+      paceYMax = b.ymax;
+
+      // Rebuild target dataset data
+      const segments = (targetMetricsJson && targetMetricsJson.segments) ? targetMetricsJson.segments : [];
+      const timePoints = timeSeconds.length > 0 ? timeSeconds : [];
+      const newTarget = buildPaceTargetLineData(timePoints, segments, activePaceRanges, -60);
+
+      const charts = [window.performanceChart, window.fullscreenChart].filter(Boolean);
+      for (const c of charts) {
+        const ds = c.data?.datasets || [];
+        const targetDs = ds.find(d => d && d.label === 'Target');
+        if (targetDs) {
+          targetDs.data = newTarget;
+          targetDs.hidden = !showTargetLine;
+        }
+
+        if (c.options && c.options.scales && c.options.scales.y) {
+          c.options.scales.y.min = paceYMin;
+          c.options.scales.y.max = paceYMax;
+        }
+
+        if (c.options && c.options.plugins && c.options.plugins.zoneBands) {
+          c.options.plugins.zoneBands.bands = paceBands;
+        }
+
+        c.update('none');
+      }
+    };
     
     // Chart control handlers
     const toggleTargetLineBtn = document.getElementById('toggle-target-line');
@@ -1206,19 +1295,29 @@
   }
   
   // Helper functions - make them global so tooltip can access them
+  // Pace target chart shifts plan by 60s to account for intro
+  const PACE_TARGET_TIME_SHIFT_SECONDS = -60;
+
   function getCurrentSegmentForTime(time) {
     if (!targetMetricsJson || !targetMetricsJson.segments || targetMetricsJson.segments.length === 0) return null;
     const segments = targetMetricsJson.segments;
     
     // Segments use 'start' and 'end' fields directly (not duration)
+    // Keep parity with the chart: apply the same -60s shift and snap through tiny gaps.
+    const shift = isPaceTarget ? PACE_TARGET_TIME_SHIFT_SECONDS : 0;
+    let lastStarted = null;
     for (let i = 0; i < segments.length; i++) {
       const segment = segments[i];
-      const segmentStart = segment.start !== undefined ? segment.start : 0;
-      const segmentEnd = segment.end !== undefined ? segment.end : (segmentStart + (segment.duration || 0));
+      const rawStart = segment.start !== undefined ? segment.start : 0;
+      const rawEnd = segment.end !== undefined ? segment.end : (rawStart + (segment.duration || 0));
+      const segmentStart = Math.max(0, rawStart + shift);
+      const segmentEnd = Math.max(0, rawEnd + shift);
       
       // Handle last segment - include time at or after segmentEnd if it's the last segment
       const isLastSegment = i === segments.length - 1;
       
+      if (time >= segmentStart) lastStarted = { ...segment, startTime: segmentStart, endTime: segmentEnd };
+
       if ((time >= segmentStart && time < segmentEnd) || (isLastSegment && time >= segmentStart)) {
         return {
           ...segment,
@@ -1226,19 +1325,29 @@
           endTime: segmentEnd
         };
       }
+
+      // segments are chronological; once we're before segStart, stop scanning
+      if (time < segmentStart) break;
     }
     
     // If time is before first segment, return first segment (for warm-up period)
-    if (segments.length > 0 && time < segments[0].start) {
+    if (segments.length > 0) {
       const firstSegment = segments[0];
-      const segmentStart = firstSegment.start !== undefined ? firstSegment.start : 0;
-      const segmentEnd = firstSegment.end !== undefined ? firstSegment.end : (segmentStart + (firstSegment.duration || 0));
+      const rawStart = firstSegment.start !== undefined ? firstSegment.start : 0;
+      const rawEnd = firstSegment.end !== undefined ? firstSegment.end : (rawStart + (firstSegment.duration || 0));
+      const segmentStart = Math.max(0, rawStart + shift);
+      const segmentEnd = Math.max(0, rawEnd + shift);
+
+      if (time < segmentStart) {
+        return {
+          ...firstSegment,
+          startTime: segmentStart,
+          endTime: segmentEnd
+        };
+      }
       
-      return {
-        ...firstSegment,
-        startTime: segmentStart,
-        endTime: segmentEnd
-      };
+      // If we fell into a tiny gap (likely from shift/rounding), snap to last started segment
+      if (lastStarted) return lastStarted;
     }
     
     return null;
@@ -1269,27 +1378,14 @@
       }
     }
     
-    // Fallback to segments if targetLineData not available
-    if (!targetMetricsJson || !targetMetricsJson.segments || targetMetricsJson.segments.length === 0) return 5;
-    const segments = targetMetricsJson.segments;
-    
-    // Segments use 'start' and 'end' fields directly (not duration)
-    for (let i = 0; i < segments.length; i++) {
-      const segment = segments[i];
-      const segmentStart = segment.start !== undefined ? segment.start : 0;
-      const segmentEnd = segment.end !== undefined ? segment.end : (segmentStart + (segment.duration || 0));
-      const isLastSegment = i === segments.length - 1;
-      
-      if ((time >= segmentStart && time < segmentEnd) || (isLastSegment && time >= segmentStart)) {
-        return segment.pace_level || segment.level || segment.zone || 5;
-      }
-    }
-    
-    if (time < segments[0].start && segments[0].pace_level) {
-      return segments[0].pace_level || segments[0].level || segments[0].zone || 5;
-    }
-    
-    return 5;
+    // Fallback to segments if targetLineData not available.
+    // IMPORTANT: do not use segment.pace_level (can be inconsistent with zone_name);
+    // derive from the segment we show on the chart, then map to 0-6.
+    const seg = getCurrentSegmentForTime(time);
+    if (!seg) return 1; // default "easy" (0-6)
+    const zoneKey = paceZoneKeyFromSegment(seg);
+    const idx = PACE_ZONE_KEYS.indexOf(zoneKey);
+    return idx >= 0 ? idx : 1;
   }
   
   // Timer functionality for pace target
@@ -1310,10 +1406,11 @@
     let lastUpdateTime = 0;
     let lastSegmentIndex = -1;
     const countdownBeepTimes = new Set();
+    const _debugLogged = new Set();
     
-    // Pace level names
-    const PACE_LEVEL_NAMES = {
-      1: 'Recovery', 2: 'Easy', 3: 'Moderate', 4: 'Moderate-Hard', 5: 'Hard', 6: 'Very Hard', 7: 'Maximum'
+    // Pace level names (must match chart labels)
+    const TIMER_PACE_LEVEL_NAMES = {
+      1: 'Recovery', 2: 'Easy', 3: 'Moderate', 4: 'Challenging', 5: 'Hard', 6: 'Very Hard', 7: 'Max'
     };
     
     // Get DOM elements
@@ -1454,6 +1551,8 @@
       
       let intervalTime = 0;
       const currentTarget = getCurrentTargetForTime(chartCurrentTime);
+
+      
       
       if (showProgressUp) {
         // Show time INTO current target (how long in current pace level)
@@ -1535,8 +1634,11 @@
       if (currentTarget !== null && currentTarget !== undefined) {
         // Convert from 0-6 scale to 1-7 scale for display
         const displayLevel = Math.round(currentTarget) + 1;
-        const levelName = PACE_LEVEL_NAMES[displayLevel] || `Level ${displayLevel}`;
-        currentTargetEl.textContent = levelName + ' (Level ' + displayLevel + ')';
+        const levelName = TIMER_PACE_LEVEL_NAMES[displayLevel] || `Level ${displayLevel}`;
+        // Only show zone name (no "Level X")
+        currentTargetEl.textContent = levelName;
+
+        
       } else {
         currentTargetEl.textContent = 'Loading...';
       }
@@ -1677,7 +1779,8 @@
     progressSlider.addEventListener('input', function() {
       const progress = parseFloat(this.value);
       chartCurrentTime = (progress / 100) * totalDuration;
-            
+
+      
       updateSliderTooltip(progress);
       
       if (isPlaying) {
@@ -1715,13 +1818,18 @@
     
     // Pace level select change handler (for updating target display if needed)
     paceLevelSelect.addEventListener('change', function() {
+      // Client-side override for Class Library chart (no persistence)
+      if (typeof window.applyPaceLevelOverride === 'function') {
+        window.applyPaceLevelOverride(this.value);
+      }
+
       // Update target display with current pace level
       const currentTarget = getCurrentTargetForTime(chartCurrentTime);
       if (currentTarget !== null && currentTarget !== undefined) {
         // Convert from 0-6 scale to 1-7 scale for display
         const displayLevel = Math.round(currentTarget) + 1;
-        const levelName = PACE_LEVEL_NAMES[displayLevel] || `Level ${displayLevel}`;
-        currentTargetEl.textContent = levelName + ' (Level ' + displayLevel + ')';
+        const levelName = TIMER_PACE_LEVEL_NAMES[displayLevel] || `Level ${displayLevel}`;
+        currentTargetEl.textContent = levelName;
       }
     });
     
@@ -1744,8 +1852,8 @@
       const firstSegment = targetMetricsJson.segments[0];
       const classPlanLevel = firstSegment.pace_level || firstSegment.level || 5;
       const level = Math.round(classPlanLevel);
-      const levelName = PACE_LEVEL_NAMES[level] || `Level ${level}`;
-      currentTargetEl.textContent = levelName + ' (Level ' + level + ')';
+      const levelName = TIMER_PACE_LEVEL_NAMES[level] || `Level ${level}`;
+      currentTargetEl.textContent = levelName;
     }
     
     // Initialize segment tracking
@@ -1782,6 +1890,7 @@
       };
       
       fullscreenChart = new Chart(fullscreenCtx, fullscreenChartConfig);
+      window.fullscreenChart = fullscreenChart;
       
       // Sync fullscreen chart controls
       const fullscreenToggleZoneColorsCheckbox = document.getElementById('fullscreen-toggle-zone-colors');

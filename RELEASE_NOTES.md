@@ -210,3 +210,63 @@ This release introduces background processing capabilities and fixes critical sy
 **Release Date**: January 27, 2026  
 **Version**: v0.4.0-alpha  
 **Status**: Alpha Release
+
+---
+
+## Alpha Release v0.4.1 - January 30, 2026
+
+### 🎯 Pace Target Detail + Dashboard Enhancements
+- Pace target workout detail page layout + sharing
+- Dashboard HTMX enhancements for smoother, dynamic updates
+- Sync status and cooldown tracking improvements
+- Development mode banner
+
+### 🐛 Fixes
+- Pace target class library: corrected dropdown default and recovery pace calculation
+- Class detail target line display fixes
+
+---
+
+## Alpha Release v0.4.2 - January 30, 2026
+
+### 🧩 Workout Template Expansion
+- Modernized “charted” workout detail templates for consistency
+- Added a dedicated non–Power Zone cycling detail template
+- Continued chart/control refinements for pace target
+
+### 🧹 Repo Hygiene
+- Stopped tracking local debug notes (`debug/`)
+
+---
+
+## Alpha Release v0.4.3 - January 30, 2026
+
+### 📈 Workout History Card Charts
+- Added mini chart previews directly on workout cards (Power Zone / cycling / pace target)
+  - SVG-based, lightweight, fast
+  - Hover tooltips + crosshair
+  - Target lines for Power Zone + Pace Target (with \(-60s\) offset)
+
+### 🔎 Better Filtering & Search
+- New “Charts” toggle to show only workouts with usable output/speed series
+- Class type filter dropdown (de-duplicated labels)
+- Restored JSON search suggestions with fuzzy/regex-style matching
+- Filter bar + type tabs redesigned to match PelvicPlanner styling
+
+### ⚙️ Performance & Data Quality
+- Prefetch `performance_data` only for the current page
+- Derived metrics on cards when Peloton values are missing
+  - Estimated cycling TSS (output series + FTP at workout date)
+  - Estimated running avg speed (speed series)
+
+---
+
+## Alpha Release v0.4.4 - January 30, 2026
+
+### 🏃 Pace Target Class Library Parity
+- Class library pace target chart target line now uses **mph pace ranges** (matches workout detail)
+- Added a **Pace Level** preview selector for class library pace target (client-side only; no saving)
+
+### 🐛 Fixes
+- Removed one-point “dips” in class library target line at segment boundaries (after \(-60s\) shift)
+- Target metric box now matches the chart and shows only the zone name (Recovery/Easy/Moderate/Challenging/Hard/Very Hard/Max)
