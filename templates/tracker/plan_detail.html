@@ -896,12 +896,10 @@ document.addEventListener('DOMContentLoaded', function() {
             updateProgress(data.plan_completion_rate, data.plan_total_points, data.plan_max_total_points);
           }
         } else {
-          console.error('AJAX request failed:', data.error || 'Unknown error');
           alert(data.error || 'An error occurred. Please try again.');
         }
       })
       .catch(function(error) {
-        console.error('Error:', error);
         alert('An error occurred. Please refresh the page and try again.');
       })
       .finally(function() {
@@ -1117,7 +1115,6 @@ document.addEventListener('DOMContentLoaded', function() {
       try {
         initializeChart(canvas, container, rect, isRide, userFtp, paceTargetLevel);
       } catch (error) {
-        console.error('Error initializing chart for', canvasId, ':', error);
       }
     };
     
@@ -1127,13 +1124,11 @@ document.addEventListener('DOMContentLoaded', function() {
   function initializeChart(canvas, container, rect, isRide, userFtp, paceTargetLevel) {
     // Check if Chart.js is available
     if (typeof Chart === 'undefined') {
-      console.error('Chart.js is not loaded');
       return;
     }
     
     const ctx = canvas.getContext('2d');
     if (!ctx) {
-      console.error('Could not get 2D context from canvas');
       return;
     }
     
@@ -1463,14 +1458,10 @@ document.addEventListener('DOMContentLoaded', function() {
           canvas.chart.options.plugins.tooltip.enabled = true;
         }
       } catch (updateError) {
-        console.error('Error updating chart', canvas.id, ':', updateError);
       }
     } else {
-      console.error('Chart instance was not created for', canvas.id);
     }
     } catch (error) {
-      console.error('Error creating Chart.js instance for', canvas.id, ':', error);
-      console.error('Error stack:', error.stack);
     }
   }
   
@@ -1488,7 +1479,6 @@ document.addEventListener('DOMContentLoaded', function() {
           try {
             createIntensityChart(canvas.id);
           } catch (error) {
-            console.error('Error initializing chart', canvas.id, ':', error);
           }
         }
       }
@@ -1505,7 +1495,6 @@ document.addEventListener('DOMContentLoaded', function() {
     } else if (maxAttempts > 0) {
       setTimeout(() => waitForChartJS(callback, maxAttempts - 1), 100);
     } else {
-      console.error('Chart.js failed to load after multiple attempts');
     }
   }
   

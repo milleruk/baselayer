@@ -199,9 +199,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!chartDataScript) return;
         
         const chartData = JSON.parse(chartDataScript.textContent || '{}');
-        console.log('Chart data:', chartData);
         if (!chartData.segments || !chartData.zones) {
-            console.log('Missing chart data - segments:', chartData.segments, 'zones:', chartData.zones);
             return;
         }
         
@@ -213,20 +211,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 const jsonText = targetLineDataScript.textContent;
                 targetLineData = JSON.parse(jsonText || '[]');
                 if (targetLineData && Array.isArray(targetLineData)) {
-                    console.log('Target line data loaded:', targetLineData.length, 'points');
                     if (targetLineData.length > 0) {
-                        console.log('First point:', targetLineData[0]);
-                        console.log('Last point:', targetLineData[targetLineData.length - 1]);
                     }
                 } else {
-                    console.warn('Target line data is not an array:', typeof targetLineData);
                 }
             } catch (e) {
-                console.error('Error parsing target line data:', e);
                 targetLineData = null;
             }
         } else {
-            console.log('No target-line-data script tag found');
         }
         
         // Get ride length from chart data or fallback
@@ -279,22 +271,15 @@ document.addEventListener('DOMContentLoaded', function() {
             // Use the actual class plan pace intensity (0-6) from target_metrics_data
             let target = segment.zone || segment.pace_level;
             
-            // Debug the segment structure
-            console.log('Raw segment:', segment);
-            console.log('Class plan pace intensity:', target);
-            
             // For running charts, ensure target is within 0-6 range (actual class plan)
             if (chartData.type === 'pace_target') {
                 // If target is undefined/null, default to Recovery (0)
                 if (target === undefined || target === null || isNaN(target)) {
                     target = 0;
-                    console.log('Defaulting to Recovery (0) for segment');
                 } else {
                     target = Math.max(0, Math.min(6, target));
                 }
             }
-            
-            console.log('Class plan target (pace intensity):', target);
             
             // Add time points for this segment, ensuring continuous coverage
             for (let i = 0; i < duration && (segmentTime + i) < rideLength; i += 10) { // Every 10 seconds
@@ -321,7 +306,6 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Calculate total duration - use ride length as authoritative source
         const totalDuration = rideLength || (timePoints.length > 0 ? timePoints[timePoints.length - 1] : 0);
-        console.log('Time series generated:', { timePoints: timePoints.length, totalDuration, rideLength });
         
         // Create zone bands for background - matching workout_detail (pace levels 1-7)
         const zoneBands = chartData.zones.map((zone, index) => {
@@ -477,9 +461,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         
                         const minutes = Math.floor(pace);
                         const seconds = Math.round((pace - minutes) * 60);
-                        
-                        console.log(`Using user pace band for ${label} (${zoneKey}): ${minPace}-${maxPace} min/mile, calculated pace: ${minutes}:${seconds.toString().padStart(2, '0')}`);
-                        
                         return {
                             pace: `${minutes}:${seconds.toString().padStart(2, '0')}`,
                             label: label,
@@ -618,9 +599,6 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Create the chart
         const ctx2d = document.getElementById('class-plan-chart').getContext('2d');
-        console.log('Creating chart with data points:', timePoints.length);
-        console.log('Time points range:', timePoints[0], 'to', timePoints[timePoints.length-1]);
-        console.log('Total duration:', totalDuration);
         
         // Build datasets array
         const datasets = [];
@@ -650,8 +628,6 @@ document.addEventListener('DOMContentLoaded', function() {
         // For pace targets, we calculate the target line directly from chartData.segments
         // This matches how workout_detail does it (not using backend target_line_data)
         if (chartData.segments && chartData.segments.length > 0) {
-            console.log('Calculating target line from segments:', chartData.segments.length);
-            
             // Shift target line 60 seconds backwards (earlier) to match power zone behavior
             // This matches workout_detail exactly
             const TIME_SHIFT = -60;
@@ -663,8 +639,6 @@ document.addEventListener('DOMContentLoaded', function() {
             for (let t = 0; t <= totalDuration; t += 5) {
                 timePoints.push(t);
             }
-            
-            console.log('Generated time points:', timePoints.length, 'for duration:', totalDuration);
             
             for (let i = 0; i < timePoints.length; i++) {
                 const currentTime = timePoints[i];
@@ -709,17 +683,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
             
-            console.log('Target pace data generated:', targetPaceData.length, 'points');
-            if (targetPaceData.length > 0) {
-                console.log('First target point:', targetPaceData[0]);
-                console.log('Last target point:', targetPaceData[targetPaceData.length - 1]);
-                console.log('Target line Y-axis range:', 
-                    Math.min(...targetPaceData.map(p => p.y)), 
-                    'to', 
-                    Math.max(...targetPaceData.map(p => p.y))
-                );
-            }
-            
             if (targetPaceData.length > 0) {
                 datasets.push({
                     label: 'Target',
@@ -735,13 +698,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     spanGaps: true,
                     hidden: false  // Always show by default - user can toggle
                 });
-                
-                console.log('Target line dataset added. Total datasets:', datasets.length);
-            } else {
-                console.warn('Target pace data is empty after generation');
             }
         } else {
-            console.log('No segments available for target line calculation. chartData.segments:', chartData.segments);
         }
         
         // Use line chart for both cycling and running
@@ -895,7 +853,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     countdownAudio.volume = 0.7;
                     countdownAudio.preload = 'auto';
                 } catch (e) {
-                    console.warn('Error loading countdown audio:', e);
                 }
             }
             if (!intervalChangeAudio) {
@@ -904,7 +861,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     intervalChangeAudio.volume = 0.7;
                     intervalChangeAudio.preload = 'auto';
                 } catch (e) {
-                    console.warn('Error loading interval change audio:', e);
                 }
             }
         }
@@ -921,10 +877,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Reset to beginning if already playing
                     countdownAudio.currentTime = 0;
                     countdownAudio.play().catch(e => {
-                        console.warn('Error playing countdown audio:', e);
                     });
                 } catch (e) {
-                    console.warn('Error playing countdown audio:', e);
                 }
             }
         }
@@ -953,7 +907,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 oscillator.start(audioContext.currentTime);
                 oscillator.stop(audioContext.currentTime + duration / 1000);
             } catch (e) {
-                console.warn('Error playing beep:', e);
             }
         }
         
@@ -1073,9 +1026,6 @@ document.addEventListener('DOMContentLoaded', function() {
             const secondsLeft = Math.floor(timeLeft % 60);
             timeLeftEl.textContent = minutesLeft + ':' + String(secondsLeft).padStart(2, '0');
             
-            // Debug logging
-            console.log(`Total Duration: ${totalDuration}, Current Time: ${chartCurrentTime}, Time Left: ${timeLeft}`);
-            
             // Update interval time - show time within current segment, not total elapsed time
             const currentSegment = getCurrentSegment(chartCurrentTime);
             const showProgressCheckbox = document.getElementById('show-progress');
@@ -1104,9 +1054,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     const userLevel = parseInt(paceLevelSelect.value) || 5;
                     const paceInfo = getPaceForLevel(currentTarget, userLevel);
                     currentTargetEl.textContent = `${paceInfo.pace} @ ${paceInfo.label}`;
-                    
-                    // Debug logging to match chart tooltip
-                    console.log(`Chart Current Time: ${chartCurrentTime}, Current Target: ${currentTarget}, Pace Info:`, paceInfo);
                 } else {
                     // For cycling, show power target
                     const ftp = parseInt(ftpInput?.value || 250) || 250;
@@ -1118,13 +1065,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 currentTargetEl.textContent = 'Loading...';
             }
             
-            // Debug logging for timing
-            console.log(`Current Segment:`, currentSegment);
-            console.log(`Interval Time: ${intervalMinutes}:${String(intervalSeconds).padStart(2, '0')}, Chart Current Time: ${chartCurrentTime}`);
-            
             // Update chart progress line
             chart.options.plugins.progressLine.currentTime = chartCurrentTime;
-            console.log(`Setting progress line to: ${chartCurrentTime} seconds (${Math.floor(chartCurrentTime/60)}:${Math.floor(chartCurrentTime%60).toString().padStart(2,'0')})`);
             chart.update('none');
             
             // Update fullscreen display if active
@@ -1162,7 +1104,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (closestPoint && closestPoint.y !== null && closestPoint.y !== undefined) {
                     // Target line uses 1-7 scale, convert to 0-6 for getPaceForLevel
                     const paceLevel = closestPoint.y - 1;
-                    console.log(`getCurrentTarget: Using target line data. Time: ${time}, Target pace level: ${closestPoint.y} (1-7), Converted: ${paceLevel} (0-6)`);
                     return paceLevel;
                 }
             }
@@ -1180,11 +1121,9 @@ document.addEventListener('DOMContentLoaded', function() {
                         : (segment.pace_level !== null && segment.pace_level !== undefined 
                             ? segment.pace_level 
                             : 1); // Default to Easy (1 in 0-6 scale)
-                    console.log(`getCurrentTarget: Using segment data. Time: ${time}, Segment zone: ${zoneValue} (0-6)`);
                     return zoneValue;
                 }
             }
-            console.log(`getCurrentTarget: No match found, defaulting to Easy (1)`);
             return 1; // Default to Easy (1 in 0-6 scale, which is 2 in 1-7 scale)
         }
         
@@ -1542,7 +1481,6 @@ document.addEventListener('DOMContentLoaded', function() {
         paceLevelSelect.addEventListener('change', function() {
             // Update the target display based on user's selected level
             const selectedLevel = parseInt(this.value);
-            console.log('User selected level:', selectedLevel);
             
             // Update current target display with new pace level
             const currentTarget = getCurrentTarget(chartCurrentTime);
@@ -1587,9 +1525,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         if (targetDataset) {
                             targetDataset.hidden = !showTargetLine;
                             chart.update('none');
-                            console.log('Target line toggled. Visible:', showTargetLine);
                         } else {
-                            console.warn('Target dataset not found in chart');
                         }
                     }
                     
@@ -1599,7 +1535,6 @@ document.addEventListener('DOMContentLoaded', function() {
             } else {
                 // Hide button if no target line dataset
                 toggleTargetLineBtn.style.display = 'none';
-                console.log('No target line dataset found, hiding toggle button');
             }
         }
         
@@ -1647,17 +1582,8 @@ document.addEventListener('DOMContentLoaded', function() {
             const paceInfo = getPaceForLevel(classPlanIntensity, userLevel);
             currentTargetEl.textContent = `${paceInfo.pace} @ ${paceInfo.label}`;
             
-            console.log('Initial target set:', {
-                classPlanIntensity,
-                userLevel,
-                paceInfo
-            });
             
-            // Debug: Check final segments
-            console.log('All segments:', chartData.segments);
             const lastSegment = chartData.segments[chartData.segments.length - 1];
-            console.log('Last segment:', lastSegment);
-            console.log('Total duration from chart data:', chartData.total_duration);
         }
         
         // Initialize segment tracking
@@ -1731,7 +1657,6 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Get the chart configuration from the main chart
             if (!chart) {
-                console.warn('Main chart not initialized yet');
                 return;
             }
             

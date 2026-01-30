@@ -614,7 +614,6 @@
     const targetMetricsJsonStr = {{ target_metrics_json|safe }};
     targetMetricsJson = typeof targetMetricsJsonStr === 'string' ? JSON.parse(targetMetricsJsonStr) : targetMetricsJsonStr;
   } catch (e) {
-    console.warn('Error parsing target_metrics_json:', e);
     targetMetricsJson = null;
   }
   {% endif %}
@@ -651,14 +650,6 @@
     }
   }
   
-  // Debug logging
-  console.log('Performance data count:', performanceData.length);
-  console.log('Target line data:', targetLineData ? targetLineData.length : 'null');
-  console.log('Is Power Zone:', isPowerZone);
-  console.log('User FTP:', userFTP);
-  console.log('Zone ranges:', zoneRanges);
-  console.log('Target metrics:', {% if target_metrics_json %}{{ target_metrics_json|safe }}{% else %}null{% endif %});
-
   // Format time from seconds to MM:SS
   function formatTime(seconds) {
     const mins = Math.floor(seconds / 60);
@@ -712,10 +703,7 @@
     }
   }
   
-  // Debug: Check if we have any output data
   const hasOutputData = outputData.some(v => v !== null && v !== undefined);
-  console.log('Has output data:', hasOutputData, 'Output data sample:', outputData.slice(0, 10));
-  console.log('Y-axis range:', ymin, '-', ymax);
 
   // Power Zone colors matching reference implementation
   const POWER_ZONE_COLORS = {
@@ -999,15 +987,6 @@
       }
       
       // Actual pace performance line (only if we have performance data)
-      // Debug logging
-      console.log('Pace Target Chart Debug:', {
-        speedDataLength: speedData.length,
-        actualPaceDataLength: actualPaceData.length,
-        timeSecondsLength: timeSeconds.length,
-        hasUserPaceZones: !!userPaceZones,
-        userPaceZones: userPaceZones
-      });
-      
       if (actualPaceData.length > 0 && timeSeconds.length > 0) {
         datasets.push({
           label: 'Actual',
@@ -1022,8 +1001,6 @@
           pointHoverRadius: 4,
           spanGaps: false
         });
-      } else {
-        console.warn('Pace Target Chart: No actual performance data to display. Speed data:', speedData.length, 'Time data:', timeSeconds.length);
       }
       
       // Target pace line from segments
@@ -1206,21 +1183,18 @@
   function initChart() {
     // Check if Chart.js is loaded
     if (typeof Chart === 'undefined') {
-      console.error('Chart.js library not loaded');
       return;
     }
     
     // Create chart
     const ctx = document.getElementById('performanceChart');
     if (!ctx) {
-      console.error('Performance chart canvas not found');
       return;
     }
     
     // Check if we have data - allow rendering if we have target metrics even without performance data
     const hasTargetMetrics = (isPowerZone || isPaceTarget) && targetMetricsJson && targetMetricsJson.segments && targetMetricsJson.segments.length > 0;
     if (performanceData.length === 0 && !hasTargetMetrics) {
-      console.error('No performance data or target metrics available');
       return;
     }
     
@@ -1537,7 +1511,6 @@
       }
     }
     
-    console.log('Chart initialized successfully');
   }
   
   // Initialize when DOM is ready

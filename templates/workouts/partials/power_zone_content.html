@@ -359,7 +359,6 @@
       targetLineData = JSON.parse(targetLineDataStr);
     }
   } catch (e) {
-    console.warn('Error parsing target_line_data:', e);
     targetLineData = null;
   }
   {% endif %}
@@ -384,7 +383,6 @@
       targetMetricsJson = JSON.parse(targetMetricsJsonStr);
     }
   } catch (e) {
-    console.warn('Error parsing target_metrics_json:', e);
     targetMetricsJson = null;
   }
   {% endif %}
@@ -421,16 +419,6 @@
     }
   }
   
-  // Debug logging
-  console.log('Performance data count:', performanceData.length);
-  console.log('Target line data:', targetLineData ? targetLineData.length : 'null');
-  console.log('Is Power Zone:', isPowerZone);
-  console.log('Is Pace Target:', isPaceTarget);
-  console.log('User FTP:', userFTP);
-  console.log('User Pace Level:', userPaceLevel);
-  console.log('Zone ranges:', zoneRanges);
-  console.log('Target metrics:', targetMetricsJson);
-
   // Format time from seconds to MM:SS
   function formatTime(seconds) {
     const mins = Math.floor(seconds / 60);
@@ -489,10 +477,7 @@
     }
   }
   
-  // Debug: Check if we have any output data
   const hasOutputData = outputData.some(v => v !== null && v !== undefined);
-  console.log('Has output data:', hasOutputData, 'Output data sample:', outputData.slice(0, 10));
-  console.log('Y-axis range:', ymin, '-', ymax);
 
   // Power Zone colors matching reference implementation
   const POWER_ZONE_COLORS = {
@@ -829,21 +814,18 @@
   function initChart() {
     // Check if Chart.js is loaded
     if (typeof Chart === 'undefined') {
-      console.error('Chart.js library not loaded');
       return;
     }
     
     // Create chart
     const ctx = document.getElementById('performanceChart');
     if (!ctx) {
-      console.error('Performance chart canvas not found');
       return;
     }
     
     // Check if we have data - allow rendering if we have target metrics even without performance data
     const hasTargetMetrics = (isPowerZone || isPaceTarget) && targetMetricsJson && targetMetricsJson.segments && targetMetricsJson.segments.length > 0;
     if (performanceData.length === 0 && !hasTargetMetrics) {
-      console.error('No performance data or target metrics available');
       return;
     }
     
@@ -1182,8 +1164,6 @@
       }
     }
     
-    console.log('Chart initialized successfully');
-    
     // Initialize timer functionality after chart is ready
     initTimer();
   }
@@ -1345,7 +1325,6 @@
   // Timer functionality
   function initTimer() {
     if (!targetMetricsJson || !targetMetricsJson.segments || targetMetricsJson.segments.length === 0) {
-      console.log('No segments data for timer');
       return;
     }
     
@@ -1372,7 +1351,6 @@
     const sliderCurrentTime = document.getElementById('slider-current-time');
     
     if (!playPauseBtn || !progressSlider || !timeLeftEl || !intervalTimeEl || !currentTargetEl || !ftpInput) {
-      console.log('Timer elements not found');
       return;
     }
     
@@ -1416,7 +1394,6 @@
         oscillator.start(audioContext.currentTime);
         oscillator.stop(audioContext.currentTime + duration / 1000);
       } catch (e) {
-        console.warn('Error playing beep:', e);
       }
     }
     

@@ -1098,7 +1098,6 @@ function regenerateCache() {
     }
   })
   .catch(error => {
-    console.error('Error:', error);
     alert('An error occurred while regenerating the cache. Please try again.');
     if (btn) {
       btn.disabled = false;
@@ -1144,7 +1143,6 @@ function createShare() {
     }
   })
   .catch(error => {
-    console.error('Error:', error);
     alert('Failed to create share link: ' + error.message);
   });
 }
@@ -1152,7 +1150,6 @@ function createShare() {
 // Chart initialization
 document.addEventListener('DOMContentLoaded', function() {
   if (typeof Chart === 'undefined') {
-    console.error('Chart.js is not loaded');
     return;
   }
 

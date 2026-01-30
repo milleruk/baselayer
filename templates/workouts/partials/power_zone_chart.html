@@ -190,9 +190,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!chartDataScript) return;
         
         const chartData = JSON.parse(chartDataScript.textContent || '{}');
-        console.log('Chart data:', chartData);
         if (!chartData.segments || !chartData.zones) {
-            console.log('Missing chart data - segments:', chartData.segments, 'zones:', chartData.zones);
             return;
         }
         
@@ -204,20 +202,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 const jsonText = targetLineDataScript.textContent;
                 targetLineData = JSON.parse(jsonText || '[]');
                 if (targetLineData && Array.isArray(targetLineData)) {
-                    console.log('Target line data loaded:', targetLineData.length, 'points');
                     if (targetLineData.length > 0) {
-                        console.log('First point:', targetLineData[0]);
-                        console.log('Last point:', targetLineData[targetLineData.length - 1]);
                     }
                 } else {
-                    console.warn('Target line data is not an array:', typeof targetLineData);
                 }
             } catch (e) {
-                console.error('Error parsing target line data:', e);
                 targetLineData = null;
             }
         } else {
-            console.log('No target-line-data script tag found');
         }
         
         // Get playlist data if available
@@ -269,13 +261,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 // If target is undefined/null, default to Zone 1
                 if (target === undefined || target === null || isNaN(target)) {
                     target = 1;
-                    console.log('Defaulting to Zone 1 for segment');
                 } else {
                     target = Math.max(1, Math.min(7, target));
                 }
             }
-            
-            console.log('Class plan target (power zone):', target);
             
             // Add time points for this segment, ensuring continuous coverage
             for (let i = 0; i < duration && (segmentTime + i) < rideLength; i += 10) { // Every 10 seconds
@@ -302,7 +291,6 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Calculate total duration - use ride length as authoritative source
         const totalDuration = rideLength || (timePoints.length > 0 ? timePoints[timePoints.length - 1] : 0);
-        console.log('Time series generated:', { timePoints: timePoints.length, totalDuration, rideLength });
         
         // Power Zone colors matching workout_detail implementation
         const POWER_ZONE_COLORS = {
@@ -475,10 +463,6 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Create the chart
         const ctx2d = document.getElementById('class-plan-chart').getContext('2d');
-        console.log('Creating chart with data points:', timePoints.length);
-        console.log('Time points range:', timePoints[0], 'to', timePoints[timePoints.length-1]);
-        console.log('Total duration:', totalDuration);
-        
         // Use line chart for power zones
         let showTargetLine = true;
         let useKilometers = false;
@@ -502,8 +486,6 @@ document.addEventListener('DOMContentLoaded', function() {
         // Add target line dataset - use class plan zones directly (zones don't change, watts do)
         // The target line should show the zones from the class plan, not recalculated from watts
         if (chartData.segments && chartData.segments.length > 0) {
-            console.log('Adding target line dataset from class plan segments:', chartData.segments.length);
-            
             // Build target line from segments (zones from class plan, not from watts)
             // Use the same sequential approach as class library, then apply time shift
             const targetZoneData = [];
@@ -550,8 +532,6 @@ document.addEventListener('DOMContentLoaded', function() {
             // Sort by x to ensure proper order (in case time shift caused reordering)
             targetZoneData.sort((a, b) => a.x - b.x);
             
-            console.log('Target zone data generated from class plan:', targetZoneData.length, 'points');
-            
             datasets.push({
                 label: 'Target',
                 data: targetZoneData,
@@ -570,10 +550,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Y-axis will show full range (0.5 to 7.5) to ensure entire target line is visible
             // No need to calculate dynamic range - show all zones
             
-            console.log('Target line dataset added. Total datasets:', datasets.length);
-            console.log('Target line visible:', showTargetLine);
         } else {
-            console.log('No segments available for target line. chartData.segments:', chartData.segments);
         }
         
         chartDataConfig = {
@@ -784,7 +761,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     countdownAudio.volume = 0.7;
                     countdownAudio.preload = 'auto';
                 } catch (e) {
-                    console.warn('Error loading countdown audio:', e);
                 }
             }
             if (!intervalChangeAudio) {
@@ -793,7 +769,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     intervalChangeAudio.volume = 0.7;
                     intervalChangeAudio.preload = 'auto';
                 } catch (e) {
-                    console.warn('Error loading interval change audio:', e);
                 }
             }
         }
@@ -808,10 +783,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 try {
                     countdownAudio.currentTime = 0;
                     countdownAudio.play().catch(e => {
-                        console.warn('Error playing countdown audio:', e);
                     });
                 } catch (e) {
-                    console.warn('Error playing countdown audio:', e);
                 }
             }
         }
@@ -839,7 +812,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 oscillator.start(audioContext.currentTime);
                 oscillator.stop(audioContext.currentTime + duration / 1000);
             } catch (e) {
-                console.warn('Error playing beep:', e);
             }
         }
         
@@ -1304,7 +1276,6 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!fullscreenCtx || fullscreenChart) return;
             
             if (!chart) {
-                console.warn('Main chart not initialized yet');
                 return;
             }
             

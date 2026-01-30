@@ -307,7 +307,6 @@ function initializeCharts() {
     try {
       chartData = JSON.parse(chartDataScript.textContent || '{}');
     } catch (e) {
-      console.error(`Error parsing chart data for ride ${rideId}:`, e);
       return;
     }
     
