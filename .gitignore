@@ -210,3 +210,6 @@ local_*
 
 # JSON test data
 jsons/
+
+# Local notes / debug docs
+debug/
