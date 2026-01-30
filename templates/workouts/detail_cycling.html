@@ -196,47 +196,107 @@
           {% if workout.ride_detail and workout.ride_detail.workout_type %}{{ workout.ride_detail.workout_type.name }}{% else %}Cycling{% endif %}
         </div>
       </div>
+      <div>
+        <div class="text-sm text-gray-600 dark:text-gray-400 mb-1">Instructor</div>
+        {% if workout.instructor %}
+          <div class="flex items-center gap-3">
+            {% if workout.instructor.image_url %}
+              <img src="{{ workout.instructor.image_url }}" alt="{{ workout.instructor.name }}" class="w-10 h-10 rounded-full object-cover">
+            {% else %}
+              <div class="w-10 h-10 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center">
+                <span class="text-gray-600 dark:text-gray-400 text-lg">👤</span>
+              </div>
+            {% endif %}
+            <div class="text-lg font-semibold text-gray-900 dark:text-white">{{ workout.instructor.name }}</div>
+          </div>
+        {% else %}
+          <div class="text-gray-600 dark:text-gray-400">No instructor information</div>
+        {% endif %}
+      </div>
     </div>
   </div>
 
   <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 sm:p-6 shadow-sm">
-    <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Instructor</h3>
-    {% if workout.instructor %}
-      <div class="flex items-center gap-3">
-        {% if workout.instructor.image_url %}
-          <img src="{{ workout.instructor.image_url }}" alt="{{ workout.instructor.name }}" class="w-12 h-12 rounded-full object-cover">
-        {% else %}
-          <div class="w-12 h-12 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center">
-            <span class="text-gray-600 dark:text-gray-400 text-xl">👤</span>
-          </div>
-        {% endif %}
-        <div class="text-lg font-semibold text-gray-900 dark:text-white">{{ workout.instructor.name }}</div>
+    <div class="flex items-start justify-between gap-3 mb-4">
+      <div>
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Adherence</h3>
+        <div class="text-sm text-gray-600 dark:text-gray-400 mt-1">Within class plan targets</div>
       </div>
-    {% else %}
-      <div class="text-gray-600 dark:text-gray-400">No instructor information</div>
-    {% endif %}
+    </div>
+
+    <div class="space-y-4">
+      <div>
+        <div class="flex items-center justify-between mb-1">
+          <div class="text-sm font-medium text-gray-700 dark:text-gray-300">Cadence</div>
+          <div class="text-sm font-semibold text-gray-900 dark:text-white tabular-nums">
+            <span id="cadenceAdherencePct">—</span>
+          </div>
+        </div>
+        <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 overflow-hidden">
+          <div id="cadenceAdherenceBar" class="h-full rounded-full" style="width: 0%; background: linear-gradient(to right, rgba(147, 197, 253, 0.9), rgba(59, 130, 246, 0.9));"></div>
+        </div>
+        <div class="text-xs text-gray-600 dark:text-gray-400 mt-1 tabular-nums">
+          <span id="cadenceAdherenceDetail">—</span>
+        </div>
+      </div>
+
+      <div>
+        <div class="flex items-center justify-between mb-1">
+          <div class="text-sm font-medium text-gray-700 dark:text-gray-300">Resistance</div>
+          <div class="text-sm font-semibold text-gray-900 dark:text-white tabular-nums">
+            <span id="resistanceAdherencePct">—</span>
+          </div>
+        </div>
+        <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 overflow-hidden">
+          <div id="resistanceAdherenceBar" class="h-full rounded-full" style="width: 0%; background: linear-gradient(to right, rgba(245, 158, 11, 0.95), rgba(251, 146, 60, 0.95));"></div>
+        </div>
+        <div class="text-xs text-gray-600 dark:text-gray-400 mt-1 tabular-nums">
+          <span id="resistanceAdherenceDetail">—</span>
+        </div>
+      </div>
+    </div>
   </div>
 
   <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 sm:p-6 shadow-sm">
     <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Class Plan Targets</h3>
     {% if target_metrics and target_metrics.type == 'cadence_resistance' and target_metrics.segments %}
-      <div class="space-y-2 max-h-80 overflow-y-auto">
-        {% for segment in target_metrics.segments %}
-          <div class="flex items-center justify-between gap-3 p-2 bg-gray-50 dark:bg-gray-700/50 rounded text-sm">
-            <div class="text-gray-700 dark:text-gray-300">
-              {{ segment.start|format_duration_seconds }} - {{ segment.end|format_duration_seconds }}
+      <div class="max-h-80 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-700">
+        <!-- Sticky header -->
+        <div class="sticky top-0 z-10 grid grid-cols-12 gap-2 px-3 py-2 bg-white/95 dark:bg-gray-800/95 backdrop-blur border-b border-gray-200 dark:border-gray-700 text-xs font-semibold text-gray-600 dark:text-gray-400">
+          <div class="col-span-4">Time</div>
+          <div class="col-span-4">Cadence</div>
+          <div class="col-span-4">Resistance</div>
+        </div>
+
+        <div class="divide-y divide-gray-200 dark:divide-gray-700">
+          {% for segment in target_metrics.segments %}
+            <div class="grid grid-cols-12 gap-2 px-3 py-2 text-sm bg-gray-50 dark:bg-gray-700/30">
+              <div class="col-span-4 text-gray-700 dark:text-gray-300 font-medium tabular-nums">
+                {{ segment.start|format_duration_seconds }}–{{ segment.end|format_duration_seconds }}
+              </div>
+
+              <div class="col-span-4">
+                {% if segment.cadence %}
+                  <span class="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-semibold bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-200 border border-blue-200/70 dark:border-blue-800/60 tabular-nums">
+                    {{ segment.cadence.lower }}–{{ segment.cadence.upper }} rpm
+                  </span>
+                {% else %}
+                  <span class="text-xs text-gray-500 dark:text-gray-500">—</span>
+                {% endif %}
+              </div>
+
+              <div class="col-span-4">
+                {% if segment.resistance %}
+                  <span class="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-semibold bg-amber-50 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200 border border-amber-200/70 dark:border-amber-800/60 tabular-nums">
+                    {{ segment.resistance.lower }}–{{ segment.resistance.upper }}%
+                  </span>
+                {% else %}
+                  <span class="text-xs text-gray-500 dark:text-gray-500">—</span>
+                {% endif %}
+              </div>
             </div>
-            <div class="text-right text-gray-700 dark:text-gray-300">
-              {% if segment.cadence %}
-                <span class="font-medium">Cad:</span> {{ segment.cadence.lower }}–{{ segment.cadence.upper }}<span class="text-gray-500">rpm</span>
-              {% endif %}
-              {% if segment.resistance %}
-                <span class="mx-2 text-gray-500">•</span>
-                <span class="font-medium">Res:</span> {{ segment.resistance.lower }}–{{ segment.resistance.upper }}<span class="text-gray-500">%</span>
-              {% endif %}
-            </div>
-          </div>
-        {% endfor %}
+          {% endfor %}
+        </div>
       </div>
     {% else %}
       <div class="text-sm text-gray-600 dark:text-gray-400">No cadence/resistance class plan targets available</div>
@@ -352,6 +412,8 @@ document.addEventListener('DOMContentLoaded', function() {
       }{% if not forloop.last %},{% endif %}
     {% endfor %}
   ];
+
+  const targetMetrics = {% if target_metrics_json %}{{ target_metrics_json|safe }}{% else %}null{% endif %};
   
   const rideDetailDurationSeconds = {% if workout.ride_detail and workout.ride_detail.duration_seconds %}{{ workout.ride_detail.duration_seconds }}{% else %}null{% endif %};
   let workoutDuration = rideDetailDurationSeconds || 0;
@@ -403,6 +465,40 @@ document.addEventListener('DOMContentLoaded', function() {
   const toSeries = (key) => (Array.isArray(performanceData) ? performanceData : [])
     .filter(p => p && typeof p.timestamp === 'number')
     .map(p => ({ x: p.timestamp, y: (typeof p[key] === 'number' ? p[key] : null) }));
+
+  const TARGET_TIME_SHIFT_SECONDS = -60;
+
+  function getTargetRangeAtTime(seconds, metricKey) {
+    if (!targetMetrics || targetMetrics.type !== 'cadence_resistance') return null;
+    const segs = Array.isArray(targetMetrics.segments) ? targetMetrics.segments : [];
+    for (const seg of segs) {
+      if (!seg) continue;
+      const start = (typeof seg.start === 'number') ? seg.start : null;
+      const end = (typeof seg.end === 'number') ? seg.end : null;
+      if (start === null || end === null) continue;
+      // Shift class-plan targets earlier to account for intro (match PZ behavior)
+      const shiftedStart = Math.max(0, start + TARGET_TIME_SHIFT_SECONDS);
+      const shiftedEnd = Math.max(0, end + TARGET_TIME_SHIFT_SECONDS);
+      if (shiftedEnd <= shiftedStart) continue;
+      if (seconds < shiftedStart || seconds > shiftedEnd) continue;
+      const metricObj = seg[metricKey];
+      if (!metricObj) continue;
+      const lower = (typeof metricObj.lower === 'number') ? metricObj.lower : null;
+      const upper = (typeof metricObj.upper === 'number') ? metricObj.upper : null;
+      if (lower === null || upper === null) continue;
+      return { lower, upper };
+    }
+    return null;
+  }
+
+  const toTargetBandSeries = (metricKey, boundKey) => (Array.isArray(performanceData) ? performanceData : [])
+    .filter(p => p && typeof p.timestamp === 'number')
+    .map(p => {
+      const t = p.timestamp;
+      const range = getTargetRangeAtTime(t, metricKey);
+      const y = range && typeof range[boundKey] === 'number' ? range[boundKey] : null;
+      return { x: t, y };
+    });
   
   const ctx = document.getElementById('generalChart');
   let generalChartInstance = null;
@@ -411,6 +507,36 @@ document.addEventListener('DOMContentLoaded', function() {
       type: 'line',
       data: {
         datasets: [
+          {
+            label: 'Target Lower',
+            data: [],
+            borderColor: 'rgba(0,0,0,0)',
+            backgroundColor: 'rgba(0,0,0,0)',
+            borderWidth: 0,
+            fill: false,
+            tension: 0.35,
+            cubicInterpolationMode: 'monotone',
+            stepped: false,
+            pointRadius: 0,
+            spanGaps: false,
+            hidden: true,
+            parsing: { xAxisKey: 'x', yAxisKey: 'y' }
+          },
+          {
+            label: 'Target Upper',
+            data: [],
+            borderColor: 'rgba(0,0,0,0)',
+            backgroundColor: 'rgba(147, 197, 253, 0.16)',
+            borderWidth: 0,
+            fill: '-1',
+            tension: 0.35,
+            cubicInterpolationMode: 'monotone',
+            stepped: false,
+            pointRadius: 0,
+            spanGaps: false,
+            hidden: true,
+            parsing: { xAxisKey: 'x', yAxisKey: 'y' }
+          },
           {
             label: 'Output',
             data: toSeries('output'),
@@ -460,7 +586,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (metric === 'Output') return `Output: ${Math.round(v)} W`;
                 if (metric === 'Cadence') return `Cadence: ${Math.round(v)} rpm`;
                 if (metric === 'Resistance') return `Resistance: ${Math.round(v)}%`;
+                if (metric === 'Target Lower' || metric === 'Target Upper') return null;
                 return `${metric}: ${v}`;
+              },
+              afterLabel: function(context) {
+                const dsLabel = context.dataset && context.dataset.label ? context.dataset.label : '';
+                if (dsLabel !== 'Cadence' && dsLabel !== 'Resistance') return '';
+                const t = context.parsed && typeof context.parsed.x === 'number' ? context.parsed.x : null;
+                if (t === null) return '';
+                const key = dsLabel === 'Cadence' ? 'cadence' : 'resistance';
+                const range = getTargetRangeAtTime(t, key);
+                if (!range) return '';
+                if (dsLabel === 'Cadence') return `Target: ${Math.round(range.lower)}–${Math.round(range.upper)} rpm`;
+                return `Target: ${Math.round(range.lower)}–${Math.round(range.upper)}%`;
               }
             }
           }
@@ -498,9 +636,9 @@ document.addEventListener('DOMContentLoaded', function() {
   const metricButtons = Array.from(document.querySelectorAll('.metric-toggle'));
   let currentMetric = 'output';
   const metricConfig = {
-    output: { label: 'Output', color: '#e0fe48', bg: 'rgba(224, 254, 72, 0.10)' },
-    cadence: { label: 'Cadence', color: '#93c5fd', bg: 'rgba(147, 197, 253, 0.12)' },
-    resistance: { label: 'Resistance', color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.12)' }
+    output: { label: 'Output', color: '#e0fe48', bg: 'rgba(224, 254, 72, 0.10)', band: null },
+    cadence: { label: 'Cadence', color: '#93c5fd', bg: 'rgba(147, 197, 253, 0.12)', band: 'rgba(147, 197, 253, 0.16)' },
+    resistance: { label: 'Resistance', color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.12)', band: 'rgba(245, 158, 11, 0.16)' }
   };
 
   function setActiveMetricButton(metric) {
@@ -518,11 +656,28 @@ document.addEventListener('DOMContentLoaded', function() {
     currentMetric = metric;
 
     const cfg = metricConfig[metric];
-    const ds = generalChartInstance.data.datasets[0];
-    ds.label = cfg.label;
-    ds.borderColor = cfg.color;
-    ds.backgroundColor = cfg.bg;
-    ds.data = toSeries(metric);
+    const targetLowerDs = generalChartInstance.data.datasets[0];
+    const targetUpperDs = generalChartInstance.data.datasets[1];
+    const actualDs = generalChartInstance.data.datasets[2];
+
+    actualDs.label = cfg.label;
+    actualDs.borderColor = cfg.color;
+    actualDs.backgroundColor = cfg.bg;
+    actualDs.data = toSeries(metric);
+
+    const wantBand = (metric === 'cadence' || metric === 'resistance') && cfg.band && targetMetrics && targetMetrics.type === 'cadence_resistance';
+    if (wantBand) {
+      targetLowerDs.hidden = false;
+      targetUpperDs.hidden = false;
+      targetUpperDs.backgroundColor = cfg.band;
+      targetLowerDs.data = toTargetBandSeries(metric, 'lower');
+      targetUpperDs.data = toTargetBandSeries(metric, 'upper');
+    } else {
+      targetLowerDs.hidden = true;
+      targetUpperDs.hidden = true;
+      targetLowerDs.data = [];
+      targetUpperDs.data = [];
+    }
 
     setActiveMetricButton(metric);
     generalChartInstance.update('none');
@@ -537,6 +692,64 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     setMetric('output');
   }
+
+  // Adherence card: % within cadence/resistance targets
+  function computeAdherence(metricKey) {
+    if (!targetMetrics || targetMetrics.type !== 'cadence_resistance') return null;
+    let total = 0;
+    let within = 0;
+    for (const p of (Array.isArray(performanceData) ? performanceData : [])) {
+      if (!p || typeof p.timestamp !== 'number') continue;
+      const v = (typeof p[metricKey] === 'number') ? p[metricKey] : null;
+      if (v === null) continue;
+      const range = getTargetRangeAtTime(p.timestamp, metricKey);
+      if (!range) continue;
+      total += 1;
+      if (v >= range.lower && v <= range.upper) within += 1;
+    }
+    if (total <= 0) return { total: 0, within: 0, pct: null };
+    return { total, within, pct: (within / total) * 100 };
+  }
+
+  function renderAdherence() {
+    const cadencePctEl = document.getElementById('cadenceAdherencePct');
+    const cadenceBarEl = document.getElementById('cadenceAdherenceBar');
+    const cadenceDetailEl = document.getElementById('cadenceAdherenceDetail');
+    const resPctEl = document.getElementById('resistanceAdherencePct');
+    const resBarEl = document.getElementById('resistanceAdherenceBar');
+    const resDetailEl = document.getElementById('resistanceAdherenceDetail');
+
+    const cadence = computeAdherence('cadence');
+    const resistance = computeAdherence('resistance');
+
+    if (cadencePctEl && cadenceBarEl && cadenceDetailEl) {
+      if (!cadence || cadence.pct === null) {
+        cadencePctEl.textContent = '—';
+        cadenceBarEl.style.width = '0%';
+        cadenceDetailEl.textContent = 'No target data';
+      } else {
+        const pct = Math.max(0, Math.min(100, cadence.pct));
+        cadencePctEl.textContent = `${pct.toFixed(0)}%`;
+        cadenceBarEl.style.width = `${pct.toFixed(2)}%`;
+        cadenceDetailEl.textContent = `${cadence.within}/${cadence.total} samples`;
+      }
+    }
+
+    if (resPctEl && resBarEl && resDetailEl) {
+      if (!resistance || resistance.pct === null) {
+        resPctEl.textContent = '—';
+        resBarEl.style.width = '0%';
+        resDetailEl.textContent = 'No target data';
+      } else {
+        const pct = Math.max(0, Math.min(100, resistance.pct));
+        resPctEl.textContent = `${pct.toFixed(0)}%`;
+        resBarEl.style.width = `${pct.toFixed(2)}%`;
+        resDetailEl.textContent = `${resistance.within}/${resistance.total} samples`;
+      }
+    }
+  }
+
+  renderAdherence();
 
   // Music timeline rendering
   if (playlistData && playlistData.length > 0) {
