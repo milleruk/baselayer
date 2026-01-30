@@ -270,3 +270,21 @@ This release introduces background processing capabilities and fixes critical sy
 ### 🐛 Fixes
 - Removed one-point “dips” in class library target line at segment boundaries (after \(-60s\) shift)
 - Target metric box now matches the chart and shows only the zone name (Recovery/Easy/Moderate/Challenging/Hard/Very Hard/Max)
+
+---
+
+## Alpha Release v0.4.5 - January 30, 2026
+
+### 🧭 Workout History Ordering
+- Same-day workouts now order by “most recent activity first” (date + sync order)
+
+---
+
+## Release Candidate v0.5.0-rc1 - January 30, 2026
+
+### ✅ Release Candidate
+This release candidate focuses on **stability and parity** across core UX flows.
+
+### Highlights
+- Workout history: consistent ordering and improved browsing experience
+- Pace target class library: chart parity and accurate target readouts

@@ -18,6 +18,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.0-rc1] - 2026-01-30
+
+### Release Candidate
+- Marking the project as **release-candidate ready** after stabilizing workout history ordering, chart parity, and key UI workflows.
+
+### Highlights
+- Workout history: stable “most recent activity first” ordering within the same day
+- Pace target class library parity with workout detail (target line + metric box alignment)
+
+---
+
+## [0.4.5-alpha] - 2026-01-30
+
+### Fixed
+- Workout history: same-day ordering now reflects most recent activity first (date + sync order)
+
+---
+
 ## [0.4.4-alpha] - 2026-01-30
 
 ### Added
