@@ -413,10 +413,6 @@
   // Extract pace_zones from target_metrics_json if available
   const paceZonesFromJson = (targetMetricsJson && targetMetricsJson.pace_zones) ? targetMetricsJson.pace_zones : null;
   
-  // #region agent log
-  fetch('http://localhost:7242/ingest/2d1a7245-2209-4ba5-a6cc-73ffb0303c5e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'pace_target_content.html:232',message:'Variables initialized',data:{workoutType:workoutType,targetLineData:targetLineData?targetLineData.length:null,hasTargetMetrics:!!targetMetricsJson,paceZonesFromJson:!!paceZonesFromJson,sampleTargetLineData:targetLineData?targetLineData.slice(0,5):null,targetMetricsSegments:targetMetricsJson?.segments?.slice(0,3)||null},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-  // #endregion
-  
   // Playlist data for music timeline
   const playlistData = {% if playlist and playlist.songs %}[
     {% for song in playlist.songs %}
@@ -1267,9 +1263,6 @@
       
       const dataPoint = targetLineData[closestIndex];
       const targetPaceZone = dataPoint?.target_pace_zone;
-      // #region agent log
-      fetch('http://localhost:7242/ingest/2d1a7245-2209-4ba5-a6cc-73ffb0303c5e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'pace_target_content.html:getCurrentTargetForTime',message:'Reading from targetLineData',data:{time:time,closestIndex:closestIndex,closestTimestamp:dataPoint?.timestamp,targetPaceZone:targetPaceZone,dataPointKeys:dataPoint?Object.keys(dataPoint):[],sampleDataPoint:targetLineData[0],sampleDataPointKeys:targetLineData[0]?Object.keys(targetLineData[0]):[],minDiff:minDiff},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-      // #endregion
       if (targetPaceZone !== null && targetPaceZone !== undefined) {
         // target_pace_zone is 0-6 scale, return as-is (will be converted to 1-7 for display)
         return targetPaceZone;
@@ -1461,10 +1454,6 @@
       
       let intervalTime = 0;
       const currentTarget = getCurrentTargetForTime(chartCurrentTime);
-      
-      // #region agent log
-      fetch('http://localhost:7242/ingest/2d1a7245-2209-4ba5-a6cc-73ffb0303c5e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'pace_target_content.html:updateProgress',message:'updateProgress called',data:{chartCurrentTime:chartCurrentTime,currentTarget:currentTarget,hasTargetLineData:!!targetLineData,targetLineDataLength:targetLineData?targetLineData.length:0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
       
       if (showProgressUp) {
         // Show time INTO current target (how long in current pace level)
@@ -1688,11 +1677,7 @@
     progressSlider.addEventListener('input', function() {
       const progress = parseFloat(this.value);
       chartCurrentTime = (progress / 100) * totalDuration;
-      
-      // #region agent log
-      fetch('http://localhost:7242/ingest/2d1a7245-2209-4ba5-a6cc-73ffb0303c5e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'pace_target_content.html:slider-input',message:'Slider moved',data:{progress:progress,chartCurrentTime:chartCurrentTime,totalDuration:totalDuration},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-      // #endregion
-      
+            
       updateSliderTooltip(progress);
       
       if (isPlaying) {

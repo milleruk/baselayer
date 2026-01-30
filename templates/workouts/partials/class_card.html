@@ -1,0 +1,152 @@
+{% for ride_data in rides_with_metrics %}
+  {% with ride=ride_data.ride %}
+  <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 shadow-sm hover:shadow-md transition-all">
+    <!-- Top Section: Duration Badge and Activity Icon -->
+    <div class="flex items-start justify-between mb-3">
+      <span class="px-3 py-1 text-sm font-bold text-gray-900 bg-yellow-400 rounded-full">
+        {{ ride.duration_minutes }}min
+      </span>
+      {% if ride.workout_type %}
+        <div class="text-primary dark:text-primary-light">
+          {% if ride.workout_type.slug == 'cycling' %}
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+            </svg>
+          {% elif ride.workout_type.slug == 'running' %}
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
+            </svg>
+          {% elif ride.workout_type.slug == 'walking' %}
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path>
+            </svg>
+          {% else %}
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"></path>
+            </svg>
+          {% endif %}
+        </div>
+      {% endif %}
+    </div>
+    
+    <!-- Title -->
+    <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-1 line-clamp-2">
+      {{ ride.title }}
+    </h3>
+    
+    <!-- Instructor and Date -->
+    <div class="mb-3 space-y-0.5">
+      {% if ride.instructor %}
+        <p class="text-sm text-gray-700 dark:text-gray-300">{{ ride.instructor.name }}</p>
+      {% endif %}
+      {% if ride.original_air_date %}
+        <p class="text-xs text-gray-500 dark:text-gray-500">Originally aired: {{ ride.original_air_date|date:"M d, Y" }}</p>
+      {% elif ride.original_air_time %}
+        <p class="text-xs text-gray-500 dark:text-gray-500">Originally aired: Date unavailable</p>
+      {% endif %}
+    </div>
+    
+    <!-- Metrics Section: TSS/IF or Difficulty -->
+    <div class="flex items-center justify-center gap-4 mb-3 py-2 border-y border-gray-200 dark:border-gray-700">
+      {% if ride.class_type == 'power_zone' or ride.is_power_zone_class %}
+        {% if ride_data.tss %}
+          <div class="text-center">
+            <div class="text-xl font-bold text-gray-900 dark:text-white">{{ ride_data.tss|floatformat:0 }}</div>
+            <div class="text-xs text-gray-600 dark:text-gray-400">TSS</div>
+          </div>
+        {% endif %}
+        {% if ride_data.if_value %}
+          <div class="w-px h-8 bg-gray-300 dark:bg-gray-700"></div>
+          <div class="text-center">
+            <div class="text-xl font-bold text-gray-900 dark:text-white">{{ ride_data.if_value|floatformat:2 }}</div>
+            <div class="text-xs text-gray-600 dark:text-gray-400">IF</div>
+          </div>
+        {% endif %}
+      {% else %}
+        {% if ride_data.difficulty %}
+          <div class="text-center">
+            <div class="text-xl font-bold text-gray-900 dark:text-white">{{ ride_data.difficulty }}</div>
+            <div class="text-xs text-gray-600 dark:text-gray-400">Difficulty</div>
+          </div>
+        {% endif %}
+      {% endif %}
+    </div>
+    
+    <!-- Class Plan Chart -->
+    {% if ride_data.chart_data %}
+      <div class="mb-3 h-32 relative bg-gray-50 dark:bg-gray-900 rounded overflow-hidden p-2">
+        <canvas id="chart-{{ ride.id }}"></canvas>
+        <script type="application/json" id="chart-data-{{ ride.id }}">{{ ride_data.chart_data|safe }}</script>
+      </div>
+    {% elif ride_data.zone_data %}
+      <!-- Fallback: Zone Distribution Bars -->
+      <div class="mb-3 h-24 relative bg-gray-50 dark:bg-gray-900 rounded overflow-hidden">
+        {% if ride.class_type == 'power_zone' or ride.is_power_zone_class %}
+          <!-- Power Zone Chart - Stacked from bottom (Zone 1) to top (Zone 7) -->
+          <div class="absolute inset-0 flex flex-col-reverse">
+            {% for zone_info in ride_data.zone_data %}
+              {% if zone_info.zone == 1 %}
+                <div class="bg-purple-600" style="height: {{ zone_info.percentage }}%"></div>
+              {% elif zone_info.zone == 2 %}
+                <div class="bg-blue-500" style="height: {{ zone_info.percentage }}%"></div>
+              {% elif zone_info.zone == 3 %}
+                <div class="bg-teal-500" style="height: {{ zone_info.percentage }}%"></div>
+              {% elif zone_info.zone == 4 %}
+                <div class="bg-green-500" style="height: {{ zone_info.percentage }}%"></div>
+              {% elif zone_info.zone == 5 %}
+                <div class="bg-yellow-500" style="height: {{ zone_info.percentage }}%"></div>
+              {% elif zone_info.zone == 6 %}
+                <div class="bg-orange-500" style="height: {{ zone_info.percentage }}%"></div>
+              {% elif zone_info.zone == 7 %}
+                <div class="bg-red-500" style="height: {{ zone_info.percentage }}%"></div>
+              {% endif %}
+            {% endfor %}
+          </div>
+        {% else %}
+          <!-- Pace Target Intensity Chart - Stacked from bottom (Recovery) to top (Max) -->
+          <div class="absolute inset-0 flex flex-col-reverse">
+            {% for zone_info in ride_data.zone_data %}
+              {% if zone_info.zone == 'recovery' %}
+                <div class="bg-purple-600" style="height: {{ zone_info.percentage }}%"></div>
+              {% elif zone_info.zone == 'easy' %}
+                <div class="bg-blue-500" style="height: {{ zone_info.percentage }}%"></div>
+              {% elif zone_info.zone == 'moderate' %}
+                <div class="bg-teal-500" style="height: {{ zone_info.percentage }}%"></div>
+              {% elif zone_info.zone == 'challenging' %}
+                <div class="bg-green-500" style="height: {{ zone_info.percentage }}%"></div>
+              {% elif zone_info.zone == 'hard' %}
+                <div class="bg-orange-500" style="height: {{ zone_info.percentage }}%"></div>
+              {% elif zone_info.zone == 'very_hard' %}
+                <div class="bg-orange-600" style="height: {{ zone_info.percentage }}%"></div>
+              {% elif zone_info.zone == 'max' %}
+                <div class="bg-red-600" style="height: {{ zone_info.percentage }}%"></div>
+              {% endif %}
+            {% endfor %}
+          </div>
+        {% endif %}
+      </div>
+    {% endif %}
+    
+    <!-- Action Buttons -->
+    <div class="flex gap-2">
+      <a href="{% url 'workouts:class_detail' ride.id %}" 
+         class="flex-1 px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-center">
+        View Details
+      </a>
+      {% if ride.peloton_class_url %}
+        <a href="{{ ride.peloton_class_url }}" target="_blank" rel="noopener noreferrer" 
+           class="flex-1 px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-center flex items-center justify-center gap-1">
+          View on Peloton
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+          </svg>
+        </a>
+      {% else %}
+        <span class="flex-1 px-3 py-2 text-sm font-medium text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-center cursor-not-allowed opacity-50">
+          View on Peloton
+        </span>
+      {% endif %}
+    </div>
+  </div>
+  {% endwith %}
+{% endfor %}

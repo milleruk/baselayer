@@ -11,15 +11,35 @@
 <!-- Filters and Search -->
 <div class="mb-6 space-y-4">
   <!-- Search Bar -->
-  <form method="get" action="{% url 'workouts:library' %}" class="flex flex-col sm:flex-row gap-3">
+  <form 
+    hx-get="{% url 'workouts:library' %}"
+    hx-target="#class-list-container"
+    hx-swap="innerHTML"
+    hx-trigger="submit, change from:.filter-select delay:300ms"
+    hx-indicator="#filter-loading"
+    hx-push-url="true"
+    method="get" 
+    class="flex flex-col sm:flex-row gap-3"
+  >
     <div class="flex-1 relative">
       <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
         <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
         </svg>
       </div>
-      <input type="text" name="search" value="{{ search_query }}" placeholder="Search classes by title or instructor" 
-             class="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-primary focus:border-transparent">
+      <input 
+        type="text" 
+        name="search" 
+        value="{{ search_query }}" 
+        placeholder="Search classes by title or instructor" 
+        hx-get="{% url 'workouts:library' %}"
+        hx-target="#class-list-container"
+        hx-swap="innerHTML"
+        hx-trigger="keyup changed delay:500ms, search"
+        hx-indicator="#filter-loading"
+        hx-push-url="true"
+        hx-include="[name='instructor'], [name='duration'], [name='tss'], [name='type'], [name='year'], [name='month'], [name='order_by']"
+        class="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-primary focus:border-transparent">
     </div>
     
     <!-- Filter Dropdowns -->
@@ -104,26 +124,19 @@
       </div>
       {% endif %}
       
-      <!-- Preserve workout type filter -->
+      <!-- Hidden fields to preserve filters -->
       {% if workout_type_filter %}
         <input type="hidden" name="type" value="{{ workout_type_filter }}">
       {% endif %}
       
-      <!-- Preserve year/month filters -->
-      {% if year_filter %}
-        <input type="hidden" name="year" value="{{ year_filter }}">
-      {% endif %}
-      {% if month_filter %}
-        <input type="hidden" name="month" value="{{ month_filter }}">
-      {% endif %}
-      
-      <!-- Preserve order by -->
-      {% if order_by and order_by != '-original_air_time' %}
-        <input type="hidden" name="order_by" value="{{ order_by }}">
-      {% endif %}
-      
-      <button type="submit" id="filter-submit-btn" class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors whitespace-nowrap">
-        Search
+      <button type="submit" class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors whitespace-nowrap relative">
+        <span class="inline-flex items-center gap-2">
+          <span>Search</span>
+          <svg id="filter-loading" class="htmx-indicator animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+        </span>
       </button>
     </div>
   </form>
@@ -131,11 +144,21 @@
   <!-- Workout Type Tabs -->
   <div class="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
     <div class="flex gap-1 border-b border-gray-200 dark:border-gray-700 min-w-max sm:min-w-0">
-      <a href="#" data-type="" class="workout-type-tab px-4 py-2 text-sm font-medium {% if not workout_type_filter %}text-primary border-b-2 border-primary{% else %}text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white{% endif %} transition-colors">
+      <a href="{% url 'workouts:library' %}?{% if search_query %}search={{ search_query }}&{% endif %}{% if instructor_filter %}instructor={{ instructor_filter }}&{% endif %}{% if duration_filter %}duration={{ duration_filter }}&{% endif %}{% if tss_filter %}tss={{ tss_filter }}&{% endif %}{% if year_filter %}year={{ year_filter }}&{% endif %}{% if month_filter %}month={{ month_filter }}&{% endif %}"
+         hx-get="{% url 'workouts:library' %}?{% if search_query %}search={{ search_query }}&{% endif %}{% if instructor_filter %}instructor={{ instructor_filter }}&{% endif %}{% if duration_filter %}duration={{ duration_filter }}&{% endif %}{% if tss_filter %}tss={{ tss_filter }}&{% endif %}{% if year_filter %}year={{ year_filter }}&{% endif %}{% if month_filter %}month={{ month_filter }}&{% endif %}"
+         hx-target="#class-list-container"
+         hx-swap="innerHTML"
+         hx-push-url="true"
+         class="workout-type-tab px-4 py-2 text-sm font-medium {% if not workout_type_filter %}text-primary border-b-2 border-primary{% else %}text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white{% endif %} transition-colors">
         All
       </a>
       {% for workout_type in workout_types %}
-        <a href="#" data-type="{{ workout_type.slug }}" class="workout-type-tab px-4 py-2 text-sm font-medium {% if workout_type_filter == workout_type.slug %}text-primary border-b-2 border-primary{% else %}text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white{% endif %} transition-colors">
+        <a href="{% url 'workouts:library' %}?type={{ workout_type.slug }}{% if search_query %}&search={{ search_query }}{% endif %}{% if instructor_filter %}&instructor={{ instructor_filter }}{% endif %}{% if duration_filter %}&duration={{ duration_filter }}{% endif %}{% if tss_filter %}&tss={{ tss_filter }}{% endif %}{% if year_filter %}&year={{ year_filter }}{% endif %}{% if month_filter %}&month={{ month_filter }}{% endif %}"
+           hx-get="{% url 'workouts:library' %}?type={{ workout_type.slug }}{% if search_query %}&search={{ search_query }}{% endif %}{% if instructor_filter %}&instructor={{ instructor_filter }}{% endif %}{% if duration_filter %}&duration={{ duration_filter }}{% endif %}{% if tss_filter %}&tss={{ tss_filter }}{% endif %}{% if year_filter %}&year={{ year_filter }}{% endif %}{% if month_filter %}&month={{ month_filter }}{% endif %}"
+           hx-target="#class-list-container"
+           hx-swap="innerHTML"
+           hx-push-url="true"
+           class="workout-type-tab px-4 py-2 text-sm font-medium {% if workout_type_filter == workout_type.slug %}text-primary border-b-2 border-primary{% else %}text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white{% endif %} transition-colors">
           {{ workout_type.name }}
         </a>
       {% endfor %}
@@ -184,564 +207,321 @@
   {% endif %}
 </div>
 
-<!-- Class Count and Pagination Info -->
-<div id="class-count-info" class="mb-4 text-sm text-gray-600 dark:text-gray-400">
-  {% if rides_with_metrics %}
-    Showing {{ page_obj.start_index }} - {{ page_obj.end_index }} of {{ page_obj.paginator.count }} class{{ page_obj.paginator.count|pluralize:"es" }}
-  {% endif %}
+<!-- Class List Container -->
+<div id="class-list-container">
+  {% include 'workouts/partials/class_list.html' %}
 </div>
 
-<!-- Class List (Card Layout) -->
-<div id="class-list-container">
-{% if rides_with_metrics %}
-  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-    {% for ride_data in rides_with_metrics %}
-      {% with ride=ride_data.ride %}
-      <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 shadow-sm hover:shadow-md transition-all">
-        <!-- Top Section: Duration Badge and Activity Icon -->
-        <div class="flex items-start justify-between mb-3">
-          <span class="px-3 py-1 text-sm font-bold text-gray-900 bg-yellow-400 rounded-full">
-            {{ ride.duration_minutes }}min
-          </span>
-          {% if ride.workout_type %}
-            <div class="text-primary dark:text-primary-light">
-              {% if ride.workout_type.slug == 'cycling' %}
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-                </svg>
-              {% elif ride.workout_type.slug == 'running' %}
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
-                </svg>
-              {% elif ride.workout_type.slug == 'walking' %}
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path>
-                </svg>
-              {% else %}
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"></path>
-                </svg>
-              {% endif %}
-            </div>
-          {% endif %}
-        </div>
-        
-        <!-- Title -->
-        <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-1 line-clamp-2">
-          {{ ride.title }}
-        </h3>
-        
-        <!-- Instructor and Date -->
-        <div class="mb-3 space-y-0.5">
-          {% if ride.instructor %}
-            <p class="text-sm text-gray-700 dark:text-gray-300">{{ ride.instructor.name }}</p>
-          {% endif %}
-          {% if ride.original_air_date %}
-            <p class="text-xs text-gray-500 dark:text-gray-500">Originally aired: {{ ride.original_air_date|date:"M d, Y" }}</p>
-          {% elif ride.original_air_time %}
-            <p class="text-xs text-gray-500 dark:text-gray-500">Originally aired: Date unavailable</p>
-          {% endif %}
-        </div>
-        
-        <!-- Metrics Section: TSS/IF or Difficulty -->
-        <div class="flex items-center justify-center gap-4 mb-3 py-2 border-y border-gray-200 dark:border-gray-700">
-          {% if ride.class_type == 'power_zone' or ride.is_power_zone_class %}
-            {% if ride_data.tss %}
-              <div class="text-center">
-                <div class="text-xl font-bold text-gray-900 dark:text-white">{{ ride_data.tss|floatformat:0 }}</div>
-                <div class="text-xs text-gray-600 dark:text-gray-400">TSS</div>
-              </div>
-            {% endif %}
-            {% if ride_data.if_value %}
-              <div class="w-px h-8 bg-gray-300 dark:bg-gray-700"></div>
-              <div class="text-center">
-                <div class="text-xl font-bold text-gray-900 dark:text-white">{{ ride_data.if_value|floatformat:2 }}</div>
-                <div class="text-xs text-gray-600 dark:text-gray-400">IF</div>
-              </div>
-            {% endif %}
-          {% else %}
-            {% if ride_data.difficulty %}
-              <div class="text-center">
-                <div class="text-xl font-bold text-gray-900 dark:text-white">{{ ride_data.difficulty }}</div>
-                <div class="text-xs text-gray-600 dark:text-gray-400">Difficulty</div>
-              </div>
-            {% endif %}
-          {% endif %}
-        </div>
-        
-        <!-- Class Plan Chart -->
-        {% if ride_data.chart_data %}
-          <div class="mb-3 h-32 relative bg-gray-50 dark:bg-gray-900 rounded overflow-hidden p-2">
-            <canvas id="chart-{{ ride.id }}"></canvas>
-            <script type="application/json" id="chart-data-{{ ride.id }}">{{ ride_data.chart_data|safe }}</script>
-          </div>
-        {% elif ride_data.zone_data %}
-          <!-- Fallback: Zone Distribution Bars -->
-          <div class="mb-3 h-24 relative bg-gray-50 dark:bg-gray-900 rounded overflow-hidden">
-            {% if ride.class_type == 'power_zone' or ride.is_power_zone_class %}
-              <!-- Power Zone Chart - Stacked from bottom (Zone 1) to top (Zone 7) -->
-              <div class="absolute inset-0 flex flex-col-reverse">
-                {% for zone_info in ride_data.zone_data %}
-                  {% if zone_info.zone == 1 %}
-                    <div class="bg-purple-600" style="height: {{ zone_info.percentage }}%"></div>
-                  {% elif zone_info.zone == 2 %}
-                    <div class="bg-blue-500" style="height: {{ zone_info.percentage }}%"></div>
-                  {% elif zone_info.zone == 3 %}
-                    <div class="bg-teal-500" style="height: {{ zone_info.percentage }}%"></div>
-                  {% elif zone_info.zone == 4 %}
-                    <div class="bg-green-500" style="height: {{ zone_info.percentage }}%"></div>
-                  {% elif zone_info.zone == 5 %}
-                    <div class="bg-yellow-500" style="height: {{ zone_info.percentage }}%"></div>
-                  {% elif zone_info.zone == 6 %}
-                    <div class="bg-orange-500" style="height: {{ zone_info.percentage }}%"></div>
-                  {% elif zone_info.zone == 7 %}
-                    <div class="bg-red-500" style="height: {{ zone_info.percentage }}%"></div>
-                  {% endif %}
-                {% endfor %}
-              </div>
-            {% else %}
-              <!-- Pace Target Intensity Chart - Stacked from bottom (Recovery) to top (Max) -->
-              <div class="absolute inset-0 flex flex-col-reverse">
-                {% for zone_info in ride_data.zone_data %}
-                  {% if zone_info.zone == 'recovery' %}
-                    <div class="bg-purple-600" style="height: {{ zone_info.percentage }}%"></div>
-                  {% elif zone_info.zone == 'easy' %}
-                    <div class="bg-blue-500" style="height: {{ zone_info.percentage }}%"></div>
-                  {% elif zone_info.zone == 'moderate' %}
-                    <div class="bg-teal-500" style="height: {{ zone_info.percentage }}%"></div>
-                  {% elif zone_info.zone == 'challenging' %}
-                    <div class="bg-green-500" style="height: {{ zone_info.percentage }}%"></div>
-                  {% elif zone_info.zone == 'hard' %}
-                    <div class="bg-orange-500" style="height: {{ zone_info.percentage }}%"></div>
-                  {% elif zone_info.zone == 'very_hard' %}
-                    <div class="bg-orange-600" style="height: {{ zone_info.percentage }}%"></div>
-                  {% elif zone_info.zone == 'max' %}
-                    <div class="bg-red-600" style="height: {{ zone_info.percentage }}%"></div>
-                  {% endif %}
-                {% endfor %}
-              </div>
-            {% endif %}
-          </div>
-        {% endif %}
-        
-        <!-- Action Buttons -->
-        <div class="flex gap-2">
-          <a href="{% url 'workouts:class_detail' ride.id %}" 
-             class="flex-1 px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-center">
-            View Details
-          </a>
-          {% if ride.peloton_class_url %}
-            <a href="{{ ride.peloton_class_url }}" target="_blank" rel="noopener noreferrer" 
-               class="flex-1 px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-center flex items-center justify-center gap-1">
-              View on Peloton
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
-              </svg>
-            </a>
-          {% else %}
-            <span class="flex-1 px-3 py-2 text-sm font-medium text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-center cursor-not-allowed opacity-50">
-              View on Peloton
-            </span>
-          {% endif %}
-        </div>
-      </div>
-      {% endwith %}
-    {% endfor %}
-  </div>
-{% else %}
-  <div class="text-center py-12">
-    <div class="text-5xl mb-4">📚</div>
-    <p class="text-gray-600 dark:text-gray-400 text-lg mb-2">No classes found</p>
-    <p class="text-gray-500 dark:text-gray-500 text-sm">Try adjusting your filters or search query.</p>
-  </div>
-{% endif %}
-</div>
+<!-- Back to Top Button - Inside content block so it renders immediately -->
+<button
+  id="back-to-top"
+  onclick="window.scrollTo({ top: 0, behavior: 'smooth' })"
+  style="display: none; position: fixed; bottom: 2rem; right: 2rem; z-index: 99999; padding: 1rem; background-color: #3b82f6; color: white; border: none; border-radius: 50%; box-shadow: 0 10px 25px rgba(59, 130, 246, 0.5); cursor: pointer; transition: all 0.3s ease;"
+  onmouseover="this.style.backgroundColor='#2563eb'; this.style.transform='scale(1.1)'"
+  onmouseout="this.style.backgroundColor='#3b82f6'; this.style.transform='scale(1)'"
+  aria-label="Back to top"
+  title="Back to top"
+>
+  <svg style="width: 24px; height: 24px;" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3">
+    <path stroke-linecap="round" stroke-linejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18"></path>
+  </svg>
+</button>
+
+<script>
+// Back to top button functionality
+(function() {
+  const backToTopButton = document.getElementById('back-to-top');
   
-  <!-- Pagination -->
-<div id="pagination-container">
-  {% if rides_with_metrics and is_paginated %}
-    <div class="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6">
-      <div class="text-sm text-gray-600 dark:text-gray-400">
-        Showing {{ page_obj.start_index }} - {{ page_obj.end_index }} of {{ page_obj.paginator.count }} class{{ page_obj.paginator.count|pluralize:"es" }}
-      </div>
-      
-      <div class="flex items-center gap-2">
-        {% if page_obj.has_previous %}
-          <a href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if workout_type_filter %}&type={{ workout_type_filter }}{% endif %}{% if instructor_filter %}&instructor={{ instructor_filter }}{% endif %}{% if duration_filter %}&duration={{ duration_filter }}{% endif %}{% if order_by != '-original_air_time' %}&order_by={{ order_by }}{% endif %}" 
-             class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-            Previous
-          </a>
-        {% else %}
-          <span class="px-4 py-2 text-sm font-medium text-gray-400 dark:text-gray-600 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg cursor-not-allowed opacity-50">
-            Previous
-          </span>
-        {% endif %}
-        
-        <span class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300">
-          Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
-        </span>
-        
-        {% if page_obj.has_next %}
-          <a href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if workout_type_filter %}&type={{ workout_type_filter }}{% endif %}{% if instructor_filter %}&instructor={{ instructor_filter }}{% endif %}{% if duration_filter %}&duration={{ duration_filter }}{% endif %}{% if order_by != '-original_air_time' %}&order_by={{ order_by }}{% endif %}" 
-             class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-            Next
-          </a>
-        {% else %}
-          <span class="px-4 py-2 text-sm font-medium text-gray-400 dark:text-gray-600 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg cursor-not-allowed opacity-50">
-            Next
-          </span>
-        {% endif %}
-      </div>
-    </div>
-  {% endif %}
-</div>
+  function toggleBackToTop() {
+    if (window.scrollY > 300) {
+      backToTopButton.style.display = 'block';
+      backToTopButton.style.opacity = '1';
+    } else {
+      backToTopButton.style.opacity = '0';
+      setTimeout(() => {
+        if (window.scrollY <= 300) {
+          backToTopButton.style.display = 'none';
+        }
+      }, 300);
+    }
+  }
+  
+  window.addEventListener('scroll', toggleBackToTop);
+  toggleBackToTop(); // Check initial state
+})();
+</script>
+{% endblock %}
+
+<!-- Charts -->
+{% block extra_body %}
 
 <!-- Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6"></script>
 
+<!-- Chart Initialization -->
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-  // Initialize mini charts for class cards
-  {% for ride_data in rides_with_metrics %}
-    {% if ride_data.chart_data %}
-      (function() {
-        const chartDataScript = document.getElementById('chart-data-{{ ride_data.ride.id }}');
-        if (!chartDataScript) return;
-        
-        let chartData;
-        try {
-          chartData = JSON.parse(chartDataScript.textContent || '{}');
-        } catch (e) {
-          console.error('Error parsing chart data for ride {{ ride_data.ride.id }}:', e);
-          return;
-        }
-        if (!chartData.segments || !chartData.zones) return;
-        
-        const canvas = document.getElementById('chart-{{ ride_data.ride.id }}');
-        if (!canvas) return;
-        
-        const ctx = canvas.getContext('2d');
-        const isDark = document.documentElement.classList.contains('dark');
-        const textColor = isDark ? 'rgba(255, 255, 255, 0.7)' : 'rgba(0, 0, 0, 0.7)';
-        const gridColor = isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.05)';
-        
-        // Build time series data
-        const timePoints = [];
-        const targetSeries = [];
-        let segmentTime = 0;
-        
-        chartData.segments.forEach(segment => {
-          const duration = segment.duration;
-          let target = segment.zone;
-          
-          if (chartData.type === 'power_zone') {
-            target = Math.max(1, Math.min(7, target || 1));
-          } else {
-            target = Math.max(0, Math.min(6, target || 0));
-          }
-          
-          for (let i = 0; i < duration && (segmentTime + i) < chartData.total_duration; i += 10) {
-            timePoints.push(segmentTime + i);
-            targetSeries.push(target);
-          }
-          segmentTime += duration;
-        });
-        
-        if (chartData.total_duration > 0 && (timePoints.length === 0 || timePoints[timePoints.length - 1] < chartData.total_duration)) {
-          timePoints.push(chartData.total_duration);
-          targetSeries.push(targetSeries[targetSeries.length - 1] || (chartData.type === 'power_zone' ? 1 : 0));
-        }
-        
-        // Create zone bands
-        const zoneBands = chartData.zones.map((zone, index) => {
-          const zoneNum = chartData.type === 'power_zone' ? index + 1 : index;
-          return {
-            label: zone.name,
-            lower: zoneNum - 0.5,
-            upper: zoneNum + 0.5,
-            color: zone.color
-          };
-        });
-        
-        // Zone band plugin
-        const bandPlugin = {
-          id: 'zoneBands',
-          beforeDatasetsDraw(chart, args, opts) {
-            const {ctx, chartArea, scales} = chart;
-            if (!opts || !Array.isArray(opts.bands)) return;
-            const toY = (zone) => scales.y.getPixelForValue(zone);
-            ctx.save();
-            (opts.bands || []).forEach(b => {
-              const yTop = toY(b.upper);
-              const yBot = toY(b.lower);
-              if (yTop == null || yBot == null) return;
-              ctx.fillStyle = b.color;
-              ctx.globalAlpha = 0.15;
-              ctx.fillRect(chartArea.left, yTop, chartArea.right - chartArea.left, yBot - yTop);
-            });
-            ctx.restore();
-          }
-        };
-        
-        // Create chart
-        new Chart(ctx, {
-          type: 'line',
-          data: {
-            datasets: [{
-              label: 'Target',
-              data: timePoints.map((time, index) => ({ x: time, y: targetSeries[index] })),
-              borderWidth: 2,
-              pointRadius: 0,
-              borderColor: '#5b7cfa',
-              backgroundColor: 'rgba(91, 124, 250, 0.1)',
-              fill: true,
-              tension: 0.1
-            }]
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            animation: false,
-            interaction: { mode: 'index', intersect: false },
-            plugins: {
-              legend: { display: false },
-              tooltip: { enabled: false },
-              zoneBands: { bands: zoneBands }
-            },
-            scales: {
-              x: {
-                type: 'linear',
-                min: 0,
-                max: chartData.total_duration,
-                display: false,
-                grid: { display: false }
-              },
-              y: {
-                min: chartData.type === 'power_zone' ? 0.5 : -0.5,
-                max: chartData.type === 'power_zone' ? 7.5 : 6.5,
-                display: false,
-                grid: { display: false }
-              }
-            }
-          },
-          plugins: [bandPlugin]
-        });
-      })();
-    {% endif %}
-  {% endfor %}
+// Get user's FTP and pace data from Django context
+const userFTP = {{ request.user.profile.get_current_ftp|default:"null" }};
+const userRunningPaceZones = {% if user_running_pace_zones %}{{ user_running_pace_zones|safe }}{% else %}null{% endif %};
+const userWalkingPaceZones = {% if user_walking_pace_zones %}{{ user_walking_pace_zones|safe }}{% else %}null{% endif %};
+
+// Power Zone percentages (based on FTP)
+const powerZonePercentages = {
+  1: 0.55,  // Zone 1: 50-65% (using middle ~55%)
+  2: 0.75,  // Zone 2: 65-85% (using middle ~75%)
+  3: 0.85,  // Zone 3: 80-90% (using middle ~85%)
+  4: 0.975, // Zone 4: 95-100% (using middle ~97.5%)
+  5: 1.125, // Zone 5: 110-115% (using middle ~112.5%)
+  6: 1.35,  // Zone 6: 130-140% (using middle ~135%)
+  7: 1.75   // Zone 7: 170%+ (using 175%)
+};
+
+// Helper to format pace (minutes per mile)
+function formatPace(secondsPerMile) {
+  if (!secondsPerMile) return null;
+  const mins = Math.floor(secondsPerMile / 60);
+  const secs = Math.round(secondsPerMile % 60);
+  return `${mins}:${secs.toString().padStart(2, '0')} /mi`;
+}
+
+// Store chart instances to destroy them later
+const chartInstances = {};
+
+// Initialize all charts on the page
+function initializeCharts() {
+  const canvases = document.querySelectorAll('canvas[id^="chart-"]');
   
-  // Live Search with AJAX
-  const searchInput = document.querySelector('input[name="search"]');
-  let searchTimeout = null;
-  let currentSearchRequest = null;
-  
-  if (searchInput) {
-    const searchResultsContainer = document.getElementById('live-search-results');
-    let resultsContainer = null;
+  canvases.forEach(canvas => {
+    const rideId = canvas.id.replace('chart-', '');
     
-    // Create results container if it doesn't exist
-    if (!searchResultsContainer) {
-      resultsContainer = document.createElement('div');
-      resultsContainer.id = 'live-search-results';
-      resultsContainer.className = 'absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-96 overflow-y-auto';
-      resultsContainer.style.display = 'none';
-      searchInput.parentElement.style.position = 'relative';
-      searchInput.parentElement.appendChild(resultsContainer);
-    } else {
-      resultsContainer = searchResultsContainer;
-    }
-    
-    searchInput.addEventListener('input', function(e) {
-      const query = this.value.trim();
-      
-      // Clear previous timeout
-      if (searchTimeout) {
-        clearTimeout(searchTimeout);
-      }
-      
-      // Cancel previous request if still pending
-      if (currentSearchRequest) {
-        currentSearchRequest.abort();
-      }
-      
-      // Hide results if query is empty
-      if (query.length === 0) {
-        resultsContainer.style.display = 'none';
-        return;
-      }
-      
-      // Show loading state
-      resultsContainer.innerHTML = '<div class="p-4 text-center text-gray-500 dark:text-gray-400">Searching...</div>';
-      resultsContainer.style.display = 'block';
-      
-      // Debounce: wait 300ms before making request
-      searchTimeout = setTimeout(function() {
-        performLiveSearch(query, resultsContainer);
-      }, 300);
-    });
-    
-    // Hide results when clicking outside
-    document.addEventListener('click', function(e) {
-      if (!searchInput.contains(e.target) && !resultsContainer.contains(e.target)) {
-        resultsContainer.style.display = 'none';
-      }
-    });
-    
-    // Handle keyboard navigation
-    searchInput.addEventListener('keydown', function(e) {
-      if (e.key === 'Escape') {
-        resultsContainer.style.display = 'none';
-        this.blur();
-      }
-    });
-  }
-  
-  function performLiveSearch(query, container) {
-    const filterForm = document.querySelector('form[action="{% url 'workouts:library' %}"]');
-    const formData = new FormData(filterForm);
-    formData.set('search', query);
-    formData.set('ajax', '1');
-    
-    // Create URL with all current filters
-    const params = new URLSearchParams();
-    for (const [key, value] of formData.entries()) {
-      if (value && key !== 'ajax') {
-        params.append(key, value);
-      }
-    }
-    params.append('ajax', '1');
-    
-    const url = '{% url "workouts:library" %}?' + params.toString();
-    
-    // Create abort controller for this request
-    const controller = new AbortController();
-    currentSearchRequest = controller;
-    
-    fetch(url, {
-      method: 'GET',
-      headers: {
-        'X-Requested-With': 'XMLHttpRequest',
-      },
-      signal: controller.signal
-    })
-    .then(response => response.json())
-    .then(data => {
-      if (data.success) {
-        displaySearchResults(data.results, data.total, container);
-      } else {
-        container.innerHTML = '<div class="p-4 text-center text-red-500">Error loading results</div>';
-      }
-    })
-    .catch(error => {
-      if (error.name !== 'AbortError') {
-        container.innerHTML = '<div class="p-4 text-center text-red-500">Error loading results</div>';
-      }
-    })
-    .finally(() => {
-      currentSearchRequest = null;
-    });
-  }
-  
-  function displaySearchResults(results, total, container) {
-    if (results.length === 0) {
-      container.innerHTML = '<div class="p-4 text-center text-gray-500 dark:text-gray-400">No classes found</div>';
+    // Skip if already initialized
+    if (chartInstances[rideId]) {
       return;
     }
     
-    let html = '<div class="divide-y divide-gray-200 dark:divide-gray-700">';
+    const chartDataScript = document.getElementById(`chart-data-${rideId}`);
     
-    results.forEach(function(result) {
-      html += `
-        <a href="${result.url}" class="block p-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-          <div class="flex items-start justify-between">
-            <div class="flex-1 min-w-0">
-              <p class="text-sm font-medium text-gray-900 dark:text-white truncate">${escapeHtml(result.title)}</p>
-              <div class="mt-1 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-                ${result.instructor ? `<span>${escapeHtml(result.instructor)}</span>` : ''}
-                ${result.workout_type ? `<span>• ${escapeHtml(result.workout_type)}</span>` : ''}
-                ${result.duration_minutes ? `<span>• ${result.duration_minutes} min</span>` : ''}
-              </div>
-              ${result.original_air_date ? `<p class="mt-1 text-xs text-gray-400 dark:text-gray-500">${result.original_air_date}</p>` : ''}
-            </div>
-          </div>
-        </a>
-      `;
-    });
+    if (!chartDataScript) return;
     
-    if (total > results.length) {
-      const searchInput = document.querySelector('input[name="search"]');
-      const query = searchInput ? searchInput.value : '';
-      html += `
-        <div class="p-3 text-center text-sm text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700">
-          Showing ${results.length} of ${total} results. <a href="?search=${encodeURIComponent(query)}" class="text-primary hover:underline">View all</a>
-        </div>
-      `;
+    let chartData;
+    try {
+      chartData = JSON.parse(chartDataScript.textContent || '{}');
+    } catch (e) {
+      console.error(`Error parsing chart data for ride ${rideId}:`, e);
+      return;
     }
     
-    html += '</div>';
-    container.innerHTML = html;
-  }
-  
-  function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-  }
-  
-  // AJAX Filter Handling for Class Library
-  const filterForm = document.querySelector('form[action="{% url 'workouts:library' %}"]');
-  
-  if (filterForm) {
-    filterForm.addEventListener('submit', function(e) {
-      e.preventDefault();
+    if (!chartData.segments || !chartData.zones) return;
+    
+    const ctx = canvas.getContext('2d');
+    const isDark = document.documentElement.classList.contains('dark');
+    
+    // Build time series data
+    const timePoints = [];
+    const targetSeries = [];
+    let segmentTime = 0;
+    
+    chartData.segments.forEach(segment => {
+      const duration = segment.duration;
+      let target = segment.zone;
       
-      const formData = new FormData(filterForm);
-      const params = new URLSearchParams();
-      
-      for (const [key, value] of formData.entries()) {
-        if (value) {
-          params.append(key, value);
-        }
-      }
-      
-      const newUrl = '{% url "workouts:library" %}?' + params.toString();
-      window.location.href = newUrl;
-    });
-  }
-  
-  // Workout Type Tabs (matching history page)
-  document.querySelectorAll('.workout-type-tab').forEach(tab => {
-    tab.addEventListener('click', function(e) {
-      e.preventDefault();
-      const type = this.getAttribute('data-type');
-      const form = filterForm;
-      const formData = new FormData(form);
-      
-      // Update or remove type filter
-      if (type) {
-        formData.set('type', type);
+      if (chartData.type === 'power_zone') {
+        target = Math.max(1, Math.min(7, target || 1));
       } else {
-        formData.delete('type');
+        target = Math.max(0, Math.min(6, target || 0));
       }
       
-      // Build URL with all current filters
-      const params = new URLSearchParams();
-      for (const [key, value] of formData.entries()) {
-        if (value) {
-          params.append(key, value);
+      for (let i = 0; i < duration && (segmentTime + i) < chartData.total_duration; i += 10) {
+        timePoints.push(segmentTime + i);
+        targetSeries.push(target);
+      }
+      segmentTime += duration;
+    });
+    
+    if (chartData.total_duration > 0 && (timePoints.length === 0 || timePoints[timePoints.length - 1] < chartData.total_duration)) {
+      timePoints.push(chartData.total_duration);
+      targetSeries.push(targetSeries[targetSeries.length - 1] || (chartData.type === 'power_zone' ? 1 : 0));
+    }
+    
+    // Create zone bands
+    const zoneBands = chartData.zones.map((zone, index) => {
+      const zoneNum = chartData.type === 'power_zone' ? index + 1 : index;
+      return {
+        label: zone.name,
+        lower: zoneNum - 0.5,
+        upper: zoneNum + 0.5,
+        color: zone.color
+      };
+    });
+    
+    // Zone band plugin
+    const bandPlugin = {
+      id: 'zoneBands',
+      beforeDatasetsDraw(chart, args, opts) {
+        const {ctx, chartArea, scales} = chart;
+        if (!opts || !Array.isArray(opts.bands)) return;
+        const toY = (zone) => scales.y.getPixelForValue(zone);
+        ctx.save();
+        (opts.bands || []).forEach(b => {
+          const yTop = toY(b.upper);
+          const yBot = toY(b.lower);
+          if (yTop == null || yBot == null) return;
+          ctx.fillStyle = b.color;
+          ctx.globalAlpha = 0.15;
+          ctx.fillRect(chartArea.left, yTop, chartArea.right - chartArea.left, yBot - yTop);
+        });
+        ctx.restore();
+      }
+    };
+    
+    // Create chart and store instance
+    chartInstances[rideId] = new Chart(ctx, {
+      type: 'line',
+      data: {
+        datasets: [{
+          label: 'Target',
+          data: timePoints.map((time, index) => ({ x: time, y: targetSeries[index] })),
+          borderWidth: 2,
+          pointRadius: 0,
+          borderColor: '#5b7cfa',
+          backgroundColor: 'rgba(91, 124, 250, 0.1)',
+          fill: true,
+          tension: 0.1
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            enabled: true,
+            backgroundColor: 'rgba(30, 30, 30, 0.9)',
+            titleColor: '#fff',
+            bodyColor: '#76bbf7',
+            borderColor: '#555',
+            borderWidth: 1,
+            padding: 12,
+            displayColors: false,
+            titleFont: {
+              size: 14,
+              weight: 'bold'
+            },
+            bodyFont: {
+              size: 14,
+              weight: 'bold'
+            },
+            callbacks: {
+              title: function(context) {
+                // Convert seconds to MM:SS format
+                const seconds = Math.round(context[0].parsed.x);
+                const mins = Math.floor(seconds / 60);
+                const secs = seconds % 60;
+                return `${mins}:${secs.toString().padStart(2, '0')}`;
+              },
+              label: function(context) {
+                const zone = Math.round(context.parsed.y);
+                const labels = [];
+                
+                if (chartData.type === 'power_zone') {
+                  // Power Zone - show watts if user has FTP
+                  if (userFTP && powerZonePercentages[zone]) {
+                    const targetWatts = Math.round(userFTP * powerZonePercentages[zone]);
+                    labels.push(`Target: ${targetWatts} watts`);
+                  } else {
+                    labels.push(`Target: Zone ${zone}`);
+                  }
+                } else {
+                  // Pace Zone - show zone name first, then pace
+                  // Determine which pace zones to use (running vs walking)
+                  const isWalking = chartData.activity_type === 'walking';
+                  const userPaceZones = isWalking ? userWalkingPaceZones : userRunningPaceZones;
+                  
+                  // Running has 7 zones, Walking has 5 zones
+                  const zoneNames = isWalking 
+                    ? ['recovery', 'easy', 'brisk', 'power', 'max']
+                    : ['recovery', 'easy', 'moderate', 'challenging', 'hard', 'very_hard', 'max'];
+                  const displayNames = isWalking
+                    ? ['Recovery', 'Easy', 'Brisk', 'Power', 'Max']
+                    : ['Recovery', 'Easy', 'Moderate', 'Challenging', 'Hard', 'Very Hard', 'Max'];
+                  
+                  const zoneName = zoneNames[zone];
+                  const displayName = displayNames[zone];
+                  
+                  if (userPaceZones && zoneName && userPaceZones[zoneName]) {
+                    const pace = formatPace(userPaceZones[zoneName]);
+                    labels.push(displayName); // Zone name first
+                    labels.push(`Target: ${pace}`); // Pace second
+                  } else {
+                    // Fallback to zone name only
+                    labels.push(`Target: ${displayName || zone}`);
+                  }
+                }
+                
+                return labels;
+              }
+            }
+          },
+          zoneBands: { bands: zoneBands }
+        },
+        scales: {
+          x: {
+            type: 'linear',
+            min: 0,
+            max: chartData.total_duration,
+            display: false,
+            grid: { display: false }
+          },
+          y: {
+            min: chartData.type === 'power_zone' ? 0.5 : -0.5,
+            max: chartData.type === 'power_zone' ? 7.5 : 6.5,
+            display: false,
+            grid: { display: false }
+          }
         }
-      }
-      
-      window.location.href = '{% url "workouts:library" %}?' + params.toString();
+      },
+      plugins: [bandPlugin]
     });
   });
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', initializeCharts);
+
+// Re-initialize after HTMX swaps (for filters and pagination)
+document.body.addEventListener('htmx:afterSwap', function(event) {
+  // Always initialize charts after any swap - let the function handle detection
+  setTimeout(initializeCharts, 150);
+});
+
+// Update active tab styling after HTMX navigation
+document.body.addEventListener('htmx:afterSwap', function(event) {
+  // Only process if swapping class list content
+  if (event.detail.target.id !== 'class-list-container') return;
   
-  // Handle filter removal
-  document.querySelectorAll('a[href*="workouts:library"]').forEach(link => {
-    link.addEventListener('click', function(e) {
-      // Let the link work normally
-    });
+  // Get the URL that was just loaded
+  const url = new URL(event.detail.pathInfo.requestPath, window.location.origin);
+  const typeParam = url.searchParams.get('type') || '';
+  
+  // Update all tab styling
+  document.querySelectorAll('.workout-type-tab').forEach(tab => {
+    const tabHref = tab.getAttribute('href') || '';
+    const tabUrl = new URL(tabHref, window.location.origin);
+    const tabType = tabUrl.searchParams.get('type') || '';
+    
+    // Remove all active classes
+    tab.classList.remove('text-primary', 'border-b-2', 'border-primary');
+    tab.classList.add('text-gray-600', 'dark:text-gray-400');
+    
+    // Add active classes if this tab matches current type
+    if (tabType === typeParam) {
+      tab.classList.remove('text-gray-600', 'dark:text-gray-400');
+      tab.classList.add('text-primary', 'border-b-2', 'border-primary');
+    }
   });
 });
 </script>
+
 {% endblock %}

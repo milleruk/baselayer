@@ -3149,6 +3149,10 @@ def workout_detail(request, pk):
         # Pace Target classes (Running/Walking)
         elif ride_detail.fitness_discipline in ['running', 'walking', 'run', 'walk'] or ride_detail.class_type == 'pace_target':
             template_name = 'workouts/detail_pace_target.html'
+        
+        # Non–Power Zone cycling workouts (dedicated template)
+        elif ride_detail.fitness_discipline in ['cycling', 'ride']:
+            template_name = 'workouts/detail_cycling.html'
     
     return render(request, template_name, context)
 

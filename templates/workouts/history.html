@@ -9,94 +9,55 @@
 </div>
 
 <!-- Peloton Connection Status -->
-{% if peloton_connection %}
-  <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm mb-6">
-    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-      <div class="flex items-start gap-4 flex-1">
-        <div class="w-3 h-3 rounded-full mt-1 bg-green-500"></div>
-        <div class="flex-1">
-          <div class="font-semibold text-gray-900 dark:text-white mb-1">
-            Connected to Peloton
-          </div>
-          <div class="text-sm text-gray-600 dark:text-gray-400 mb-2">
-            Your Peloton account is connected. Click "Sync Workouts" to import your workout history.
-          </div>
-          {% if sync_in_progress %}
-            <div class="flex items-center gap-2 text-xs text-yellow-600 dark:text-yellow-400">
-              <svg class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-              </svg>
-              <span><strong>Sync in progress...</strong> Please wait for it to complete.</span>
-            </div>
-          {% elif sync_cooldown_until %}
-            <div class="flex items-center gap-2 text-xs text-orange-600 dark:text-orange-400">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-              </svg>
-              <span><strong>Sync on cooldown:</strong> Please wait {{ cooldown_remaining_minutes }} more minute{{ cooldown_remaining_minutes|pluralize }} before syncing again.</span>
-            </div>
-          {% elif peloton_connection.last_sync_at %}
-            <div class="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-              </svg>
-              <span>Last sync: <strong>{{ peloton_connection.last_sync_at|date:"M d, Y g:i A" }}</strong></span>
-              <span class="text-gray-400">•</span>
-              <span>Next sync will be incremental</span>
-            </div>
-          {% elif request.user.profile.peloton_last_synced_at %}
-            <div class="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-              </svg>
-              <span>Last sync: <strong>{{ request.user.profile.peloton_last_synced_at|date:"M d, Y g:i A" }}</strong></span>
-            </div>
-          {% else %}
-            <div class="flex items-center gap-2 text-xs text-blue-600 dark:text-blue-400">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-              </svg>
-              <span>First sync will import all your workout history</span>
-            </div>
-          {% endif %}
-        </div>
-      </div>
-      <form method="post" action="{% url 'workouts:sync' %}" id="sync-workouts-form">
+<div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm mb-6">
+  <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+    {% include 'workouts/partials/sync_status.html' %}
+    
+    {% if peloton_connection %}
+      <form method="post" action="{% url 'workouts:sync' %}" class="inline" id="sync-form">
         {% csrf_token %}
-        <button type="submit" id="sync-workouts-btn" {% if not can_sync %}disabled{% endif %} class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap">
+        <button
+          type="submit"
+          {% if not can_sync %}disabled{% endif %}
+          class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap flex items-center gap-2">
           <span id="sync-btn-text">Sync Workouts</span>
-          <span id="sync-btn-spinner" class="hidden inline-block ml-2">
-            <svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-          </span>
+          <svg id="sync-spinner" class="hidden animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
         </button>
       </form>
-      <div id="sync-status-message" class="hidden mt-2 text-sm text-gray-600 dark:text-gray-400"></div>
-    </div>
-  </div>
-{% else %}
-  <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm mb-6">
-    <div class="flex items-center justify-between gap-4">
-      <div class="flex items-center gap-4">
-        <div class="w-3 h-3 rounded-full bg-gray-400"></div>
-        <div>
-          <div class="font-semibold text-gray-900 dark:text-white mb-1">Not Connected to Peloton</div>
-          <div class="text-sm text-gray-600 dark:text-gray-400">Connect your Peloton account to sync your workout history.</div>
-        </div>
-      </div>
-      <a href="{% url 'workouts:connect' %}" class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors">
+      <script>
+        document.getElementById('sync-form')?.addEventListener('submit', function(e) {
+          const btn = this.querySelector('button[type="submit"]');
+          const text = document.getElementById('sync-btn-text');
+          const spinner = document.getElementById('sync-spinner');
+          
+          btn.disabled = true;
+          text.textContent = 'Syncing...';
+          spinner.classList.remove('hidden');
+        });
+      </script>
+    {% else %}
+      <a href="{% url 'workouts:connect' %}" class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors whitespace-nowrap">
         Connect Peloton
       </a>
-    </div>
+    {% endif %}
   </div>
-{% endif %}
+</div>
 
 <!-- Filters and Search -->
 <div class="mb-6 space-y-4">
   <!-- Search Bar -->
-  <form method="get" action="{% url 'workouts:history' %}" class="flex flex-col sm:flex-row gap-3">
+  <form 
+    hx-get="{% url 'workouts:history' %}"
+    hx-target="#workout-list-container"
+    hx-swap="innerHTML"
+    hx-trigger="submit, change from:.filter-select delay:300ms"
+    hx-indicator="#filter-loading"
+    hx-push-url="true"
+    method="get" 
+    class="flex flex-col sm:flex-row gap-3">
     <div class="flex-1 relative">
       <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
         <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -158,6 +119,12 @@
       
       <button type="submit" id="filter-submit-btn" class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors whitespace-nowrap">
         Search
+        <span id="filter-loading" class="htmx-indicator hidden ml-2 inline-block">
+          <svg class="animate-spin h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+        </span>
       </button>
     </div>
   </form>
@@ -165,11 +132,21 @@
   <!-- Workout Type Tabs -->
   <div class="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
     <div class="flex gap-1 border-b border-gray-200 dark:border-gray-700 min-w-max sm:min-w-0">
-    <a href="#" data-type="" class="workout-type-tab px-4 py-2 text-sm font-medium {% if not workout_type_filter %}text-primary border-b-2 border-primary{% else %}text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white{% endif %} transition-colors">
+    <a href="{% url 'workouts:history' %}" 
+       hx-get="{% url 'workouts:history' %}"
+       hx-target="#workout-list-container"
+       hx-swap="innerHTML"
+       hx-push-url="true"
+       class="workout-type-tab px-4 py-2 text-sm font-medium {% if not workout_type_filter %}text-primary border-b-2 border-primary{% else %}text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white{% endif %} transition-colors cursor-pointer">
       All
     </a>
     {% for workout_type in workout_types %}
-      <a href="#" data-type="{{ workout_type.slug }}" class="workout-type-tab px-4 py-2 text-sm font-medium {% if workout_type_filter == workout_type.slug %}text-primary border-b-2 border-primary{% else %}text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white{% endif %} transition-colors">
+      <a href="{% url 'workouts:history' %}?type={{ workout_type.slug }}" 
+         hx-get="{% url 'workouts:history' %}?type={{ workout_type.slug }}"
+         hx-target="#workout-list-container"
+         hx-swap="innerHTML"
+         hx-push-url="true"
+         class="workout-type-tab px-4 py-2 text-sm font-medium {% if workout_type_filter == workout_type.slug %}text-primary border-b-2 border-primary{% else %}text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white{% endif %} transition-colors cursor-pointer">
         {{ workout_type.name }}
       </a>
     {% endfor %}
@@ -212,632 +189,9 @@
   {% endif %}
 </div>
 
-<!-- Workout Count and Pagination Info -->
-<div id="workout-count-info" class="mb-4 text-sm text-gray-600 dark:text-gray-400">
-  {% if workouts %}
-    Showing {{ workouts.start_index }} - {{ workouts.end_index }} of {{ total_workouts }} workout{{ total_workouts|pluralize }}
-  {% endif %}
-</div>
-
-<!-- Workout List (Card Layout) -->
+<!-- Workout List Container -->
 <div id="workout-list-container">
-{% if workouts %}
-  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-    {% for workout in workouts %}
-      <div class="rounded-lg bg-gray-800 dark:bg-gray-800 p-5 shadow-2xl hover:shadow-[0_0_20px_rgba(59,130,246,0.3)] transition-all border-2 border-gray-600 dark:border-gray-600 hover:border-primary/50 dark:hover:border-primary/50 backdrop-blur-sm">
-        <!-- Top Section: Duration Badge and Icon -->
-        <div class="flex items-start justify-between mb-4">
-          <span class="px-3 py-1 text-sm font-bold text-gray-900 bg-yellow-400 rounded-full">
-            {{ workout.duration_minutes }}min
-          </span>
-          {% if workout.workout_type %}
-            <span class="text-yellow-400 text-xl">
-              {% if workout.workout_type.slug == 'cycling' or workout.workout_type.slug == 'ride' %}
-                🚴
-              {% elif workout.workout_type.slug == 'running' or workout.workout_type.slug == 'run' %}
-                🏃
-              {% elif workout.workout_type.slug == 'walking' %}
-                🚶
-              {% elif workout.workout_type.slug == 'yoga' %}
-                🧘
-              {% elif workout.workout_type.slug == 'strength' %}
-                💪
-              {% elif workout.workout_type.slug == 'rowing' %}
-                🚣
-              {% else %}
-                🏋️
-              {% endif %}
-            </span>
-          {% endif %}
-        </div>
-        
-        <!-- Title -->
-        <h3 class="text-xl font-bold text-white mb-2 line-clamp-2">
-          {{ workout.title }}
-        </h3>
-        
-        <!-- Instructor -->
-        {% if workout.instructor %}
-          <p class="text-sm text-gray-400 mb-3">{{ workout.instructor.name }}</p>
-        {% endif %}
-        
-        <!-- Dates -->
-        <div class="flex flex-col gap-1 text-xs text-gray-400 mb-4">
-          <div>Recorded: {{ workout.recorded_date|date:"m/d/Y" }}</div>
-          <div>Completed: {{ workout.completed_date|date:"m/d/Y" }}</div>
-        </div>
-        
-        <!-- Performance Metrics -->
-        {% if workout.details %}
-          {% comment %}Determine which metrics to show based on workout type{% endcomment %}
-          {% if workout.workout_type %}
-            {% if workout.workout_type.slug == 'cycling' or workout.workout_type.slug == 'ride' %}
-              {% comment %}Cycling: Show TSS, Output metrics{% endcomment %}
-              <div class="grid grid-cols-4 gap-2 mb-4 py-3 border-t border-b border-gray-700">
-                <!-- TSS -->
-                <div class="text-center">
-                  <div class="text-white font-semibold text-sm">
-                    {% if workout.details.tss %}
-                      {% if workout.details.tss_target %}
-                        {{ workout.details.tss|floatformat:0 }}/{{ workout.details.tss_target|floatformat:0 }}
-                      {% else %}
-                        {{ workout.details.tss|floatformat:0 }}
-                      {% endif %}
-                    {% else %}
-                      —
-                    {% endif %}
-                  </div>
-                  <div class="text-xs text-gray-400 mt-1">TSS</div>
-                </div>
-                
-                <!-- Avg Output -->
-                <div class="text-center border-l border-gray-700 pl-2">
-                  <div class="text-white font-semibold text-sm">
-                    {% if workout.details.avg_output %}
-                      {{ workout.details.avg_output|floatformat:0 }}W
-                    {% else %}
-                      —
-                    {% endif %}
-                  </div>
-                  <div class="text-xs text-gray-400 mt-1">Avg Output</div>
-                </div>
-                
-                <!-- Total Output -->
-                <div class="text-center border-l border-gray-700 pl-2">
-                  <div class="text-white font-semibold text-sm">
-                    {% if workout.details.total_output %}
-                      {{ workout.details.total_output|floatformat:0 }} kJ
-                    {% else %}
-                      —
-                    {% endif %}
-                  </div>
-                  <div class="text-xs text-gray-400 mt-1">Total Output</div>
-                </div>
-                
-                <!-- Calories -->
-                <div class="text-center border-l border-gray-700 pl-2">
-                  <div class="text-white font-semibold text-sm">
-                    {% if workout.details.total_calories %}
-                      {{ workout.details.total_calories }}
-                    {% else %}
-                      —
-                    {% endif %}
-                  </div>
-                  <div class="text-xs text-gray-400 mt-1">Calories</div>
-                </div>
-              </div>
-            {% elif workout.workout_type.slug == 'running' or workout.workout_type.slug == 'run' or workout.workout_type.slug == 'walking' %}
-              {% comment %}Running/Walking: Show Distance, Speed, Calories{% endcomment %}
-              <div class="grid grid-cols-3 gap-2 mb-4 py-3 border-t border-b border-gray-700">
-                <!-- Distance -->
-                <div class="text-center">
-                  <div class="text-white font-semibold text-sm">
-                    {% if workout.details.distance %}
-                      {{ workout.details.distance|floatformat:2 }} mi
-                    {% else %}
-                      —
-                    {% endif %}
-                  </div>
-                  <div class="text-xs text-gray-400 mt-1">Distance</div>
-                </div>
-                
-                <!-- Avg Speed -->
-                <div class="text-center border-l border-gray-700 pl-2">
-                  <div class="text-white font-semibold text-sm">
-                    {% if workout.details.avg_speed %}
-                      {{ workout.details.avg_speed|floatformat:1 }} mph
-                    {% else %}
-                      —
-                    {% endif %}
-                  </div>
-                  <div class="text-xs text-gray-400 mt-1">Avg Speed</div>
-                </div>
-                
-                <!-- Calories -->
-                <div class="text-center border-l border-gray-700 pl-2">
-                  <div class="text-white font-semibold text-sm">
-                    {% if workout.details.total_calories %}
-                      {{ workout.details.total_calories }}
-                    {% else %}
-                      —
-                    {% endif %}
-                  </div>
-                  <div class="text-xs text-gray-400 mt-1">Calories</div>
-                </div>
-              </div>
-            {% else %}
-              {% comment %}Other types (yoga, meditation, strength, etc.): Show only Calories and Heart Rate if available{% endcomment %}
-              {% if workout.details.total_calories or workout.details.avg_heart_rate %}
-                <div class="grid grid-cols-{% if workout.details.total_calories and workout.details.avg_heart_rate %}2{% else %}1{% endif %} gap-2 mb-4 py-3 border-t border-b border-gray-700">
-                  {% if workout.details.total_calories %}
-                    <!-- Calories -->
-                    <div class="text-center">
-                      <div class="text-white font-semibold text-sm">
-                        {{ workout.details.total_calories }}
-                      </div>
-                      <div class="text-xs text-gray-400 mt-1">Calories</div>
-                    </div>
-                  {% endif %}
-                  
-                  {% if workout.details.avg_heart_rate %}
-                    <!-- Avg Heart Rate -->
-                    <div class="text-center {% if workout.details.total_calories %}border-l border-gray-700 pl-2{% endif %}">
-                      <div class="text-white font-semibold text-sm">
-                        {{ workout.details.avg_heart_rate }} bpm
-                      </div>
-                      <div class="text-xs text-gray-400 mt-1">Avg HR</div>
-                    </div>
-                  {% endif %}
-                </div>
-              {% endif %}
-            {% endif %}
-          {% else %}
-            {% comment %}Fallback: Show basic metrics if workout type is unknown{% endcomment %}
-            {% if workout.details.total_calories %}
-              <div class="grid grid-cols-1 gap-2 mb-4 py-3 border-t border-b border-gray-700">
-                <div class="text-center">
-                  <div class="text-white font-semibold text-sm">
-                    {{ workout.details.total_calories }}
-                  </div>
-                  <div class="text-xs text-gray-400 mt-1">Calories</div>
-                </div>
-              </div>
-            {% endif %}
-          {% endif %}
-        {% endif %}
-        
-        <!-- Action Buttons -->
-        <div class="flex gap-2 mt-4">
-          <a href="{% url 'workouts:detail' workout.id %}" 
-             class="flex-1 px-4 py-2 text-sm font-medium text-white border border-gray-500 rounded-lg hover:bg-gray-700 hover:border-gray-400 transition-colors text-center">
-            View Details
-          </a>
-          {% if workout.peloton_url %}
-            <a href="{{ workout.peloton_url }}" target="_blank" rel="noopener noreferrer" 
-               class="flex-1 px-4 py-2 text-sm font-medium text-white border border-gray-500 rounded-lg hover:bg-gray-700 hover:border-gray-400 transition-colors text-center flex items-center justify-center gap-1">
-              View on Peloton
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
-              </svg>
-            </a>
-          {% elif workout.ride_detail and workout.ride_detail.peloton_class_url %}
-            <a href="{{ workout.ride_detail.peloton_class_url }}" target="_blank" rel="noopener noreferrer" 
-               class="flex-1 px-4 py-2 text-sm font-medium text-white border border-gray-500 rounded-lg hover:bg-gray-700 hover:border-gray-400 transition-colors text-center flex items-center justify-center gap-1">
-              View on Peloton
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
-              </svg>
-            </a>
-          {% else %}
-            <span class="flex-1 px-4 py-2 text-sm font-medium text-gray-500 border border-gray-700 rounded-lg text-center cursor-not-allowed opacity-50">
-              View on Peloton
-            </span>
-          {% endif %}
-        </div>
-      </div>
-    {% endfor %}
-  </div>
-{% endif %}
-
-<!-- Pagination - Always show when there are multiple pages -->
-{% if workouts and workouts.paginator.num_pages > 1 %}
-  <div class="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-    <div class="text-sm text-gray-600 dark:text-gray-400">
-      Page {{ workouts.number }} of {{ workouts.paginator.num_pages }}
-    </div>
-    <nav class="flex items-center gap-2 flex-wrap justify-center">
-      {% if workouts.has_previous %}
-        <a href="#" data-page="{{ workouts.previous_page_number }}" class="pagination-link px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-          ← Previous
-        </a>
-      {% else %}
-        <span class="px-4 py-2 text-sm font-medium text-gray-400 dark:text-gray-600 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg cursor-not-allowed opacity-50">
-          ← Previous
-        </span>
-      {% endif %}
-      
-      <!-- Page Numbers -->
-      {% for num in workouts.paginator.page_range %}
-        {% if workouts.number == num %}
-          <span class="px-3 py-2 text-sm font-medium text-white bg-primary rounded-lg">
-            {{ num }}
-          </span>
-        {% elif num > workouts.number|add:'-3' and num < workouts.number|add:'3' %}
-          <a href="#" data-page="{{ num }}" class="pagination-link px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-            {{ num }}
-          </a>
-        {% elif num == 1 or num == workouts.paginator.num_pages %}
-          <a href="#" data-page="{{ num }}" class="pagination-link px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-            {{ num }}
-          </a>
-        {% elif num == workouts.number|add:'-4' or num == workouts.number|add:'4' %}
-          <span class="px-2 text-sm text-gray-400 dark:text-gray-600">...</span>
-        {% endif %}
-      {% endfor %}
-      
-      {% if workouts.has_next %}
-        <a href="#" data-page="{{ workouts.next_page_number }}" class="pagination-link px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-          Next →
-        </a>
-      {% else %}
-        <span class="px-4 py-2 text-sm font-medium text-gray-400 dark:text-gray-600 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg cursor-not-allowed opacity-50">
-          Next →
-        </span>
-      {% endif %}
-    </nav>
-  </div>
-{% endif %}
-</div>
+  {% include 'workouts/partials/workout_list.html' %}
 </div>
 
-{% if not workouts %}
-  <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-12 text-center">
-    <div class="text-5xl mb-4">🏋️</div>
-    <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">No workouts yet</h3>
-    <p class="text-gray-600 dark:text-gray-400 mb-6">Connect your Peloton account to sync your workout history.</p>
-    {% if not peloton_connection or not peloton_connection.is_connected %}
-      <a href="{% url 'workouts:connect' %}" class="inline-flex items-center px-6 py-3 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors">
-        Connect Peloton
-      </a>
-    {% endif %}
-  </div>
-{% endif %}
-
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-  // AJAX Filter Handling
-  const filterForm = document.querySelector('form[action="{% url 'workouts:history' %}"]');
-  const workoutListContainer = document.getElementById('workout-list-container');
-  const workoutCountInfo = document.getElementById('workout-count-info');
-  const paginationContainer = document.getElementById('pagination-container');
-  
-  function updateFilters() {
-    if (!filterForm) return;
-    
-    const formData = new FormData(filterForm);
-    const params = new URLSearchParams();
-    
-    // Add all form fields to params
-    for (const [key, value] of formData.entries()) {
-      if (value) {
-        params.append(key, value);
-      }
-    }
-    
-    // Update URL without reload
-    const newUrl = '{% url "workouts:history" %}?' + params.toString();
-    window.history.pushState({}, '', newUrl);
-    
-    // Show loading state
-    if (workoutListContainer) {
-      workoutListContainer.innerHTML = '<div class="text-center py-12"><div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>';
-    }
-    
-    // Fetch filtered results
-    fetch(newUrl, {
-      headers: {
-        'X-Requested-With': 'XMLHttpRequest',
-      }
-    })
-    .then(response => response.text())
-    .then(html => {
-      // Parse the HTML response
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(html, 'text/html');
-      
-      // Extract the workout list
-      const newWorkoutList = doc.getElementById('workout-list-container');
-      const newCountInfo = doc.getElementById('workout-count-info');
-      const newPagination = doc.getElementById('pagination-container');
-      
-      // Update the DOM
-      if (newWorkoutList && workoutListContainer) {
-        workoutListContainer.innerHTML = newWorkoutList.innerHTML;
-      }
-      if (newCountInfo && workoutCountInfo) {
-        workoutCountInfo.innerHTML = newCountInfo.innerHTML;
-      }
-      if (newPagination && paginationContainer) {
-        paginationContainer.innerHTML = newPagination.innerHTML;
-      }
-      
-      // Re-initialize any event listeners that might be needed
-      initializeFilterListeners();
-      
-      // Scroll to top of results
-      workoutListContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    })
-    .catch(error => {
-      console.error('Filter error:', error);
-      // Fallback to page reload on error
-      window.location.href = newUrl;
-    });
-  }
-  
-  function updateFiltersWithPage(page) {
-    if (!filterForm) return;
-    
-    const formData = new FormData(filterForm);
-    const params = new URLSearchParams();
-    
-    // Add all form fields to params
-    for (const [key, value] of formData.entries()) {
-      if (value) {
-        params.append(key, value);
-      }
-    }
-    
-    // Add page number
-    if (page) {
-      params.set('page', page);
-    }
-    
-    // Update URL without reload
-    const newUrl = '{% url "workouts:history" %}?' + params.toString();
-    window.history.pushState({}, '', newUrl);
-    
-    // Show loading state
-    if (workoutListContainer) {
-      workoutListContainer.innerHTML = '<div class="text-center py-12"><div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>';
-    }
-    
-    // Fetch filtered results
-    fetch(newUrl, {
-      headers: {
-        'X-Requested-With': 'XMLHttpRequest',
-      }
-    })
-    .then(response => response.text())
-    .then(html => {
-      // Parse the HTML response
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(html, 'text/html');
-      
-      // Extract the workout list
-      const newWorkoutList = doc.getElementById('workout-list-container');
-      const newCountInfo = doc.getElementById('workout-count-info');
-      const newPagination = doc.getElementById('pagination-container');
-      
-      // Update the DOM
-      if (newWorkoutList && workoutListContainer) {
-        workoutListContainer.innerHTML = newWorkoutList.innerHTML;
-      }
-      if (newCountInfo && workoutCountInfo) {
-        workoutCountInfo.innerHTML = newCountInfo.innerHTML;
-      }
-      if (newPagination && paginationContainer) {
-        paginationContainer.innerHTML = newPagination.innerHTML;
-      }
-      
-      // Re-initialize any event listeners that might be needed
-      initializeFilterListeners();
-      
-      // Scroll to top of results
-      workoutListContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    })
-    .catch(error => {
-      console.error('Filter error:', error);
-      // Fallback to page reload on error
-      window.location.href = newUrl;
-    });
-  }
-  
-  function initializeFilterListeners() {
-    // Filter form submission
-    if (filterForm) {
-      filterForm.addEventListener('submit', function(e) {
-        e.preventDefault();
-        updateFilters();
-      });
-    }
-    
-    // Filter select changes
-    const filterSelects = document.querySelectorAll('.filter-select');
-    filterSelects.forEach(select => {
-      select.addEventListener('change', function() {
-        updateFilters();
-      });
-    });
-    
-    // Workout type tabs
-    const workoutTypeTabs = document.querySelectorAll('.workout-type-tab');
-    workoutTypeTabs.forEach(tab => {
-      tab.addEventListener('click', function(e) {
-        e.preventDefault();
-        const type = this.getAttribute('data-type');
-        const typeInput = filterForm.querySelector('input[name="type"]');
-        if (typeInput) {
-          typeInput.value = type;
-        } else if (type) {
-          const input = document.createElement('input');
-          input.type = 'hidden';
-          input.name = 'type';
-          input.value = type;
-          filterForm.appendChild(input);
-        } else {
-          const existingInput = filterForm.querySelector('input[name="type"]');
-          if (existingInput) {
-            existingInput.remove();
-          }
-        }
-        updateFilters();
-      });
-    });
-    
-    // Pagination links
-    const paginationLinks = document.querySelectorAll('.pagination-link');
-    paginationLinks.forEach(link => {
-      link.addEventListener('click', function(e) {
-        e.preventDefault();
-        const page = this.getAttribute('data-page');
-        updateFiltersWithPage(page);
-      });
-    });
-    
-    // Active filter removal links
-    const filterRemoveLinks = document.querySelectorAll('a[href^="?"]');
-    filterRemoveLinks.forEach(link => {
-      if (link.textContent === '×') {
-        link.addEventListener('click', function(e) {
-          e.preventDefault();
-          const url = new URL(this.href, window.location.origin);
-          const params = new URLSearchParams(url.search);
-          
-          // Update form with new params
-          params.forEach((value, key) => {
-            const input = filterForm.querySelector(`[name="${key}"]`);
-            if (input) {
-              input.value = value;
-            } else {
-              const newInput = document.createElement('input');
-              newInput.type = 'hidden';
-              newInput.name = key;
-              newInput.value = value;
-              filterForm.appendChild(newInput);
-            }
-          });
-          
-          // Remove params that aren't in the URL
-          Array.from(filterForm.elements).forEach(element => {
-            if (element.name && !params.has(element.name)) {
-              if (element.type === 'hidden' || (element.tagName === 'SELECT' && !element.value)) {
-                element.remove();
-              } else if (element.tagName === 'SELECT') {
-                element.value = '';
-              } else if (element.tagName === 'INPUT') {
-                element.value = '';
-              }
-            }
-          });
-          
-          updateFilters();
-        });
-      }
-    });
-  }
-  
-  // Initialize filter listeners
-  initializeFilterListeners();
-  
-  // Sync form handling
-  const syncForm = document.getElementById('sync-workouts-form');
-  const syncBtn = document.getElementById('sync-workouts-btn');
-  const syncBtnText = document.getElementById('sync-btn-text');
-  const syncBtnSpinner = document.getElementById('sync-btn-spinner');
-  const syncStatusMessage = document.getElementById('sync-status-message');
-  
-  if (syncForm) {
-    syncForm.addEventListener('submit', function(e) {
-      e.preventDefault();
-      
-      // Check if button is already disabled (sync in progress or cooldown)
-      if (syncBtn.disabled) {
-        return false;
-      }
-      
-      // Disable button and show spinner
-      syncBtn.disabled = true;
-      syncBtnText.textContent = 'Syncing...';
-      syncBtnSpinner.classList.remove('hidden');
-      syncStatusMessage.classList.remove('hidden');
-      syncStatusMessage.textContent = 'Sync in progress. This may take a few minutes...';
-      syncStatusMessage.className = 'mt-2 text-sm text-blue-600 dark:text-blue-400';
-      
-      // Submit form via AJAX
-      const formData = new FormData(syncForm);
-      
-      fetch(syncForm.action, {
-        method: 'POST',
-        body: formData,
-        headers: {
-          'X-Requested-With': 'XMLHttpRequest',
-        },
-      })
-      .then(response => {
-        // Check if response is JSON
-        const contentType = response.headers.get('content-type');
-        if (contentType && contentType.includes('application/json')) {
-          return response.json();
-        } else {
-          // If not JSON, it's probably a redirect (success page)
-          // Follow redirect to get success message
-          if (response.redirected) {
-            window.location.href = response.url;
-            return null;
-          } else {
-            // Try to parse as JSON anyway
-            return response.json().catch(() => {
-              // If that fails, reload the page
-              window.location.reload();
-              return null;
-            });
-          }
-        }
-      })
-      .then(data => {
-        if (data) {
-          // If we got JSON back, show status
-          if (data.status === 'success') {
-            let message = data.message || 'Sync completed successfully!';
-            // Add sync type to message if available
-            if (data.sync_type) {
-              const syncTypeText = data.sync_type === 'full' ? 'Full sync' : 'Incremental sync';
-              message += ` (${syncTypeText})`;
-            }
-            syncStatusMessage.textContent = message;
-            syncStatusMessage.className = 'mt-2 text-sm text-green-600 dark:text-green-400';
-            // Reload page after a delay to show updated workouts
-            setTimeout(() => {
-              window.location.reload();
-            }, 2000);
-          } else if (data.status === 'error') {
-            syncStatusMessage.textContent = data.message || 'Sync failed. Please try again.';
-            syncStatusMessage.className = 'mt-2 text-sm text-red-600 dark:text-red-400';
-            // Only re-enable button if error is not about sync in progress or cooldown
-            const errorMsg = (data.message || '').toLowerCase();
-            if (!errorMsg.includes('in progress') && !errorMsg.includes('cooldown')) {
-              syncBtn.disabled = false;
-              syncBtnText.textContent = 'Sync Workouts';
-              syncBtnSpinner.classList.add('hidden');
-            } else {
-              // Reload page to show updated status
-              setTimeout(() => {
-                window.location.reload();
-              }, 2000);
-            }
-          }
-        }
-      })
-      .catch(error => {
-        console.error('Sync error:', error);
-        syncStatusMessage.textContent = 'An error occurred during sync. Please try again.';
-        syncStatusMessage.className = 'mt-2 text-sm text-red-600 dark:text-red-400';
-        syncBtn.disabled = false;
-        syncBtnText.textContent = 'Sync Workouts';
-        syncBtnSpinner.classList.add('hidden');
-      });
-    });
-  }
-});
-</script>
 {% endblock %}

@@ -101,3 +101,51 @@ select option {
   background-color: #374151 !important;
   color: #f9fafb !important;
 }
+
+/* HTMX Loading States */
+.htmx-loading {
+  opacity: 0.6;
+  pointer-events: none;
+  position: relative;
+}
+
+.htmx-loading::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 24px;
+  height: 24px;
+  border: 3px solid rgba(59, 130, 246, 0.3);
+  border-top-color: rgb(59, 130, 246);
+  border-radius: 50%;
+  animation: htmx-spin 0.8s linear infinite;
+  z-index: 1000;
+}
+
+@keyframes htmx-spin {
+  to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+/* HTMX Indicator */
+.htmx-indicator {
+  opacity: 0;
+  transition: opacity 200ms ease-in;
+}
+
+.htmx-request .htmx-indicator,
+.htmx-request.htmx-indicator {
+  opacity: 1;
+}
+
+/* HTMX Swapping */
+.htmx-swapping {
+  opacity: 0;
+  transition: opacity 100ms ease-out;
+}
+
+.htmx-settling {
+  opacity: 1;
+  transition: opacity 100ms ease-in;
+}

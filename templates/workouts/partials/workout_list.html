@@ -1,0 +1,318 @@
+<!-- Workout Count Info -->
+<div id="workout-count-info" class="mb-4 text-sm text-gray-600 dark:text-gray-400">
+  {% if workouts %}
+    Showing {{ workouts.start_index }} - {{ workouts.end_index }} of {{ total_workouts }} workout{{ total_workouts|pluralize }}
+  {% endif %}
+</div>
+
+<!-- Workout Grid -->
+{% if workouts %}
+  <div id="workout-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+    {% for workout in workouts %}
+      <div class="rounded-lg bg-gray-800 dark:bg-gray-800 p-5 shadow-2xl hover:shadow-[0_0_20px_rgba(59,130,246,0.3)] transition-all border-2 border-gray-600 dark:border-gray-600 hover:border-primary/50 dark:hover:border-primary/50 backdrop-blur-sm">
+        <!-- Top Section: Duration Badge and Icon -->
+        <div class="flex items-start justify-between mb-4">
+          <span class="px-3 py-1 text-sm font-bold text-gray-900 bg-yellow-400 rounded-full">
+            {{ workout.duration_minutes }}min
+          </span>
+          {% if workout.workout_type %}
+            <span class="text-yellow-400 text-xl">
+              {% if workout.workout_type.slug == 'cycling' or workout.workout_type.slug == 'ride' %}
+                🚴
+              {% elif workout.workout_type.slug == 'running' or workout.workout_type.slug == 'run' %}
+                🏃
+              {% elif workout.workout_type.slug == 'walking' %}
+                🚶
+              {% elif workout.workout_type.slug == 'yoga' %}
+                🧘
+              {% elif workout.workout_type.slug == 'strength' %}
+                💪
+              {% elif workout.workout_type.slug == 'rowing' %}
+                🚣
+              {% else %}
+                🏋️
+              {% endif %}
+            </span>
+          {% endif %}
+        </div>
+        
+        <!-- Title -->
+        <h3 class="text-xl font-bold text-white mb-2 line-clamp-2">
+          {{ workout.title }}
+        </h3>
+        
+        <!-- Instructor -->
+        {% if workout.instructor %}
+          <p class="text-sm text-gray-400 mb-3">{{ workout.instructor.name }}</p>
+        {% endif %}
+        
+        <!-- Dates -->
+        <div class="flex flex-col gap-1 text-xs text-gray-400 mb-4">
+          <div>Recorded: {{ workout.recorded_date|date:"m/d/Y" }}</div>
+          <div>Completed: {{ workout.completed_date|date:"m/d/Y" }}</div>
+        </div>
+        
+        <!-- Performance Metrics -->
+        {% if workout.details %}
+          {% comment %}Determine which metrics to show based on workout type{% endcomment %}
+          {% if workout.workout_type %}
+            {% if workout.workout_type.slug == 'cycling' or workout.workout_type.slug == 'ride' %}
+              {% comment %}Cycling: Show TSS, Output metrics{% endcomment %}
+              <div class="grid grid-cols-4 gap-2 mb-4 py-3 border-t border-b border-gray-700">
+                <!-- TSS -->
+                <div class="text-center">
+                  <div class="text-white font-semibold text-sm">
+                    {% if workout.details.tss %}
+                      {% if workout.details.tss_target %}
+                        {{ workout.details.tss|floatformat:0 }}/{{ workout.details.tss_target|floatformat:0 }}
+                      {% else %}
+                        {{ workout.details.tss|floatformat:0 }}
+                      {% endif %}
+                    {% else %}
+                      —
+                    {% endif %}
+                  </div>
+                  <div class="text-xs text-gray-400 mt-1">TSS</div>
+                </div>
+                
+                <!-- Avg Output -->
+                <div class="text-center border-l border-gray-700 pl-2">
+                  <div class="text-white font-semibold text-sm">
+                    {% if workout.details.avg_output %}
+                      {{ workout.details.avg_output|floatformat:0 }}W
+                    {% else %}
+                      —
+                    {% endif %}
+                  </div>
+                  <div class="text-xs text-gray-400 mt-1">Avg Output</div>
+                </div>
+                
+                <!-- Total Output -->
+                <div class="text-center border-l border-gray-700 pl-2">
+                  <div class="text-white font-semibold text-sm">
+                    {% if workout.details.total_output %}
+                      {{ workout.details.total_output|floatformat:0 }} kJ
+                    {% else %}
+                      —
+                    {% endif %}
+                  </div>
+                  <div class="text-xs text-gray-400 mt-1">Total Output</div>
+                </div>
+                
+                <!-- Calories -->
+                <div class="text-center border-l border-gray-700 pl-2">
+                  <div class="text-white font-semibold text-sm">
+                    {% if workout.details.total_calories %}
+                      {{ workout.details.total_calories }}
+                    {% else %}
+                      —
+                    {% endif %}
+                  </div>
+                  <div class="text-xs text-gray-400 mt-1">Calories</div>
+                </div>
+              </div>
+            {% elif workout.workout_type.slug == 'running' or workout.workout_type.slug == 'run' or workout.workout_type.slug == 'walking' %}
+              {% comment %}Running/Walking: Show Distance, Speed, Calories{% endcomment %}
+              <div class="grid grid-cols-3 gap-2 mb-4 py-3 border-t border-b border-gray-700">
+                <!-- Distance -->
+                <div class="text-center">
+                  <div class="text-white font-semibold text-sm">
+                    {% if workout.details.distance %}
+                      {{ workout.details.distance|floatformat:2 }} mi
+                    {% else %}
+                      —
+                    {% endif %}
+                  </div>
+                  <div class="text-xs text-gray-400 mt-1">Distance</div>
+                </div>
+                
+                <!-- Avg Speed -->
+                <div class="text-center border-l border-gray-700 pl-2">
+                  <div class="text-white font-semibold text-sm">
+                    {% if workout.details.avg_speed %}
+                      {{ workout.details.avg_speed|floatformat:1 }} mph
+                    {% else %}
+                      —
+                    {% endif %}
+                  </div>
+                  <div class="text-xs text-gray-400 mt-1">Avg Speed</div>
+                </div>
+                
+                <!-- Calories -->
+                <div class="text-center border-l border-gray-700 pl-2">
+                  <div class="text-white font-semibold text-sm">
+                    {% if workout.details.total_calories %}
+                      {{ workout.details.total_calories }}
+                    {% else %}
+                      —
+                    {% endif %}
+                  </div>
+                  <div class="text-xs text-gray-400 mt-1">Calories</div>
+                </div>
+              </div>
+            {% else %}
+              {% comment %}Other types (yoga, meditation, strength, etc.): Show only Calories and Heart Rate if available{% endcomment %}
+              {% if workout.details.total_calories or workout.details.avg_heart_rate %}
+                <div class="grid grid-cols-{% if workout.details.total_calories and workout.details.avg_heart_rate %}2{% else %}1{% endif %} gap-2 mb-4 py-3 border-t border-b border-gray-700">
+                  {% if workout.details.total_calories %}
+                    <!-- Calories -->
+                    <div class="text-center">
+                      <div class="text-white font-semibold text-sm">
+                        {{ workout.details.total_calories }}
+                      </div>
+                      <div class="text-xs text-gray-400 mt-1">Calories</div>
+                    </div>
+                  {% endif %}
+                  
+                  {% if workout.details.avg_heart_rate %}
+                    <!-- Avg Heart Rate -->
+                    <div class="text-center {% if workout.details.total_calories %}border-l border-gray-700 pl-2{% endif %}">
+                      <div class="text-white font-semibold text-sm">
+                        {{ workout.details.avg_heart_rate }} bpm
+                      </div>
+                      <div class="text-xs text-gray-400 mt-1">Avg HR</div>
+                    </div>
+                  {% endif %}
+                </div>
+              {% endif %}
+            {% endif %}
+          {% else %}
+            {% comment %}Fallback: Show basic metrics if workout type is unknown{% endcomment %}
+            {% if workout.details.total_calories %}
+              <div class="grid grid-cols-1 gap-2 mb-4 py-3 border-t border-b border-gray-700">
+                <div class="text-center">
+                  <div class="text-white font-semibold text-sm">
+                    {{ workout.details.total_calories }}
+                  </div>
+                  <div class="text-xs text-gray-400 mt-1">Calories</div>
+                </div>
+              </div>
+            {% endif %}
+          {% endif %}
+        {% endif %}
+        
+        <!-- Action Buttons -->
+        <div class="flex gap-2 mt-4">
+          <a href="{% url 'workouts:detail' workout.id %}" 
+             class="flex-1 px-4 py-2 text-sm font-medium text-white border border-gray-500 rounded-lg hover:bg-gray-700 hover:border-gray-400 transition-colors text-center">
+            View Details
+          </a>
+          {% if workout.peloton_url %}
+            <a href="{{ workout.peloton_url }}" target="_blank" rel="noopener noreferrer" 
+               class="flex-1 px-4 py-2 text-sm font-medium text-white border border-gray-500 rounded-lg hover:bg-gray-700 hover:border-gray-400 transition-colors text-center flex items-center justify-center gap-1">
+              View on Peloton
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+              </svg>
+            </a>
+          {% elif workout.ride_detail and workout.ride_detail.peloton_class_url %}
+            <a href="{{ workout.ride_detail.peloton_class_url }}" target="_blank" rel="noopener noreferrer" 
+               class="flex-1 px-4 py-2 text-sm font-medium text-white border border-gray-500 rounded-lg hover:bg-gray-700 hover:border-gray-400 transition-colors text-center flex items-center justify-center gap-1">
+              View on Peloton
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+              </svg>
+            </a>
+          {% else %}
+            <span class="flex-1 px-4 py-2 text-sm font-medium text-gray-500 border border-gray-700 rounded-lg text-center cursor-not-allowed opacity-50">
+              View on Peloton
+            </span>
+          {% endif %}
+        </div>
+      </div>
+    {% endfor %}
+    
+    <!-- Infinite Scroll Trigger (inside grid as last item) -->
+    {% if workouts.has_next %}
+      <div 
+        id="infinite-scroll-trigger"
+        hx-get="?page={{ workouts.next_page_number }}&infinite=true"
+        hx-trigger="intersect once"
+        hx-swap="outerHTML"
+        class="col-span-full text-center py-8"
+      >
+        <div class="inline-flex flex-col items-center gap-2">
+          <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          <p class="text-sm text-gray-600 dark:text-gray-400">Loading more workouts...</p>
+        </div>
+      </div>
+    {% endif %}
+  </div>
+{% endif %}
+
+<!-- Pagination - Always show when there are multiple pages -->
+{% if workouts and workouts.paginator.num_pages > 1 %}
+  <div class="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+    <div class="text-sm text-gray-600 dark:text-gray-400">
+      Page {{ workouts.number }} of {{ workouts.paginator.num_pages }}
+    </div>
+    <nav class="flex items-center gap-2 flex-wrap justify-center">
+      {% if workouts.has_previous %}
+        <a href="?page={{ workouts.previous_page_number }}" 
+           hx-get="?page={{ workouts.previous_page_number }}" 
+           hx-target="#workout-list-container" 
+           hx-swap="innerHTML"
+           hx-push-url="true"
+           class="pagination-link px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+          ← Previous
+        </a>
+      {% else %}
+        <span class="px-4 py-2 text-sm font-medium text-gray-400 dark:text-gray-600 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg cursor-not-allowed opacity-50">
+          ← Previous
+        </span>
+      {% endif %}
+      
+      <!-- Page Numbers -->
+      {% for num in workouts.paginator.page_range %}
+        {% if workouts.number == num %}
+          <span class="px-3 py-2 text-sm font-medium text-white bg-primary rounded-lg">
+            {{ num }}
+          </span>
+        {% elif num > workouts.number|add:'-3' and num < workouts.number|add:'3' %}
+          <a href="?page={{ num }}" 
+             hx-get="?page={{ num }}" 
+             hx-target="#workout-list-container" 
+             hx-swap="innerHTML"
+             hx-push-url="true"
+             class="pagination-link px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+            {{ num }}
+          </a>
+        {% elif num == 1 or num == workouts.paginator.num_pages %}
+          <a href="?page={{ num }}" 
+             hx-get="?page={{ num }}" 
+             hx-target="#workout-list-container" 
+             hx-swap="innerHTML"
+             hx-push-url="true"
+             class="pagination-link px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+            {{ num }}
+          </a>
+        {% elif num == workouts.number|add:'-4' or num == workouts.number|add:'4' %}
+          <span class="px-2 text-sm text-gray-400 dark:text-gray-600">...</span>
+        {% endif %}
+      {% endfor %}
+      
+      {% if workouts.has_next %}
+        <a href="?page={{ workouts.next_page_number }}" 
+           hx-get="?page={{ workouts.next_page_number }}" 
+           hx-target="#workout-list-container" 
+           hx-swap="innerHTML"
+           hx-push-url="true"
+           class="pagination-link px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+          Next →
+        </a>
+      {% else %}
+        <span class="px-4 py-2 text-sm font-medium text-gray-400 dark:text-gray-600 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg cursor-not-allowed opacity-50">
+          Next →
+        </span>
+      {% endif %}
+    </nav>
+  </div>
+{% endif %}
+
+{% if not workouts %}
+  <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-12 text-center">
+    <div class="text-5xl mb-4">🏋️</div>
+    <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">No workouts found</h3>
+    <p class="text-gray-600 dark:text-gray-400">Try adjusting your filters.</p>
+  </div>
+{% endif %}

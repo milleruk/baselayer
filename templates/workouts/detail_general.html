@@ -1,0 +1,682 @@
+{% extends "base.html" %}
+{% load playlist_filters %}
+{% block title %}{{ workout.title }}{% endblock %}
+{% block page_title %}{{ workout.title }}{% endblock %}
+
+{% block content %}
+<!-- Back Button -->
+<a href="{% url 'workouts:history' %}" class="inline-flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white mb-6 transition-colors">
+  <span>←</span> Back to Workout History
+</a>
+
+<!-- Workout Header -->
+<div class="mb-6">
+  <div class="flex flex-col sm:flex-row justify-between items-start gap-4 mb-4">
+    <div class="flex-1">
+      <div class="flex items-center gap-3 mb-3">
+        <span class="px-3 py-1 text-sm font-semibold text-gray-900 dark:text-white bg-primary/20 dark:bg-primary/30 rounded-lg">
+          {{ workout.duration_minutes }}min
+        </span>
+        {% if workout.ride_detail and workout.ride_detail.workout_type %}
+        <span class="px-3 py-1 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg">
+          {{ workout.ride_detail.workout_type.name }}
+        </span>
+        {% elif workout.workout_type %}
+        <span class="px-3 py-1 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg">
+          {{ workout.workout_type.name }}
+        </span>
+        {% endif %}
+      </div>
+      <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">{{ workout.title }}</h1>
+      {% if workout.instructor %}
+        <p class="text-gray-600 dark:text-gray-400">{{ workout.instructor.name }}</p>
+      {% endif %}
+    </div>
+    <div class="flex flex-wrap gap-2">
+      {% if workout.peloton_url %}
+        <a href="{{ workout.peloton_url }}" target="_blank" rel="noopener noreferrer" class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors">
+          View Workout ↗
+        </a>
+      {% endif %}
+      {% if workout.ride_detail %}
+        {% if workout.ride_detail.peloton_class_url %}
+          <a href="{{ workout.ride_detail.peloton_class_url }}" target="_blank" rel="noopener noreferrer" class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors">
+            View Class ↗
+          </a>
+        {% endif %}
+        <a href="{% url 'workouts:class_detail' workout.ride_detail.pk %}" class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors">
+          View in Library
+        </a>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Dates -->
+  <div class="flex flex-wrap gap-4 text-sm text-gray-600 dark:text-gray-400">
+    <div>
+      <strong class="font-semibold">Recorded:</strong> {{ workout.recorded_date|date:"F d, Y" }}
+    </div>
+    <div>
+      <strong class="font-semibold">Completed:</strong> {{ workout.completed_date|date:"F d, Y" }}
+    </div>
+  </div>
+</div>
+
+{% if workout_summary %}
+<div id="workoutSummaryCard" class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 sm:p-6 shadow-sm mb-6">
+  <div id="shareHeader" class="mb-4">
+    <div class="flex items-start justify-between gap-4">
+      <div>
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white leading-tight">{{ workout.title }}</h2>
+        <div class="text-sm text-gray-600 dark:text-gray-400 mt-1">
+          {% if workout.instructor %}Instructor: <span class="font-medium text-gray-700 dark:text-gray-300">{{ workout.instructor.name }}</span>{% endif %}
+          {% if user_profile and user_profile.peloton_leaderboard_name %}
+            <span class="mx-2">•</span>
+            Name: <span class="font-medium text-gray-700 dark:text-gray-300">{{ user_profile.peloton_leaderboard_name }}</span>
+          {% endif %}
+        </div>
+      </div>
+      <div class="text-xs text-gray-500 dark:text-gray-500 text-right whitespace-nowrap">
+        {% if workout.completed_date %}{{ workout.completed_date|date:"d/m/Y" }}{% endif %}
+      </div>
+    </div>
+  </div>
+  <div id="workoutSummaryMetrics" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+    {% if workout_summary.avg_output_w %}
+      <div>
+        <div class="text-xl font-bold text-gray-900 dark:text-white">{{ workout_summary.avg_output_w|floatformat:0 }} W</div>
+        <div class="text-xs text-gray-600 dark:text-gray-400">Avg Output</div>
+      </div>
+    {% endif %}
+    {% if workout_summary.total_output_kj %}
+      <div>
+        <div class="text-xl font-bold text-gray-900 dark:text-white">{{ workout_summary.total_output_kj|floatformat:0 }} kJ</div>
+        <div class="text-xs text-gray-600 dark:text-gray-400">Total Output</div>
+      </div>
+    {% endif %}
+    {% if workout.details and workout.details.max_output %}
+      <div>
+        <div class="text-xl font-bold text-gray-900 dark:text-white">{{ workout.details.max_output|floatformat:0 }} W</div>
+        <div class="text-xs text-gray-600 dark:text-gray-400">Max Output</div>
+      </div>
+    {% endif %}
+    {% if workout_summary.distance_mi %}
+      <div>
+        <div class="text-xl font-bold text-gray-900 dark:text-white">{{ workout_summary.distance_mi|floatformat:2 }}</div>
+        <div class="text-xs text-gray-600 dark:text-gray-400">Total Distance (mi)</div>
+      </div>
+    {% endif %}
+    {% if workout.details and workout.details.avg_cadence %}
+      <div>
+        <div class="text-xl font-bold text-gray-900 dark:text-white">{{ workout.details.avg_cadence }}</div>
+        <div class="text-xs text-gray-600 dark:text-gray-400">Avg Cadence (rpm)</div>
+      </div>
+    {% endif %}
+    {% if workout.details and workout.details.avg_resistance %}
+      <div>
+        <div class="text-xl font-bold text-gray-900 dark:text-white">{{ workout.details.avg_resistance|floatformat:0 }}</div>
+        <div class="text-xs text-gray-600 dark:text-gray-400">Avg Resistance</div>
+      </div>
+    {% endif %}
+    {% if workout_summary.total_calories %}
+      <div>
+        <div class="text-xl font-bold text-gray-900 dark:text-white">{{ workout_summary.total_calories }}</div>
+        <div class="text-xs text-gray-600 dark:text-gray-400">Calories</div>
+      </div>
+    {% endif %}
+    {% if workout_summary.tss %}
+      <div>
+        <div class="text-xl font-bold text-gray-900 dark:text-white">{{ workout_summary.tss|floatformat:0 }}</div>
+        <div class="text-xs text-gray-600 dark:text-gray-400">TSS</div>
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+<!-- Output timeline (actual output only) -->
+{% if performance_data %}
+<div class="bg-white dark:bg-gray-800 shadow-sm p-6 sm:p-8 rounded-lg border border-gray-200 dark:border-gray-700 mb-6">
+  <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
+    <div>
+      <h2 class="text-xl sm:text-xl md:text-2xl font-semibold text-gray-900 dark:text-white leading-tight mb-1">Output Timeline</h2>
+      <p class="text-sm text-gray-600 dark:text-gray-400">Your output over time.</p>
+    </div>
+    {% if playlist and playlist.songs %}
+    <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+      <input type="checkbox" id="showMusicTimeline" checked class="rounded border-gray-600 text-primary focus:ring-primary bg-gray-700">
+      <span>Show Music Timeline</span>
+    </label>
+    {% endif %}
+  </div>
+
+  <div class="general-output-chart relative">
+    {% if playlist and playlist.songs %}
+    <div id="musicTimeline" class="mb-3 h-12 relative bg-gray-950 rounded border border-gray-600 overflow-hidden"></div>
+    {% endif %}
+    <div class="relative bg-gray-900 rounded-lg min-h-[320px] w-full">
+      <canvas id="generalChart"></canvas>
+    </div>
+  </div>
+
+  <div class="flex flex-wrap items-center justify-end gap-2 mt-4">
+    <button id="saveChart" class="px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors border border-gray-300 dark:border-gray-600 inline-flex items-center gap-2">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"></path>
+      </svg>
+      Share
+    </button>
+  </div>
+</div>
+{% endif %}
+
+<!-- Sub cards: Class Info / Instructor / Class Plan Targets -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 mb-6">
+  <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 sm:p-6 shadow-sm">
+    <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Class Info</h3>
+    <div class="space-y-3">
+      <div>
+        <div class="text-sm text-gray-600 dark:text-gray-400 mb-1">Discipline</div>
+        <div class="text-lg font-bold text-gray-900 dark:text-white">{{ workout.fitness_discipline }}</div>
+      </div>
+      <div>
+        <div class="text-sm text-gray-600 dark:text-gray-400 mb-1">Type</div>
+        <div class="text-lg font-bold text-gray-900 dark:text-white">
+          {% if workout.ride_detail and workout.ride_detail.workout_type %}{{ workout.ride_detail.workout_type.name }}{% else %}Cycling{% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 sm:p-6 shadow-sm">
+    <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Instructor</h3>
+    {% if workout.instructor %}
+      <div class="flex items-center gap-3">
+        {% if workout.instructor.image_url %}
+          <img src="{{ workout.instructor.image_url }}" alt="{{ workout.instructor.name }}" class="w-12 h-12 rounded-full object-cover">
+        {% else %}
+          <div class="w-12 h-12 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center">
+            <span class="text-gray-600 dark:text-gray-400 text-xl">👤</span>
+          </div>
+        {% endif %}
+        <div class="text-lg font-semibold text-gray-900 dark:text-white">{{ workout.instructor.name }}</div>
+      </div>
+    {% else %}
+      <div class="text-gray-600 dark:text-gray-400">No instructor information</div>
+    {% endif %}
+  </div>
+
+  <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 sm:p-6 shadow-sm">
+    <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Class Plan Targets</h3>
+    {% if target_metrics and target_metrics.type == 'cadence_resistance' and target_metrics.segments %}
+      <div class="space-y-2 max-h-80 overflow-y-auto">
+        {% for segment in target_metrics.segments %}
+          <div class="flex items-center justify-between gap-3 p-2 bg-gray-50 dark:bg-gray-700/50 rounded text-sm">
+            <div class="text-gray-700 dark:text-gray-300">
+              {{ segment.start|format_duration_seconds }} - {{ segment.end|format_duration_seconds }}
+            </div>
+            <div class="text-right text-gray-700 dark:text-gray-300">
+              {% if segment.cadence %}
+                <span class="font-medium">Cad:</span> {{ segment.cadence.lower }}–{{ segment.cadence.upper }}<span class="text-gray-500">rpm</span>
+              {% endif %}
+              {% if segment.resistance %}
+                <span class="mx-2 text-gray-500">•</span>
+                <span class="font-medium">Res:</span> {{ segment.resistance.lower }}–{{ segment.resistance.upper }}<span class="text-gray-500">%</span>
+              {% endif %}
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="text-sm text-gray-600 dark:text-gray-400">No cadence/resistance class plan targets available</div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Playlist -->
+{% if playlist and playlist.songs %}
+  <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 sm:p-6 shadow-sm mb-6">
+    <div class="flex items-center justify-between mb-4">
+      <div>
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Class Playlist</h3>
+        <div class="text-sm text-gray-600 dark:text-gray-400 mt-1">
+          {{ playlist.songs|length }} song{{ playlist.songs|length|pluralize }}
+        </div>
+      </div>
+    </div>
+    
+    <div class="space-y-2 max-h-96 overflow-y-auto">
+      {% for song in playlist.songs %}
+        <div class="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group">
+          <div class="flex-shrink-0 w-8 h-8 flex items-center justify-center text-sm font-semibold text-gray-600 dark:text-gray-400 bg-gray-200 dark:bg-gray-600 rounded-full">
+            {{ forloop.counter }}
+          </div>
+          
+          {% if song.album.image_url %}
+            <img src="{{ song.album.image_url }}" alt="{{ song.album.name }}" class="w-12 h-12 rounded object-cover flex-shrink-0">
+          {% else %}
+            <div class="w-12 h-12 rounded bg-gray-300 dark:bg-gray-600 flex items-center justify-center flex-shrink-0">
+              <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"></path>
+              </svg>
+            </div>
+          {% endif %}
+          
+          <div class="flex-1 min-w-0">
+            <div class="font-semibold text-gray-900 dark:text-white truncate">{{ song.title }}</div>
+            <div class="text-sm text-gray-600 dark:text-gray-400 truncate">
+              {% for artist in song.artists %}
+                {% if not forloop.first %}, {% endif %}{{ artist.artist_name }}
+              {% endfor %}
+            </div>
+            {% if song.album.name %}
+              <div class="text-xs text-gray-500 dark:text-gray-500 truncate">{{ song.album.name }}</div>
+            {% endif %}
+          </div>
+          
+          <div class="flex-shrink-0 text-sm text-gray-500 dark:text-gray-400 mr-2">
+            {% if song.start_time_offset %}
+              {{ song.start_time_offset|format_song_time }}
+            {% endif %}
+          </div>
+          
+          {% with spotify_url=song|spotify_search_url %}
+            {% if spotify_url %}
+              <a href="{{ spotify_url }}" target="_blank" rel="noopener noreferrer" 
+                 class="flex-shrink-0 p-2 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                 title="Open in Spotify">
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.42 1.56-.299.421-1.02.599-1.559.3z"/>
+                </svg>
+              </a>
+            {% endif %}
+          {% endwith %}
+          
+          {% if song.explicit_rating == 1 %}
+            <div class="flex-shrink-0 px-2 py-1 text-xs font-semibold text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-600 rounded">
+              E
+            </div>
+          {% endif %}
+        </div>
+      {% endfor %}
+    </div>
+    
+    {% if playlist.top_artists %}
+      <div class="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+        <h4 class="text-sm font-semibold text-gray-900 dark:text-white mb-3">Top Artists</h4>
+        <div class="flex flex-wrap gap-2">
+          {% for artist in playlist.top_artists %}
+            <div class="flex items-center gap-2 px-3 py-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+              {% if artist.image_url %}
+                <img src="{{ artist.image_url }}" alt="{{ artist.artist_name }}" class="w-8 h-8 rounded-full object-cover">
+              {% endif %}
+              <span class="text-sm text-gray-700 dark:text-gray-300">{{ artist.artist_name }}</span>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    {% endif %}
+  </div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_body %}
+<style>
+/* Music timeline */
+#musicTimeline.hidden { display: none; }
+</style>
+
+{% if performance_data %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const performanceData = [
+    {% for data in performance_data %}
+      {
+        timestamp: {{ data.timestamp }},
+        output: {{ data.output|default:"null" }}
+      }{% if not forloop.last %},{% endif %}
+    {% endfor %}
+  ];
+  
+  const rideDetailDurationSeconds = {% if workout.ride_detail and workout.ride_detail.duration_seconds %}{{ workout.ride_detail.duration_seconds }}{% else %}null{% endif %};
+  let workoutDuration = rideDetailDurationSeconds || 0;
+  if (!workoutDuration || workoutDuration <= 0) {
+    if (Array.isArray(performanceData) && performanceData.length > 0) {
+      let maxTs = 0;
+      for (const p of performanceData) {
+        const ts = (p && typeof p.timestamp === 'number') ? p.timestamp : null;
+        if (ts !== null && ts > maxTs) maxTs = ts;
+      }
+      if (maxTs > 0) workoutDuration = maxTs;
+    }
+  }
+  if (!workoutDuration || workoutDuration <= 0) workoutDuration = 1800;
+
+  // Playlist data for music timeline
+  const playlistData = {% if playlist and playlist.songs %}[
+    {% for song in playlist.songs %}
+    {
+      title: "{{ song.title|escapejs }}",
+      artists: [{% for artist in song.artists %}"{{ artist.artist_name|escapejs }}"{% if not forloop.last %}, {% endif %}{% endfor %}],
+      start_time: {{ song.start_time_offset|default:0 }},
+      duration: {{ song.duration|default:0 }}
+    }{% if not forloop.last %},{% endif %}
+    {% endfor %}
+  ]{% else %}null{% endif %};
+
+  // Calculate song durations
+  if (playlistData && playlistData.length > 0) {
+    for (let i = 0; i < playlistData.length; i++) {
+      const song = playlistData[i];
+      if (!song.duration || song.duration <= 0) {
+        if (i < playlistData.length - 1) {
+          song.duration = playlistData[i + 1].start_time - song.start_time;
+        } else {
+          song.duration = Math.max(180, workoutDuration - song.start_time);
+        }
+      }
+    }
+  }
+
+  function formatTime(seconds) {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  }
+  
+  const ctx = document.getElementById('generalChart');
+  let generalChartInstance = null;
+  if (ctx) {
+    // Build output series
+    const outputSeries = (Array.isArray(performanceData) ? performanceData : [])
+      .filter(p => p && typeof p.timestamp === 'number')
+      .map(p => ({ x: p.timestamp, y: (typeof p.output === 'number' ? p.output : null) }));
+
+    generalChartInstance = new Chart(ctx, {
+      type: 'line',
+      data: {
+        datasets: [
+          {
+            label: 'Actual Output',
+            data: outputSeries,
+            borderColor: '#e0fe48',
+            backgroundColor: 'rgba(224, 254, 72, 0.10)',
+            borderWidth: 2.5,
+            fill: false,
+            tension: 0.15,
+            pointRadius: 0,
+            pointHoverRadius: 6,
+            pointHitRadius: 20,
+            spanGaps: true,
+            parsing: { xAxisKey: 'x', yAxisKey: 'y' }
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        interaction: {
+          mode: 'index',
+          intersect: false,
+          axis: 'x'
+        },
+        plugins: {
+          legend: {
+            display: true,
+            position: 'top',
+            labels: {
+              color: 'rgba(255, 255, 255, 0.8)',
+              font: { size: 14, family: "'Inter', sans-serif" },
+              padding: 15,
+              usePointStyle: true
+            }
+          },
+          tooltip: {
+            callbacks: {
+              title: function(context) {
+                const seconds = context[0].parsed.x;
+                return formatTime(seconds);
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            type: 'linear',
+            min: 0,
+            max: workoutDuration,
+            title: { display: false },
+            grid: { color: 'rgba(255, 255, 255, 0.06)', drawBorder: false },
+            ticks: {
+              autoSkip: true,
+              maxTicksLimit: 9,
+              callback: function(value) { return formatTime(value); },
+              color: 'rgba(255, 255, 255, 0.7)',
+              font: { size: 12 }
+            },
+            border: { display: false }
+          },
+          y: {
+            type: 'linear',
+            position: 'left',
+            title: { display: false },
+            grid: { color: 'rgba(255, 255, 255, 0.1)', drawOnChartArea: true, drawTicks: false },
+            ticks: { color: 'rgba(255, 255, 255, 0.7)' },
+            border: { display: false }
+          }
+        }
+      }
+    });
+  }
+
+  // Music timeline rendering
+  if (playlistData && playlistData.length > 0) {
+    const musicTimelineEl = document.getElementById('musicTimeline');
+    const showMusicCheckbox = document.getElementById('showMusicTimeline');
+
+    function renderMusicTimeline() {
+      if (!musicTimelineEl || !showMusicCheckbox) return;
+      if (!showMusicCheckbox.checked) {
+        musicTimelineEl.classList.add('hidden');
+        return;
+      }
+      musicTimelineEl.classList.remove('hidden');
+      musicTimelineEl.innerHTML = '';
+
+      const maxTime = workoutDuration;
+      const songColors = [
+        'rgba(91, 124, 250, 0.4)', 'rgba(34, 197, 94, 0.4)',
+        'rgba(234, 179, 8, 0.4)', 'rgba(239, 68, 68, 0.4)',
+        'rgba(168, 85, 247, 0.4)', 'rgba(236, 72, 153, 0.4)',
+        'rgba(20, 184, 166, 0.4)', 'rgba(251, 146, 60, 0.4)'
+      ];
+
+      playlistData.forEach((song, idx) => {
+        const startTime = song.start_time || 0;
+        const duration = song.duration || 180;
+
+        const startPercent = maxTime > 0 ? (startTime / maxTime) * 100 : 0;
+        const widthPercent = maxTime > 0 ? (duration / maxTime) * 100 : 0;
+
+        const actualStartPercent = Math.max(0, Math.min(startPercent, 100));
+        const actualWidthPercent = Math.max(0, Math.min(widthPercent, 100 - actualStartPercent));
+        if (actualWidthPercent < 0.5 || actualStartPercent >= 100) return;
+
+        const segment = document.createElement('div');
+        const color = songColors[idx % songColors.length];
+        const artistName = song.artists && song.artists.length > 0 ? song.artists[0] : '';
+
+        segment.style.cssText = `
+          position: absolute;
+          left: ${actualStartPercent}%;
+          width: ${actualWidthPercent}%;
+          height: 100%;
+          background: ${color};
+          border-right: 1px solid rgba(255,255,255,0.25);
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          align-items: flex-start;
+          padding: 2px 6px;
+          font-size: 10px;
+          line-height: 1.2;
+          color: rgba(255,255,255,0.95);
+          overflow: hidden;
+          cursor: pointer;
+          transition: opacity 0.2s, background 0.2s;
+          min-width: 60px;
+        `;
+
+        segment.onmouseenter = () => {
+          segment.style.opacity = '0.85';
+          segment.style.background = color.replace('0.4', '0.6');
+        };
+        segment.onmouseleave = () => {
+          segment.style.opacity = '1';
+          segment.style.background = color;
+        };
+
+        const titleEl = document.createElement('div');
+        titleEl.style.cssText = 'font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; font-size: 10px;';
+        titleEl.textContent = song.title || 'Unknown';
+
+        if (artistName && actualWidthPercent > 5) {
+          const artistEl = document.createElement('div');
+          artistEl.style.cssText = 'font-size: 9px; opacity: 0.8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; margin-top: 1px;';
+          artistEl.textContent = artistName;
+          segment.appendChild(artistEl);
+        }
+
+        segment.insertBefore(titleEl, segment.firstChild);
+        segment.title = `${song.title}${artistName ? ' • ' + artistName : ''}`;
+        musicTimelineEl.appendChild(segment);
+      });
+    }
+
+    if (showMusicCheckbox) {
+      showMusicCheckbox.addEventListener('change', renderMusicTimeline);
+      setTimeout(renderMusicTimeline, 200);
+    }
+  }
+
+  // Share chart image (or download fallback)
+  const saveChartBtn = document.getElementById('saveChart');
+  if (saveChartBtn && generalChartInstance) {
+    saveChartBtn.addEventListener('click', async function() {
+      try {
+        const chartCanvas = generalChartInstance.canvas;
+        if (!chartCanvas) return;
+
+        const headerEl = document.getElementById('shareHeader');
+        const metricsEl = document.getElementById('workoutSummaryMetrics');
+
+        const width = chartCanvas.width;
+        const height = chartCanvas.height;
+
+        const pad = 28;
+        const headerHeight = headerEl ? 72 : 0;
+        const metricsHeight = metricsEl ? 96 : 0;
+        const gap = (headerEl || metricsEl) ? 18 : 0;
+        const topBlockHeight = headerHeight + metricsHeight + gap;
+
+        const outCanvas = document.createElement('canvas');
+        outCanvas.width = width;
+        outCanvas.height = height + topBlockHeight;
+
+        const outCtx = outCanvas.getContext('2d');
+        if (!outCtx) return;
+
+        outCtx.save();
+        outCtx.fillStyle = '#121212';
+        outCtx.fillRect(0, 0, outCanvas.width, outCanvas.height);
+
+        outCtx.strokeStyle = 'rgba(224, 254, 72, 0.9)';
+        outCtx.lineWidth = 3;
+        outCtx.strokeRect(1.5, 1.5, outCanvas.width - 3, outCanvas.height - 3);
+
+        let y = pad;
+        if (headerEl) {
+          const title = headerEl.querySelector('h2')?.textContent?.trim() || '';
+          const sub = headerEl.querySelector('.text-sm')?.textContent?.replace(/\s+/g, ' ')?.trim() || '';
+          const date = headerEl.querySelector('.text-xs')?.textContent?.trim() || '';
+
+          outCtx.fillStyle = 'rgba(255,255,255,0.95)';
+          outCtx.font = '700 26px Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
+          outCtx.fillText(title, pad, y + 26);
+
+          outCtx.fillStyle = 'rgba(255,255,255,0.75)';
+          outCtx.font = '500 16px Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
+          outCtx.fillText(sub, pad, y + 52);
+
+          if (date) {
+            outCtx.fillStyle = 'rgba(255,255,255,0.55)';
+            outCtx.font = '500 14px Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
+            const dateWidth = outCtx.measureText(date).width;
+            outCtx.fillText(date, outCanvas.width - pad - dateWidth, y + 18);
+          }
+
+          y += headerHeight;
+        }
+
+        if (metricsEl) {
+          const tiles = Array.from(metricsEl.querySelectorAll(':scope > div')).slice(0, 6);
+          const cols = Math.min(6, Math.max(3, tiles.length || 0));
+          const tileGap = 14;
+          const tileW = (outCanvas.width - pad * 2 - tileGap * (cols - 1)) / cols;
+          const tileH = 66;
+
+          tiles.slice(0, cols).forEach((tile, i) => {
+            const value = tile.querySelector('.text-xl')?.textContent?.trim() || tile.querySelector('.text-lg')?.textContent?.trim() || '';
+            const label = tile.querySelector('.text-xs')?.textContent?.trim() || tile.querySelector('.text-sm')?.textContent?.trim() || '';
+            const x = pad + i * (tileW + tileGap);
+
+            outCtx.fillStyle = 'rgba(255,255,255,0.06)';
+            outCtx.strokeStyle = 'rgba(255,255,255,0.12)';
+            outCtx.lineWidth = 1;
+            outCtx.beginPath();
+            outCtx.roundRect(x, y, tileW, tileH, 10);
+            outCtx.fill();
+            outCtx.stroke();
+
+            outCtx.fillStyle = 'rgba(255,255,255,0.9)';
+            outCtx.font = '700 18px Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
+            outCtx.fillText(value, x + 12, y + 28);
+
+            outCtx.fillStyle = 'rgba(255,255,255,0.65)';
+            outCtx.font = '500 12px Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
+            outCtx.fillText(label, x + 12, y + 48);
+          });
+
+          y += metricsHeight + gap;
+        } else if (headerEl) {
+          y += gap;
+        }
+
+        outCtx.drawImage(chartCanvas, 0, y);
+        outCtx.restore();
+
+        const dataUrl = outCanvas.toDataURL('image/png');
+        const link = document.createElement('a');
+        link.href = dataUrl;
+        link.download = 'output-chart.png';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } catch (e) {
+        const dataUrl = generalChartInstance.toBase64Image();
+        const link = document.createElement('a');
+        link.href = dataUrl;
+        link.download = 'output-chart.png';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+    });
+  }
+});
+</script>
+{% endif %}
+{% endblock %}
