@@ -50,12 +50,6 @@
 <div class="mb-6 space-y-4">
   <!-- Search Bar -->
   <form 
-    hx-get="{% url 'workouts:history' %}"
-    hx-target="#workout-list-container"
-    hx-swap="innerHTML"
-    hx-trigger="submit, change from:.filter-select delay:300ms"
-    hx-indicator="#filter-loading"
-    hx-push-url="true"
     method="get" 
     class="flex flex-col sm:flex-row gap-3">
     <div class="flex-1 relative">
@@ -132,20 +126,12 @@
   <!-- Workout Type Tabs -->
   <div class="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
     <div class="flex gap-1 border-b border-gray-200 dark:border-gray-700 min-w-max sm:min-w-0">
-    <a href="{% url 'workouts:history' %}" 
-       hx-get="{% url 'workouts:history' %}"
-       hx-target="#workout-list-container"
-       hx-swap="innerHTML"
-       hx-push-url="true"
+    <a href="{% url 'workouts:history' %}{% if qs_without_type_and_page %}?{{ qs_without_type_and_page }}{% endif %}" 
        class="workout-type-tab px-4 py-2 text-sm font-medium {% if not workout_type_filter %}text-primary border-b-2 border-primary{% else %}text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white{% endif %} transition-colors cursor-pointer">
       All
     </a>
     {% for workout_type in workout_types %}
-      <a href="{% url 'workouts:history' %}?type={{ workout_type.slug }}" 
-         hx-get="{% url 'workouts:history' %}?type={{ workout_type.slug }}"
-         hx-target="#workout-list-container"
-         hx-swap="innerHTML"
-         hx-push-url="true"
+      <a href="{% url 'workouts:history' %}?type={{ workout_type.slug }}{% if qs_without_type_and_page %}&{{ qs_without_type_and_page }}{% endif %}" 
          class="workout-type-tab px-4 py-2 text-sm font-medium {% if workout_type_filter == workout_type.slug %}text-primary border-b-2 border-primary{% else %}text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white{% endif %} transition-colors cursor-pointer">
         {{ workout_type.name }}
       </a>

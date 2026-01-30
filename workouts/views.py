@@ -2316,15 +2316,26 @@ def workout_history(request):
         'order_by': order_by,
         'total_workouts': paginator.count,
         'is_paginated': is_paginated,
+        # Query strings for building links while preserving filters
+        'qs_without_page': None,
+        'qs_without_type_and_page': None,
     }
-    
-    # If HTMX request, return appropriate partial
-    if request.headers.get('HX-Request'):
-        # For infinite scroll, return just the workout cards
-        if request.GET.get('infinite') == 'true':
-            return render(request, 'workouts/partials/workout_cards.html', context)
-        # For filters/pagination, return full workout list
-        return render(request, 'workouts/partials/workout_list.html', context)
+
+    # Pre-compute querystrings for templates (preserve multi-filter combinations)
+    try:
+        qs = request.GET.copy()
+        qs.pop('page', None)
+        qs.pop('infinite', None)
+        context['qs_without_page'] = qs.urlencode()
+
+        qs2 = request.GET.copy()
+        qs2.pop('page', None)
+        qs2.pop('infinite', None)
+        qs2.pop('type', None)
+        context['qs_without_type_and_page'] = qs2.urlencode()
+    except Exception:
+        context['qs_without_page'] = ''
+        context['qs_without_type_and_page'] = ''
     
     # Otherwise return full page
     return render(request, 'workouts/history.html', context)

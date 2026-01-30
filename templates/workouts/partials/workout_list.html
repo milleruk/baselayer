@@ -222,21 +222,6 @@
       </div>
     {% endfor %}
     
-    <!-- Infinite Scroll Trigger (inside grid as last item) -->
-    {% if workouts.has_next %}
-      <div 
-        id="infinite-scroll-trigger"
-        hx-get="?page={{ workouts.next_page_number }}&infinite=true"
-        hx-trigger="intersect once"
-        hx-swap="outerHTML"
-        class="col-span-full text-center py-8"
-      >
-        <div class="inline-flex flex-col items-center gap-2">
-          <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-          <p class="text-sm text-gray-600 dark:text-gray-400">Loading more workouts...</p>
-        </div>
-      </div>
-    {% endif %}
   </div>
 {% endif %}
 
@@ -248,11 +233,7 @@
     </div>
     <nav class="flex items-center gap-2 flex-wrap justify-center">
       {% if workouts.has_previous %}
-        <a href="?page={{ workouts.previous_page_number }}" 
-           hx-get="?page={{ workouts.previous_page_number }}" 
-           hx-target="#workout-list-container" 
-           hx-swap="innerHTML"
-           hx-push-url="true"
+        <a href="?page={{ workouts.previous_page_number }}{% if qs_without_page %}&{{ qs_without_page }}{% endif %}" 
            class="pagination-link px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
           ← Previous
         </a>
@@ -269,20 +250,12 @@
             {{ num }}
           </span>
         {% elif num > workouts.number|add:'-3' and num < workouts.number|add:'3' %}
-          <a href="?page={{ num }}" 
-             hx-get="?page={{ num }}" 
-             hx-target="#workout-list-container" 
-             hx-swap="innerHTML"
-             hx-push-url="true"
+          <a href="?page={{ num }}{% if qs_without_page %}&{{ qs_without_page }}{% endif %}" 
              class="pagination-link px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
             {{ num }}
           </a>
         {% elif num == 1 or num == workouts.paginator.num_pages %}
-          <a href="?page={{ num }}" 
-             hx-get="?page={{ num }}" 
-             hx-target="#workout-list-container" 
-             hx-swap="innerHTML"
-             hx-push-url="true"
+          <a href="?page={{ num }}{% if qs_without_page %}&{{ qs_without_page }}{% endif %}" 
              class="pagination-link px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
             {{ num }}
           </a>
@@ -292,11 +265,7 @@
       {% endfor %}
       
       {% if workouts.has_next %}
-        <a href="?page={{ workouts.next_page_number }}" 
-           hx-get="?page={{ workouts.next_page_number }}" 
-           hx-target="#workout-list-container" 
-           hx-swap="innerHTML"
-           hx-push-url="true"
+        <a href="?page={{ workouts.next_page_number }}{% if qs_without_page %}&{{ qs_without_page }}{% endif %}" 
            class="pagination-link px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
           Next →
         </a>
