@@ -2191,7 +2191,7 @@ def workout_history(request):
     # Get user's workouts - all class data comes from ride_detail via SQL joins
     workouts = Workout.objects.filter(user=request.user).select_related(
         'ride_detail', 'ride_detail__workout_type', 'ride_detail__instructor', 'details'
-    ).prefetch_related('performance_data')
+    )
     
     # Get Peloton connection status (from peloton app)
     try:
@@ -2252,6 +2252,29 @@ def workout_history(request):
     paginator = Paginator(workouts, 12)  # 12 workouts per page
     page_number = request.GET.get('page', 1)
     page_obj = paginator.get_page(page_number)
+
+    # Prefetch time-series performance data ONLY for the current page (critical for performance)
+    # and attach lightweight mini-chart data to each workout for rendering in cards.
+    try:
+        from django.db.models import Prefetch
+        from workouts.models import WorkoutPerformanceData
+
+        page_obj.object_list = page_obj.object_list.prefetch_related(
+            Prefetch(
+                'performance_data',
+                queryset=WorkoutPerformanceData.objects.only(
+                    'workout_id',
+                    'timestamp',
+                    'output',
+                    'speed',
+                    'power_zone',
+                    'intensity_zone',
+                ).order_by('timestamp'),
+            )
+        )
+    except Exception:
+        # If prefetch fails for any reason, continue without card charts.
+        pass
     
     # Add pagination flag for template
     is_paginated = page_obj.has_other_pages()
@@ -2336,9 +2359,543 @@ def workout_history(request):
     except Exception:
         context['qs_without_page'] = ''
         context['qs_without_type_and_page'] = ''
+
+    # Build per-card mini chart data (SVG sparkline + optional zone bands)
+    try:
+        user_profile = getattr(request.user, "profile", None)
+        for w in page_obj.object_list:
+            w.card_chart = _build_workout_card_chart(w, user_profile=user_profile)
+    except Exception:
+        # Keep page usable even if chart derivation fails for an edge case.
+        pass
     
     # Otherwise return full page
     return render(request, 'workouts/history.html', context)
+
+
+def _downsample_points(values, max_points=48):
+    """Downsample a list of numeric values to at most max_points, preserving shape."""
+    if not isinstance(values, list):
+        return []
+    cleaned = [v for v in values if isinstance(v, (int, float))]
+    if len(cleaned) <= max_points:
+        return cleaned
+    if max_points < 2:
+        return cleaned[:1]
+    step = (len(cleaned) - 1) / float(max_points - 1)
+    out = []
+    for i in range(max_points):
+        idx = int(round(i * step))
+        if idx < 0:
+            idx = 0
+        if idx >= len(cleaned):
+            idx = len(cleaned) - 1
+        out.append(cleaned[idx])
+    return out
+
+
+def _downsample_series(series, max_points=48):
+    """Downsample a list of dict points (must include 'v') to at most max_points."""
+    if not isinstance(series, list):
+        return []
+    cleaned = [p for p in series if isinstance(p, dict) and isinstance(p.get('v'), (int, float))]
+    if len(cleaned) <= max_points:
+        return cleaned
+    if max_points < 2:
+        return cleaned[:1]
+    step = (len(cleaned) - 1) / float(max_points - 1)
+    out = []
+    for i in range(max_points):
+        idx = int(round(i * step))
+        if idx < 0:
+            idx = 0
+        if idx >= len(cleaned):
+            idx = len(cleaned) - 1
+        out.append(cleaned[idx])
+    return out
+
+
+def _normalize_series_to_svg_points(series, width=360, height=120, left_pad=34, right_pad=10, top_pad=8, bottom_pad=8):
+    """
+    Convert a series of dict points (with 'v' and optional 't'/'z') into SVG points.
+    Returns: (points_str, plot_box, points_list, vmin, vmax) or (None, plot_box, [], None, None) if insufficient points.
+    """
+    plot_x0 = left_pad
+    plot_x1 = max(left_pad + 10, width - right_pad)
+    plot_y0 = top_pad
+    plot_y1 = max(top_pad + 10, height - bottom_pad)
+    plot_box = (plot_x0, plot_y0, plot_x1, plot_y1)
+
+    ds = _downsample_series(series, max_points=48)
+    if len(ds) < 2:
+        return None, plot_box, [], None, None
+
+    vals = [float(p['v']) for p in ds]
+    # Include target values in scaling if present
+    for p in ds:
+        tv = p.get('tv')
+        if isinstance(tv, (int, float)):
+            vals.append(float(tv))
+    vmin = min(vals)
+    vmax = max(vals)
+    if vmax == vmin:
+        vmax = vmin + 1.0
+
+    n = len(ds)
+    xs = []
+    if n == 1:
+        xs = [plot_x0]
+    else:
+        span = (plot_x1 - plot_x0)
+        xs = [plot_x0 + (span * i / float(n - 1)) for i in range(n)]
+
+    def y_for(v):
+        norm = (v - vmin) / float(vmax - vmin)
+        return plot_y1 - norm * (plot_y1 - plot_y0)
+
+    points = []
+    pts = []
+    for i in range(n):
+        v = float(ds[i]['v'])
+        x = float(xs[i])
+        y = float(y_for(v))
+        point = {
+            'x': round(x, 1),
+            'y': round(y, 1),
+            't': int(ds[i].get('t', 0) or 0),
+            'v': v,
+        }
+        tv = ds[i].get('tv')
+        if isinstance(tv, (int, float)):
+            point['tv'] = float(tv)
+        if ds[i].get('z') is not None:
+            point['z'] = ds[i].get('z')
+        pts.append(f"{point['x']:.1f},{point['y']:.1f}")
+        points.append(point)
+
+    return " ".join(pts), plot_box, points, vmin, vmax
+
+
+def _zone_ranges_for_ftp(ftp):
+    """Return power zone ranges dict from FTP."""
+    try:
+        ftp_val = float(ftp)
+    except Exception:
+        return None
+    if ftp_val <= 0:
+        return None
+    # Peloton PZ ranges (same as elsewhere in app)
+    return {
+        1: (0, int(ftp_val * 0.55)),
+        2: (int(ftp_val * 0.55), int(ftp_val * 0.75)),
+        3: (int(ftp_val * 0.75), int(ftp_val * 0.90)),
+        4: (int(ftp_val * 0.90), int(ftp_val * 1.05)),
+        5: (int(ftp_val * 1.05), int(ftp_val * 1.20)),
+        6: (int(ftp_val * 1.20), int(ftp_val * 1.50)),
+        7: (int(ftp_val * 1.50), None),
+    }
+
+
+def _power_zone_for_output(output_watts, zone_ranges):
+    """Return zone number 1-7 for an output value given zone_ranges."""
+    if zone_ranges is None:
+        return None
+    try:
+        w = float(output_watts)
+    except Exception:
+        return None
+    for z in range(1, 8):
+        lo, hi = zone_ranges.get(z, (None, None))
+        if lo is None:
+            continue
+        if hi is None:
+            if w >= lo:
+                return z
+        else:
+            if w >= lo and w < hi:
+                return z
+    return None
+
+
+def _pace_zone_targets_for_level(pace_level):
+    """
+    Build pace zone targets (min/mile) from a pace level (1-10),
+    matching Profile.get_pace_zone_targets().
+    """
+    try:
+        lvl = int(pace_level)
+    except Exception:
+        return None
+    base_paces = {
+        1: 12.0,   # 12:00/mile
+        2: 11.0,   # 11:00/mile
+        3: 10.0,   # 10:00/mile
+        4: 9.0,    # 9:00/mile
+        5: 8.5,    # 8:30/mile
+        6: 8.0,    # 8:00/mile
+        7: 7.5,    # 7:30/mile
+        8: 7.0,    # 7:00/mile
+        9: 6.5,    # 6:30/mile
+        10: 6.0,   # 6:00/mile
+    }
+    base_pace = float(base_paces.get(lvl, 8.0))
+    return {
+        'recovery': base_pace + 2.0,
+        'easy': base_pace + 1.0,
+        'moderate': base_pace,
+        'challenging': base_pace - 0.5,
+        'hard': base_pace - 1.0,
+        'very_hard': base_pace - 1.5,
+        'max': base_pace - 2.0,
+    }
+
+
+def _target_watts_for_zone(zone_ranges, zone_num):
+    if not zone_ranges or not isinstance(zone_num, int):
+        return None
+    lo, hi = zone_ranges.get(zone_num, (None, None))
+    if lo is None:
+        return None
+    if hi is None:
+        # Zone 7: no upper bound; use lower as conservative target
+        return float(lo)
+    return float(lo + (hi - lo) / 2.0)
+
+
+def _target_value_at_time(segments, t_seconds):
+    """Find the segment covering time t_seconds and return its 'target' value."""
+    if not segments or not isinstance(t_seconds, int):
+        return None
+    for seg in segments:
+        try:
+            start = int(seg.get('start', 0))
+            end = int(seg.get('end', 0))
+        except Exception:
+            continue
+        if t_seconds >= start and (end == 0 or t_seconds < end):
+            return seg.get('target')
+    return None
+
+
+def _target_value_at_time_with_shift(segments, t_seconds, shift_seconds=0):
+    """
+    Return target value at time t_seconds, applying a time shift to the *segment windows*.
+
+    A negative shift (e.g. -60) means the target segments start earlier on the chart.
+    Equivalent lookup: target(t) = target_original(t - shift).
+    """
+    if not isinstance(t_seconds, int):
+        return None
+    try:
+        s = int(shift_seconds or 0)
+    except Exception:
+        s = 0
+    return _target_value_at_time(segments, t_seconds - s)
+
+
+def _build_workout_card_chart(workout, user_profile=None):
+    """
+    Build lightweight mini-chart data for workout cards.
+    Output is a dict that templates can render as an inline SVG.
+    """
+    ride = getattr(workout, 'ride_detail', None)
+    if not ride:
+        return None
+
+    perf = list(getattr(workout, 'performance_data', []).all() if hasattr(workout, 'performance_data') else [])
+    if not perf:
+        return None
+
+    discipline = (getattr(ride, 'fitness_discipline', '') or '').lower()
+    class_type = (getattr(ride, 'class_type', '') or '').lower()
+    is_power_zone = bool(getattr(ride, 'is_power_zone_class', False) or class_type == 'power_zone')
+    is_pace = class_type == 'pace_target' or discipline in ['running', 'run', 'walking', 'walk']
+    is_cycling = discipline in ['cycling', 'ride', 'bike']
+    workout_date = getattr(workout, 'completed_date', None) or getattr(workout, 'recorded_date', None)
+    user_ftp = None
+    if user_profile and workout_date and hasattr(user_profile, "get_ftp_at_date"):
+        try:
+            user_ftp = user_profile.get_ftp_at_date(workout_date)
+        except Exception:
+            user_ftp = None
+    zone_ranges = _zone_ranges_for_ftp(user_ftp) if user_ftp else None
+
+    # Decide which series to chart
+    metric_key = None
+    chart_kind = None
+    line_color = "rgba(253, 224, 71, 0.95)"  # yellow-300
+    if is_pace:
+        metric_key = 'speed'
+        chart_kind = 'pace'
+        line_color = "rgba(96, 165, 250, 0.95)"  # blue-400
+    elif is_cycling:
+        metric_key = 'output'
+        chart_kind = 'power_zone' if is_power_zone else 'cycling_output_zones'
+        line_color = "rgba(253, 224, 71, 0.95)"  # yellow-300
+    else:
+        return None
+
+    series = []
+    for p in perf:
+        t = getattr(p, 'timestamp', None)
+        v = getattr(p, metric_key, None)
+        if not isinstance(t, int):
+            continue
+        if not isinstance(v, (int, float)):
+            continue
+        point = {'t': int(t), 'v': float(v)}
+        if chart_kind == 'power_zone':
+            z = getattr(p, 'power_zone', None)
+            if isinstance(z, int):
+                point['z'] = z
+            else:
+                # Fallback: compute from FTP if power_zone field missing
+                zc = _power_zone_for_output(point['v'], zone_ranges)
+                if isinstance(zc, int):
+                    point['z'] = zc
+        elif chart_kind == 'pace':
+            z = getattr(p, 'intensity_zone', None)
+            if isinstance(z, str) and z:
+                point['z'] = z
+        elif chart_kind == 'cycling_output_zones':
+            # Non–PZ cycling should follow power zones (not pace/intensity bands)
+            zc = _power_zone_for_output(point['v'], zone_ranges)
+            if isinstance(zc, int):
+                point['z'] = zc
+        series.append(point)
+
+    # Build target segments (optional)
+    target_segments = None
+    TARGET_TIME_SHIFT_SECONDS = -60  # intro is within target metrics; shift targets earlier
+    try:
+        if chart_kind == 'power_zone' and user_ftp and hasattr(ride, 'get_power_zone_segments'):
+            pz_segments = ride.get_power_zone_segments(user_ftp=user_ftp)
+            target_segments = []
+            for seg in (pz_segments or []):
+                z = seg.get('zone')
+                try:
+                    z = int(z)
+                except Exception:
+                    z = None
+                tv = _target_watts_for_zone(zone_ranges, z) if z else None
+                target_segments.append({
+                    'start': seg.get('start', 0),
+                    'end': seg.get('end', 0),
+                    'target': tv,
+                    'zone': z,
+                })
+        elif chart_kind == 'pace' and hasattr(ride, 'get_pace_segments'):
+            activity_type = 'walking' if discipline in ['walking', 'walk'] else 'running'
+            pace_level = None
+            if user_profile and workout_date and hasattr(user_profile, 'get_pace_at_date'):
+                try:
+                    pace_level = user_profile.get_pace_at_date(workout_date, activity_type=activity_type)
+                except Exception:
+                    pace_level = None
+            if pace_level is None and user_profile and hasattr(user_profile, 'get_current_pace'):
+                try:
+                    pace_level = user_profile.get_current_pace(activity_type=activity_type)
+                except Exception:
+                    pace_level = None
+            if pace_level is None and user_profile:
+                pace_level = getattr(user_profile, 'pace_target_level', None)
+            if pace_level is None:
+                pace_level = 5
+
+            # Prefer user-defined PaceLevel/PaceBand (most accurate), fallback to derived pace zones
+            pace_zones = None
+            try:
+                from accounts.models import PaceLevel
+
+                if user_profile and workout_date:
+                    lvl = int(pace_level)
+                    pace_level_obj = (
+                        PaceLevel.objects.filter(
+                            user=user_profile.user,
+                            activity_type=activity_type,
+                            level=lvl,
+                            recorded_date__lte=workout_date,
+                        )
+                        .prefetch_related('bands')
+                        .order_by('-recorded_date', '-updated_at', '-created_at')
+                        .first()
+                    )
+                    if pace_level_obj and hasattr(pace_level_obj, 'bands'):
+                        pace_zones = {}
+                        for band in pace_level_obj.bands.all():
+                            try:
+                                min_p = float(band.min_pace)
+                                max_p = float(band.max_pace)
+                                if min_p > 0 and max_p > 0:
+                                    pace_zones[str(band.zone)] = (min_p + max_p) / 2.0
+                            except Exception:
+                                continue
+            except Exception:
+                pace_zones = None
+
+            if not pace_zones:
+                pace_zones = _pace_zone_targets_for_level(pace_level)
+            pace_segments = ride.get_pace_segments(user_pace_zones=pace_zones)
+            target_segments = []
+            for seg in (pace_segments or []):
+                pr = seg.get('pace_range')  # minutes per mile
+                tv = None
+                try:
+                    pr = float(pr) if pr is not None else None
+                    if pr and pr > 0:
+                        tv = 60.0 / pr  # mph target
+                except Exception:
+                    tv = None
+                target_segments.append({
+                    'start': seg.get('start', 0),
+                    'end': seg.get('end', 0),
+                    'target': tv,
+                    'zone': seg.get('zone'),
+                    'zone_name': seg.get('zone_name'),
+                })
+    except Exception:
+        target_segments = None
+
+    # Attach target values to points (so scaling includes them and tooltip can show them)
+    if target_segments:
+        for pt in series:
+            t = pt.get('t')
+            if isinstance(t, int):
+                tv = _target_value_at_time_with_shift(target_segments, t, shift_seconds=TARGET_TIME_SHIFT_SECONDS)
+                if isinstance(tv, (int, float)):
+                    pt['tv'] = float(tv)
+
+    points_str, plot_box, points_list, vmin, vmax = _normalize_series_to_svg_points(series)
+    if not points_str:
+        return None
+
+    width = 360
+    height = 120
+    plot_x0, plot_y0, plot_x1, plot_y1 = plot_box
+    plot_w = plot_x1 - plot_x0
+    plot_h = plot_y1 - plot_y0
+    plot_h = plot_y1 - plot_y0
+
+    bands = []
+    labels = []
+
+    if is_pace:
+        # Intensity zones (fixed bands for card preview)
+        labels = ["MAX", "VERY HARD", "HARD", "CHALLENGING", "MODERATE", "EASY", "RECOVERY"]
+        colors = [
+            "rgba(239, 68, 68, 0.55)",   # red-500
+            "rgba(249, 115, 22, 0.55)",  # orange-500
+            "rgba(245, 158, 11, 0.55)",  # amber-500
+            "rgba(34, 197, 94, 0.55)",   # green-500
+            "rgba(20, 184, 166, 0.55)",  # teal-500
+            "rgba(59, 130, 246, 0.55)",  # blue-500
+            "rgba(124, 58, 237, 0.55)",  # violet-600
+        ]
+        band_h = plot_h / 7.0
+        for i in range(7):
+            bands.append({
+                'y': plot_y0 + i * band_h,
+                'h': band_h,
+                'fill': colors[i],
+                'label': labels[i],
+                'label_y': plot_y0 + i * band_h + band_h / 2.0,
+            })
+
+    elif is_power_zone:
+        # Power zones (fixed bands for card preview; output line overlays)
+        labels = ["Zone 7", "Zone 6", "Zone 5", "Zone 4", "Zone 3", "Zone 2", "Zone 1"]
+        colors = [
+            "rgba(239, 68, 68, 0.45)",   # red-500
+            "rgba(249, 115, 22, 0.45)",  # orange-500
+            "rgba(245, 158, 11, 0.45)",  # amber-500
+            "rgba(34, 197, 94, 0.45)",   # green-500
+            "rgba(20, 184, 166, 0.45)",  # teal-500
+            "rgba(59, 130, 246, 0.45)",  # blue-500
+            "rgba(124, 58, 237, 0.45)",  # violet-600
+        ]
+        band_h = plot_h / 7.0
+        for i in range(7):
+            bands.append({
+                'y': plot_y0 + i * band_h,
+                'h': band_h,
+                'fill': colors[i],
+                'label': labels[i],
+                'label_y': plot_y0 + i * band_h + band_h / 2.0,
+            })
+
+    elif is_cycling and not is_power_zone:
+        # Non–Power Zone cycling: follow power zones (Z1–Z7), computed from FTP when possible
+        labels = ["Zone 7", "Zone 6", "Zone 5", "Zone 4", "Zone 3", "Zone 2", "Zone 1"]
+        colors = [
+            "rgba(239, 68, 68, 0.45)",   # red-500
+            "rgba(249, 115, 22, 0.45)",  # orange-500
+            "rgba(245, 158, 11, 0.45)",  # amber-500
+            "rgba(34, 197, 94, 0.45)",   # green-500
+            "rgba(20, 184, 166, 0.45)",  # teal-500
+            "rgba(59, 130, 246, 0.45)",  # blue-500
+            "rgba(124, 58, 237, 0.45)",  # violet-600
+        ]
+        band_h = plot_h / 7.0
+        for i in range(7):
+            bands.append({
+                'y': plot_y0 + i * band_h,
+                'h': band_h,
+                'fill': colors[i],
+                'label': labels[i],
+                'label_y': plot_y0 + i * band_h + band_h / 2.0,
+            })
+
+    # Safe JSON for inline script blocks in templates
+    try:
+        from django.utils.safestring import mark_safe
+        series_json = mark_safe(json.dumps(points_list))
+    except Exception:
+        series_json = "[]"
+
+    # Build target polyline string if targets exist
+    target_points = None
+    if points_list and any(isinstance(p.get('tv'), (int, float)) for p in points_list):
+        try:
+            plot_x0, plot_y0, plot_x1, plot_y1 = plot_box
+            if vmax == vmin:
+                vmax = (vmin or 0) + 1.0
+
+            def y_for(v):
+                norm = (float(v) - float(vmin)) / float(float(vmax) - float(vmin))
+                return float(plot_y1) - norm * (float(plot_y1) - float(plot_y0))
+
+            target_pts = []
+            for p in points_list:
+                tv = p.get('tv')
+                if isinstance(tv, (int, float)):
+                    target_pts.append(f"{float(p['x']):.1f},{y_for(tv):.1f}")
+                else:
+                    # Break line for missing targets
+                    target_pts.append("")
+            # Convert breaks into multiple polylines not supported easily; for now, only draw when continuous enough
+            joined = " ".join([s for s in target_pts if s])
+            target_points = joined if joined else None
+        except Exception:
+            target_points = None
+
+    return {
+        'width': width,
+        'height': height,
+        'plot_x0': plot_x0,
+        'plot_x1': plot_x1,
+        'plot_y0': plot_y0,
+        'plot_y1': plot_y1,
+        'plot_w': plot_w,
+        'plot_h': plot_h,
+        'bands': bands,
+        'points': points_str,
+        'target_points': target_points,
+        'series_json': series_json,
+        'kind': chart_kind,
+        'vmin': vmin,
+        'vmax': vmax,
+        'line_color': line_color,
+    }
 
 
 @login_required

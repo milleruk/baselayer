@@ -219,6 +219,97 @@
             </span>
           {% endif %}
         </div>
+
+        {% if workout.card_chart %}
+          <!-- Mini chart preview (PZ / Cycling / Pace Target only when data exists) -->
+          <div class="mt-4">
+            <div
+              class="js-mini-chart relative rounded-lg border border-gray-700 bg-black/40 overflow-hidden select-none"
+              data-kind="{{ workout.card_chart.kind }}"
+              data-plot-x0="{{ workout.card_chart.plot_x0 }}"
+              data-plot-x1="{{ workout.card_chart.plot_x1 }}"
+              data-plot-y0="{{ workout.card_chart.plot_y0 }}"
+              data-plot-y1="{{ workout.card_chart.plot_y1 }}"
+              data-vmin="{{ workout.card_chart.vmin }}"
+              data-vmax="{{ workout.card_chart.vmax }}"
+            >
+              <script type="application/json" class="js-mini-chart-series">{{ workout.card_chart.series_json }}</script>
+              <svg
+                viewBox="0 0 {{ workout.card_chart.width }} {{ workout.card_chart.height }}"
+                class="w-full h-32"
+                preserveAspectRatio="none"
+                aria-label="Workout chart preview"
+                role="img"
+              >
+                {% if workout.card_chart.bands %}
+                  {% for band in workout.card_chart.bands %}
+                    <rect
+                      x="0"
+                      y="{{ band.y }}"
+                      width="{{ workout.card_chart.width }}"
+                      height="{{ band.h }}"
+                      fill="{{ band.fill }}"
+                    ></rect>
+                    <text
+                      x="6"
+                      y="{{ band.label_y }}"
+                      fill="rgba(255,255,255,0.8)"
+                      font-size="9"
+                      font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial"
+                      dominant-baseline="middle"
+                    >{{ band.label }}</text>
+                  {% endfor %}
+                {% endif %}
+
+                <!-- Subtle plot border -->
+                <rect
+                  x="{{ workout.card_chart.plot_x0 }}"
+                  y="{{ workout.card_chart.plot_y0 }}"
+                  width="{{ workout.card_chart.plot_w }}"
+                  height="{{ workout.card_chart.plot_h }}"
+                  fill="none"
+                  stroke="rgba(255,255,255,0.08)"
+                  stroke-width="1"
+                ></rect>
+
+                <!-- Hover crosshair + point (updated by JS) -->
+                <line class="js-mini-chart-crosshair" x1="0" y1="{{ workout.card_chart.plot_y0 }}" x2="0" y2="{{ workout.card_chart.plot_y1 }}" stroke="rgba(255,255,255,0.35)" stroke-width="1" stroke-dasharray="2 2" opacity="0"></line>
+                <circle class="js-mini-chart-dot" cx="0" cy="0" r="3" fill="{{ workout.card_chart.line_color }}" opacity="0"></circle>
+
+                {% if workout.card_chart.target_points %}
+                  <!-- Target line -->
+                  <polyline
+                    points="{{ workout.card_chart.target_points }}"
+                    fill="none"
+                    stroke="rgba(255,255,255,0.85)"
+                    stroke-width="2"
+                    stroke-dasharray="4 3"
+                    stroke-linejoin="round"
+                    stroke-linecap="round"
+                  ></polyline>
+                {% endif %}
+
+                <!-- Actual line -->
+                <polyline
+                  points="{{ workout.card_chart.points }}"
+                  fill="none"
+                  stroke="{{ workout.card_chart.line_color }}"
+                  stroke-width="2"
+                  stroke-linejoin="round"
+                  stroke-linecap="round"
+                ></polyline>
+              </svg>
+
+              <!-- Tooltip -->
+              <div class="js-mini-chart-tooltip pointer-events-none absolute hidden rounded-md border border-gray-700 bg-gray-900/95 px-3 py-2 shadow-xl">
+                <div class="text-xs text-gray-300 tabular-nums js-mini-chart-time">—</div>
+                <div class="mt-1 text-sm font-semibold text-yellow-300 tabular-nums js-mini-chart-value">—</div>
+                <div class="mt-0.5 text-sm font-semibold text-blue-300 tabular-nums js-mini-chart-target hidden">—</div>
+                <div class="mt-0.5 text-[11px] text-gray-300 js-mini-chart-zone hidden">—</div>
+              </div>
+            </div>
+          </div>
+        {% endif %}
       </div>
     {% endfor %}
     

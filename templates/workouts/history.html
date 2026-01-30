@@ -180,4 +180,169 @@
   {% include 'workouts/partials/workout_list.html' %}
 </div>
 
+<script>
+  (function () {
+    function formatTime(seconds) {
+      const s = Math.max(0, Number(seconds) || 0);
+      const mm = Math.floor(s / 60);
+      const ss = Math.floor(s % 60);
+      return `${mm}:${String(ss).padStart(2, '0')}`;
+    }
+
+    function mphToPace(mph) {
+      const v = Number(mph);
+      if (!isFinite(v) || v <= 0) return null;
+      const totalSecondsPerMile = 3600 / v;
+      const mm = Math.floor(totalSecondsPerMile / 60);
+      const ss = Math.round(totalSecondsPerMile % 60);
+      return `${mm}:${String(ss).padStart(2, '0')} /mi`;
+    }
+
+    function clamp(n, a, b) {
+      return Math.min(b, Math.max(a, n));
+    }
+
+    function initMiniChart(container) {
+      const seriesEl = container.querySelector('.js-mini-chart-series');
+      const svg = container.querySelector('svg');
+      const crosshair = container.querySelector('.js-mini-chart-crosshair');
+      const dot = container.querySelector('.js-mini-chart-dot');
+      const tooltip = container.querySelector('.js-mini-chart-tooltip');
+      const timeEl = container.querySelector('.js-mini-chart-time');
+      const valueEl = container.querySelector('.js-mini-chart-value');
+      const targetEl = container.querySelector('.js-mini-chart-target');
+      const zoneEl = container.querySelector('.js-mini-chart-zone');
+
+      if (!seriesEl || !svg || !crosshair || !dot || !tooltip || !timeEl || !valueEl || !targetEl || !zoneEl) return;
+
+      let series = [];
+      try {
+        series = JSON.parse(seriesEl.textContent || '[]');
+      } catch (e) {
+        return;
+      }
+      if (!Array.isArray(series) || series.length < 2) return;
+
+      const kind = (container.dataset.kind || '').toLowerCase();
+      const plotX0 = Number(container.dataset.plotX0 || 0);
+      const plotX1 = Number(container.dataset.plotX1 || 1);
+      const plotY0 = Number(container.dataset.plotY0 || 0);
+      const plotY1 = Number(container.dataset.plotY1 || 1);
+      const viewBox = svg.viewBox && svg.viewBox.baseVal ? svg.viewBox.baseVal : { width: 320, height: 96 };
+
+      function setHidden(hidden) {
+        if (hidden) {
+          tooltip.classList.add('hidden');
+          crosshair.setAttribute('opacity', '0');
+          dot.setAttribute('opacity', '0');
+        } else {
+          tooltip.classList.remove('hidden');
+          crosshair.setAttribute('opacity', '1');
+          dot.setAttribute('opacity', '1');
+        }
+      }
+
+      function updateFromClientX(clientX, clientY) {
+        const rect = svg.getBoundingClientRect();
+        const xView = ((clientX - rect.left) / rect.width) * viewBox.width;
+        const xClamped = clamp(xView, plotX0, plotX1);
+        const idx = clamp(
+          Math.round(((xClamped - plotX0) / (plotX1 - plotX0)) * (series.length - 1)),
+          0,
+          series.length - 1
+        );
+
+        const p = series[idx];
+        if (!p || typeof p.x !== 'number' || typeof p.y !== 'number') return;
+
+        crosshair.setAttribute('x1', String(p.x));
+        crosshair.setAttribute('x2', String(p.x));
+        crosshair.setAttribute('y1', String(plotY0));
+        crosshair.setAttribute('y2', String(plotY1));
+        dot.setAttribute('cx', String(p.x));
+        dot.setAttribute('cy', String(p.y));
+
+        // Tooltip text
+        const t = typeof p.t === 'number' ? p.t : 0;
+        timeEl.textContent = formatTime(t);
+
+        if (kind === 'pace') {
+          const pace = mphToPace(p.v);
+          valueEl.textContent = pace ? `Actual: ${pace}` : 'Actual: —';
+        } else {
+          const watts = isFinite(Number(p.v)) ? Math.round(Number(p.v)) : null;
+          valueEl.textContent = watts !== null ? `Actual: ${watts} W` : 'Actual: —';
+        }
+
+        // Target (optional)
+        let targetText = null;
+        if (typeof p.tv === 'number' && isFinite(p.tv)) {
+          if (kind === 'pace') {
+            const tp = mphToPace(p.tv);
+            targetText = tp ? `Target: ${tp}` : null;
+          } else if (kind === 'power_zone') {
+            targetText = `Target: ${Math.round(p.tv)} W`;
+          }
+        }
+        if (targetText) {
+          targetEl.textContent = targetText;
+          targetEl.classList.remove('hidden');
+        } else {
+          targetEl.classList.add('hidden');
+        }
+
+        // Zone label (optional)
+        let zoneText = null;
+        if ((kind === 'power_zone' || kind === 'cycling_output_zones') && typeof p.z === 'number') {
+          zoneText = `Zone ${p.z}`;
+        } else if (kind === 'pace' && typeof p.z === 'string' && p.z) {
+          zoneText = String(p.z).replace(/_/g, ' ').toUpperCase();
+        }
+        if (zoneText) {
+          zoneEl.textContent = zoneText;
+          zoneEl.classList.remove('hidden');
+        } else {
+          zoneEl.classList.add('hidden');
+        }
+
+        // Tooltip position (avoid overflow)
+        const containerRect = container.getBoundingClientRect();
+        const relX = clientX - containerRect.left;
+        const relY = clientY - containerRect.top;
+        const margin = 10;
+        const tipW = 160;
+        const tipH = (zoneEl.classList.contains('hidden') ? 52 : 68) + (targetEl.classList.contains('hidden') ? 0 : 18);
+        const left = clamp(relX + margin, 6, containerRect.width - tipW - 6);
+        const top = clamp(relY - tipH - margin, 6, containerRect.height - tipH - 6);
+        tooltip.style.left = `${left}px`;
+        tooltip.style.top = `${top}px`;
+      }
+
+      container.addEventListener('mouseenter', (e) => {
+        setHidden(false);
+        updateFromClientX(e.clientX, e.clientY);
+      });
+      container.addEventListener('mousemove', (e) => {
+        updateFromClientX(e.clientX, e.clientY);
+      });
+      container.addEventListener('mouseleave', () => {
+        setHidden(true);
+      });
+
+      // Start hidden
+      setHidden(true);
+    }
+
+    function initAll() {
+      document.querySelectorAll('.js-mini-chart').forEach(initMiniChart);
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initAll);
+    } else {
+      initAll();
+    }
+  })();
+</script>
+
 {% endblock %}
