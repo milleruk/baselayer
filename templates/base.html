@@ -205,6 +205,7 @@
                   <a href="{% url 'plans:exercise_list' %}" class="px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-800">Exercises</a>
                   <a href="{% url 'tracker:weekly_plans' %}" class="px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-800">My Plans</a>
                   <a href="{% url 'workouts:history' %}" class="px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-800">Workouts</a>
+                  <a href="{% url 'recommender:index' %}" class="px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-800">Recommender</a>
                 </div>
               </div>
               <div class="flex items-center space-x-3">
@@ -273,6 +274,7 @@
                 <a href="{% url 'plans:exercise_list' %}" class="block px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-800">Exercises</a>
                 <a href="{% url 'tracker:weekly_plans' %}" class="block px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-800">My Plans</a>
                 <a href="{% url 'workouts:history' %}" class="block px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-800">Workouts</a>
+                <a href="{% url 'recommender:index' %}" class="block px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-800">Recommender</a>
                 <a href="{% url 'plans:dashboard' %}" class="block px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-800">Dashboard</a>
               </div>
             </div>
@@ -373,6 +375,14 @@
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                 </svg>
                 Workouts
+              </a>
+            </li>
+            <li>
+              <a href="{% url 'recommender:index' %}" class="flex items-center px-4 py-3 text-sm font-medium rounded-lg {% if 'instructor-recommender' in request.path %}bg-primary text-white{% else %}text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700{% endif %}">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                </svg>
+                Recommender
               </a>
             </li>
             <li>

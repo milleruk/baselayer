@@ -1,0 +1,1109 @@
+[
+  {
+    "name": "Aditi Shah",
+    "modality": [
+      "#Yoga/Stretching"
+    ],
+    "language": "#English",
+    "styles": [
+      "#TheCalm",
+      "#Motivational",
+      "#Empowerment",
+      "#Technical"
+    ],
+    "music": [
+      "#PopNostalgia",
+      "#IndieEclectic"
+    ],
+    "community_tag": "#AditisWarriors",
+    "description": "Elegant and fluid; focuses on mindfulness and deep, R&B-fueled meditation."
+  },
+  {
+    "name": "Adrian Williams",
+    "modality": [
+      "#Tread",
+      "#Strength"
+    ],
+    "language": "#English",
+    "styles": [
+      "#Strength",
+      "#TheHype",
+      "#Relatable",
+      "#Disciplinarian"
+    ],
+    "music": [
+      "#HipHopHeavy",
+      "#ClassicRock",
+      "#PopNostalgia"
+    ],
+    "community_tag": "#ThunderSquad",
+    "description": "High energy with a 'tough love' approach; famous for heavy lifting and humor."
+  },
+  {
+    "name": "Alex Karwoski",
+    "modality": [
+      "#Rowing"
+    ],
+    "language": "#English",
+    "styles": [
+      "#Technical",
+      "#TheCalm",
+      "#Endurance",
+      "#Motivational"
+    ],
+    "music": [
+      "#ClassicRock",
+      "#IndieEclectic",
+      "#PopNostalgia"
+    ],
+    "community_tag": "#KarwoskisCrew",
+    "description": "Olympian technicality; brings elite-level rowing precision and calm focus."
+  },
+  {
+    "name": "Alex Toussaint",
+    "modality": [
+      "#Cycling"
+    ],
+    "language": "#English",
+    "styles": [
+      "#Disciplinarian",
+      "#TheHype",
+      "#Motivational",
+      "#HIIT"
+    ],
+    "music": [
+      "#HipHopHeavy",
+      "#EDM_Trap"
+    ],
+    "community_tag": "#FeelGoodLookGood",
+    "description": "'The Captain.' Military-style discipline, hip-hop energy, and zero-excuses motivation."
+  },
+  {
+    "name": "Ally Love",
+    "modality": [
+      "#Cycling"
+    ],
+    "language": "#English",
+    "styles": [
+      "#Empowerment",
+      "#Motivational",
+      "#TheHype",
+      "#Relatable"
+    ],
+    "music": [
+      "#PopNostalgia",
+      "#HipHopHeavy"
+    ],
+    "community_tag": "#LoveSquad",
+    "description": "Soulful and empowering; focuses on self-belief and boss-level energy."
+  },
+  {
+    "name": "Andy Speer",
+    "modality": [
+      "#Strength",
+      "#Tread"
+    ],
+    "language": "#English",
+    "styles": [
+      "#Strength",
+      "#Technical",
+      "#Disciplinarian",
+      "#Endurance"
+    ],
+    "music": [
+      "#ClassicRock",
+      "#PopNostalgia"
+    ],
+    "community_tag": "#SpeerHeads",
+    "description": "The 'Strength Scientist.' Technical, structured, and focused on progressive muscle growth."
+  },
+  {
+    "name": "Anna Greenberg",
+    "modality": [
+      "#Yoga/Stretching"
+    ],
+    "language": "#English",
+    "styles": [
+      "#TheCalm",
+      "#Empowerment",
+      "#Technical",
+      "#Motivational"
+    ],
+    "music": [
+      "#IndieEclectic",
+      "#PopNostalgia"
+    ],
+    "community_tag": "#AnnasArmy",
+    "description": "Deeply spiritual; uses creative yoga flows to help you connect with your inner self."
+  },
+  {
+    "name": "Ash Pryor",
+    "modality": [
+      "#Rowing",
+      "#Strength"
+    ],
+    "language": "#English",
+    "styles": [
+      "#Strength",
+      "#Relatable",
+      "#TheHype",
+      "#Motivational"
+    ],
+    "music": [
+      "#HipHopHeavy",
+      "#PopNostalgia"
+    ],
+    "community_tag": "#AshsAllStars",
+    "description": "Enthusiastic and inclusive; makes high-intensity rowing feel accessible and fun."
+  },
+  {
+    "name": "Assal Arian",
+    "modality": [
+      "#Strength",
+      "#Tread"
+    ],
+    "language": "#German",
+    "styles": [
+      "#Disciplinarian",
+      "#Strength",
+      "#Technical",
+      "#HIIT"
+    ],
+    "music": [
+      "#EDM_Trap",
+      "#PopNostalgia"
+    ],
+    "community_tag": "#AssalsArmy",
+    "description": "German powerhouse; provides high-intensity strength training with strict, disciplined cues."
+  },
+  {
+    "name": "Becs Gentry",
+    "modality": [
+      "#Tread"
+    ],
+    "language": "#English",
+    "styles": [
+      "#Endurance",
+      "#Technical",
+      "#Motivational",
+      "#TheCalm"
+    ],
+    "music": [
+      "#PopNostalgia",
+      "#ClassicRock"
+    ],
+    "community_tag": "#BecsBeasts",
+    "description": "Elite marathoner; offers high-mileage expertise with a focused, British charm."
+  },
+  {
+    "name": "Ben Alldis",
+    "modality": [
+      "#Cycling",
+      "#Strength"
+    ],
+    "language": "#English",
+    "styles": [
+      "#PowerZone",
+      "#Strength",
+      "#Technical",
+      "#OnTheBeat"
+    ],
+    "music": [
+      "#EDM_Trap",
+      "#PopNostalgia",
+      "#ClassicRock"
+    ],
+    "community_tag": "#BenAndTheEngineers",
+    "description": "Logical and organized; treats every class like a structured athletic performance."
+  },
+  {
+    "name": "Benny Adami",
+    "modality": [
+      "#Cycling"
+    ],
+    "language": "#German",
+    "styles": [
+      "#TheHype",
+      "#Relatable",
+      "#OnTheBeat",
+      "#Motivational"
+    ],
+    "music": [
+      "#BroadwayBound",
+      "#PopNostalgia"
+    ],
+    "community_tag": "#BennysBesties",
+    "description": "Theatrical and vibrant; brings Broadway-level energy and German pop to the bike."
+  },
+  {
+    "name": "Bradley Rose",
+    "modality": [
+      "#Cycling"
+    ],
+    "language": "#English",
+    "styles": [
+      "#Relatable",
+      "#TheHype",
+      "#OnTheBeat",
+      "#Motivational"
+    ],
+    "music": [
+      "#EmoPunk",
+      "#PopNostalgia"
+    ],
+    "community_tag": "#BradleysRoseGarden",
+    "description": "The 'resident goofball.' Self-deprecating British humor mixed with early-2000s punk."
+  },
+  {
+    "name": "Callie Gullickson",
+    "modality": [
+      "#Strength"
+    ],
+    "language": "#English",
+    "styles": [
+      "#Strength",
+      "#Relatable",
+      "#TheHype",
+      "#Motivational"
+    ],
+    "music": [
+      "#PopNostalgia",
+      "#CountryRoads"
+    ],
+    "community_tag": "#CalliesCrew",
+    "description": "The 'fun big sister' of strength; keeps things light while pushing toward heavy weights."
+  },
+  {
+    "name": "Camila Ramón",
+    "modality": [
+      "#Cycling"
+    ],
+    "language": "#Spanish",
+    "styles": [
+      "#Relatable",
+      "#TheHype",
+      "#Motivational",
+      "#HIIT"
+    ],
+    "music": [
+      "#LatinFuego",
+      "#PopNostalgia",
+      "#HipHopHeavy"
+    ],
+    "community_tag": "#MilaSquad",
+    "description": "No-filter humor and high energy; a bilingual force of Latin-fueled motivation."
+  },
+  {
+    "name": "Charlotte Weidenbach",
+    "modality": [
+      "#Cycling"
+    ],
+    "language": "#German",
+    "styles": [
+      "#Disciplinarian",
+      "#HIIT",
+      "#TheHype",
+      "#OnTheBeat"
+    ],
+    "music": [
+      "#EmoPunk",
+      "#ClassicRock",
+      "#EDM_Trap"
+    ],
+    "community_tag": "#CharlottesChargers",
+    "description": "Rock and Metal specialist; a tough, direct German instructor who rides for the music."
+  },
+  {
+    "name": "Chelsea Jackson Roberts",
+    "modality": [
+      "#Yoga/Stretching"
+    ],
+    "language": "#English",
+    "styles": [
+      "#Empowerment",
+      "#TheCalm",
+      "#Motivational",
+      "#Technical"
+    ],
+    "music": [
+      "#HipHopHeavy",
+      "#PopNostalgia"
+    ],
+    "community_tag": "#ChelseasChampions",
+    "description": "Heart-centered and community-focused; uses yoga as a tool for healing and R&B vibes."
+  },
+  {
+    "name": "Christine D'Ercole",
+    "modality": [
+      "#Cycling"
+    ],
+    "language": "#English",
+    "styles": [
+      "#PowerZone",
+      "#Technical",
+      "#Empowerment",
+      "#TheCalm"
+    ],
+    "music": [
+      "#ClassicRock",
+      "#IndieEclectic",
+      "#PopNostalgia"
+    ],
+    "community_tag": "#IAMICANIVILL",
+    "description": "World-champion racer; focuses on self-talk, Power Zone science, and resilience."
+  },
+  {
+    "name": "Cliff Dwenger",
+    "modality": [
+      "#Cycling"
+    ],
+    "language": "#German",
+    "styles": [
+      "#OnTheBeat",
+      "#Motivational",
+      "#TheHype",
+      "#Empowerment"
+    ],
+    "music": [
+      "#HipHopHeavy",
+      "#PopNostalgia"
+    ],
+    "community_tag": "#CliffsCrew",
+    "description": "Soulful and rhythmic; brings Gospel and Afrobeats energy to deep-burn rides."
+  },
+  {
+    "name": "Cody Rigsby",
+    "modality": [
+      "#Cycling"
+    ],
+    "language": "#English",
+    "styles": [
+      "#Relatable",
+      "#TheHype",
+      "#OnTheBeat",
+      "#Motivational"
+    ],
+    "music": [
+      "#PopNostalgia",
+      "#EDM_Trap"
+    ],
+    "community_tag": "#BooCrew",
+    "description": "'The King of Pop.' Entertaining and hilarious; known for hot takes and dance party rides."
+  },
+  {
+    "name": "Denis Morton",
+    "modality": [
+      "#Cycling",
+      "#Yoga/Stretching"
+    ],
+    "language": "#English",
+    "styles": [
+      "#OnTheBeat",
+      "#Technical",
+      "#PowerZone",
+      "#TheCalm"
+    ],
+    "music": [
+      "#ClassicRock",
+      "#PopNostalgia",
+      "#IndieEclectic"
+    ],
+    "community_tag": "#DenisMenaces",
+    "description": "'The Professor.' Precise, rides perfectly to the beat, and offers Golden Buddha wisdom."
+  },
+  {
+    "name": "Emma Lovewell",
+    "modality": [
+      "#Cycling",
+      "#Strength"
+    ],
+    "language": "#English",
+    "styles": [
+      "#OnTheBeat",
+      "#TheCalm",
+      "#Technical",
+      "#Relatable"
+    ],
+    "music": [
+      "#IndieEclectic",
+      "#ClassicRock",
+      "#PopNostalgia"
+    ],
+    "community_tag": "#TeamLovewell",
+    "description": "Artistic and cool; focuses on aesthetics, indie-rock, and high-quality core work."
+  },
+  {
+    "name": "Erik Jäger",
+    "modality": [
+      "#Cycling",
+      "#Strength"
+    ],
+    "language": "#German",
+    "styles": [
+      "#TheHype",
+      "#Strength",
+      "#Technical",
+      "#HIIT"
+    ],
+    "music": [
+      "#EDM_Trap",
+      "#PopNostalgia"
+    ],
+    "community_tag": "#Hauptstadttrainer",
+    "description": "High-octane German energy with a focus on EDM and technical power."
+  },
+  {
+    "name": "Greta Dopp",
+    "modality": [
+      "#Yoga/Stretching"
+    ],
+    "language": "#English",
+    "styles": [
+      "#Relatable",
+      "#TheCalm",
+      "#Empowerment",
+      "#Technical"
+    ],
+    "music": [
+      "#IndieEclectic",
+      "#PopNostalgia"
+    ],
+    "community_tag": "#GretasGoGetters",
+    "description": "Canadian pride; focuses on playful, accessible movement with a West Coast vibe."
+  },
+  {
+    "name": "Hannah Corbin",
+    "modality": [
+      "#Cycling",
+      "#Yoga/Stretching"
+    ],
+    "language": "#English",
+    "styles": [
+      "#Technical",
+      "#TheCalm",
+      "#Empowerment",
+      "#Relatable"
+    ],
+    "music": [
+      "#CountryRoads",
+      "#ClassicRock",
+      "#PopNostalgia"
+    ],
+    "community_tag": "#HannahsHustlers",
+    "description": "Technical master of longevity, stretching, and low-impact functional movement."
+  },
+  {
+    "name": "Hannah Frankson",
+    "modality": [
+      "#Cycling",
+      "#Tread"
+    ],
+    "language": "#English",
+    "styles": [
+      "#Relatable",
+      "#TheHype",
+      "#HIIT",
+      "#Motivational"
+    ],
+    "music": [
+      "#PopNostalgia",
+      "#HipHopHeavy"
+    ],
+    "community_tag": "#PushPushHannah",
+    "description": "The athlete next door. British humor mixed with tough, high-cadence pushes."
+  },
+  {
+    "name": "Jenn Sherman",
+    "modality": [
+      "#Cycling"
+    ],
+    "language": "#English",
+    "styles": [
+      "#Relatable",
+      "#Motivational",
+      "#TheHype",
+      "#Endurance"
+    ],
+    "music": [
+      "#ClassicRock",
+      "#PopNostalgia",
+      "#BroadwayBound"
+    ],
+    "community_tag": "#JSTribe",
+    "description": "Authentic and relatable; tells it like it is over classic rock and sports stories."
+  },
+  {
+    "name": "Jermaine Johnson",
+    "modality": [
+      "#Tread",
+      "#Strength"
+    ],
+    "language": "#English",
+    "styles": [
+      "#Disciplinarian",
+      "#Strength",
+      "#TheCalm",
+      "#Technical"
+    ],
+    "music": [
+      "#HipHopHeavy",
+      "#PopNostalgia"
+    ],
+    "community_tag": "#JJsJanitors",
+    "description": "Direct and powerful; focuses on getting the work done with smooth, British intensity."
+  },
+  {
+    "name": "Jess King",
+    "modality": [
+      "#Cycling",
+      "#Tread"
+    ],
+    "language": "#English",
+    "styles": [
+      "#TheHype",
+      "#Relatable",
+      "#HIIT",
+      "#OnTheBeat"
+    ],
+    "music": [
+      "#EDM_Trap",
+      "#PopNostalgia"
+    ],
+    "community_tag": "#JessKingCollective",
+    "description": "Eccentric and explosive; her classes are a theatrical journey through EDM and Trap music."
+  },
+  {
+    "name": "Jess Sims",
+    "modality": [
+      "#Bootcamp",
+      "#Strength"
+    ],
+    "language": "#English",
+    "styles": [
+      "#Strength",
+      "#HIIT",
+      "#Motivational",
+      "#Disciplinarian"
+    ],
+    "music": [
+      "#PopNostalgia",
+      "#HipHopHeavy"
+    ],
+    "community_tag": "#YouGetToCrew",
+    "description": "High-intensity athletic work that feels like a varsity sports practice."
+  },
+  {
+    "name": "Johanna Ricouz",
+    "modality": [
+      "#Yoga/Stretching"
+    ],
+    "language": "#English",
+    "styles": [
+      "#TheCalm",
+      "#Technical",
+      "#Empowerment",
+      "#Motivational"
+    ],
+    "music": [
+      "#IndieEclectic",
+      "#PopNostalgia"
+    ],
+    "community_tag": "#JohannaJoy",
+    "description": "Sophisticated French-style Yoga; focuses on fluid, body-aware movement."
+  },
+  {
+    "name": "Jon Hosking",
+    "modality": [
+      "#Tread"
+    ],
+    "language": "#English",
+    "styles": [
+      "#Relatable",
+      "#TheHype",
+      "#Endurance",
+      "#Motivational"
+    ],
+    "music": [
+      "#PopNostalgia",
+      "#BroadwayBound",
+      "#ClassicRock"
+    ],
+    "community_tag": "#HoskyHustlers",
+    "description": "The Tread's 'fun uncle.' High-vibe British humor and incredible music storytelling."
+  },
+  {
+    "name": "Joslyn Thompson Rule",
+    "modality": [
+      "#Tread"
+    ],
+    "language": "#English",
+    "styles": [
+      "#Technical",
+      "#Endurance",
+      "#TheCalm",
+      "#Motivational"
+    ],
+    "music": [
+      "#PopNostalgia",
+      "#HipHopHeavy"
+    ],
+    "community_tag": "#JoslynsJoyriders",
+    "description": "Calm and technical; focuses on running mechanics and functional strength."
+  },
+  {
+    "name": "Katie Wang",
+    "modality": [
+      "#Rowing",
+      "#Strength"
+    ],
+    "language": "#English",
+    "styles": [
+      "#Strength",
+      "#Technical",
+      "#Disciplinarian",
+      "#HIIT"
+    ],
+    "music": [
+      "#EDM_Trap",
+      "#PopNostalgia",
+      "#ClassicRock"
+    ],
+    "community_tag": "#KatesKrew",
+    "description": "Fierce and technical; brings a rhythmic drive to high-intensity rowing."
+  },
+  {
+    "name": "Kirra Michel",
+    "modality": [
+      "#Yoga/Stretching"
+    ],
+    "language": "#English",
+    "styles": [
+      "#TheCalm",
+      "#Technical",
+      "#Relatable",
+      "#Empowerment"
+    ],
+    "music": [
+      "#IndieEclectic",
+      "#PopNostalgia"
+    ],
+    "community_tag": "#KirrasCuriosity",
+    "description": "Philosophical and quirky; uses yoga to challenge your mental hurdles and curiosity."
+  },
+  {
+    "name": "Kirsten Ferguson",
+    "modality": [
+      "#Tread"
+    ],
+    "language": "#English",
+    "styles": [
+      "#Motivational",
+      "#Empowerment",
+      "#TheHype",
+      "#Relatable"
+    ],
+    "music": [
+      "#HipHopHeavy",
+      "#PopNostalgia"
+    ],
+    "community_tag": "#KirstensKings",
+    "description": "The 'hype woman.' Focuses on family, faith, and finding your inner champion."
+  },
+  {
+    "name": "Leanne Hainsby",
+    "modality": [
+      "#Cycling"
+    ],
+    "language": "#English",
+    "styles": [
+      "#OnTheBeat",
+      "#TheHype",
+      "#Motivational",
+      "#Relatable"
+    ],
+    "music": [
+      "#PopNostalgia",
+      "#BroadwayBound"
+    ],
+    "community_tag": "#YesToLeanne",
+    "description": "'Glitter and Grit.' High-cadence intervals delivered with a bright spirit."
+  },
+  {
+    "name": "Logan Aldridge",
+    "modality": [
+      "#Strength",
+      "#Tread"
+    ],
+    "language": "#English",
+    "styles": [
+      "#Motivational",
+      "#Strength",
+      "#Technical",
+      "#Empowerment"
+    ],
+    "music": [
+      "#PopNostalgia",
+      "#ClassicRock",
+      "#EmoPunk"
+    ],
+    "community_tag": "#LogansLegends",
+    "description": "Incredibly inspiring; technical strength focus with a specialty in adaptive fitness."
+  },
+  {
+    "name": "Marcel Dinkins",
+    "modality": [
+      "#Tread"
+    ],
+    "language": "#English",
+    "styles": [
+      "#Disciplinarian",
+      "#Endurance",
+      "#Motivational",
+      "#HIIT"
+    ],
+    "music": [
+      "#HipHopHeavy",
+      "#PopNostalgia"
+    ],
+    "community_tag": "#MarcelsMilitary",
+    "description": "Military-trained running coach; focuses on mental resilience and pure grit."
+  },
+  {
+    "name": "Marcel Maurer",
+    "modality": [
+      "#Strength",
+      "#Tread"
+    ],
+    "language": "#German",
+    "styles": [
+      "#Strength",
+      "#HIIT",
+      "#Technical",
+      "#Disciplinarian"
+    ],
+    "music": [
+      "#EDM_Trap",
+      "#PopNostalgia"
+    ],
+    "community_tag": "#MaurersMuscle",
+    "description": "High-energy German strength coach; focuses on efficiency and power-hour intensity."
+  },
+  {
+    "name": "Mariana Fernández",
+    "modality": [
+      "#Yoga/Stretching",
+      "#Tread"
+    ],
+    "language": "#Spanish",
+    "styles": [
+      "#TheCalm",
+      "#Endurance",
+      "#Motivational",
+      "#Empowerment"
+    ],
+    "music": [
+      "#LatinFuego",
+      "#PopNostalgia"
+    ],
+    "community_tag": "#MarianasMarathoners",
+    "description": "Warm and encouraging; a bilingual force for connecting yoga and running goals."
+  },
+  {
+    "name": "Marina Andresen",
+    "modality": [
+      "#Tread"
+    ],
+    "language": "#German",
+    "styles": [
+      "#Endurance",
+      "#Technical",
+      "#TheCalm",
+      "#Motivational"
+    ],
+    "music": [
+      "#PopNostalgia",
+      "#ClassicRock"
+    ],
+    "community_tag": "#MarinasMiles",
+    "description": "Structured and motivating; brings a focused German intensity to endurance training."
+  },
+  {
+    "name": "Matt Wilpers",
+    "modality": [
+      "#Cycling",
+      "#Tread"
+    ],
+    "language": "#English",
+    "styles": [
+      "#PowerZone",
+      "#Technical",
+      "#Endurance",
+      "#TheCalm"
+    ],
+    "music": [
+      "#ClassicRock",
+      "#PopNostalgia",
+      "#HipHopHeavy"
+    ],
+    "community_tag": "#WilpersWarriors",
+    "description": "The 'CFO of Output.' Data-driven, technical, and focuses on logic and metrics."
+  },
+  {
+    "name": "Matty Maggiacomo",
+    "modality": [
+      "#Tread",
+      "#Strength"
+    ],
+    "language": "#English",
+    "styles": [
+      "#Relatable",
+      "#TheHype",
+      "#Motivational",
+      "#Strength"
+    ],
+    "music": [
+      "#BroadwayBound",
+      "#PopNostalgia"
+    ],
+    "community_tag": "#MattyMaggiacomoCrew",
+    "description": "Hilarious and pop-culture obsessed; his Walk + Talks are like a live comedy podcast."
+  },
+  {
+    "name": "Mayla Wedekind",
+    "modality": [
+      "#Cycling"
+    ],
+    "language": "#German",
+    "styles": [
+      "#TheCalm",
+      "#OnTheBeat",
+      "#Endurance",
+      "#Technical"
+    ],
+    "music": [
+      "#IndieEclectic",
+      "#ClassicRock"
+    ],
+    "community_tag": "#MaylasMusicians",
+    "description": "Calm and deeply musical; focuses on Indie/Alternative rides with a steady energy."
+  },
+  {
+    "name": "Mila Lazar",
+    "modality": [
+      "#Cycling"
+    ],
+    "language": "#German",
+    "styles": [
+      "#TheHype",
+      "#HIIT",
+      "#OnTheBeat",
+      "#Motivational"
+    ],
+    "music": [
+      "#EDM_Trap",
+      "#PopNostalgia"
+    ],
+    "community_tag": "#MilasMisfits",
+    "description": "Fierce and fun; brings high-energy German pop and a club vibe to the bike."
+  },
+  {
+    "name": "Nico Sarani",
+    "modality": [
+      "#Yoga/Stretching"
+    ],
+    "language": "#German",
+    "styles": [
+      "#TheCalm",
+      "#Empowerment",
+      "#Technical",
+      "#Motivational"
+    ],
+    "music": [
+      "#IndieEclectic",
+      "#PopNostalgia"
+    ],
+    "community_tag": "#NicosNinjas",
+    "description": "Calm and centered; focuses on mindfulness and the spiritual side of movement."
+  },
+  {
+    "name": "Olivia Amato",
+    "modality": [
+      "#Cycling",
+      "#Tread",
+      "#Strength"
+    ],
+    "language": "#English",
+    "styles": [
+      "#GlitterAssassin",
+      "#HIIT",
+      "#Disciplinarian",
+      "#Strength"
+    ],
+    "music": [
+      "#EDM_Trap",
+      "#PopNostalgia",
+      "#ClassicRock"
+    ],
+    "community_tag": "#OliviasOverachievers",
+    "description": "'Glitter Assassin.' Quietly brutal; calls for extreme resistance with a smile."
+  },
+  {
+    "name": "Robin Arzón",
+    "modality": [
+      "#Cycling",
+      "#Tread"
+    ],
+    "language": "#English",
+    "styles": [
+      "#Empowerment",
+      "#Motivational",
+      "#Disciplinarian",
+      "#TheHype"
+    ],
+    "music": [
+      "#HipHopHeavy",
+      "#PopNostalgia"
+    ],
+    "community_tag": "#Wolfpack",
+    "description": "Swagger-focused and intense; pushes you to find your inner royalty."
+  },
+  {
+    "name": "Ross Rayburn",
+    "modality": [
+      "#Yoga/Stretching"
+    ],
+    "language": "#English",
+    "styles": [
+      "#Technical",
+      "#TheCalm",
+      "#Empowerment",
+      "#Motivational"
+    ],
+    "music": [
+      "#IndieEclectic",
+      "#PopNostalgia"
+    ],
+    "community_tag": "#RossRayburnYogis",
+    "description": "Technical and gentle; focuses on the biomechanics of yoga and mental relaxation."
+  },
+  {
+    "name": "Sam Yo",
+    "modality": [
+      "#Cycling"
+    ],
+    "language": "#English",
+    "styles": [
+      "#TheCalm",
+      "#OnTheBeat",
+      "#Motivational",
+      "#Technical"
+    ],
+    "music": [
+      "#ClassicRock",
+      "#PopNostalgia",
+      "#BroadwayBound"
+    ],
+    "community_tag": "#YoYoSquad",
+    "description": "'The Zen Master.' Calm, encouraging, and provides sneaky difficult workouts."
+  },
+  {
+    "name": "Selena Samuela",
+    "modality": [
+      "#Tread",
+      "#Strength"
+    ],
+    "language": "#English",
+    "styles": [
+      "#TheHype",
+      "#Strength",
+      "#Endurance",
+      "#Motivational"
+    ],
+    "music": [
+      "#ClassicRock",
+      "#PopNostalgia",
+      "#CountryRoads"
+    ],
+    "community_tag": "#SelenasSoldiers",
+    "description": "High energy; brings a surfer's spirit to tough floor and hill work."
+  },
+  {
+    "name": "Susie Chan",
+    "modality": [
+      "#Tread"
+    ],
+    "language": "#English",
+    "styles": [
+      "#Endurance",
+      "#Motivational",
+      "#TheCalm",
+      "#Relatable"
+    ],
+    "music": [
+      "#ClassicRock",
+      "#PopNostalgia"
+    ],
+    "community_tag": "#SusiesStriders",
+    "description": "Ultra-runner legend; brings a can-do British spirit to long-distance training."
+  },
+  {
+    "name": "Tobias Heinze",
+    "modality": [
+      "#Tread"
+    ],
+    "language": "#German",
+    "styles": [
+      "#Endurance",
+      "#Disciplinarian",
+      "#Technical",
+      "#Motivational"
+    ],
+    "music": [
+      "#ClassicRock",
+      "#PopNostalgia"
+    ],
+    "community_tag": "#TobiasTribesmen",
+    "description": "German ultra-marathoner; focuses on grit, distance, and mental fortitude."
+  },
+  {
+    "name": "Tunde Oyeneyin",
+    "modality": [
+      "#Cycling",
+      "#Strength"
+    ],
+    "language": "#English",
+    "styles": [
+      "#Empowerment",
+      "#HIIT",
+      "#Motivational",
+      "#Strength"
+    ],
+    "music": [
+      "#HipHopHeavy",
+      "#PopNostalgia",
+      "#EDM_Trap"
+    ],
+    "community_tag": "#TundesTribe",
+    "description": "Powerhouse and motivator; focus on transformation and grit."
+  },
+  {
+    "name": "Zacharias Niedzwiecki",
+    "modality": [
+      "#Yoga/Stretching",
+      "#Strength"
+    ],
+    "language": "#English",
+    "styles": [
+      "#Strength",
+      "#Technical",
+      "#Motivational",
+      "#TheCalm"
+    ],
+    "music": [
+      "#PopNostalgia",
+      "#ClassicRock"
+    ],
+    "community_tag": "#ZachsZenWarriors",
+    "description": "High-intensity Yoga/Kettlebell hybrid; focuses on explosive power and mobility."
+  }
+]

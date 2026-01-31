@@ -1,0 +1,424 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Instructor Recommender{% endblock %}
+{% block page_title %}Instructor Recommender{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+  <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">Instructor Recommender</h1>
+  <p class="text-gray-600 dark:text-gray-400">Pick two instructors you love training with and we’ll suggest similar vibes.</p>
+</div>
+
+<div class="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm mb-6">
+  <div class="p-4 sm:p-6">
+    <form id="instructorRecommenderForm" method="get" class="space-y-4">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <!-- Love 1 -->
+        <div x-data="instructorPicker({ name: '{{ love_1_name|escapejs }}' })" class="relative">
+          <label class="block text-sm font-semibold text-gray-800 dark:text-gray-200 mb-1">I love training with…</label>
+          <input type="hidden" name="love_1" :value="selectedName">
+          <button
+            type="button"
+            @click="toggle()"
+            class="w-full flex items-center justify-between px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900/40 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
+          >
+            <span class="truncate" :class="selectedName ? '' : 'text-gray-500 dark:text-gray-400'">
+              <template x-if="selectedName"><span x-text="selectedName"></span></template>
+              <template x-if="!selectedName"><span>Select an instructor…</span></template>
+            </span>
+            <svg class="h-4 w-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" :class="open ? 'rotate-180' : ''">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+            </svg>
+          </button>
+
+          <div x-show="open" x-cloak @click.away="close()" class="absolute left-0 right-0 mt-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-xl overflow-hidden z-50">
+            <div class="p-2 border-b border-gray-200 dark:border-gray-700">
+              <div class="relative">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                  </svg>
+                </div>
+                <input
+                  x-ref="search"
+                  type="text"
+                  x-model="q"
+                  @input.debounce.200ms="fetch()"
+                  @keydown.escape.prevent="close()"
+                  placeholder="Search…"
+                  class="block w-full pl-9 pr-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900/40 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-primary focus:border-transparent"
+                >
+              </div>
+            </div>
+            <div class="max-h-64 overflow-y-auto">
+              <template x-for="item in items" :key="item.name">
+                <button type="button" @click="select(item)" class="w-full text-left px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-800/70 transition-colors">
+                  <div class="text-sm font-semibold text-gray-900 dark:text-white" x-text="item.name"></div>
+                  <template x-if="item.subtitle">
+                    <div class="mt-0.5 text-xs text-gray-600 dark:text-gray-400" x-text="item.subtitle"></div>
+                  </template>
+                </button>
+              </template>
+              <template x-if="items.length === 0 && q.length >= 2">
+                <div class="px-3 py-2 text-sm text-gray-600 dark:text-gray-400">No matches.</div>
+              </template>
+              <template x-if="q.length < 2">
+                <div class="px-3 py-2 text-sm text-gray-600 dark:text-gray-400">Type 2+ characters to search.</div>
+              </template>
+            </div>
+          </div>
+        </div>
+
+        <!-- Love 2 -->
+        <div x-data="instructorPicker({ name: '{{ love_2_name|escapejs }}' })" class="relative">
+          <label class="block text-sm font-semibold text-gray-800 dark:text-gray-200 mb-1">I also love training with…</label>
+          <input type="hidden" name="love_2" :value="selectedName">
+          <button
+            type="button"
+            @click="toggle()"
+            class="w-full flex items-center justify-between px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900/40 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
+          >
+            <span class="truncate" :class="selectedName ? '' : 'text-gray-500 dark:text-gray-400'">
+              <template x-if="selectedName"><span x-text="selectedName"></span></template>
+              <template x-if="!selectedName"><span>Select an instructor…</span></template>
+            </span>
+            <svg class="h-4 w-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" :class="open ? 'rotate-180' : ''">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+            </svg>
+          </button>
+
+          <div x-show="open" x-cloak @click.away="close()" class="absolute left-0 right-0 mt-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-xl overflow-hidden z-50">
+            <div class="p-2 border-b border-gray-200 dark:border-gray-700">
+              <div class="relative">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                  </svg>
+                </div>
+                <input
+                  x-ref="search"
+                  type="text"
+                  x-model="q"
+                  @input.debounce.200ms="fetch()"
+                  @keydown.escape.prevent="close()"
+                  placeholder="Search…"
+                  class="block w-full pl-9 pr-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900/40 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-primary focus:border-transparent"
+                >
+              </div>
+            </div>
+            <div class="max-h-64 overflow-y-auto">
+              <template x-for="item in items" :key="item.name">
+                <button type="button" @click="select(item)" class="w-full text-left px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-800/70 transition-colors">
+                  <div class="text-sm font-semibold text-gray-900 dark:text-white" x-text="item.name"></div>
+                  <template x-if="item.subtitle">
+                    <div class="mt-0.5 text-xs text-gray-600 dark:text-gray-400" x-text="item.subtitle"></div>
+                  </template>
+                </button>
+              </template>
+              <template x-if="items.length === 0 && q.length >= 2">
+                <div class="px-3 py-2 text-sm text-gray-600 dark:text-gray-400">No matches.</div>
+              </template>
+              <template x-if="q.length < 2">
+                <div class="px-3 py-2 text-sm text-gray-600 dark:text-gray-400">Type 2+ characters to search.</div>
+              </template>
+            </div>
+          </div>
+        </div>
+
+        <!-- Exclude -->
+        <div x-data="instructorPicker({ name: '{{ exclude_name|escapejs }}' })" class="relative">
+          <label class="block text-sm font-semibold text-gray-800 dark:text-gray-200 mb-1">I don’t really vibe with… (optional)</label>
+          <input type="hidden" name="exclude" :value="selectedName">
+          <button
+            type="button"
+            @click="toggle()"
+            class="w-full flex items-center justify-between px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900/40 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
+          >
+            <span class="truncate" :class="selectedName ? '' : 'text-gray-500 dark:text-gray-400'">
+              <template x-if="selectedName"><span x-text="selectedName"></span></template>
+              <template x-if="!selectedName"><span>Select an instructor…</span></template>
+            </span>
+            <svg class="h-4 w-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" :class="open ? 'rotate-180' : ''">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+            </svg>
+          </button>
+
+          <div x-show="open" x-cloak @click.away="close()" class="absolute left-0 right-0 mt-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-xl overflow-hidden z-50">
+            <div class="p-2 border-b border-gray-200 dark:border-gray-700">
+              <div class="relative">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                  </svg>
+                </div>
+                <input
+                  x-ref="search"
+                  type="text"
+                  x-model="q"
+                  @input.debounce.200ms="fetch()"
+                  @keydown.escape.prevent="close()"
+                  placeholder="Search…"
+                  class="block w-full pl-9 pr-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900/40 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-primary focus:border-transparent"
+                >
+              </div>
+            </div>
+            <div class="max-h-64 overflow-y-auto">
+              <template x-for="item in items" :key="item.name">
+                <button type="button" @click="select(item)" class="w-full text-left px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-800/70 transition-colors">
+                  <div class="text-sm font-semibold text-gray-900 dark:text-white" x-text="item.name"></div>
+                  <template x-if="item.subtitle">
+                    <div class="mt-0.5 text-xs text-gray-600 dark:text-gray-400" x-text="item.subtitle"></div>
+                  </template>
+                </button>
+              </template>
+              <template x-if="items.length === 0 && q.length >= 2">
+                <div class="px-3 py-2 text-sm text-gray-600 dark:text-gray-400">No matches.</div>
+              </template>
+              <template x-if="q.length < 2">
+                <div class="px-3 py-2 text-sm text-gray-600 dark:text-gray-400">Type 2+ characters to search.</div>
+              </template>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Filters -->
+      <div class="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
+        <div class="flex-1">
+          <label class="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-2">Modality</label>
+          <input type="hidden" name="discipline" id="discipline-input" value="{{ discipline }}">
+
+          <div class="flex flex-wrap gap-2">
+            <button
+              type="button"
+              data-discipline=""
+              class="js-discipline-pill inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-semibold border transition-colors
+                {% if not discipline %}
+                  bg-primary text-white border-primary
+                {% else %}
+                  bg-white dark:bg-gray-900/40 text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700/40
+                {% endif %}"
+            >
+              All
+            </button>
+            {% for d in discipline_options %}
+              <button
+                type="button"
+                data-discipline="{{ d }}"
+                class="js-discipline-pill inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-semibold border transition-colors
+                  {% if discipline|lower == d|lower %}
+                    bg-primary text-white border-primary
+                  {% else %}
+                    bg-white dark:bg-gray-900/40 text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700/40
+                  {% endif %}"
+              >
+                {{ d|title }}
+              </button>
+            {% endfor %}
+          </div>
+        </div>
+
+        <div class="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+          <button
+            type="submit"
+            class="inline-flex items-center justify-center px-4 py-2.5 rounded-lg text-sm font-semibold text-white bg-primary hover:bg-primary-dark transition-colors w-full sm:w-auto"
+          >
+            Find My Instructors
+          </button>
+          <a
+            href="{% url 'recommender:index' %}"
+            class="inline-flex items-center justify-center px-4 py-2.5 rounded-lg text-sm font-semibold text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900/40 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700/40 transition-colors w-full sm:w-auto"
+          >
+            Reset
+          </a>
+        </div>
+      </div>
+
+      {% if error %}
+        <div class="rounded-lg border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-900/20 px-4 py-3 text-sm text-red-800 dark:text-red-200">
+          {{ error }}
+        </div>
+      {% endif %}
+    </form>
+  </div>
+</div>
+
+{% if results %}
+  <div class="mb-6">
+    <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Your Top Matches</h2>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+    {% for r in results %}
+      <div class="rounded-xl border border-gray-200/60 dark:border-gray-700/60 bg-white dark:bg-gray-900/40 shadow-sm overflow-hidden">
+        <div class="p-5 bg-gradient-to-b from-gray-50 to-white dark:from-gray-900/50 dark:to-gray-900/20">
+          <div class="flex items-start justify-between gap-3 mb-4">
+            <div class="flex items-center gap-3 min-w-0">
+              <div class="h-9 w-9 rounded-full bg-red-600 text-white flex items-center justify-center font-extrabold text-sm flex-shrink-0">
+                {{ forloop.counter }}
+              </div>
+              <div class="min-w-0">
+                <div class="text-lg font-bold text-gray-900 dark:text-white truncate">{{ r.name }}</div>
+              </div>
+            </div>
+            <div class="text-red-500 dark:text-red-400 flex-shrink-0" aria-hidden="true" title="Match">
+              ✨
+            </div>
+          </div>
+
+          {% if r.sections.modality %}
+            <div class="mb-3">
+              <div class="text-xs font-bold tracking-wider text-gray-500 dark:text-gray-400">MODALITY</div>
+              <div class="mt-1 flex flex-wrap gap-2">
+                {% for t in r.sections.modality %}
+                  <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-200">
+                    {{ t }}
+                  </span>
+                {% endfor %}
+              </div>
+            </div>
+          {% endif %}
+
+          {% if r.sections.language %}
+            <div class="mb-3">
+              <div class="text-xs font-bold tracking-wider text-gray-500 dark:text-gray-400">LANGUAGE</div>
+              <div class="mt-1 flex flex-wrap gap-2">
+                {% for t in r.sections.language %}
+                  <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border border-amber-200 dark:border-amber-900/40 bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-100">
+                    {{ t }}
+                  </span>
+                {% endfor %}
+              </div>
+            </div>
+          {% endif %}
+
+          {% if r.sections.styles %}
+            <div class="mb-3">
+              <div class="text-xs font-bold tracking-wider text-gray-500 dark:text-gray-400">STYLES</div>
+              <div class="mt-1 flex flex-wrap gap-2">
+                {% for t in r.sections.styles %}
+                  <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border border-emerald-200 dark:border-emerald-900/40 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-800 dark:text-emerald-100">
+                    {{ t }}
+                  </span>
+                {% endfor %}
+              </div>
+            </div>
+          {% endif %}
+
+          {% if r.sections.music %}
+            <div class="mb-3">
+              <div class="text-xs font-bold tracking-wider text-gray-500 dark:text-gray-400">MUSIC</div>
+              <div class="mt-1 flex flex-wrap gap-2">
+                {% for t in r.sections.music %}
+                  <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border border-blue-200 dark:border-blue-900/40 bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-100">
+                    {{ t }}
+                  </span>
+                {% endfor %}
+              </div>
+            </div>
+          {% endif %}
+
+          {% if r.sections.community %}
+            <div class="mb-4">
+              <div class="text-xs font-bold tracking-wider text-gray-500 dark:text-gray-400">COMMUNITY</div>
+              <div class="mt-1 flex flex-wrap gap-2">
+                {% for t in r.sections.community %}
+                  <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border border-purple-200 dark:border-purple-900/40 bg-purple-50 dark:bg-purple-900/20 text-purple-800 dark:text-purple-100">
+                    {{ t }}
+                  </span>
+                {% endfor %}
+              </div>
+            </div>
+          {% endif %}
+
+          <div class="mt-2 text-sm text-gray-800 dark:text-gray-200">
+            {{ r.message }}
+          </div>
+
+          {% if r.vibe %}
+            <div class="mt-3 pt-3 border-t border-gray-200/60 dark:border-gray-700/60 text-sm italic text-gray-600 dark:text-gray-400">
+              “{{ r.vibe }}”
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+{% endif %}
+
+<script>
+  function instructorPicker(initial) {
+    return {
+      open: false,
+      q: '',
+      items: [],
+      selectedName: (initial && initial.name) ? String(initial.name) : '',
+      discipline() {
+        return (document.getElementById('discipline-input')?.value || '').trim();
+      },
+      toggle() {
+        this.open = !this.open;
+        if (this.open) {
+          this.q = '';
+          this.items = [];
+          this.$nextTick(() => this.$refs.search?.focus());
+        }
+      },
+      close() {
+        this.open = false;
+      },
+      async fetch() {
+        const q = (this.q || '').trim();
+        if (q.length < 2) {
+          this.items = [];
+          return;
+        }
+        const url = new URL("{% url 'recommender:suggest' %}", window.location.origin);
+        url.searchParams.set('q', q);
+        const d = this.discipline();
+        if (d) url.searchParams.set('discipline', d);
+        try {
+          const resp = await fetch(url.toString(), { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+          if (!resp.ok) {
+            this.items = [];
+            return;
+          }
+          const data = await resp.json();
+          this.items = (data && Array.isArray(data.results)) ? data.results : [];
+        } catch (e) {
+          this.items = [];
+        }
+      },
+      select(item) {
+        this.selectedName = String(item.name || '');
+        this.close();
+      },
+    };
+  }
+</script>
+
+<script>
+  (function () {
+    const form = document.getElementById('instructorRecommenderForm');
+    const input = document.getElementById('discipline-input');
+    if (!form || !input) return;
+
+    document.querySelectorAll('.js-discipline-pill').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const val = btn.getAttribute('data-discipline') || '';
+        input.value = val;
+        // Visual state update (no full re-render needed)
+        document.querySelectorAll('.js-discipline-pill').forEach((b) => {
+          b.classList.remove('bg-primary', 'text-white', 'border-primary');
+          b.classList.add('bg-white', 'text-gray-900', 'border-gray-300');
+          b.classList.add('dark:bg-gray-900/40', 'dark:text-white', 'dark:border-gray-600');
+        });
+        btn.classList.add('bg-primary', 'text-white', 'border-primary');
+        btn.classList.remove('bg-white', 'text-gray-900', 'border-gray-300');
+      });
+    });
+  })();
+</script>
+{% endblock %}
+
