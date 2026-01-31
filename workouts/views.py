@@ -2849,7 +2849,7 @@ def _normalize_series_to_svg_points(series, width=360, height=120, left_pad=34, 
     plot_y1 = max(top_pad + 10, height - bottom_pad)
     plot_box = (plot_x0, plot_y0, plot_x1, plot_y1)
 
-    ds = _downsample_series(series, max_points=48)
+    ds = _downsample_series(series, max_points=120)
     if len(ds) < 2:
         return None, plot_box, [], None, None
 
@@ -3109,11 +3109,10 @@ def _build_workout_card_chart(workout, user_profile=None):
     # Decide which series to chart
     metric_key = None
     chart_kind = None
-    line_color = "rgba(253, 224, 71, 0.95)"  # yellow-300
     if is_pace:
         metric_key = 'speed'
         chart_kind = 'pace'
-        line_color = "rgba(96, 165, 250, 0.95)"  # blue-400
+        line_color = "rgba(253, 224, 71, 0.95)"  # yellow-300
     elif is_cycling:
         metric_key = 'output'
         chart_kind = 'power_zone' if is_power_zone else 'cycling_output_zones'
@@ -3372,7 +3371,7 @@ def _build_workout_card_chart(workout, user_profile=None):
     except Exception:
         series_json = "[]"
 
-    # Build target polyline string if targets exist
+    # Build target polyline string if targets exist (stepped line for 90-degree angles)
     target_points = None
     if points_list and any(isinstance(p.get('tv'), (int, float)) for p in points_list):
         try:
@@ -3384,18 +3383,40 @@ def _build_workout_card_chart(workout, user_profile=None):
                 norm = (float(v) - float(vmin)) / float(float(vmax) - float(vmin))
                 return float(plot_y1) - norm * (float(plot_y1) - float(plot_y0))
 
+            # Build stepped line points: for each segment, add horizontal then vertical point
             target_pts = []
-            for p in points_list:
+            prev_x = None
+            prev_y = None
+            prev_tv = None
+            prev_stv = None
+            
+            for i, p in enumerate(points_list):
                 tv = p.get('tv')
                 stv = p.get('stv')
-                if isinstance(stv, (int, float)):
-                    target_pts.append(f"{float(p['x']):.1f},{y_for(stv):.1f}")
-                elif isinstance(tv, (int, float)):
-                    target_pts.append(f"{float(p['x']):.1f},{y_for(tv):.1f}")
-                else:
-                    # Break line for missing targets
-                    target_pts.append("")
-            # Convert breaks into multiple polylines not supported easily; for now, only draw when continuous enough
+                curr_y = y_for(stv) if isinstance(stv, (int, float)) else y_for(tv) if isinstance(tv, (int, float)) else None
+                curr_x = float(p['x'])
+                
+                if curr_y is None:
+                    # Missing target - break the line
+                    prev_x = None
+                    prev_y = None
+                    prev_tv = None
+                    prev_stv = None
+                    continue
+                
+                if prev_x is not None and prev_y is not None:
+                    # Add intermediate point for stepped line: horizontal from prev, then vertical to curr
+                    # This creates 90-degree angles like Chart.js stepped: 'before'
+                    target_pts.append(f"{curr_x},{prev_y:.1f}")
+                
+                target_pts.append(f"{curr_x},{curr_y:.1f}")
+                
+                prev_x = curr_x
+                prev_y = curr_y
+                prev_tv = tv
+                prev_stv = stv
+            
+            # Filter out any empty strings and join
             joined = " ".join([s for s in target_pts if s])
             target_points = joined if joined else None
         except Exception:

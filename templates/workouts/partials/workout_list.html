@@ -310,15 +310,16 @@
                 <circle class="js-mini-chart-dot" cx="0" cy="0" r="3" fill="{{ workout.card_chart.line_color }}" opacity="0"></circle>
 
                 {% if workout.card_chart.target_points %}
-                  <!-- Target line -->
+                  <!-- Target line (stepped with 90-degree angles) -->
                   <polyline
                     points="{{ workout.card_chart.target_points }}"
                     fill="none"
                     stroke="rgba(255,255,255,0.85)"
                     stroke-width="2"
                     stroke-dasharray="4 3"
-                    stroke-linejoin="round"
-                    stroke-linecap="round"
+                    stroke-linejoin="miter"
+                    stroke-miterlimit="10"
+                    stroke-linecap="butt"
                   ></polyline>
                 {% endif %}
 
