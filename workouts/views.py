@@ -2853,14 +2853,33 @@ def _normalize_series_to_svg_points(series, width=360, height=120, left_pad=34, 
     if len(ds) < 2:
         return None, plot_box, [], None, None
 
-    vals = [float(p['v']) for p in ds]
+    # Allow plotting in "scaled value" space (e.g. zone 1-7) while keeping raw v for tooltips.
+    uses_scaled = any(isinstance(p.get('sv'), (int, float)) for p in ds) or any(isinstance(p.get('stv'), (int, float)) for p in ds)
+
+    def _v_for_plot(p):
+        sv = p.get('sv')
+        if isinstance(sv, (int, float)):
+            return float(sv)
+        return float(p['v'])
+
+    vals = [_v_for_plot(p) for p in ds]
     # Include target values in scaling if present
     for p in ds:
+        stv = p.get('stv')
+        if isinstance(stv, (int, float)):
+            vals.append(float(stv))
+            continue
         tv = p.get('tv')
         if isinstance(tv, (int, float)):
             vals.append(float(tv))
-    vmin = min(vals)
-    vmax = max(vals)
+
+    # For zone-based plots, keep fixed padding so the line sits nicely in the bands.
+    if uses_scaled:
+        vmin = 0.5
+        vmax = 7.5
+    else:
+        vmin = min(vals)
+        vmax = max(vals)
     if vmax == vmin:
         vmax = vmin + 1.0
 
@@ -2879,18 +2898,22 @@ def _normalize_series_to_svg_points(series, width=360, height=120, left_pad=34, 
     points = []
     pts = []
     for i in range(n):
-        v = float(ds[i]['v'])
+        raw_v = float(ds[i]['v'])
+        v = _v_for_plot(ds[i])
         x = float(xs[i])
         y = float(y_for(v))
         point = {
             'x': round(x, 1),
             'y': round(y, 1),
             't': int(ds[i].get('t', 0) or 0),
-            'v': v,
+            'v': raw_v,
         }
         tv = ds[i].get('tv')
         if isinstance(tv, (int, float)):
             point['tv'] = float(tv)
+        stv = ds[i].get('stv')
+        if isinstance(stv, (int, float)):
+            point['stv'] = float(stv)
         if ds[i].get('z') is not None:
             point['z'] = ds[i].get('z')
         pts.append(f"{point['x']:.1f},{point['y']:.1f}")
@@ -3016,6 +3039,46 @@ def _target_value_at_time_with_shift(segments, t_seconds, shift_seconds=0):
     return _target_value_at_time(segments, t_seconds - s)
 
 
+def _target_segment_at_time_with_shift(segments, t_seconds, shift_seconds=0):
+    """Return the target segment dict at time t_seconds with optional time shift."""
+    if not segments or not isinstance(t_seconds, int):
+        return None
+    try:
+        s = int(shift_seconds or 0)
+    except Exception:
+        s = 0
+    t = t_seconds - s
+    for seg in segments:
+        try:
+            start = int(seg.get('start', 0))
+            end = int(seg.get('end', 0))
+        except Exception:
+            continue
+        if t >= start and (end == 0 or t < end):
+            return seg
+    return None
+
+
+def _pace_zone_to_level(zone):
+    """
+    Map pace intensity zone string to 1-7 level (RECOVERY=1 ... MAX=7).
+    Returns None if unknown.
+    """
+    if not isinstance(zone, str) or not zone:
+        return None
+    z = zone.strip().lower().replace(" ", "_")
+    mapping = {
+        "recovery": 1,
+        "easy": 2,
+        "moderate": 3,
+        "challenging": 4,
+        "hard": 5,
+        "very_hard": 6,
+        "max": 7,
+    }
+    return mapping.get(z)
+
+
 def _build_workout_card_chart(workout, user_profile=None):
     """
     Build lightweight mini-chart data for workout cards.
@@ -3076,15 +3139,21 @@ def _build_workout_card_chart(workout, user_profile=None):
                 zc = _power_zone_for_output(point['v'], zone_ranges)
                 if isinstance(zc, int):
                     point['z'] = zc
+            if isinstance(point.get('z'), int):
+                point['sv'] = float(point['z'])
         elif chart_kind == 'pace':
             z = getattr(p, 'intensity_zone', None)
             if isinstance(z, str) and z:
                 point['z'] = z
+                lvl = _pace_zone_to_level(z)
+                if isinstance(lvl, int):
+                    point['sv'] = float(lvl)
         elif chart_kind == 'cycling_output_zones':
             # Non–PZ cycling should follow power zones (not pace/intensity bands)
             zc = _power_zone_for_output(point['v'], zone_ranges)
             if isinstance(zc, int):
                 point['z'] = zc
+                point['sv'] = float(zc)
         series.append(point)
 
     # Build target segments (optional)
@@ -3184,16 +3253,44 @@ def _build_workout_card_chart(workout, user_profile=None):
         for pt in series:
             t = pt.get('t')
             if isinstance(t, int):
-                tv = _target_value_at_time_with_shift(target_segments, t, shift_seconds=TARGET_TIME_SHIFT_SECONDS)
+                seg = _target_segment_at_time_with_shift(target_segments, t, shift_seconds=TARGET_TIME_SHIFT_SECONDS)
+                if not isinstance(seg, dict):
+                    continue
+
+                tv = seg.get('target')
                 if isinstance(tv, (int, float)):
                     pt['tv'] = float(tv)
 
-    points_str, plot_box, points_list, vmin, vmax = _normalize_series_to_svg_points(series)
-    if not points_str:
-        return None
+                # Scaled target for zone-space plotting
+                if chart_kind in ['power_zone', 'cycling_output_zones']:
+                    zt = seg.get('zone')
+                    try:
+                        zt = int(zt) if zt is not None else None
+                    except Exception:
+                        zt = None
+                    if isinstance(zt, int) and 1 <= zt <= 7:
+                        pt['stv'] = float(zt)
+                elif chart_kind == 'pace':
+                    zt = seg.get('zone')
+                    if isinstance(zt, str):
+                        lvl = _pace_zone_to_level(zt)
+                        if isinstance(lvl, int):
+                            pt['stv'] = float(lvl)
 
     width = 360
     height = 120
+    points_str, plot_box, points_list, vmin, vmax = _normalize_series_to_svg_points(
+        series,
+        width=width,
+        height=height,
+        left_pad=0,
+        right_pad=0,
+        top_pad=6,
+        bottom_pad=8,
+    )
+    if not points_str:
+        return None
+
     plot_x0, plot_y0, plot_x1, plot_y1 = plot_box
     plot_w = plot_x1 - plot_x0
     plot_h = plot_y1 - plot_y0
@@ -3290,7 +3387,10 @@ def _build_workout_card_chart(workout, user_profile=None):
             target_pts = []
             for p in points_list:
                 tv = p.get('tv')
-                if isinstance(tv, (int, float)):
+                stv = p.get('stv')
+                if isinstance(stv, (int, float)):
+                    target_pts.append(f"{float(p['x']):.1f},{y_for(stv):.1f}")
+                elif isinstance(tv, (int, float)):
                     target_pts.append(f"{float(p['x']):.1f},{y_for(tv):.1f}")
                 else:
                     # Break line for missing targets

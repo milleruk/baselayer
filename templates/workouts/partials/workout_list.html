@@ -271,6 +271,40 @@
                   stroke-width="1"
                 ></rect>
 
+                <!-- Axes -->
+                <line
+                  x1="{{ workout.card_chart.plot_x0 }}"
+                  y1="{{ workout.card_chart.plot_y0 }}"
+                  x2="{{ workout.card_chart.plot_x0 }}"
+                  y2="{{ workout.card_chart.plot_y1 }}"
+                  stroke="rgba(255,255,255,0.22)"
+                  stroke-width="1"
+                ></line>
+                <line
+                  x1="{{ workout.card_chart.plot_x0 }}"
+                  y1="{{ workout.card_chart.plot_y1 }}"
+                  x2="{{ workout.card_chart.plot_x1 }}"
+                  y2="{{ workout.card_chart.plot_y1 }}"
+                  stroke="rgba(255,255,255,0.22)"
+                  stroke-width="1"
+                ></line>
+
+                <!-- Y-axis ticks (aligned to band centers) -->
+                {% if workout.card_chart.bands %}
+                  {% for band in workout.card_chart.bands %}
+                    <line
+                      x1="{{ workout.card_chart.plot_x0 }}"
+                      y1="{{ band.label_y }}"
+                      x2="4"
+                      y2="{{ band.label_y }}"
+                      stroke="rgba(255,255,255,0.22)"
+                      stroke-width="1"
+                    ></line>
+                  {% endfor %}
+                {% endif %}
+
+                {# X-axis tick labels intentionally omitted for a cleaner card preview #}
+
                 <!-- Hover crosshair + point (updated by JS) -->
                 <line class="js-mini-chart-crosshair" x1="0" y1="{{ workout.card_chart.plot_y0 }}" x2="0" y2="{{ workout.card_chart.plot_y1 }}" stroke="rgba(255,255,255,0.35)" stroke-width="1" stroke-dasharray="2 2" opacity="0"></line>
                 <circle class="js-mini-chart-dot" cx="0" cy="0" r="3" fill="{{ workout.card_chart.line_color }}" opacity="0"></circle>
