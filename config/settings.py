@@ -49,6 +49,7 @@ INSTALLED_APPS = [
 
     "accounts",
     "plans",
+    "annual_challenge",
     "recommender",
     "tracker",
     "challenges",

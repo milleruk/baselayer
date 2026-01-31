@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block title %}Annual Challenge{% endblock %}
+{% block page_title %}Annual Challenge{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+  <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">Annual Challenge Progress</h1>
+  <p class="text-gray-600 dark:text-gray-400">
+    So far you have averaged <b>{{ avg_per_day|floatformat:2 }}</b> min/day and <b>{{ avg_per_week|floatformat:2 }}</b> min/week ({{ minutes_ytd }} minutes in {{ year }}).
+  </p>
+</div>
+
+<div class="space-y-4">
+  {% for row in tier_rows %}
+    <div class="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm">
+      <div class="p-4 sm:p-5">
+        <div class="flex items-center gap-4">
+          <img src="{{ row.tier.icon_url }}" width="50" height="50" class="h-[50px] w-[50px] rounded-full" alt="Tier {{ row.tier.minutes }} badge">
+
+          <div class="flex-1">
+            <div class="h-12 rounded-lg bg-gray-200 dark:bg-gray-700 overflow-hidden relative">
+              <div
+                class="js-annual-progress-bar h-full bg-green-600 transition-all duration-300"
+                data-progress-pct="{{ row.progress_pct|floatformat:1 }}"
+                role="progressbar"
+                aria-valuenow="{{ row.progress_pct|floatformat:1 }}"
+                aria-valuemin="0"
+                aria-valuemax="100"
+              ></div>
+              <div class="absolute inset-0 flex items-center justify-center text-sm font-semibold text-white drop-shadow">
+                {{ row.label }}
+              </div>
+            </div>
+
+            <ul class="mt-2 text-sm text-gray-700 dark:text-gray-300 space-y-1">
+              <li>
+                Badge requires averaging <b>{{ row.required_min_per_day|floatformat:2 }}</b> min/day or <b>{{ row.required_min_per_week|floatformat:2 }}</b> min/week.
+              </li>
+              <li>
+                You need
+                <b>{% if row.needed_min_per_day is not None %}{{ row.needed_min_per_day|floatformat:2 }}{% else %}—{% endif %}</b>
+                min/day or
+                <b>{% if row.needed_min_per_week is not None %}{{ row.needed_min_per_week|floatformat:2 }}{% else %}—{% endif %}</b>
+                min/week in order to finish in time.
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  {% endfor %}
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.js-annual-progress-bar').forEach((el) => {
+      const pct = Number(el.getAttribute('data-progress-pct') || '0');
+      const clamped = Math.max(0, Math.min(100, pct));
+      el.style.width = `${clamped}%`;
+    });
+  });
+</script>
+{% endblock %}
+
