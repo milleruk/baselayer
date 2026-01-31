@@ -9,7 +9,7 @@
 </div>
 
 <!-- Peloton Connection Status -->
-<div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm mb-6">
+<div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 sm:p-6 shadow-sm mb-6">
   <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
     {% include 'workouts/partials/sync_status.html' %}
     
@@ -105,7 +105,7 @@
             </button>
 
             <!-- Min TSS -->
-            <div class="relative">
+            <div class="relative w-full sm:w-auto">
               <input
                 type="number"
                 name="tss"
@@ -113,12 +113,12 @@
                 placeholder="Min TSS"
                 min="0"
                 step="0.1"
-                class="w-28 px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900/40 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
+                class="w-full sm:w-28 px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900/40 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
               >
             </div>
 
             <!-- Instructor -->
-            <div class="relative min-w-[160px]">
+            <div class="relative w-full sm:w-auto sm:min-w-[160px]">
               <select
                 name="instructor"
                 class="w-full appearance-none bg-white dark:bg-gray-900/40 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2.5 pr-9 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent cursor-pointer text-sm"
@@ -138,7 +138,7 @@
             </div>
 
             <!-- Class Type -->
-            <div class="relative min-w-[160px]">
+            <div class="relative w-full sm:w-auto sm:min-w-[160px]">
               <select
                 name="class_type_name"
                 class="w-full appearance-none bg-white dark:bg-gray-900/40 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2.5 pr-9 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent cursor-pointer text-sm"
@@ -169,7 +169,7 @@
             </div>
 
             <!-- Duration -->
-            <div class="relative min-w-[132px]">
+            <div class="relative w-full sm:w-auto sm:min-w-[132px]">
               <select
                 name="duration"
                 class="w-full appearance-none bg-white dark:bg-gray-900/40 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2.5 pr-9 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent cursor-pointer text-sm"
@@ -188,10 +188,30 @@
               </div>
             </div>
 
-            {% if search_query or instructor_filter or duration_filter or tss_filter or has_charts_filter or class_type_filter or class_type_name_filter %}
+            <!-- Sort -->
+            <div class="relative w-full sm:w-auto sm:min-w-[190px]">
+              <select
+                name="order_by"
+                class="w-full appearance-none bg-white dark:bg-gray-900/40 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2.5 pr-9 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent cursor-pointer text-sm"
+              >
+                <option value="-completed_date" {% if order_by == '-completed_date' %}selected{% endif %}>Completed (newest)</option>
+                <option value="completed_date" {% if order_by == 'completed_date' %}selected{% endif %}>Completed (oldest)</option>
+                <option value="-recorded_date" {% if order_by == '-recorded_date' %}selected{% endif %}>Recorded (newest)</option>
+                <option value="recorded_date" {% if order_by == 'recorded_date' %}selected{% endif %}>Recorded (oldest)</option>
+                <option value="title" {% if order_by == 'title' %}selected{% endif %}>Title (A–Z)</option>
+                <option value="-title" {% if order_by == '-title' %}selected{% endif %}>Title (Z–A)</option>
+              </select>
+              <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                </svg>
+              </div>
+            </div>
+
+            {% if search_query or instructor_filter or duration_filter or tss_filter or has_charts_filter or class_type_filter or class_type_name_filter or order_by != '-completed_date' %}
               <a
                 href="{% url 'workouts:history' %}{% if workout_type_filter %}?type={{ workout_type_filter }}{% endif %}"
-                class="inline-flex items-center px-3 py-2.5 rounded-lg text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/40 border border-transparent"
+                class="inline-flex items-center px-3 py-2.5 rounded-lg text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/40 border border-transparent w-full sm:w-auto justify-center"
               >
                 Clear
               </a>
@@ -371,7 +391,7 @@
   </div>
   
   <!-- Active Filters Display -->
-  {% if search_query or instructor_filter or duration_filter or tss_filter or has_charts_filter or class_type_filter or class_type_name_filter %}
+  {% if search_query or instructor_filter or duration_filter or tss_filter or has_charts_filter or class_type_filter or class_type_name_filter or order_by != '-completed_date' %}
     <div class="flex flex-wrap gap-2 items-center">
       {% if search_query %}
         <span class="inline-flex items-center gap-1 px-3 py-1 text-sm bg-gray-100 dark:bg-gray-700/60 text-gray-800 dark:text-gray-200 rounded-full border border-gray-200 dark:border-gray-700">
@@ -411,6 +431,12 @@
         <span class="inline-flex items-center gap-1 px-3 py-1 text-sm bg-gray-100 dark:bg-gray-700/60 text-gray-800 dark:text-gray-200 rounded-full border border-gray-200 dark:border-gray-700">
           {{ class_type_label|default:"Type" }}
           <a href="{% if qs_remove.class_type_name %}?{{ qs_remove.class_type_name }}{% else %}{% if qs_remove.class_type %}?{{ qs_remove.class_type }}{% else %}{% url 'workouts:history' %}{% endif %}{% endif %}" class="hover:text-gray-900 dark:hover:text-white">×</a>
+        </span>
+      {% endif %}
+      {% if order_by != '-completed_date' %}
+        <span class="inline-flex items-center gap-1 px-3 py-1 text-sm bg-gray-100 dark:bg-gray-700/60 text-gray-800 dark:text-gray-200 rounded-full border border-gray-200 dark:border-gray-700">
+          Sorted
+          <a href="{% if qs_remove.order_by %}?{{ qs_remove.order_by }}{% else %}{% url 'workouts:history' %}{% endif %}" class="hover:text-gray-900 dark:hover:text-white">×</a>
         </span>
       {% endif %}
     </div>

@@ -298,6 +298,101 @@ def dashboard(request):
     # Calculate differences for comparison display  
     last_7_days_diff = last_7_days_count - previous_7_days_count
     this_month_diff = this_month_count - previous_month_count
+
+    # Discipline KPIs (Running/Walking + Cycling) for selected period
+    def _pace_str_from_mph(mph):
+        try:
+            mph = float(mph)
+            if mph <= 0:
+                return None
+            pace_min_per_mile = 60.0 / mph
+            minutes = int(pace_min_per_mile)
+            seconds = int(round((pace_min_per_mile - minutes) * 60.0))
+            if seconds == 60:
+                minutes += 1
+                seconds = 0
+            return f"{minutes}:{seconds:02d}/mi"
+        except Exception:
+            return None
+
+    cycling_period = period_workouts_filtered.filter(ride_detail__fitness_discipline__iexact='cycling')
+    running_period = period_workouts_filtered.filter(ride_detail__fitness_discipline__iexact='running')
+    walking_period = period_workouts_filtered.filter(ride_detail__fitness_discipline__iexact='walking')
+
+    cycling_kpis_raw = cycling_period.aggregate(
+        count=Count('id'),
+        distance=Sum('details__distance'),
+        total_output=Sum('details__total_output'),
+        avg_output=Avg('details__avg_output'),
+        tss=Sum('details__tss'),
+        avg_cadence=Avg('details__avg_cadence'),
+        avg_resistance=Avg('details__avg_resistance'),
+        calories=Sum('details__total_calories'),
+    )
+    running_kpis_raw = running_period.aggregate(
+        count=Count('id'),
+        distance=Sum('details__distance'),
+        avg_speed=Avg('details__avg_speed'),
+        avg_heart_rate=Avg('details__avg_heart_rate'),
+        calories=Sum('details__total_calories'),
+    )
+    walking_kpis_raw = walking_period.aggregate(
+        count=Count('id'),
+        distance=Sum('details__distance'),
+        avg_speed=Avg('details__avg_speed'),
+        avg_heart_rate=Avg('details__avg_heart_rate'),
+        calories=Sum('details__total_calories'),
+    )
+
+    cycling_kpis = {
+        'count': cycling_kpis_raw.get('count') or 0,
+        'distance': cycling_kpis_raw.get('distance'),
+        'total_output': cycling_kpis_raw.get('total_output'),
+        'avg_output': cycling_kpis_raw.get('avg_output'),
+        'tss': cycling_kpis_raw.get('tss'),
+        'avg_cadence': cycling_kpis_raw.get('avg_cadence'),
+        'avg_resistance': cycling_kpis_raw.get('avg_resistance'),
+        'calories': cycling_kpis_raw.get('calories'),
+    }
+
+    avg_speed = running_kpis_raw.get('avg_speed')
+    if not avg_speed:
+        # Fallback: derive avg speed from time-series performance data if details.avg_speed is missing.
+        try:
+            from workouts.models import WorkoutPerformanceData
+            avg_speed = WorkoutPerformanceData.objects.filter(
+                workout__in=running_period,
+                speed__isnull=False,
+            ).aggregate(avg_speed=Avg('speed')).get('avg_speed')
+        except Exception:
+            avg_speed = None
+    running_kpis = {
+        'count': running_kpis_raw.get('count') or 0,
+        'distance': running_kpis_raw.get('distance'),
+        'avg_speed': avg_speed,
+        'avg_pace_str': _pace_str_from_mph(avg_speed) if avg_speed else None,
+        'avg_heart_rate': running_kpis_raw.get('avg_heart_rate'),
+        'calories': running_kpis_raw.get('calories'),
+    }
+
+    avg_walk_speed = walking_kpis_raw.get('avg_speed')
+    if not avg_walk_speed:
+        try:
+            from workouts.models import WorkoutPerformanceData
+            avg_walk_speed = WorkoutPerformanceData.objects.filter(
+                workout__in=walking_period,
+                speed__isnull=False,
+            ).aggregate(avg_speed=Avg('speed')).get('avg_speed')
+        except Exception:
+            avg_walk_speed = None
+    walking_kpis = {
+        'count': walking_kpis_raw.get('count') or 0,
+        'distance': walking_kpis_raw.get('distance'),
+        'avg_speed': avg_walk_speed,
+        'avg_pace_str': _pace_str_from_mph(avg_walk_speed) if avg_walk_speed else None,
+        'avg_heart_rate': walking_kpis_raw.get('avg_heart_rate'),
+        'calories': walking_kpis_raw.get('calories'),
+    }
     
     # Convert data to JSON for JavaScript charts
     workouts_by_week_json = mark_safe(json.dumps([
@@ -354,6 +449,10 @@ def dashboard(request):
         'period_diff': period_diff,
         'comparison_label': comparison_label,
         'comparison_count': comparison_count,
+        # Discipline KPI cards
+        'cycling_kpis': cycling_kpis,
+        'running_kpis': running_kpis,
+        'walking_kpis': walking_kpis,
     }
     
     # If HTMX request, return only dashboard content partial

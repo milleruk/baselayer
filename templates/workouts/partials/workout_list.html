@@ -7,16 +7,16 @@
 
 <!-- Workout Grid -->
 {% if workouts %}
-  <div id="workout-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+  <div id="workout-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-6">
     {% for workout in workouts %}
-      <div class="rounded-lg bg-gray-800 dark:bg-gray-800 p-5 shadow-2xl hover:shadow-[0_0_20px_rgba(59,130,246,0.3)] transition-all border-2 border-gray-600 dark:border-gray-600 hover:border-primary/50 dark:hover:border-primary/50 backdrop-blur-sm">
+      <div class="rounded-lg bg-gray-800 dark:bg-gray-800 p-4 sm:p-5 shadow-2xl hover:shadow-[0_0_20px_rgba(59,130,246,0.3)] transition-all border border-gray-600/90 dark:border-gray-600 hover:border-primary/50 dark:hover:border-primary/50 backdrop-blur-sm">
         <!-- Top Section: Duration Badge and Icon -->
         <div class="flex items-start justify-between mb-4">
-          <span class="px-3 py-1 text-sm font-bold text-gray-900 bg-yellow-400 rounded-full">
+          <span class="px-3 py-1 text-xs sm:text-sm font-bold text-gray-900 bg-yellow-400 rounded-full">
             {{ workout.duration_minutes }}min
           </span>
           {% if workout.workout_type %}
-            <span class="text-yellow-400 text-xl">
+            <span class="text-yellow-400 text-lg sm:text-xl">
               {% if workout.workout_type.slug == 'cycling' or workout.workout_type.slug == 'ride' %}
                 🚴
               {% elif workout.workout_type.slug == 'running' or workout.workout_type.slug == 'run' %}
@@ -37,7 +37,7 @@
         </div>
         
         <!-- Title -->
-        <h3 class="text-xl font-bold text-white mb-2 line-clamp-2">
+        <h3 class="text-lg sm:text-xl font-bold text-white mb-2 line-clamp-2">
           {{ workout.title }}
         </h3>
         
@@ -64,7 +64,7 @@
         {% with discipline=workout.ride_detail.fitness_discipline|default_if_none:""|lower %}
           {% if discipline == "cycling" or discipline == "ride" or discipline == "bike" or discipline == "bike_bootcamp" or discipline == "circuit" %}
             {% comment %}Cycling: Show TSS, Output metrics{% endcomment %}
-            <div class="grid grid-cols-4 gap-2 mb-4 py-3 border-t border-b border-gray-700">
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4 py-3 border-t border-b border-gray-700">
               <!-- TSS -->
               <div class="text-center">
                 <div class="text-white font-semibold text-sm">
@@ -84,7 +84,7 @@
               </div>
               
               <!-- Avg Output -->
-              <div class="text-center border-l border-gray-700 pl-2">
+              <div class="text-center sm:border-l sm:border-gray-700 sm:pl-2">
                 <div class="text-white font-semibold text-sm">
                   {% if workout.details and workout.details.avg_output %}
                     {{ workout.details.avg_output|floatformat:0 }}W
@@ -96,7 +96,7 @@
               </div>
               
               <!-- Total Output -->
-              <div class="text-center border-l border-gray-700 pl-2">
+              <div class="text-center sm:border-l sm:border-gray-700 sm:pl-2">
                 <div class="text-white font-semibold text-sm">
                   {% if workout.details and workout.details.total_output %}
                     {{ workout.details.total_output|floatformat:0 }} kJ
@@ -108,7 +108,7 @@
               </div>
               
               <!-- Calories -->
-              <div class="text-center border-l border-gray-700 pl-2">
+              <div class="text-center sm:border-l sm:border-gray-700 sm:pl-2">
                 <div class="text-white font-semibold text-sm">
                   {% if workout.details and workout.details.total_calories %}
                     {{ workout.details.total_calories }}
@@ -191,7 +191,7 @@
         {% endwith %}
         
         <!-- Action Buttons -->
-        <div class="flex gap-2 mt-4">
+        <div class="flex flex-col sm:flex-row gap-2 mt-4">
           <a href="{% url 'workouts:detail' workout.id %}" 
              class="flex-1 px-4 py-2 text-sm font-medium text-white border border-gray-500 rounded-lg hover:bg-gray-700 hover:border-gray-400 transition-colors text-center">
             View Details
@@ -235,7 +235,7 @@
               <script type="application/json" class="js-mini-chart-series">{{ workout.card_chart.series_json }}</script>
               <svg
                 viewBox="0 0 {{ workout.card_chart.width }} {{ workout.card_chart.height }}"
-                class="w-full h-32"
+                class="w-full h-28 sm:h-32"
                 preserveAspectRatio="none"
                 aria-label="Workout chart preview"
                 role="img"

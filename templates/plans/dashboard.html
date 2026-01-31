@@ -5,17 +5,18 @@
 
 {% block content %}
 <!-- Time Period Filter & Refresh Controls -->
-<div class="flex items-center justify-between mb-6">
-  <div class="flex items-center gap-2">
+<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
+  <div class="flex flex-col sm:flex-row sm:items-center gap-2">
     <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Time Period:</span>
-    <div class="inline-flex rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-1">
+    <div class="-mx-2 sm:mx-0 overflow-x-auto">
+      <div class="inline-flex rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-1 whitespace-nowrap">
       <button
         hx-get="{% url 'plans:dashboard' %}?period=7d"
         hx-target="#dashboard-content"
         hx-swap="innerHTML"
         hx-indicator="#refresh-indicator"
         hx-push-url="true"
-        class="period-filter px-4 py-2 text-sm font-medium rounded-md transition-colors {% if selected_period == '7d' %}bg-primary text-white{% else %}text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700{% endif %}"
+        class="period-filter px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium rounded-md transition-colors {% if selected_period == '7d' %}bg-primary text-white{% else %}text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700{% endif %}"
         data-period="7d"
       >
         Last 7 Days
@@ -26,7 +27,7 @@
         hx-swap="innerHTML"
         hx-indicator="#refresh-indicator"
         hx-push-url="true"
-        class="period-filter px-4 py-2 text-sm font-medium rounded-md transition-colors {% if selected_period == '30d' %}bg-primary text-white{% else %}text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700{% endif %}"
+        class="period-filter px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium rounded-md transition-colors {% if selected_period == '30d' %}bg-primary text-white{% else %}text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700{% endif %}"
         data-period="30d"
       >
         Last 30 Days
@@ -37,7 +38,7 @@
         hx-swap="innerHTML"
         hx-indicator="#refresh-indicator"
         hx-push-url="true"
-        class="period-filter px-4 py-2 text-sm font-medium rounded-md transition-colors {% if selected_period == '90d' %}bg-primary text-white{% else %}text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700{% endif %}"
+        class="period-filter px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium rounded-md transition-colors {% if selected_period == '90d' %}bg-primary text-white{% else %}text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700{% endif %}"
         data-period="90d"
       >
         Last 90 Days
@@ -48,11 +49,12 @@
         hx-swap="innerHTML"
         hx-indicator="#refresh-indicator"
         hx-push-url="true"
-        class="period-filter px-4 py-2 text-sm font-medium rounded-md transition-colors {% if selected_period == 'all' %}bg-primary text-white{% else %}text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700{% endif %}"
+        class="period-filter px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium rounded-md transition-colors {% if selected_period == 'all' %}bg-primary text-white{% else %}text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700{% endif %}"
         data-period="all"
       >
         All Time
       </button>
+      </div>
     </div>
   </div>
   
@@ -62,13 +64,13 @@
     hx-target="#dashboard-content"
     hx-swap="innerHTML"
     hx-indicator="#refresh-indicator"
-    class="inline-flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+    class="inline-flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors w-full sm:w-auto"
     title="Refresh dashboard"
   >
     <svg id="refresh-icon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
     </svg>
-    <span>Refresh</span>
+    <span class="hidden sm:inline">Refresh</span>
     <svg id="refresh-indicator" class="htmx-indicator w-5 h-5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
     </svg>
@@ -156,7 +158,7 @@
 
 
 <!-- Recent Workouts Table -->
-<div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
+<div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 sm:p-6 shadow-sm">
   <div class="flex items-center justify-between mb-4">
     <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Recent Workouts</h3>
     <a href="{% url 'workouts:history' %}" class="text-sm font-medium text-primary hover:text-primary-dark">See all</a>

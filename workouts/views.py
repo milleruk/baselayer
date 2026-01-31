@@ -2567,7 +2567,7 @@ def workout_history(request):
 
         # Query strings for removing a single filter while preserving others
         qs_remove = {}
-        for key in ['search', 'instructor', 'duration', 'tss', 'has_charts', 'class_type', 'class_type_name', 'type']:
+        for key in ['search', 'instructor', 'duration', 'tss', 'has_charts', 'class_type', 'class_type_name', 'type', 'order_by']:
             q = request.GET.copy()
             q.pop('page', None)
             q.pop('infinite', None)

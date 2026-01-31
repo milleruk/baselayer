@@ -9,6 +9,13 @@ html, body {
   box-sizing: border-box;
 }
 
+/* Improve horizontal scroll affordance for mobile filter bars */
+@media (max-width: 640px) {
+  .scrollbar-thin {
+    scrollbar-width: thin;
+  }
+}
+
 /* Sidebar animation */
 .sidebar-transition {
   transition: transform 0.3s ease-in-out;
