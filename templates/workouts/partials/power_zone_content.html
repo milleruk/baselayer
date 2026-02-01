@@ -341,6 +341,10 @@
 {{ target_line_data|json_script:"target-line-data-json" }}
 {% endif %}
 
+{% if spin_up_intervals is not None %}
+{{ spin_up_intervals|json_script:"spin-up-intervals-json" }}
+{% endif %}
+
 <!-- Chart.js Library -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
@@ -362,6 +366,44 @@
     targetLineData = null;
   }
   {% endif %}
+
+  // Fast lookup table for target watts (timestamp -> watts)
+  const targetLineLookup = {};
+  if (Array.isArray(targetLineData)) {
+    for (const point of targetLineData) {
+      if (point && typeof point.timestamp === 'number') {
+        targetLineLookup[Math.round(point.timestamp)] = point.target_output;
+      }
+    }
+  }
+
+  function getTargetWattsAtTime(timestamp) {
+    if (!targetLineLookup) {
+      return null;
+    }
+    const snappedTime = Math.round(timestamp / 5) * 5;  // timestamps are spaced 5s apart
+    const value = targetLineLookup[snappedTime];
+    return typeof value === 'number' ? Math.round(value) : null;
+  }
+
+  function computeTargetWattsForDisplay(timeSeconds, zone, ftpValueOverride) {
+    const selectedFTP = (ftpValueOverride !== null && ftpValueOverride !== undefined) ? ftpValueOverride : (userFTP || null);
+    const baseFTP = userFTP || null;
+    const baseTargetWatts = getTargetWattsAtTime(timeSeconds);
+
+    if (baseTargetWatts !== null) {
+      if (selectedFTP && baseFTP && baseFTP > 0 && selectedFTP !== baseFTP) {
+        return Math.round(baseTargetWatts * (selectedFTP / baseFTP));
+      }
+      return baseTargetWatts;
+    }
+
+    if (zone && selectedFTP) {
+      return Math.round(selectedFTP * getZonePercentage(zone));
+    }
+
+    return null;
+  }
   
   const workoutType = "{% if ride.workout_type %}{{ ride.workout_type.slug|escapejs }}{% else %}{{ ride.fitness_discipline|lower|escapejs }}{% endif %}";
   
@@ -390,6 +432,91 @@
   const zoneRanges = (targetMetricsJson && targetMetricsJson.zone_ranges) ? targetMetricsJson.zone_ranges : null;
   // Extract pace_zones from target_metrics_json if available
   const paceZonesFromJson = (targetMetricsJson && targetMetricsJson.pace_zones) ? targetMetricsJson.pace_zones : null;
+
+  const SPIN_UP_TIME_SHIFT = 0;  // Keep highlight aligned with displayed class timeline
+  function withSpinUpShift(rawStartValue, rawEndValue) {
+    const rawStartNumber = Number(rawStartValue ?? 0);
+    const rawEndNumber = Number(rawEndValue ?? rawStartNumber);
+    if (!Number.isFinite(rawStartNumber) || !Number.isFinite(rawEndNumber)) {
+      return null;
+    }
+    const duration = Math.max(0, rawEndNumber - rawStartNumber);
+    if (duration <= 0) {
+      return null;
+    }
+    const shiftedStartRaw = rawStartNumber + SPIN_UP_TIME_SHIFT;
+    const clampedStart = Math.max(0, shiftedStartRaw);
+    const unclampedEnd = clampedStart + duration;
+    const clampedEnd = workoutDuration ? Math.min(workoutDuration, unclampedEnd) : unclampedEnd;
+    if (clampedEnd <= clampedStart) {
+      return null;
+    }
+    return { start: clampedStart, end: clampedEnd };
+  }
+  let spinUpIntervals = [];
+  try {
+    const spinUpScript = document.getElementById('spin-up-intervals-json');
+    if (spinUpScript) {
+      const parsed = JSON.parse(spinUpScript.textContent);
+      if (Array.isArray(parsed)) {
+        spinUpIntervals = parsed
+          .map(interval => {
+            if (!interval) {
+              return null;
+            }
+            const rawStart = interval.start ?? interval.offset ?? 0;
+            const rawEnd = interval.end ?? interval.start ?? 0;
+            return withSpinUpShift(rawStart, rawEnd);
+          })
+          .filter(Boolean)
+          .sort((a, b) => a.start - b.start);
+      }
+    }
+  } catch (err) {
+    console.warn('[PowerZoneChart][class-detail] failed parsing spin-up intervals payload', err);
+    spinUpIntervals = [];
+  }
+
+  if (!spinUpIntervals.length && targetMetricsJson && Array.isArray(targetMetricsJson.segments)) {
+    for (const segment of targetMetricsJson.segments) {
+      const segmentType = (segment.segment_type || segment.type || '').toLowerCase();
+      if (!segmentType.includes('spin') || !segmentType.includes('up')) {
+        continue;
+      }
+
+      const rawStart = segment.start !== undefined ? segment.start : 0;
+      const rawEnd = segment.end !== undefined ? segment.end : (rawStart + (segment.duration || 0));
+      const shifted = withSpinUpShift(rawStart, rawEnd);
+      if (shifted) {
+        spinUpIntervals.push(shifted);
+      }
+    }
+  }
+
+  if (spinUpIntervals.length > 1) {
+    spinUpIntervals.sort((a, b) => a.start - b.start);
+  }
+
+  if (spinUpIntervals.length > 0) {
+    console.debug('[PowerZoneChart][class-detail] spin-up intervals detected', spinUpIntervals);
+  } else if (targetMetricsJson && Array.isArray(targetMetricsJson.segments)) {
+    console.debug('[PowerZoneChart][class-detail] no spin-up intervals detected', {
+      segmentCount: targetMetricsJson.segments.length,
+      sampleTypes: targetMetricsJson.segments.slice(0, 5).map(seg => seg.segment_type || seg.type || 'unknown')
+    });
+  }
+
+  function overlapsSpinUpWindow(startTime, endTime) {
+    if (!spinUpIntervals.length) {
+      return false;
+    }
+    if (typeof startTime !== 'number' || typeof endTime !== 'number') {
+      return false;
+    }
+    const windowStart = Math.min(startTime, endTime);
+    const windowEnd = Math.max(startTime, endTime);
+    return spinUpIntervals.some(interval => windowEnd > interval.start && windowStart < interval.end);
+  }
 
   // Playlist data for music timeline
   const playlistData = {% if playlist and playlist.songs %}[
@@ -598,10 +725,12 @@
           }
         }
         
-        datasets.push({
+        const TARGET_LINE_COLOR = '#93c5fd';
+        const SPIN_UP_TARGET_COLOR = '#fb7185';
+        const targetDataset = {
           label: 'Target',
           data: targetZoneData,
-          borderColor: '#93c5fd',  // Light blue like reference
+          borderColor: TARGET_LINE_COLOR,  // Light blue like reference
           backgroundColor: 'rgba(147, 197, 253, 0.1)',
           borderWidth: 2.8,
           fill: false,
@@ -611,7 +740,30 @@
           pointHoverRadius: 4,
           spanGaps: true,
           hidden: !showTargetLine
-        });
+        };
+
+        if (spinUpIntervals.length > 0) {
+          let spinUpColorLogged = false;
+          targetDataset.segment = {
+            borderColor: ctx => {
+              if (!ctx || ctx.p0?.skip || ctx.p1?.skip) {
+                return undefined;
+              }
+              const startTime = ctx.p0?.parsed?.x;
+              const endTime = ctx.p1?.parsed?.x;
+              if (overlapsSpinUpWindow(startTime, endTime)) {
+                if (!spinUpColorLogged) {
+                  console.debug('[PowerZoneChart][class-detail] applying spin-up highlight', { startTime, endTime });
+                  spinUpColorLogged = true;
+                }
+                return SPIN_UP_TARGET_COLOR;
+              }
+              return TARGET_LINE_COLOR;
+            }
+          };
+        }
+
+        datasets.push(targetDataset);
       }
     } else {
       // Non-power zone cycling charts - use watts
@@ -881,21 +1033,9 @@
                     return `Actual: ${Math.round(watts)} watts (Zone ${zone})`;
                   }
                 } else if (datasetLabel === 'Target') {
-                  // Use getCurrentTargetForTime with tooltipTime for consistency with metrics box
-                  // This ensures tooltip matches the metrics box display
-                  let targetWatts = null;
-                  let targetZone = Math.round(zoneValue);
-                  
-                  if (typeof getCurrentTargetForTime === 'function') {
-                    targetZone = getCurrentTargetForTime(tooltipTime);
-                    const ftp = parseInt(document.getElementById('ftp-input')?.value || userFTP) || 250;
-                    targetWatts = Math.round(ftp * getZonePercentage(targetZone));
-                  } else if (targetLineData && dataIndex < targetLineData.length && targetLineData[dataIndex].target_output) {
-                    // Fallback to targetLineData if helper function not available
-                    targetWatts = targetLineData[dataIndex].target_output;
-                    targetZone = Math.round(zoneValue);
-                  }
-                  
+                  const targetZone = Math.round(zoneValue);
+                  const ftpOverride = parseInt(document.getElementById('ftp-input')?.value || '') || null;
+                  const targetWatts = computeTargetWattsForDisplay(tooltipTime, targetZone, ftpOverride);
                   if (targetWatts !== null) {
                     return `Target: ${targetWatts} watts (Zone ${targetZone})`;
                   }
@@ -1171,9 +1311,9 @@
   // Helper functions - make them global so tooltip can access them
   function getZonePercentage(zone) {
     const zonePercentages = {
-      1: 0.55, 2: 0.75, 3: 0.90, 4: 1.05, 5: 1.20, 6: 1.50, 7: 1.70
+      1: 0.45, 2: 0.65, 3: 0.825, 4: 0.975, 5: 1.125, 6: 1.35, 7: 1.60
     };
-    return zonePercentages[zone] || 0.55;
+    return zonePercentages[zone] || 0.45;
   }
   
   function getCurrentSegmentForTime(time) {
@@ -1625,9 +1765,13 @@
       // Update current target (reuse currentTarget already calculated above)
 
       if (currentTarget !== null && currentTarget !== undefined) {
-        const ftp = parseInt(ftpInput.value) || 250;
-        const targetOutput = Math.round(ftp * getZonePercentage(currentTarget));
-        currentTargetEl.textContent = String(targetOutput) + 'W @ Zone ' + currentTarget;
+        const ftpOverride = parseInt(ftpInput.value) || null;
+        const targetOutput = computeTargetWattsForDisplay(chartCurrentTime, currentTarget, ftpOverride);
+        if (targetOutput !== null) {
+          currentTargetEl.textContent = String(targetOutput) + 'W @ Zone ' + currentTarget;
+        } else {
+          currentTargetEl.textContent = 'Zone ' + currentTarget;
+        }
       } else {
         currentTargetEl.textContent = 'Loading...';
       }
@@ -1818,10 +1962,12 @@
     
     // FTP input change handler
     ftpInput.addEventListener('change', function() {
-      const selectedFTP = parseInt(this.value) || 250;
+      const selectedFTP = parseInt(this.value) || null;
       const currentZone = getCurrentTargetForTime(chartCurrentTime);
-      const targetOutput = Math.round(selectedFTP * getZonePercentage(currentZone));
-      currentTargetEl.textContent = String(targetOutput) + 'W @ Zone ' + currentZone;
+      const targetOutput = computeTargetWattsForDisplay(chartCurrentTime, currentZone, selectedFTP);
+      if (targetOutput !== null) {
+        currentTargetEl.textContent = String(targetOutput) + 'W @ Zone ' + currentZone;
+      }
       // Update interval time when FTP changes (affects zone calculations)
       updateProgress();
     });
@@ -1846,8 +1992,10 @@
       const classPlanZone = firstSegment.zone || 1;
       const userFTP = parseInt(ftpInput.value) || 250;
       
-      const targetOutput = Math.round(userFTP * getZonePercentage(classPlanZone));
-      currentTargetEl.textContent = String(targetOutput) + 'W @ Zone ' + classPlanZone;
+      const targetOutput = computeTargetWattsForDisplay(0, classPlanZone, userFTP);
+      if (targetOutput !== null) {
+        currentTargetEl.textContent = String(targetOutput) + 'W @ Zone ' + classPlanZone;
+      }
     }
     
     // Initialize segment tracking
@@ -2182,9 +2330,11 @@
       if (fullscreenCurrentTarget) {
         const currentTarget = getCurrentTargetForTime(chartCurrentTime);
         if (currentTarget !== null && currentTarget !== undefined) {
-          const userFTP = parseInt(document.getElementById('fullscreen-ftp-input')?.value || ftpInput.value) || 250;
-          const targetOutput = Math.round(userFTP * getZonePercentage(currentTarget));
-          fullscreenCurrentTarget.textContent = String(targetOutput) + 'W @ Zone ' + currentTarget;
+          const fullscreenFTP = parseInt(document.getElementById('fullscreen-ftp-input')?.value || ftpInput.value) || null;
+          const targetOutput = computeTargetWattsForDisplay(chartCurrentTime, currentTarget, fullscreenFTP);
+          if (targetOutput !== null) {
+            fullscreenCurrentTarget.textContent = String(targetOutput) + 'W @ Zone ' + currentTarget;
+          }
         }
       }
       

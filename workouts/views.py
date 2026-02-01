@@ -353,11 +353,11 @@ def class_library(request):
                     cool_down_start = total_duration * 0.90  # Last 10% is cool down
                     
                     for segment in segments:
+                        zone = segment.get('zone', 0)
                         start = segment.get('start', 0)
                         # Skip warm up and cool down segments
                         if start < warm_up_cutoff or start >= cool_down_start:
                             continue
-                        zone = segment.get('zone', 0)
                         duration = segment.get('end', 0) - segment.get('start', 0)
                         zone_times[zone] = zone_times.get(zone, 0) + duration
                     
@@ -377,10 +377,7 @@ def class_library(request):
                     
                     # Calculate TSS/IF if not already set
                     if ride_data['tss'] is None or ride_data['if_value'] is None:
-                        zone_power_percentages = {
-                            1: 0.275, 2: 0.65, 3: 0.825, 4: 0.975,
-                            5: 1.125, 6: 1.35, 7: 1.75
-                        }
+                        zone_power_percentages = metrics_calculator.ZONE_POWER_PERCENTAGES
                         total_weighted_power = 0.0
                         total_time = 0.0
                         for zone_info in zone_distribution:
@@ -746,6 +743,7 @@ def class_detail(request, pk):
     target_line_data = None  # Initialize outside block for scope
     user_pace_level = None  # Initialize early to avoid UnboundLocalError for non-pace classes
     user_pace_bands = None  # Initialize early to avoid UnboundLocalError for non-pace classes
+    spin_up_intervals = _extract_spin_up_intervals(ride)
     
     if ride.class_type == 'power_zone' or ride.is_power_zone_class:
         # Power Zone class - get user's FTP for zone calculations
@@ -873,7 +871,9 @@ def class_detail(request, pk):
             target_line_data = _calculate_target_line_from_segments(
                 segments,
                 zone_ranges,
-                timestamps
+                timestamps,
+                user_ftp,
+                spin_up_intervals=spin_up_intervals,
             )
         
         # Calculate zone distribution
@@ -1919,15 +1919,7 @@ def class_detail(request, pk):
             if user_ftp and user_ftp > 0:
                 # Calculate normalized power from time in zones
                 # Use mid-point of each zone as representative power
-                zone_power_percentages = {
-                    1: 0.275,  # 0-55% FTP, use 27.5% (midpoint of 0-55%)
-                    2: 0.65,   # 55-75% FTP, use 65%
-                    3: 0.825,  # 75-90% FTP, use 82.5%
-                    4: 0.975,  # 90-105% FTP, use 97.5%
-                    5: 1.125,  # 105-120% FTP, use 112.5%
-                    6: 1.35,   # 120-150% FTP, use 135%
-                    7: 1.75,   # 150%+ FTP, use 175% (conservative estimate)
-                }
+                zone_power_percentages = metrics_calculator.ZONE_POWER_PERCENTAGES
                 
                 # Calculate weighted average power
                 total_weighted_power = 0.0
@@ -2147,6 +2139,7 @@ def class_detail(request, pk):
         'zone_distribution': zone_distribution,
         'class_segments': class_segments,
         'class_sections': class_sections,
+        'spin_up_intervals': spin_up_intervals,
         'user_profile': user_profile,
         'tss': tss,
         'if_value': if_value,
@@ -2884,6 +2877,63 @@ def _target_segment_at_time_with_shift(segments, t_seconds, shift_seconds=0):
     return None
 
 
+def _extract_spin_up_intervals(ride_detail):
+    """Return list of {'start': int, 'end': int} intervals covering Spin Ups segments."""
+    intervals = []
+    if not ride_detail:
+        return intervals
+
+    total_duration = ride_detail.duration_seconds or 0
+
+    # Prefer segments_data (includes display names such as "Spin Ups")
+    segments_data = getattr(ride_detail, 'segments_data', None) or {}
+    segment_list = segments_data.get('segment_list') if isinstance(segments_data, dict) else None
+    if segment_list:
+        for seg in segment_list:
+            subsegments = seg.get('subsegments_v2', [])
+            section_start = seg.get('start_time_offset', 0) or 0
+            for subseg in subsegments:
+                display_name = (subseg.get('display_name') or '').lower()
+                if 'spin' not in display_name or 'up' not in display_name:
+                    continue
+                sub_offset = subseg.get('offset', 0) or 0
+                duration = subseg.get('length', 0) or 0
+                if duration <= 0:
+                    continue
+                start = section_start + sub_offset
+                end = start + duration
+                if total_duration:
+                    start = max(0, min(start, total_duration))
+                    end = max(start, min(end, total_duration))
+                intervals.append({'start': int(start), 'end': int(end)})
+
+    # Fallback to target_metrics_data if needed
+    if not intervals and ride_detail.target_metrics_data:
+        target_metrics_list = ride_detail.target_metrics_data.get('target_metrics', []) or []
+        for segment in target_metrics_list:
+            segment_type = (segment.get('segment_type') or '').lower()
+            if 'spin' not in segment_type or 'up' not in segment_type:
+                continue
+            offsets = segment.get('offsets', {})
+            start = offsets.get('start', 0) or 0
+            end = offsets.get('end', 0) or 0
+            if end > start:
+                intervals.append({'start': int(max(0, start)), 'end': int(max(start, end))})
+
+    if not intervals:
+        return intervals
+
+    intervals.sort(key=lambda x: x['start'])
+    merged = [intervals[0]]
+    for current in intervals[1:]:
+        last = merged[-1]
+        if current['start'] <= last['end']:
+            last['end'] = max(last['end'], current['end'])
+        else:
+            merged.append(current)
+    return merged
+
+
 def _pace_zone_to_level(zone):
     """
     Map pace intensity zone string to 1-7 level (RECOVERY=1 ... MAX=7).
@@ -3289,6 +3339,7 @@ def workout_detail(request, pk):
     target_metrics_json = None
     target_line_data = None  # For power zone graph target line
     is_pace_target = False  # Initialize flag early
+    spin_up_intervals = _extract_spin_up_intervals(workout.ride_detail)
     
     if workout.ride_detail:
         ride_detail = workout.ride_detail
@@ -3299,17 +3350,7 @@ def workout_detail(request, pk):
             user_ftp = user_profile.get_ftp_at_date(workout_date)
             
             # Calculate zone ranges using FTP at workout date (not current FTP)
-            zone_ranges = None
-            if user_ftp:
-                zone_ranges = {
-                    1: (0, int(user_ftp * 0.55)),           # Zone 1: 0-55% FTP
-                    2: (int(user_ftp * 0.55), int(user_ftp * 0.75)),  # Zone 2: 55-75% FTP
-                    3: (int(user_ftp * 0.75), int(user_ftp * 0.90)),  # Zone 3: 75-90% FTP
-                    4: (int(user_ftp * 0.90), int(user_ftp * 1.05)),  # Zone 4: 90-105% FTP
-                    5: (int(user_ftp * 1.05), int(user_ftp * 1.20)),  # Zone 5: 105-120% FTP
-                    6: (int(user_ftp * 1.20), int(user_ftp * 1.50)),  # Zone 6: 120-150% FTP
-                    7: (int(user_ftp * 1.50), None)              # Zone 7: 150%+ FTP
-                }
+            zone_ranges = metrics_calculator.get_power_zone_ranges(user_ftp) if user_ftp else None
             
             segments = ride_detail.get_power_zone_segments(user_ftp=user_ftp)
             # Always set target_metrics for power zone classes, even if segments are empty
@@ -3339,7 +3380,9 @@ def workout_detail(request, pk):
                     target_line_data = _calculate_target_line_from_segments(
                         segments,
                         zone_ranges,
-                        performance_timestamps
+                        performance_timestamps,
+                        user_ftp,
+                        spin_up_intervals=spin_up_intervals,
                     )
                     logger.info(f"Calculated target line from {len(segments)} segments for workout {workout.id}")
                 else:
@@ -4171,6 +4214,7 @@ def workout_detail(request, pk):
         'pace_targets': pace_targets,  # Pace target distribution
         'pace_class_notes': pace_class_notes,  # Pace class notes
         'class_sections': class_sections,  # Class sections for collapsible details
+        'spin_up_intervals': spin_up_intervals,
         'is_pace_target': is_pace_target,  # Flag to identify pace target classes
         'performance_graph_data': performance_graph_data,  # ChartBuilder: Performance graph
         'zone_distribution_data': zone_distribution_data,  # ChartBuilder: Zone distribution
@@ -4198,12 +4242,13 @@ def workout_detail(request, pk):
     return render(request, template_name, context)
 
 
-def _calculate_target_line_from_segments(segments, zone_ranges, seconds_array):
+def _calculate_target_line_from_segments(segments, zone_ranges, seconds_array, user_ftp=None, spin_up_intervals=None):
     """
     Calculate target output line from class plan segments (from ride_detail.get_power_zone_segments()).
     Uses the middle of each zone's watt range as the target.
     Returns a list matching seconds_array length with target watts for each timestamp.
     Shifts target line 60 seconds backwards (earlier).
+    Optionally accepts spin_up_intervals to backfill gaps (Spin Ups) so the line stays continuous.
     """
     if not segments or not zone_ranges or not seconds_array:
         return []
@@ -4215,20 +4260,49 @@ def _calculate_target_line_from_segments(segments, zone_ranges, seconds_array):
     # Shift target line 60 seconds backwards
     TIME_SHIFT = -60
     
-    # Helper function to calculate target watts from zone number (middle of zone range)
+    # Try to get FTP directly; fallback to zone range upper bound (Z1 upper ≈ 55% FTP)
+    ftp_value = None
+    try:
+        if user_ftp:
+            ftp_value = float(user_ftp)
+    except (TypeError, ValueError):
+        ftp_value = None
+
+    zone_ranges_map = zone_ranges or {}
+
+    if ftp_value is None and zone_ranges_map:
+        zone1 = zone_ranges_map.get(1)
+        if zone1 and zone1[1]:
+            try:
+                ftp_value = float(zone1[1]) / 0.55
+            except (TypeError, ValueError, ZeroDivisionError):
+                ftp_value = None
+
+    zone_power_percentages = metrics_calculator.ZONE_POWER_PERCENTAGES
+
+    # Helper function to calculate target watts from zone number
     def _zone_to_watts(zone_num):
-        if zone_num and zone_num in zone_ranges:
-            lower, upper = zone_ranges[zone_num]
+        if zone_num and ftp_value and zone_num in zone_power_percentages:
+            return round(ftp_value * zone_power_percentages[zone_num])
+
+        if zone_num and zone_num in zone_ranges_map:
+            lower, upper = zone_ranges_map[zone_num]
             if lower is not None and upper is not None:
-                # Use middle of zone range
                 return round((lower + upper) / 2)
             elif lower is not None:
-                # Zone 7 has no upper bound, use a reasonable estimate
-                return round(lower * 1.25)  # 25% above lower bound
+                if zone_num == 7:
+                    target_pct = zone_power_percentages.get(7)
+                    if target_pct and lower > 0:
+                        # lower ≈ 1.50 * FTP → rescale to target_pct
+                        scaling = target_pct / 1.50
+                        return round(lower * scaling)
+                return round(lower * 1.25)
         return None
     
+    base_segments = list(segments or [])
+
     # Process each segment from the class plan
-    for segment in segments:
+    for segment in base_segments:
         zone_num = segment.get('zone')
         if not zone_num:
             continue
@@ -4267,6 +4341,54 @@ def _calculate_target_line_from_segments(segments, zone_ranges, seconds_array):
         # Fill target_series for this segment
         for i in range(start_idx, min(end_idx, sample_count)):
             target_series[i] = target_watts
+
+    # Fill any gaps (None values) using spin-up intervals (treated as Zone 1 unless specified)
+    if spin_up_intervals:
+        for interval in spin_up_intervals:
+            if not isinstance(interval, dict):
+                continue
+            start_raw = interval.get('start')
+            end_raw = interval.get('end')
+            if start_raw is None or end_raw is None:
+                continue
+            try:
+                start_val = int(start_raw)
+                end_val = int(end_raw)
+            except (TypeError, ValueError):
+                continue
+            if end_val <= start_val:
+                continue
+
+            # Shift interval to match chart alignment
+            start_time = max(0, start_val + TIME_SHIFT)
+            end_time = max(0, end_val + TIME_SHIFT)
+            if end_time <= start_time:
+                continue
+            if max_timestamp is not None and start_time > max_timestamp:
+                continue
+
+            spin_zone = interval.get('zone') or 1
+            target_watts = _zone_to_watts(spin_zone)
+            if target_watts is None:
+                continue
+
+            start_idx = 0
+            end_idx = sample_count
+
+            for i, timestamp in enumerate(seconds_array):
+                if isinstance(timestamp, (int, float)) and timestamp >= start_time:
+                    start_idx = i
+                    break
+
+            for i in range(len(seconds_array) - 1, -1, -1):
+                timestamp = seconds_array[i]
+                if isinstance(timestamp, (int, float)) and timestamp <= end_time:
+                    end_idx = i + 1
+                    break
+
+            for i in range(start_idx, min(end_idx, sample_count)):
+                if target_series[i] is None:
+                    target_series[i] = target_watts
     
     # Convert to list of {timestamp, target_output} objects for template
     target_line_list = []
@@ -4354,24 +4476,16 @@ def _calculate_power_zone_target_line(target_metrics_list, user_ftp, seconds_arr
     Similar to reference implementation - creates a target_series array aligned with actual data.
     Shifts target line 60 seconds backwards (earlier).
     
-    Power zone percentages (middle of zone):
-    Zone 1: 55% of FTP (midpoint: 0.55)
-    Zone 2: 55-75% of FTP (midpoint: 0.65)
-    Zone 3: 75-90% of FTP (midpoint: 0.825)
-    Zone 4: 90-105% of FTP (midpoint: 0.975)
-    Zone 5: 105-120% of FTP (midpoint: 1.125)
-    Zone 6: 120-150% of FTP (midpoint: 1.35)
-    Zone 7: 150%+ of FTP (midpoint: 1.75)
+    Power zone target percentages:
+    Zone 1: 45% of FTP (active recovery target)
+    Zone 2: 65% of FTP (midpoint of 55-75%)
+    Zone 3: 82.5% of FTP (midpoint of 75-90%)
+    Zone 4: 97.5% of FTP (midpoint of 90-105%)
+    Zone 5: 112.5% of FTP (midpoint of 105-120%)
+    Zone 6: 135% of FTP (midpoint of 120-150%)
+    Zone 7: 160% of FTP (typical sprint target)
     """
-    zone_power_percentages = {
-        1: 0.55,   # Zone 1: 55% of FTP
-        2: 0.65,   # Zone 2: 65% (midpoint of 55-75%)
-        3: 0.825,  # Zone 3: 82.5% (midpoint of 75-90%)
-        4: 0.975,  # Zone 4: 97.5% (midpoint of 90-105%)
-        5: 1.125,  # Zone 5: 112.5% (midpoint of 105-120%)
-        6: 1.35,   # Zone 6: 135% (midpoint of 120-150%)
-        7: 1.75,   # Zone 7: 175% (conservative estimate for 150%+)
-    }
+    zone_power_percentages = metrics_calculator.ZONE_POWER_PERCENTAGES
     
     # Shift target line 60 seconds backwards
     TIME_SHIFT = -60

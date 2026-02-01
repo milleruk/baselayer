@@ -383,6 +383,9 @@
 
 {% if performance_data or target_metrics %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6"></script>
+{% if spin_up_intervals is not None %}
+{{ spin_up_intervals|json_script:"spin-up-intervals-json" }}
+{% endif %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
   const performanceData = [
@@ -410,6 +413,86 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }
   if (!workoutDuration || workoutDuration <= 0) workoutDuration = 1800;
+  
+  const SPIN_UP_TIME_SHIFT = 0;  // Highlight in-place relative to workout timeline
+  function withSpinUpShift(rawStartValue, rawEndValue) {
+    const rawStartNumber = Number(rawStartValue ?? 0);
+    const rawEndNumber = Number(rawEndValue ?? rawStartNumber);
+    if (!Number.isFinite(rawStartNumber) || !Number.isFinite(rawEndNumber)) {
+      return null;
+    }
+    const duration = Math.max(0, rawEndNumber - rawStartNumber);
+    if (duration <= 0) {
+      return null;
+    }
+    const shiftedStartRaw = rawStartNumber + SPIN_UP_TIME_SHIFT;
+    const clampedStart = Math.max(0, shiftedStartRaw);
+    const unclampedEnd = clampedStart + duration;
+    const clampedEnd = workoutDuration ? Math.min(workoutDuration, unclampedEnd) : unclampedEnd;
+    if (clampedEnd <= clampedStart) {
+      return null;
+    }
+    return { start: clampedStart, end: clampedEnd };
+  }
+  let spinUpIntervals = [];
+  try {
+    const spinUpScript = document.getElementById('spin-up-intervals-json');
+    if (spinUpScript) {
+      const parsed = JSON.parse(spinUpScript.textContent);
+      if (Array.isArray(parsed)) {
+        spinUpIntervals = parsed
+          .map(interval => {
+            if (!interval) {
+              return null;
+            }
+            const rawStart = interval.start ?? interval.offset ?? 0;
+            const rawEnd = interval.end ?? interval.start ?? 0;
+            return withSpinUpShift(rawStart, rawEnd);
+          })
+          .filter(Boolean)
+          .sort((a, b) => a.start - b.start);
+      }
+    }
+  } catch (err) {
+    console.warn('[PowerZoneChart][workout-detail] failed parsing spin-up intervals payload', err);
+    spinUpIntervals = [];
+  }
+
+  if (!spinUpIntervals.length && targetMetrics && Array.isArray(targetMetrics.segments)) {
+    targetMetrics.segments.forEach(segment => {
+      const rawType = (segment.segment_type || segment.type || '').toLowerCase();
+      if (!rawType.includes('spin') || !rawType.includes('up')) {
+        return;
+      }
+      const rawStart = Number(segment.start ?? 0);
+      const rawEnd = segment.end !== undefined ? Number(segment.end) : (rawStart + Number(segment.duration || 0));
+      const shifted = withSpinUpShift(rawStart, rawEnd);
+      if (shifted) {
+        spinUpIntervals.push(shifted);
+      }
+    });
+  }
+
+  if (spinUpIntervals.length > 1) {
+    spinUpIntervals.sort((a, b) => a.start - b.start);
+  }
+
+  if (spinUpIntervals.length > 0) {
+    console.debug('[PowerZoneChart][workout-detail] spin-up intervals detected', spinUpIntervals);
+  } else if (targetMetrics && Array.isArray(targetMetrics.segments)) {
+    console.debug('[PowerZoneChart][workout-detail] no spin-up intervals detected', {
+      segmentCount: targetMetrics.segments.length,
+      sampleTypes: targetMetrics.segments.slice(0, 5).map(seg => seg.segment_type || seg.type || 'unknown')
+    });
+  }
+  
+  function overlapsSpinUpWindow(startTime, endTime) {
+    if (!spinUpIntervals.length) return false;
+    if (typeof startTime !== 'number' || typeof endTime !== 'number') return false;
+    const windowStart = Math.min(startTime, endTime);
+    const windowEnd = Math.max(startTime, endTime);
+    return spinUpIntervals.some(interval => windowEnd > interval.start && windowStart < interval.end);
+  }
   
   // Playlist data for music timeline
   const playlistData = {% if playlist and playlist.songs %}[
@@ -478,10 +561,12 @@ document.addEventListener('DOMContentLoaded', function() {
     const targetSeries = targetLineData
       .filter(p => p && typeof p.timestamp === 'number')
       .map(p => ({ x: p.timestamp, y: (typeof p.target_output === 'number' ? p.target_output : null) }));
-    datasets.push({
+    const TARGET_LINE_COLOR = '#93c5fd';
+    const SPIN_UP_TARGET_COLOR = '#fb7185';
+    const targetDataset = {
       label: 'Target',
       data: targetSeries,
-      borderColor: '#93c5fd', // light blue
+      borderColor: TARGET_LINE_COLOR,
       backgroundColor: 'rgba(147, 197, 253, 0.12)',
       borderWidth: 2,
       fill: false,
@@ -493,7 +578,28 @@ document.addEventListener('DOMContentLoaded', function() {
       spanGaps: true,
       order: 1,
       parsing: { xAxisKey: 'x', yAxisKey: 'y' }
-    });
+    };
+    if (spinUpIntervals.length > 0) {
+      let spinUpColorLogged = false;
+      targetDataset.segment = {
+        borderColor: ctx => {
+          if (!ctx || ctx.p0?.skip || ctx.p1?.skip) {
+            return undefined;
+          }
+          const startTime = ctx.p0?.parsed?.x;
+          const endTime = ctx.p1?.parsed?.x;
+          if (overlapsSpinUpWindow(startTime, endTime)) {
+            if (!spinUpColorLogged) {
+              console.debug('[PowerZoneChart][workout-detail] applying spin-up highlight', { startTime, endTime });
+              spinUpColorLogged = true;
+            }
+            return SPIN_UP_TARGET_COLOR;
+          }
+          return TARGET_LINE_COLOR;
+        }
+      };
+    }
+    datasets.push(targetDataset);
   }
 
   const actualSeries = (Array.isArray(performanceData) ? performanceData : [])
