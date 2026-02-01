@@ -26,6 +26,8 @@ except ImportError:
         pytz = None
 
 from .models import Workout, WorkoutType, Instructor, RideDetail, WorkoutDetails, Playlist
+from .services.class_filter import ClassLibraryFilter
+from .services.metrics import MetricsCalculator
 from peloton.models import PelotonConnection
 from accounts.pace_converter import DEFAULT_RUNNING_PACE_LEVELS, ZONE_COLORS
 from accounts.walking_pace_levels_data import DEFAULT_WALKING_PACE_LEVELS, WALKING_ZONE_COLORS
@@ -33,6 +35,9 @@ from accounts.rowing_pace_levels_data import DEFAULT_ROWING_PACE_LEVELS, ROWING_
 import logging
 
 logger = logging.getLogger(__name__)
+
+# Initialize service instances
+metrics_calculator = MetricsCalculator()
 
 
 def detect_class_type(ride_data, ride_details=None):
@@ -2584,7 +2589,11 @@ def _pace_str_from_mph(mph):
 
 
 def _estimate_workout_if_from_tss(workout):
-    """Estimate IF from stored TSS + duration when available."""
+    """
+    Estimate IF from stored TSS + duration when available.
+    
+    Delegates to MetricsCalculator service.
+    """
     try:
         details = getattr(workout, "details", None)
         tss = getattr(details, "tss", None) if details else None
@@ -2594,10 +2603,11 @@ def _estimate_workout_if_from_tss(workout):
         duration_seconds = getattr(ride, "duration_seconds", None) if ride else None
         if not isinstance(duration_seconds, int) or duration_seconds <= 0:
             return None
-        hours = duration_seconds / 3600.0
-        if hours <= 0:
-            return None
-        return (float(tss) / (hours * 100.0)) ** 0.5
+        
+        return metrics_calculator.calculate_intensity_factor(
+            tss=tss,
+            duration_seconds=duration_seconds
+        )
     except Exception:
         return None
 
@@ -2609,6 +2619,8 @@ def _estimate_workout_tss(workout, user_profile=None):
     Uses a common approximation:
       IF ≈ avg_power / FTP
       TSS ≈ hours * IF^2 * 100
+    
+    Delegates to MetricsCalculator service.
     """
     ride = getattr(workout, "ride_detail", None)
     if not ride:
@@ -2668,23 +2680,13 @@ def _estimate_workout_tss(workout, user_profile=None):
             ftp = user_profile.get_current_ftp()
         except Exception:
             ftp = None
-    try:
-        ftp = float(ftp) if ftp is not None else None
-    except Exception:
-        ftp = None
-    if not ftp or ftp <= 0:
-        return None
-
-    intensity_factor = avg_power / ftp
-    # Keep within a sane range
-    if intensity_factor < 0:
-        intensity_factor = 0.0
-    if intensity_factor > 2.0:
-        intensity_factor = 2.0
-
-    hours = float(duration_seconds) / 3600.0
-    tss = hours * (intensity_factor ** 2) * 100.0
-    return tss
+    
+    # Use MetricsCalculator for TSS calculation
+    return metrics_calculator.calculate_tss(
+        avg_power=avg_power,
+        duration_seconds=duration_seconds,
+        ftp=ftp
+    )
 
 
 def _downsample_series(series, max_points=48):
@@ -2793,89 +2795,40 @@ def _normalize_series_to_svg_points(series, width=360, height=120, left_pad=34, 
 
 
 def _zone_ranges_for_ftp(ftp):
-    """Return power zone ranges dict from FTP."""
-    try:
-        ftp_val = float(ftp)
-    except Exception:
-        return None
-    if ftp_val <= 0:
-        return None
-    # Peloton PZ ranges (same as elsewhere in app)
-    return {
-        1: (0, int(ftp_val * 0.55)),
-        2: (int(ftp_val * 0.55), int(ftp_val * 0.75)),
-        3: (int(ftp_val * 0.75), int(ftp_val * 0.90)),
-        4: (int(ftp_val * 0.90), int(ftp_val * 1.05)),
-        5: (int(ftp_val * 1.05), int(ftp_val * 1.20)),
-        6: (int(ftp_val * 1.20), int(ftp_val * 1.50)),
-        7: (int(ftp_val * 1.50), None),
-    }
+    """
+    Return power zone ranges dict from FTP.
+    
+    Delegates to MetricsCalculator service.
+    """
+    return metrics_calculator.get_power_zone_ranges(ftp)
 
 
 def _power_zone_for_output(output_watts, zone_ranges):
-    """Return zone number 1-7 for an output value given zone_ranges."""
-    if zone_ranges is None:
-        return None
-    try:
-        w = float(output_watts)
-    except Exception:
-        return None
-    for z in range(1, 8):
-        lo, hi = zone_ranges.get(z, (None, None))
-        if lo is None:
-            continue
-        if hi is None:
-            if w >= lo:
-                return z
-        else:
-            if w >= lo and w < hi:
-                return z
-    return None
+    """
+    Return zone number 1-7 for an output value given zone_ranges.
+    
+    Delegates to MetricsCalculator service.
+    """
+    return metrics_calculator.get_power_zone_for_output(output_watts, zone_ranges)
 
 
 def _pace_zone_targets_for_level(pace_level):
     """
     Build pace zone targets (min/mile) from a pace level (1-10),
     matching Profile.get_pace_zone_targets().
+    
+    Delegates to MetricsCalculator service.
     """
-    try:
-        lvl = int(pace_level)
-    except Exception:
-        return None
-    base_paces = {
-        1: 12.0,   # 12:00/mile
-        2: 11.0,   # 11:00/mile
-        3: 10.0,   # 10:00/mile
-        4: 9.0,    # 9:00/mile
-        5: 8.5,    # 8:30/mile
-        6: 8.0,    # 8:00/mile
-        7: 7.5,    # 7:30/mile
-        8: 7.0,    # 7:00/mile
-        9: 6.5,    # 6:30/mile
-        10: 6.0,   # 6:00/mile
-    }
-    base_pace = float(base_paces.get(lvl, 8.0))
-    return {
-        'recovery': base_pace + 2.0,
-        'easy': base_pace + 1.0,
-        'moderate': base_pace,
-        'challenging': base_pace - 0.5,
-        'hard': base_pace - 1.0,
-        'very_hard': base_pace - 1.5,
-        'max': base_pace - 2.0,
-    }
+    return metrics_calculator.get_pace_zone_targets(pace_level)
 
 
 def _target_watts_for_zone(zone_ranges, zone_num):
-    if not zone_ranges or not isinstance(zone_num, int):
-        return None
-    lo, hi = zone_ranges.get(zone_num, (None, None))
-    if lo is None:
-        return None
-    if hi is None:
-        # Zone 7: no upper bound; use lower as conservative target
-        return float(lo)
-    return float(lo + (hi - lo) / 2.0)
+    """
+    Get target watts (midpoint) for a power zone.
+    
+    Delegates to MetricsCalculator service.
+    """
+    return metrics_calculator.get_target_watts_for_zone(zone_num, zone_ranges)
 
 
 def _target_value_at_time(segments, t_seconds):

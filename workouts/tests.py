@@ -622,3 +622,343 @@ class ClassLibraryViewTestCase(TestCase):
         page_obj = response.context['page_obj']
         self.assertEqual(page_obj.paginator.count, 0)
         self.assertEqual(response.status_code, 200)  # Still renders successfully
+
+
+class MetricsCalculatorTestCase(TestCase):
+    """Unit tests for MetricsCalculator service"""
+    
+    def setUp(self):
+        """Set up MetricsCalculator instance for each test"""
+        from workouts.services.metrics import MetricsCalculator
+        self.calculator = MetricsCalculator()
+    
+    # ==================== TSS Calculation Tests ====================
+    
+    def test_calculate_tss_with_valid_data(self):
+        """TSS calculation with valid avg_power, duration, and FTP"""
+        tss = self.calculator.calculate_tss(
+            avg_power=200.0,
+            duration_seconds=3600,  # 1 hour
+            ftp=280.0
+        )
+        # IF = 200/280 = 0.714
+        # TSS = 1 hour * 0.714^2 * 100 = 51.0
+        self.assertIsNotNone(tss)
+        self.assertAlmostEqual(tss, 51.0, places=1)
+    
+    def test_calculate_tss_with_stored_tss(self):
+        """TSS returns stored value when provided"""
+        stored = 75.5
+        tss = self.calculator.calculate_tss(
+            avg_power=200.0,
+            duration_seconds=3600,
+            ftp=280.0,
+            stored_tss=stored
+        )
+        self.assertEqual(tss, stored)
+    
+    def test_calculate_tss_missing_avg_power(self):
+        """TSS returns None when avg_power is missing"""
+        tss = self.calculator.calculate_tss(
+            duration_seconds=3600,
+            ftp=280.0
+        )
+        self.assertIsNone(tss)
+    
+    def test_calculate_tss_missing_duration(self):
+        """TSS returns None when duration_seconds is missing"""
+        tss = self.calculator.calculate_tss(
+            avg_power=200.0,
+            ftp=280.0
+        )
+        self.assertIsNone(tss)
+    
+    def test_calculate_tss_missing_ftp(self):
+        """TSS returns None when FTP is missing"""
+        tss = self.calculator.calculate_tss(
+            avg_power=200.0,
+            duration_seconds=3600
+        )
+        self.assertIsNone(tss)
+    
+    def test_calculate_tss_invalid_ftp(self):
+        """TSS returns None when FTP is zero or negative"""
+        tss = self.calculator.calculate_tss(
+            avg_power=200.0,
+            duration_seconds=3600,
+            ftp=0
+        )
+        self.assertIsNone(tss)
+    
+    def test_calculate_tss_bounds_checking(self):
+        """TSS clamps IF between 0.0 and 2.0"""
+        # High IF (should clamp to 2.0)
+        tss_high = self.calculator.calculate_tss(
+            avg_power=600.0,
+            duration_seconds=3600,
+            ftp=200.0
+        )
+        # IF = 600/200 = 3.0, clamped to 2.0
+        # TSS = 1 * 2.0^2 * 100 = 400
+        self.assertAlmostEqual(tss_high, 400.0, places=1)
+        
+        # Negative avg_power (should clamp IF to 0.0)
+        tss_neg = self.calculator.calculate_tss(
+            avg_power=-100.0,
+            duration_seconds=3600,
+            ftp=200.0
+        )
+        # IF = -100/200 = -0.5, clamped to 0.0
+        # TSS = 1 * 0.0^2 * 100 = 0
+        self.assertAlmostEqual(tss_neg, 0.0, places=1)
+    
+    # ==================== Intensity Factor Tests ====================
+    
+    def test_calculate_if_from_power_and_ftp(self):
+        """IF calculation from avg_power and FTP"""
+        if_value = self.calculator.calculate_intensity_factor(
+            avg_power=200.0,
+            ftp=280.0
+        )
+        self.assertAlmostEqual(if_value, 0.714, places=2)
+    
+    def test_calculate_if_from_tss_and_duration(self):
+        """IF calculation from TSS (reverse calculation)"""
+        # TSS=51, duration=3600s (1 hour)
+        # IF = sqrt(51 / (1 * 100)) = sqrt(0.51) = 0.714
+        if_value = self.calculator.calculate_intensity_factor(
+            tss=51.0,
+            duration_seconds=3600
+        )
+        self.assertAlmostEqual(if_value, 0.714, places=2)
+    
+    def test_calculate_if_prefers_power_method(self):
+        """IF prefers power/FTP method over TSS method"""
+        if_value = self.calculator.calculate_intensity_factor(
+            avg_power=200.0,
+            ftp=280.0,
+            tss=100.0,  # Different IF from different TSS
+            duration_seconds=3600
+        )
+        # Should use power method: 200/280 = 0.714
+        self.assertAlmostEqual(if_value, 0.714, places=2)
+    
+    def test_calculate_if_missing_data(self):
+        """IF returns None when insufficient data"""
+        if_value = self.calculator.calculate_intensity_factor()
+        self.assertIsNone(if_value)
+    
+    def test_calculate_if_bounds_checking(self):
+        """IF clamps to 0.0-2.0 range"""
+        if_high = self.calculator.calculate_intensity_factor(
+            avg_power=600.0,
+            ftp=200.0
+        )
+        self.assertEqual(if_high, 2.0)
+    
+    # ==================== Power Zone Range Tests ====================
+    
+    def test_get_power_zone_ranges(self):
+        """Power zone ranges calculated correctly from FTP"""
+        ftp = 280.0
+        ranges = self.calculator.get_power_zone_ranges(ftp)
+        
+        self.assertIsNotNone(ranges)
+        self.assertEqual(len(ranges), 7)
+        
+        # Zone 1: 0-55%
+        self.assertEqual(ranges[1], (0, 154))
+        # Zone 2: 55-75%
+        self.assertEqual(ranges[2], (154, 210))
+        # Zone 7: 150%+
+        self.assertEqual(ranges[7][0], 420)
+        self.assertIsNone(ranges[7][1])
+    
+    def test_get_power_zone_ranges_invalid_ftp(self):
+        """Power zone ranges returns None for invalid FTP"""
+        ranges = self.calculator.get_power_zone_ranges(0)
+        self.assertIsNone(ranges)
+    
+    def test_get_power_zone_for_output(self):
+        """Power zone determination from output watts"""
+        zone_ranges = self.calculator.get_power_zone_ranges(280.0)
+        
+        # Zone 1: 0-154W
+        zone = self.calculator.get_power_zone_for_output(100, zone_ranges)
+        self.assertEqual(zone, 1)
+        
+        # Zone 4: 252-294W
+        zone = self.calculator.get_power_zone_for_output(270, zone_ranges)
+        self.assertEqual(zone, 4)
+        
+        # Zone 7: 420W+
+        zone = self.calculator.get_power_zone_for_output(500, zone_ranges)
+        self.assertEqual(zone, 7)
+    
+    def test_get_power_zone_for_output_invalid(self):
+        """Power zone returns None for invalid data"""
+        zone = self.calculator.get_power_zone_for_output(100, None, None)
+        self.assertIsNone(zone)
+    
+    def test_get_target_watts_for_zone(self):
+        """Target watts (midpoint) for power zone"""
+        zone_ranges = self.calculator.get_power_zone_ranges(280.0)
+        
+        # Zone 1 midpoint: (0 + 154) / 2 = 77
+        watts = self.calculator.get_target_watts_for_zone(1, zone_ranges)
+        self.assertEqual(watts, 77.0)
+        
+        # Zone 4 midpoint: (252 + 294) / 2 = 273
+        watts = self.calculator.get_target_watts_for_zone(4, zone_ranges)
+        self.assertEqual(watts, 273.0)
+    
+    def test_get_available_power_zones(self):
+        """Available power zones list"""
+        zones = self.calculator.get_available_power_zones(280.0)
+        self.assertEqual(zones, [1, 2, 3, 4, 5, 6, 7])
+    
+    def test_is_valid_power_zone(self):
+        """Power zone validation"""
+        self.assertTrue(self.calculator.is_valid_power_zone(1))
+        self.assertTrue(self.calculator.is_valid_power_zone(7))
+        self.assertFalse(self.calculator.is_valid_power_zone(0))
+        self.assertFalse(self.calculator.is_valid_power_zone(8))
+    
+    # ==================== Pace Zone Tests ====================
+    
+    def test_get_pace_zone_targets(self):
+        """Pace zone targets calculated for pace level"""
+        targets = self.calculator.get_pace_zone_targets(5)
+        
+        self.assertIsNotNone(targets)
+        self.assertIn('recovery', targets)
+        self.assertIn('easy', targets)
+        self.assertIn('moderate', targets)
+        self.assertIn('max', targets)
+        
+        # Level 5 base pace = 8:30/mile
+        self.assertEqual(targets['recovery'], 10.5)
+        self.assertEqual(targets['moderate'], 8.5)
+        self.assertEqual(targets['max'], 6.5)
+    
+    def test_get_pace_zone_targets_different_levels(self):
+        """Pace zone targets vary by level"""
+        targets_1 = self.calculator.get_pace_zone_targets(1)
+        targets_10 = self.calculator.get_pace_zone_targets(10)
+        
+        # Level 1 pace > Level 10 pace (slower for level 1)
+        self.assertGreater(targets_1['moderate'], targets_10['moderate'])
+    
+    def test_get_pace_zone_targets_invalid_level(self):
+        """Pace zone targets returns None for invalid level"""
+        targets = self.calculator.get_pace_zone_targets(None)
+        self.assertIsNone(targets)
+    
+    def test_get_available_pace_zones(self):
+        """Available pace zones list"""
+        zones = self.calculator.get_available_pace_zones()
+        self.assertEqual(set(zones), {
+            'recovery', 'easy', 'moderate', 'challenging', 'hard', 'very_hard', 'max'
+        })
+    
+    def test_is_valid_pace_level(self):
+        """Pace level validation"""
+        self.assertTrue(self.calculator.is_valid_pace_level(1))
+        self.assertTrue(self.calculator.is_valid_pace_level(10))
+        self.assertFalse(self.calculator.is_valid_pace_level(0))
+        self.assertFalse(self.calculator.is_valid_pace_level(11))
+    
+    # ==================== Zone Distribution TSS Tests ====================
+    
+    def test_calculate_tss_from_power_zone_distribution(self):
+        """TSS calculation from power zone distribution"""
+        zone_distribution = [
+            {'zone': 1, 'time_sec': 300},
+            {'zone': 4, 'time_sec': 3000},
+            {'zone': 6, 'time_sec': 300},
+        ]
+        
+        tss = self.calculator.calculate_tss_from_zone_distribution(
+            zone_distribution=zone_distribution,
+            duration_seconds=3600,
+            class_type='power_zone',
+            ftp=280.0
+        )
+        
+        self.assertIsNotNone(tss)
+        self.assertGreater(tss, 0)
+    
+    def test_calculate_tss_from_pace_target_distribution(self):
+        """TSS calculation from pace zone distribution"""
+        zone_distribution = [
+            {'zone': 'recovery', 'time_sec': 300},
+            {'zone': 'moderate', 'time_sec': 3000},
+            {'zone': 'hard', 'time_sec': 300},
+        ]
+        
+        tss = self.calculator.calculate_tss_from_zone_distribution(
+            zone_distribution=zone_distribution,
+            duration_seconds=3600,
+            class_type='pace_target',
+            pace_level=5
+        )
+        
+        self.assertIsNotNone(tss)
+        self.assertGreater(tss, 0)
+    
+    def test_calculate_tss_from_distribution_missing_data(self):
+        """TSS returns None for distribution with missing data"""
+        # No FTP for power zone
+        tss = self.calculator.calculate_tss_from_zone_distribution(
+            zone_distribution=[{'zone': 1, 'time_sec': 300}],
+            duration_seconds=3600,
+            class_type='power_zone'
+        )
+        self.assertIsNone(tss)
+    
+    def test_calculate_tss_from_distribution_empty(self):
+        """TSS returns None for empty zone distribution"""
+        tss = self.calculator.calculate_tss_from_zone_distribution(
+            zone_distribution=[],
+            duration_seconds=3600,
+            class_type='power_zone',
+            ftp=280.0
+        )
+        self.assertIsNone(tss)
+    
+    # ==================== Integration Tests ====================
+    
+    def test_metrics_roundtrip(self):
+        """TSS -> IF -> TSS roundtrip maintains consistency"""
+        # Calculate TSS
+        tss_orig = self.calculator.calculate_tss(
+            avg_power=200.0,
+            duration_seconds=3600,
+            ftp=280.0
+        )
+        
+        # Calculate IF from TSS
+        if_value = self.calculator.calculate_intensity_factor(
+            tss=tss_orig,
+            duration_seconds=3600
+        )
+        
+        # Calculate TSS from IF and avg_power
+        tss_new = self.calculator.calculate_tss(
+            avg_power=200.0,
+            duration_seconds=3600,
+            ftp=280.0
+        )
+        
+        self.assertAlmostEqual(tss_orig, tss_new, places=1)
+    
+    def test_pace_intensity_factors_valid_range(self):
+        """All pace intensity factors are reasonable"""
+        factors = self.calculator.PACE_ZONE_INTENSITY_FACTORS
+        
+        for zone, factor in factors.items():
+            self.assertGreater(factor, 0)
+            self.assertLess(factor, 2.0)
+            
+        # Recovery should be lower than max
+        self.assertLess(factors['recovery'], factors['max'])
