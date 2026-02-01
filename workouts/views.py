@@ -28,6 +28,7 @@ except ImportError:
 from .models import Workout, WorkoutType, Instructor, RideDetail, WorkoutDetails, Playlist
 from .services.class_filter import ClassLibraryFilter
 from .services.metrics import MetricsCalculator
+from .services.chart_builder import ChartBuilder
 from peloton.models import PelotonConnection
 from accounts.pace_converter import DEFAULT_RUNNING_PACE_LEVELS, ZONE_COLORS
 from accounts.walking_pace_levels_data import DEFAULT_WALKING_PACE_LEVELS, WALKING_ZONE_COLORS
@@ -36,8 +37,9 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# Initialize service instances
+# Initialize service instances (stateless services)
 metrics_calculator = MetricsCalculator()
+chart_builder = ChartBuilder()
 
 
 def detect_class_type(ride_data, ride_details=None):
@@ -4051,6 +4053,107 @@ def workout_detail(request, pk):
             # Keep page resilient even if Peloton API fails
             pass
 
+    # Generate chart data using ChartBuilder service
+    performance_graph_data = None
+    zone_distribution_data = None
+    summary_stats_data = None
+    
+    if performance_data.exists() and workout.ride_detail:
+        # Convert performance_data queryset to list of dicts for ChartBuilder
+        perf_list = list(performance_data.values('timestamp', 'output'))
+        
+        # Generate performance graph
+        if workout.ride_detail.is_power_zone_class or workout.ride_detail.class_type == 'power_zone':
+            performance_graph_data = chart_builder.generate_performance_graph(
+                performance_data=perf_list,
+                workout_type='power_zone',
+                ftp=user_ftp or 200.0
+            )
+            
+            # Generate zone distribution from performance data
+            if user_ftp and perf_list:
+                # Calculate zone distribution directly from performance data
+                zone_times = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0}
+                zone_samples = {1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: []}
+                
+                # Calculate average interval for time tracking
+                segment_length = 5  # Default Peloton sampling interval
+                perf_obj_list = list(performance_data)
+                if len(perf_obj_list) > 1:
+                    intervals = []
+                    for i in range(1, min(10, len(perf_obj_list))):
+                        interval = perf_obj_list[i].timestamp - perf_obj_list[i-1].timestamp
+                        if interval > 0:
+                            intervals.append(interval)
+                    if intervals:
+                        segment_length = int(sum(intervals) / len(intervals))
+                
+                # Categorize each performance point into zones
+                for point in perf_obj_list:
+                    if point.output and point.output > 0:
+                        percentage = point.output / user_ftp
+                        
+                        # Determine zone from percentage
+                        if percentage < 0.55:
+                            zone = 1
+                        elif percentage < 0.75:
+                            zone = 2
+                        elif percentage < 0.90:
+                            zone = 3
+                        elif percentage < 1.05:
+                            zone = 4
+                        elif percentage < 1.20:
+                            zone = 5
+                        elif percentage < 1.50:
+                            zone = 6
+                        else:
+                            zone = 7
+                        
+                        zone_times[zone] += segment_length
+                        zone_samples[zone].append(point.output)
+                
+                # Build zone_data_dict for ChartBuilder (only include zones with data)
+                zone_data_dict = {}
+                for zone in range(1, 8):
+                    if zone_times[zone] > 0:
+                        zone_data_dict[zone] = {
+                            'output': zone_samples[zone][:10] if zone_samples[zone] else [0],
+                            'time_sec': zone_times[zone]
+                        }
+                
+                if zone_data_dict:  # Only pass if we have data
+                    # Convert dict to list format expected by ChartBuilder
+                    zone_data_list = []
+                    for zone, data in zone_data_dict.items():
+                        zone_data_list.append({
+                            'zone': zone,
+                            'time_sec': data['time_sec']
+                        })
+                    
+                    zone_distribution_data = chart_builder.generate_zone_distribution(
+                        zone_data=zone_data_list,
+                        workout_type='power_zone',
+                        total_duration_seconds=workout.ride_detail.duration_seconds
+                    )
+        
+        elif workout.ride_detail.fitness_discipline in ['running', 'walking']:
+            performance_graph_data = chart_builder.generate_performance_graph(
+                performance_data=perf_list,
+                workout_type='pace_target',
+                pace_level=user_pace_level
+            )
+        
+        # Generate summary stats for any workout type with performance data
+        if details:
+            summary_stats_data = chart_builder.generate_summary_stats(
+                performance_data=perf_list,
+                zone_distribution=None,
+                duration_seconds=workout.ride_detail.duration_seconds if workout.ride_detail else None,
+                avg_power=details.avg_output if hasattr(details, 'avg_output') else None,
+                ftp=user_ftp or 200.0,
+                calories=details.total_calories if hasattr(details, 'total_calories') else None
+            )
+    
     context = {
         'workout': workout,
         'performance_data': performance_data,
@@ -4069,6 +4172,9 @@ def workout_detail(request, pk):
         'pace_class_notes': pace_class_notes,  # Pace class notes
         'class_sections': class_sections,  # Class sections for collapsible details
         'is_pace_target': is_pace_target,  # Flag to identify pace target classes
+        'performance_graph_data': performance_graph_data,  # ChartBuilder: Performance graph
+        'zone_distribution_data': zone_distribution_data,  # ChartBuilder: Zone distribution
+        'summary_stats_data': summary_stats_data,  # ChartBuilder: Summary statistics
     }
     
     # Determine which template to use based on workout type
