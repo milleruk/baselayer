@@ -962,3 +962,409 @@ class MetricsCalculatorTestCase(TestCase):
             
         # Recovery should be lower than max
         self.assertLess(factors['recovery'], factors['max'])
+
+
+class ChartBuilderTestCase(TestCase):
+    """Unit tests for ChartBuilder service"""
+    
+    def setUp(self):
+        """Set up ChartBuilder instance for each test"""
+        from workouts.services.chart_builder import ChartBuilder
+        self.builder = ChartBuilder()
+    
+    # ==================== Performance Graph Tests ====================
+    
+    def test_generate_performance_graph_with_valid_data(self):
+        """Performance graph generation with valid power zone data"""
+        performance_data = [
+            {'timestamp': 0, 'value': 100},
+            {'timestamp': 30, 'value': 150},
+            {'timestamp': 60, 'value': 200},
+            {'timestamp': 90, 'value': 250},
+            {'timestamp': 120, 'value': 200},
+        ]
+        
+        chart = self.builder.generate_performance_graph(
+            performance_data=performance_data,
+            workout_type='power_zone',
+            ftp=280.0
+        )
+        
+        self.assertIsNotNone(chart)
+        self.assertEqual(chart['type'], 'performance_graph')
+        self.assertEqual(chart['workout_type'], 'power_zone')
+        self.assertGreater(len(chart['points']), 0)
+        self.assertEqual(chart['min_value'], 100)
+        self.assertEqual(chart['max_value'], 250)
+    
+    def test_generate_performance_graph_empty_data(self):
+        """Performance graph returns None for empty data"""
+        chart = self.builder.generate_performance_graph(
+            performance_data=[],
+            workout_type='power_zone',
+            ftp=280.0
+        )
+        self.assertIsNone(chart)
+    
+    def test_generate_performance_graph_downsampling(self):
+        """Performance graph downsamples correctly"""
+        # Create 500 data points
+        performance_data = [
+            {'timestamp': i, 'value': 100 + (i % 100)}
+            for i in range(500)
+        ]
+        
+        chart = self.builder.generate_performance_graph(
+            performance_data=performance_data,
+            workout_type='power_zone',
+            ftp=280.0,
+            downsample_points=50
+        )
+        
+        self.assertIsNotNone(chart)
+        # Should be downsampled to ~50 points
+        self.assertLessEqual(len(chart['points']), 60)
+        self.assertGreaterEqual(len(chart['points']), 40)
+    
+    def test_generate_performance_graph_invalid_data(self):
+        """Performance graph handles invalid data points"""
+        performance_data = [
+            {'timestamp': 'invalid', 'value': 100},
+            {'timestamp': 30, 'value': 'invalid'},
+            {'timestamp': 60, 'value': 200},
+        ]
+        
+        chart = self.builder.generate_performance_graph(
+            performance_data=performance_data,
+            workout_type='power_zone',
+            ftp=280.0
+        )
+        
+        self.assertIsNotNone(chart)
+        # Should only have the valid point
+        self.assertEqual(len(chart['points']), 1)
+    
+    def test_generate_performance_graph_negative_values(self):
+        """Performance graph filters negative values"""
+        performance_data = [
+            {'timestamp': 0, 'value': 100},
+            {'timestamp': 30, 'value': -50},  # Should be filtered
+            {'timestamp': 60, 'value': 200},
+        ]
+        
+        chart = self.builder.generate_performance_graph(
+            performance_data=performance_data,
+            workout_type='power_zone',
+            ftp=280.0
+        )
+        
+        self.assertIsNotNone(chart)
+        self.assertEqual(len(chart['points']), 2)
+    
+    # ==================== Zone Distribution Tests ====================
+    
+    def test_generate_zone_distribution_power_zones(self):
+        """Zone distribution generation for power zones"""
+        zone_data = [
+            {'zone': 1, 'time_sec': 300},
+            {'zone': 4, 'time_sec': 3000},
+            {'zone': 6, 'time_sec': 300},
+        ]
+        
+        dist = self.builder.generate_zone_distribution(
+            zone_data=zone_data,
+            workout_type='power_zone'
+        )
+        
+        self.assertIsNotNone(dist)
+        self.assertEqual(dist['type'], 'zone_distribution')
+        self.assertEqual(len(dist['distribution']), 3)
+        self.assertEqual(dist['total_duration_seconds'], 3600)
+        
+        # Check percentages (allow small rounding error)
+        total_pct = sum(item['percentage'] for item in dist['distribution'])
+        self.assertAlmostEqual(total_pct, 100.0, places=0)
+    
+    def test_generate_zone_distribution_pace_zones(self):
+        """Zone distribution generation for pace zones"""
+        zone_data = [
+            {'zone': 'recovery', 'time_sec': 300},
+            {'zone': 'moderate', 'time_sec': 3000},
+            {'zone': 'hard', 'time_sec': 300},
+        ]
+        
+        dist = self.builder.generate_zone_distribution(
+            zone_data=zone_data,
+            workout_type='pace_target'
+        )
+        
+        self.assertIsNotNone(dist)
+        self.assertEqual(dist['type'], 'zone_distribution')
+        self.assertEqual(len(dist['distribution']), 3)
+        self.assertIn('recovery', [item['zone'] for item in dist['distribution']])
+    
+    def test_generate_zone_distribution_empty_data(self):
+        """Zone distribution returns None for empty data"""
+        dist = self.builder.generate_zone_distribution(zone_data=[])
+        self.assertIsNone(dist)
+    
+    def test_generate_zone_distribution_zero_time(self):
+        """Zone distribution handles zero time entries"""
+        zone_data = [
+            {'zone': 1, 'time_sec': 0},
+            {'zone': 4, 'time_sec': 3600},
+        ]
+        
+        dist = self.builder.generate_zone_distribution(zone_data=zone_data)
+        
+        self.assertIsNotNone(dist)
+        # Should only have zone 4
+        self.assertEqual(len(dist['distribution']), 1)
+        self.assertEqual(dist['distribution'][0]['zone'], 4)
+    
+    def test_generate_zone_distribution_invalid_data(self):
+        """Zone distribution filters invalid data"""
+        zone_data = [
+            {'zone': 1, 'time_sec': 'invalid'},
+            {'zone': 4, 'time_sec': 3600},
+            {'zone': None, 'time_sec': 300},
+        ]
+        
+        dist = self.builder.generate_zone_distribution(zone_data=zone_data)
+        
+        self.assertIsNotNone(dist)
+        # Should only have valid zone 4
+        self.assertEqual(len(dist['distribution']), 1)
+    
+    # ==================== TSS/IF Metrics Tests ====================
+    
+    def test_generate_tss_if_metrics_from_power(self):
+        """TSS/IF metrics calculation from power"""
+        metrics = self.builder.generate_tss_if_metrics(
+            avg_power=200.0,
+            duration_seconds=3600,
+            ftp=280.0
+        )
+        
+        self.assertIsNotNone(metrics)
+        self.assertIn('tss', metrics)
+        self.assertIn('if', metrics)
+        self.assertAlmostEqual(metrics['tss'], 51.0, places=0)
+        self.assertAlmostEqual(metrics['if'], 0.71, places=1)
+    
+    def test_generate_tss_if_metrics_from_zones(self):
+        """TSS/IF metrics calculation from zone distribution"""
+        zone_distribution = [
+            {'zone': 1, 'time_sec': 300},
+            {'zone': 4, 'time_sec': 3000},
+            {'zone': 6, 'time_sec': 300},
+        ]
+        
+        metrics = self.builder.generate_tss_if_metrics(
+            zone_distribution=zone_distribution,
+            duration_seconds=3600,
+            workout_type='power_zone',
+            ftp=280.0
+        )
+        
+        self.assertIsNotNone(metrics)
+        self.assertIn('tss_from_zones', metrics)
+        self.assertGreater(metrics['tss_from_zones'], 0)
+    
+    def test_generate_tss_if_metrics_missing_data(self):
+        """TSS/IF metrics returns None for missing data"""
+        metrics = self.builder.generate_tss_if_metrics()
+        self.assertIsNone(metrics)
+    
+    # ==================== Summary Stats Tests ====================
+    
+    def test_generate_summary_stats_comprehensive(self):
+        """Summary stats generation with all data"""
+        performance_data = [
+            {'timestamp': 0, 'value': 100},
+            {'timestamp': 30, 'value': 200},
+            {'timestamp': 60, 'value': 150},
+        ]
+        zone_distribution = [
+            {'zone': 1, 'time_sec': 300},
+            {'zone': 4, 'time_sec': 3300},
+        ]
+        
+        stats = self.builder.generate_summary_stats(
+            performance_data=performance_data,
+            zone_distribution=zone_distribution,
+            duration_seconds=3600,
+            avg_power=150.0,
+            ftp=280.0,
+            calories=500.0
+        )
+        
+        self.assertIsNotNone(stats)
+        self.assertEqual(stats['duration_minutes'], 60.0)
+        self.assertEqual(stats['max_power'], 200)
+        self.assertEqual(stats['min_power'], 100)
+        self.assertEqual(stats['calories'], 500)
+        self.assertIn('tss', stats)
+    
+    def test_generate_summary_stats_duration_formatting(self):
+        """Summary stats formats duration correctly"""
+        # 1 hour 30 minutes
+        stats = self.builder.generate_summary_stats(duration_seconds=5400)
+        
+        self.assertIsNotNone(stats)
+        self.assertEqual(stats['duration_minutes'], 90.0)
+        self.assertEqual(stats['duration_formatted'], '1h 30m')
+        
+        # 45 minutes
+        stats = self.builder.generate_summary_stats(duration_seconds=2700)
+        self.assertEqual(stats['duration_formatted'], '45.0m')
+    
+    def test_generate_summary_stats_empty_data(self):
+        """Summary stats returns None for empty data"""
+        stats = self.builder.generate_summary_stats()
+        self.assertIsNone(stats)
+    
+    # ==================== Helper Method Tests ====================
+    
+    def test_downsample_points_performance(self):
+        """Downsampling reduces point count"""
+        points = [
+            {'timestamp': i, 'value': 100 + i}
+            for i in range(1000)
+        ]
+        
+        downsampled = self.builder._downsample_points(points, 50)
+        
+        self.assertLessEqual(len(downsampled), 60)
+        self.assertGreaterEqual(len(downsampled), 40)
+        # First and last points should be preserved
+        self.assertEqual(downsampled[0]['timestamp'], 0)
+        self.assertEqual(downsampled[-1]['timestamp'], 999)
+    
+    def test_downsample_points_small_dataset(self):
+        """Downsampling returns original if already small"""
+        points = [
+            {'timestamp': i, 'value': 100 + i}
+            for i in range(10)
+        ]
+        
+        downsampled = self.builder._downsample_points(points, 50)
+        
+        self.assertEqual(len(downsampled), 10)
+    
+    def test_zone_label_power_zones(self):
+        """Zone label generation for power zones"""
+        label = self.builder._get_zone_label(1, 'power_zone')
+        self.assertEqual(label, 'Recovery')
+        
+        label = self.builder._get_zone_label(4, 'power_zone')
+        self.assertEqual(label, 'Threshold')
+    
+    def test_zone_label_pace_zones(self):
+        """Zone label generation for pace zones"""
+        label = self.builder._get_zone_label('recovery', 'pace_target')
+        self.assertEqual(label, 'Recovery')
+        
+        label = self.builder._get_zone_label('moderate', 'pace_target')
+        self.assertEqual(label, 'Moderate')
+    
+    def test_zone_color_power_zones(self):
+        """Zone color generation for power zones"""
+        color = self.builder._get_zone_color(1, 'power_zone')
+        self.assertEqual(color, '#4472C4')
+        
+        color = self.builder._get_zone_color(7, 'power_zone')
+        self.assertEqual(color, '#8B0000')
+    
+    def test_zone_color_pace_zones(self):
+        """Zone color generation for pace zones"""
+        color = self.builder._get_zone_color('recovery', 'pace_target')
+        self.assertEqual(color, '#4472C4')
+        
+        color = self.builder._get_zone_color('max', 'pace_target')
+        self.assertEqual(color, '#8B0000')
+    
+    # ==================== Validation Tests ====================
+    
+    def test_is_valid_workout_type(self):
+        """Workout type validation"""
+        self.assertTrue(self.builder.is_valid_workout_type('power_zone'))
+        self.assertTrue(self.builder.is_valid_workout_type('pace_target'))
+        self.assertFalse(self.builder.is_valid_workout_type('invalid'))
+    
+    def test_is_sufficient_data(self):
+        """Data sufficiency check"""
+        # No data
+        self.assertFalse(self.builder.is_sufficient_data())
+        
+        # Only one performance point (insufficient)
+        self.assertFalse(
+            self.builder.is_sufficient_data(
+                performance_data=[{'timestamp': 0, 'value': 100}]
+            )
+        )
+        
+        # Two performance points (sufficient)
+        self.assertTrue(
+            self.builder.is_sufficient_data(
+                performance_data=[
+                    {'timestamp': 0, 'value': 100},
+                    {'timestamp': 30, 'value': 150},
+                ]
+            )
+        )
+        
+        # Zone distribution only (sufficient)
+        self.assertTrue(
+            self.builder.is_sufficient_data(
+                zone_distribution=[{'zone': 1, 'time_sec': 300}]
+            )
+        )
+    
+    # ==================== Integration Tests ====================
+    
+    def test_chart_builder_complete_workout(self):
+        """Complete workout chart generation"""
+        performance_data = [
+            {'timestamp': i, 'value': 100 + (50 * (i / 120))}
+            for i in range(0, 121, 10)
+        ]
+        zone_distribution = [
+            {'zone': 1, 'time_sec': 300},
+            {'zone': 4, 'time_sec': 3300},
+        ]
+        
+        # Generate all charts
+        perf_graph = self.builder.generate_performance_graph(
+            performance_data=performance_data,
+            workout_type='power_zone',
+            ftp=280.0
+        )
+        
+        zone_dist = self.builder.generate_zone_distribution(
+            zone_data=zone_distribution,
+            workout_type='power_zone'
+        )
+        
+        metrics = self.builder.generate_tss_if_metrics(
+            avg_power=150.0,
+            duration_seconds=3600,
+            ftp=280.0,
+            zone_distribution=zone_distribution,
+            workout_type='power_zone'
+        )
+        
+        stats = self.builder.generate_summary_stats(
+            performance_data=performance_data,
+            zone_distribution=zone_distribution,
+            duration_seconds=3600,
+            avg_power=150.0,
+            ftp=280.0
+        )
+        
+        # All should be generated
+        self.assertIsNotNone(perf_graph)
+        self.assertIsNotNone(zone_dist)
+        self.assertIsNotNone(metrics)
+        self.assertIsNotNone(stats)
+
