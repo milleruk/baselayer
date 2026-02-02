@@ -48,7 +48,34 @@
 
 <!-- Filters and Search -->
 <div class="mb-6 space-y-4">
-  <div class="relative z-40 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm">
+  <div class="md:hidden">
+    <button
+      type="button"
+      id="historyFiltersToggle"
+      class="w-full flex items-center justify-between gap-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-3 text-sm font-semibold text-gray-900 dark:text-white shadow-sm"
+      aria-expanded="false"
+      data-open-label="Hide filters"
+      data-closed-label="Show filters"
+      data-initial-open="{% if search_query or instructor_filter or duration_filter or tss_filter or has_charts_filter or class_type_filter or class_type_name_filter or order_by != '-completed_date' %}true{% else %}false{% endif %}"
+    >
+      <div class="text-left">
+        <span id="historyFiltersToggleLabel">Show filters</span>
+        <p class="text-xs font-normal text-gray-500 dark:text-gray-400">
+          {% if search_query or instructor_filter or duration_filter or tss_filter or has_charts_filter or class_type_filter or class_type_name_filter or order_by != '-completed_date' %}
+            Filters active
+          {% else %}
+            Search &amp; refine
+          {% endif %}
+        </p>
+      </div>
+      <span class="inline-flex items-center gap-1 text-primary">
+        <svg id="historyFiltersToggleIcon" class="h-4 w-4 transition-transform duration-200 transform" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+          <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.939l3.71-3.71a.75.75 0 111.06 1.061L10.53 12.53a.75.75 0 01-1.06 0L5.25 8.29a.75.75 0 01-.02-1.08z" clip-rule="evenodd" />
+        </svg>
+      </span>
+    </button>
+  </div>
+  <div id="historyFiltersPanel" class="relative z-40 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm hidden md:block">
     <div class="p-4 sm:p-5">
       <form id="historyFiltersForm" method="get" class="space-y-3">
         {% if workout_type_filter %}
@@ -232,6 +259,55 @@
     (function () {
       const form = document.getElementById('historyFiltersForm');
       const btn = document.getElementById('has-charts-toggle');
+      const filtersToggle = document.getElementById('historyFiltersToggle');
+      const filtersPanel = document.getElementById('historyFiltersPanel');
+      const filtersToggleLabel = document.getElementById('historyFiltersToggleLabel');
+      const filtersToggleIcon = document.getElementById('historyFiltersToggleIcon');
+      const mediaQuery = window.matchMedia('(min-width: 768px)');
+      const initialMobileOpen = filtersToggle?.dataset.initialOpen === 'true';
+
+      const updateFiltersPanelState = () => {
+        if (!filtersPanel) return;
+        const isDesktop = mediaQuery.matches;
+        const openLabel = filtersToggle?.dataset.openLabel || 'Hide filters';
+        const closedLabel = filtersToggle?.dataset.closedLabel || 'Show filters';
+
+        if (isDesktop) {
+          filtersPanel.classList.remove('hidden');
+          filtersPanel.dataset.mobileOpen = 'true';
+          filtersToggle?.setAttribute('aria-expanded', 'true');
+          filtersToggleLabel && (filtersToggleLabel.textContent = openLabel);
+          filtersToggleIcon?.classList.add('rotate-180');
+        } else {
+          const isOpen = filtersPanel.dataset.mobileOpen === 'true';
+          filtersPanel.classList.toggle('hidden', !isOpen);
+          filtersToggle?.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+          filtersToggleLabel && (filtersToggleLabel.textContent = isOpen ? openLabel : closedLabel);
+          filtersToggleIcon?.classList.toggle('rotate-180', isOpen);
+        }
+      };
+
+      if (filtersPanel) {
+        if (!filtersPanel.dataset.mobileOpen) {
+          filtersPanel.dataset.mobileOpen = initialMobileOpen ? 'true' : 'false';
+        }
+        updateFiltersPanelState();
+        if (typeof mediaQuery.addEventListener === 'function') {
+          mediaQuery.addEventListener('change', updateFiltersPanelState);
+        } else if (typeof mediaQuery.addListener === 'function') {
+          mediaQuery.addListener(updateFiltersPanelState);
+        }
+      }
+
+      if (filtersToggle && filtersPanel) {
+        filtersToggle.addEventListener('click', () => {
+          if (mediaQuery.matches) return;
+          const isOpen = filtersPanel.dataset.mobileOpen === 'true';
+          filtersPanel.dataset.mobileOpen = isOpen ? 'false' : 'true';
+          updateFiltersPanelState();
+        });
+      }
+
       if (!form) return;
 
       const submitNow = () => form.submit();

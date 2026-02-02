@@ -191,30 +191,36 @@
         {% endwith %}
         
         <!-- Action Buttons -->
-        <div class="flex flex-col sm:flex-row gap-2 mt-4">
-          <a href="{% url 'workouts:detail' workout.id %}" 
-             class="flex-1 px-4 py-2 text-sm font-medium text-white border border-gray-500 rounded-lg hover:bg-gray-700 hover:border-gray-400 transition-colors text-center">
-            View Details
+        <div class="mt-3 flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-gray-300">
+          <a href="{% url 'workouts:detail' workout.id %}"
+             class="flex-1 min-w-[140px] inline-flex items-center justify-center gap-1 rounded-md border border-gray-600/70 bg-gray-900/40 px-3 py-1.5 text-gray-100 hover:bg-gray-800/80 hover:border-gray-400 transition-colors">
+            <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12s3.75-7.5 9.75-7.5 9.75 7.5 9.75 7.5-3.75 7.5-9.75 7.5S2.25 12 2.25 12z" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
+            Details
           </a>
           {% if workout.peloton_url %}
-            <a href="{{ workout.peloton_url }}" target="_blank" rel="noopener noreferrer" 
-               class="flex-1 px-4 py-2 text-sm font-medium text-white border border-gray-500 rounded-lg hover:bg-gray-700 hover:border-gray-400 transition-colors text-center flex items-center justify-center gap-1">
-              View on Peloton
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+            <a href="{{ workout.peloton_url }}" target="_blank" rel="noopener noreferrer"
+               class="flex-1 min-w-[140px] inline-flex items-center justify-center gap-1 rounded-md border border-gray-600/70 bg-gray-900/40 px-3 py-1.5 text-gray-100 hover:bg-gray-800/80 hover:border-gray-400 transition-colors">
+              <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M14 3h7v7m0-7L10 14" />
+                <path stroke-linecap="round" stroke-linejoin="round" d="M21 14v7H3V3h7" />
               </svg>
+              Peloton
             </a>
           {% elif workout.ride_detail and workout.ride_detail.peloton_class_url %}
-            <a href="{{ workout.ride_detail.peloton_class_url }}" target="_blank" rel="noopener noreferrer" 
-               class="flex-1 px-4 py-2 text-sm font-medium text-white border border-gray-500 rounded-lg hover:bg-gray-700 hover:border-gray-400 transition-colors text-center flex items-center justify-center gap-1">
-              View on Peloton
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+            <a href="{{ workout.ride_detail.peloton_class_url }}" target="_blank" rel="noopener noreferrer"
+               class="flex-1 min-w-[140px] inline-flex items-center justify-center gap-1 rounded-md border border-gray-600/70 bg-gray-900/40 px-3 py-1.5 text-gray-100 hover:bg-gray-800/80 hover:border-gray-400 transition-colors">
+              <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M14 3h7v7m0-7L10 14" />
+                <path stroke-linecap="round" stroke-linejoin="round" d="M21 14v7H3V3h7" />
               </svg>
+              Peloton
             </a>
           {% else %}
-            <span class="flex-1 px-4 py-2 text-sm font-medium text-gray-500 border border-gray-700 rounded-lg text-center cursor-not-allowed opacity-50">
-              View on Peloton
+            <span class="flex-1 min-w-[140px] inline-flex items-center justify-center gap-1 rounded-md border border-gray-700/70 px-3 py-1.5 text-gray-500 opacity-60 cursor-not-allowed">
+              Peloton
             </span>
           {% endif %}
         </div>
@@ -235,7 +241,7 @@
               <script type="application/json" class="js-mini-chart-series">{{ workout.card_chart.series_json }}</script>
               <svg
                 viewBox="0 0 {{ workout.card_chart.width }} {{ workout.card_chart.height }}"
-                class="w-full h-28 sm:h-32"
+                class="w-full h-48 sm:h-56"
                 preserveAspectRatio="none"
                 aria-label="Workout chart preview"
                 role="img"

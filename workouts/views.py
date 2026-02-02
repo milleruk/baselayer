@@ -59,6 +59,40 @@ def detect_class_type(ride_data, ride_details=None):
         return 'power_zone'
     
     # Priority 2: Check pace_target_type for running/walking
+def _pace_zone_to_level(zone):
+    """
+    Map pace intensity zone identifier (string/int) to 1-7 level.
+    Returns None if unknown.
+    """
+    if isinstance(zone, (int, float)):
+        try:
+            value = int(round(float(zone)))
+        except Exception:
+            return None
+        if 0 <= value <= 6:
+            return value + 1
+        if 1 <= value <= 7:
+            return value
+        return None
+    if not isinstance(zone, str) or not zone:
+        return None
+    z = zone.strip().lower().replace('-', '_').replace(' ', '_')
+    if z.isdigit():
+        try:
+            val = int(z)
+        except ValueError:
+            val = None
+        if val is not None:
+            return _pace_zone_to_level(val)
+    if z in PACE_ZONE_KEY_TO_LEVEL:
+        return PACE_ZONE_KEY_TO_LEVEL[z]
+    compressed = z.replace('_', '')
+    for key, value in PACE_ZONE_KEY_TO_LEVEL.items():
+        if key.replace('_', '') == compressed:
+            return value
+    return None
+
+
     pace_target_type = ride_data.get('pace_target_type') or (ride_details.get('pace_target_type') if ride_details else None)
     if pace_target_type:
         return 'pace_target'
@@ -2986,14 +3020,189 @@ def _extract_spin_up_intervals(ride_detail):
     return merged
 
 
-def _pace_zone_to_level(zone):
-    """
-    Map pace intensity zone string to 1-7 level (RECOVERY=1 ... MAX=7).
-    Returns None if unknown.
-    """
-    if not isinstance(zone, str) or not zone:
+PACE_ZONE_LEVEL_TO_KEY = {
+    1: 'recovery',
+    2: 'easy',
+    3: 'moderate',
+    4: 'challenging',
+    5: 'hard',
+    6: 'very_hard',
+    7: 'max',
+}
+PACE_ZONE_KEY_TO_LEVEL = {v: k for k, v in PACE_ZONE_LEVEL_TO_KEY.items()}
+PACE_ZONE_LEVEL_ORDER = tuple(PACE_ZONE_LEVEL_TO_KEY.keys())
+PACE_ZONE_LEVEL_LABELS = {
+    1: "RECOVERY",
+    2: "EASY",
+    3: "MODERATE",
+    4: "CHALLENGING",
+    5: "HARD",
+    6: "VERY HARD",
+    7: "MAX",
+}
+PACE_ZONE_LEVEL_DISPLAY = {
+    1: "Recovery",
+    2: "Easy",
+    3: "Moderate",
+    4: "Challenging",
+    5: "Hard",
+    6: "Very Hard",
+    7: "Max",
+}
+PACE_ZONE_COLORS = {
+    7: "rgba(239, 68, 68, 0.55)",
+    6: "rgba(249, 115, 22, 0.55)",
+    5: "rgba(245, 158, 11, 0.55)",
+    4: "rgba(34, 197, 94, 0.55)",
+    3: "rgba(20, 184, 166, 0.55)",
+    2: "rgba(59, 130, 246, 0.55)",
+    1: "rgba(124, 58, 237, 0.55)",
+}
+
+
+def _pace_zone_label_from_level(level, uppercase=True):
+    try:
+        lvl = int(level)
+    except Exception:
         return None
-    z = zone.strip().lower().replace(" ", "_")
+    labels = PACE_ZONE_LEVEL_LABELS if uppercase else PACE_ZONE_LEVEL_DISPLAY
+    return labels.get(lvl)
+
+
+def _mph_from_pace_value(pace_value):
+    def _minutes_from_numeric(value):
+        try:
+            minutes = float(value)
+        except (TypeError, ValueError):
+            return None
+        if minutes <= 0:
+            return None
+        # Peloton APIs sometimes return pace as seconds per mile (e.g., 360 for 6:00/mi).
+        # Detect clearly out-of-range "minutes" values and treat them as seconds.
+        if minutes >= 60:
+            minutes = minutes / 60.0
+        return minutes
+
+    if isinstance(pace_value, (int, float)):
+        minutes = _minutes_from_numeric(pace_value)
+        return 60.0 / minutes if minutes else None
+
+    if isinstance(pace_value, str):
+        pace_value = pace_value.strip()
+        if not pace_value:
+            return None
+        try:
+            if ':' in pace_value:
+                mins, secs = pace_value.split(':', 1)
+                total_minutes = int(mins) + float(secs) / 60.0
+            else:
+                total_minutes = _minutes_from_numeric(float(pace_value))
+            if total_minutes and total_minutes > 0:
+                return 60.0 / total_minutes
+        except (ValueError, ZeroDivisionError):
+            return None
+    return None
+
+
+def _pace_zone_level_from_speed(speed_mph, pace_ranges):
+    if not isinstance(speed_mph, (int, float)) or not pace_ranges:
+        return None
+    speed = float(speed_mph)
+    for level in PACE_ZONE_LEVEL_ORDER:
+        rng = pace_ranges.get(level)
+        if not rng:
+            continue
+        max_mph = rng.get('max_mph')
+        if isinstance(max_mph, (int, float)) and speed <= max_mph + 1e-6:
+            return level
+    return PACE_ZONE_LEVEL_ORDER[-1]
+
+
+def _scaled_pace_zone_value_from_speed(speed_mph, pace_ranges):
+    level = _pace_zone_level_from_speed(speed_mph, pace_ranges)
+    if not isinstance(level, int):
+        return None
+    rng = pace_ranges.get(level) or {}
+    try:
+        min_mph = float(rng.get('min_mph', 0.0))
+        max_mph = float(rng.get('max_mph', min_mph + 0.5))
+        speed = float(speed_mph)
+    except (TypeError, ValueError):
+        return float(level)
+    span = max(max_mph - min_mph, 0.25)
+    clamped = min(max(speed, min_mph), max_mph)
+    frac = (clamped - min_mph) / span
+    return (level - 0.5) + max(0.0, min(frac, 1.0))
+
+
+def _resolve_pace_context(user_profile, workout_date, discipline):
+    activity_type = 'walking' if discipline in ['walking', 'walk'] else 'running'
+    pace_level = None
+    if user_profile and workout_date and hasattr(user_profile, 'get_pace_at_date'):
+        try:
+            pace_level = user_profile.get_pace_at_date(workout_date, activity_type=activity_type)
+        except Exception:
+            pace_level = None
+    if pace_level is None and user_profile and hasattr(user_profile, 'get_current_pace'):
+        try:
+            pace_level = user_profile.get_current_pace(activity_type=activity_type)
+        except Exception:
+            pace_level = None
+    if pace_level is None and user_profile:
+        pace_level = getattr(user_profile, 'pace_target_level', None)
+    try:
+        pace_level = int(pace_level)
+    except Exception:
+        pace_level = None
+    if pace_level is None or pace_level < 1 or pace_level > 10:
+        pace_level = 5
+
+    pace_level_data = None
+    try:
+        if activity_type == 'walking':
+            from accounts.walking_pace_levels_data import DEFAULT_WALKING_PACE_LEVELS
+
+            pace_level_data = DEFAULT_WALKING_PACE_LEVELS.get(pace_level)
+        else:
+            from accounts.pace_converter import DEFAULT_RUNNING_PACE_LEVELS
+
+            pace_level_data = DEFAULT_RUNNING_PACE_LEVELS.get(pace_level)
+    except Exception:
+        pace_level_data = None
+
+    pace_ranges = {}
+    pace_zone_thresholds = {}
+    if pace_level_data:
+        for level in PACE_ZONE_LEVEL_ORDER:
+            key = PACE_ZONE_LEVEL_TO_KEY[level]
+            zone_tuple = pace_level_data.get(key)
+            if not zone_tuple or len(zone_tuple) < 5:
+                continue
+            try:
+                min_mph = float(zone_tuple[0])
+                max_mph = float(zone_tuple[1])
+                min_pace = float(zone_tuple[2])  # decimal minutes per mile
+            except (TypeError, ValueError):
+                continue
+            pace_ranges[level] = {
+                'min_mph': min_mph,
+                'max_mph': max_mph,
+                'mid_mph': (min_mph + max_mph) / 2.0,
+                'zone_key': key,
+            }
+            try:
+                pace_zone_thresholds[key] = int(round(min_pace * 60.0))
+            except Exception:
+                continue
+
+    return {
+        'activity_type': activity_type,
+        'pace_level': pace_level,
+        'pace_ranges': pace_ranges or None,
+        'pace_zone_thresholds': pace_zone_thresholds or None,
+    }
+
+
     mapping = {
         "recovery": 1,
         "easy": 2,
@@ -3032,6 +3241,18 @@ def _build_workout_card_chart(workout, user_profile=None):
         except Exception:
             user_ftp = None
     zone_ranges = _zone_ranges_for_ftp(user_ftp) if user_ftp else None
+    pace_context = None
+    pace_ranges = None
+    pace_zone_thresholds = None
+    pace_level_value = None
+    activity_type = None
+    if is_pace:
+        pace_context = _resolve_pace_context(user_profile, workout_date, discipline)
+        if isinstance(pace_context, dict):
+            activity_type = pace_context.get('activity_type')
+            pace_ranges = pace_context.get('pace_ranges') or None
+            pace_zone_thresholds = pace_context.get('pace_zone_thresholds') or None
+            pace_level_value = pace_context.get('pace_level')
 
     # Decide which series to chart
     metric_key = None
@@ -3072,6 +3293,15 @@ def _build_workout_card_chart(workout, user_profile=None):
                 lvl = _pace_zone_to_level(z)
                 if isinstance(lvl, int):
                     point['sv'] = float(lvl)
+            if pace_ranges:
+                sv = _scaled_pace_zone_value_from_speed(point['v'], pace_ranges)
+                if sv is not None:
+                    point['sv'] = sv
+                if not point.get('z'):
+                    lvl = _pace_zone_level_from_speed(point['v'], pace_ranges)
+                    label = _pace_zone_label_from_level(lvl) if lvl else None
+                    if label:
+                        point['z'] = label
         elif chart_kind == 'cycling_output_zones':
             # Non–PZ cycling should follow power zones (not pace/intensity bands)
             zc = _power_zone_for_output(point['v'], zone_ranges)
@@ -3088,18 +3318,7 @@ def _build_workout_card_chart(workout, user_profile=None):
     scaled_min = None
     scaled_max = None
     display_max_zone = 7
-    if chart_kind in ['power_zone', 'cycling_output_zones']:
-        max_zone_hit = 0
-        for pt in series:
-            z_val = pt.get('sv') or pt.get('z')
-            try:
-                z_int = int(round(float(z_val))) if z_val is not None else None
-            except Exception:
-                z_int = None
-            if isinstance(z_int, int) and 1 <= z_int <= 7:
-                max_zone_hit = max(max_zone_hit, z_int)
-        if max_zone_hit > 0:
-            display_max_zone = min(7, max_zone_hit + 2)
+    if chart_kind in ['power_zone', 'cycling_output_zones', 'pace']:
         scaled_min = 0.5
         scaled_max = display_max_zone + 0.5
 
@@ -3124,73 +3343,34 @@ def _build_workout_card_chart(workout, user_profile=None):
                     'zone': z,
                 })
         elif chart_kind == 'pace' and hasattr(ride, 'get_pace_segments'):
-            activity_type = 'walking' if discipline in ['walking', 'walk'] else 'running'
-            pace_level = None
-            if user_profile and workout_date and hasattr(user_profile, 'get_pace_at_date'):
-                try:
-                    pace_level = user_profile.get_pace_at_date(workout_date, activity_type=activity_type)
-                except Exception:
-                    pace_level = None
-            if pace_level is None and user_profile and hasattr(user_profile, 'get_current_pace'):
-                try:
-                    pace_level = user_profile.get_current_pace(activity_type=activity_type)
-                except Exception:
-                    pace_level = None
-            if pace_level is None and user_profile:
-                pace_level = getattr(user_profile, 'pace_target_level', None)
-            if pace_level is None:
-                pace_level = 5
-
-            # Prefer user-defined PaceLevel/PaceBand (most accurate), fallback to derived pace zones
-            pace_zones = None
-            try:
-                from accounts.models import PaceLevel
-
-                if user_profile and workout_date:
-                    lvl = int(pace_level)
-                    pace_level_obj = (
-                        PaceLevel.objects.filter(
-                            user=user_profile.user,
-                            activity_type=activity_type,
-                            level=lvl,
-                            recorded_date__lte=workout_date,
-                        )
-                        .prefetch_related('bands')
-                        .order_by('-recorded_date', '-updated_at', '-created_at')
-                        .first()
-                    )
-                    if pace_level_obj and hasattr(pace_level_obj, 'bands'):
-                        pace_zones = {}
-                        for band in pace_level_obj.bands.all():
-                            try:
-                                min_p = float(band.min_pace)
-                                max_p = float(band.max_pace)
-                                if min_p > 0 and max_p > 0:
-                                    pace_zones[str(band.zone)] = (min_p + max_p) / 2.0
-                            except Exception:
-                                continue
-            except Exception:
-                pace_zones = None
-
+            pace_zones = pace_zone_thresholds
             if not pace_zones:
-                pace_zones = _pace_zone_targets_for_level(pace_level)
+                fallback_level = pace_level_value or 5
+                pace_zones = _pace_zone_targets_for_level(fallback_level)
             pace_segments = ride.get_pace_segments(user_pace_zones=pace_zones)
             target_segments = []
             for seg in (pace_segments or []):
-                pr = seg.get('pace_range')  # minutes per mile
+                raw_zone = seg.get('zone') or seg.get('zone_name') or seg.get('pace_level')
+                zone_level = _pace_zone_to_level(raw_zone)
                 tv = None
-                try:
-                    pr = float(pr) if pr is not None else None
-                    if pr and pr > 0:
-                        tv = 60.0 / pr  # mph target
-                except Exception:
-                    tv = None
+                for key in ('target_speed_mph', 'target_mph'):
+                    value = seg.get(key)
+                    if isinstance(value, (int, float)):
+                        tv = float(value)
+                        break
+                if tv is None:
+                    tv = _mph_from_pace_value(seg.get('pace_range') or seg.get('pace_target'))
+                if tv is None and pace_ranges and isinstance(zone_level, int):
+                    zone_meta = pace_ranges.get(zone_level)
+                    if zone_meta:
+                        tv = zone_meta.get('mid_mph')
                 target_segments.append({
                     'start': seg.get('start', 0),
                     'end': seg.get('end', 0),
                     'target': tv,
                     'zone': seg.get('zone'),
                     'zone_name': seg.get('zone_name'),
+                    'zone_level': zone_level,
                 })
     except Exception:
         target_segments = None
@@ -3222,15 +3402,57 @@ def _build_workout_card_chart(workout, user_profile=None):
                     if isinstance(stv, (int, float)):
                         pt['stv'] = stv
                 elif chart_kind == 'pace':
-                    zt = seg.get('zone')
-                    if isinstance(zt, str):
-                        lvl = _pace_zone_to_level(zt)
+                    stv = None
+                    if isinstance(tv, (int, float)) and pace_ranges:
+                        stv = _scaled_pace_zone_value_from_speed(tv, pace_ranges)
+                    if stv is None:
+                        lvl = seg.get('zone_level') or _pace_zone_to_level(seg.get('zone') or seg.get('zone_name'))
                         if isinstance(lvl, int):
-                            pt['stv'] = float(lvl)
+                            stv = float(lvl)
+                    if isinstance(stv, (int, float)):
+                        pt['stv'] = stv
+
+    if chart_kind in ['power_zone', 'cycling_output_zones', 'pace']:
+        zone_cap = 7
+        max_zone_hit = 0
+
+        def _apply_zone_candidate(candidate):
+            nonlocal max_zone_hit
+            if candidate is None:
+                return
+            if chart_kind == 'pace' and not isinstance(candidate, (int, float)):
+                lvl = _pace_zone_to_level(candidate)
+            else:
+                try:
+                    lvl = int(round(float(candidate)))
+                except Exception:
+                    lvl = None
+            if isinstance(lvl, int) and 1 <= lvl <= zone_cap:
+                max_zone_hit = max(max_zone_hit, lvl)
+
+        for pt in series:
+            if isinstance(pt.get('sv'), (int, float)):
+                _apply_zone_candidate(pt.get('sv'))
+            else:
+                _apply_zone_candidate(pt.get('z'))
+
+        if target_segments:
+            for seg in target_segments or []:
+                candidate = None
+                if isinstance(seg, dict):
+                    candidate = seg.get('zone_level')
+                    if candidate is None:
+                        candidate = seg.get('zone') or seg.get('zone_name')
+                _apply_zone_candidate(candidate)
+
+        if max_zone_hit > 0:
+            display_max_zone = min(zone_cap, max_zone_hit + 2)
+        scaled_min = 0.5
+        scaled_max = display_max_zone + 0.5
 
     width = 420
     height = 150
-    preserve_full_series = chart_kind in ['power_zone', 'cycling_output_zones']
+    preserve_full_series = chart_kind in ['power_zone', 'cycling_output_zones', 'pace']
     points_str, plot_box, points_list, vmin, vmax = _normalize_series_to_svg_points(
         series,
         width=width,
@@ -3256,25 +3478,15 @@ def _build_workout_card_chart(workout, user_profile=None):
     labels = []
 
     if is_pace:
-        # Intensity zones (fixed bands for card preview)
-        labels = ["MAX", "VERY HARD", "HARD", "CHALLENGING", "MODERATE", "EASY", "RECOVERY"]
-        colors = [
-            "rgba(239, 68, 68, 0.55)",   # red-500
-            "rgba(249, 115, 22, 0.55)",  # orange-500
-            "rgba(245, 158, 11, 0.55)",  # amber-500
-            "rgba(34, 197, 94, 0.55)",   # green-500
-            "rgba(20, 184, 166, 0.55)",  # teal-500
-            "rgba(59, 130, 246, 0.55)",  # blue-500
-            "rgba(124, 58, 237, 0.55)",  # violet-600
-        ]
-        band_h = plot_h / 7.0
-        for i in range(7):
+        zone_levels = list(range(display_max_zone, 0, -1)) or list(reversed(PACE_ZONE_LEVEL_ORDER))
+        band_h = plot_h / float(len(zone_levels)) if zone_levels else plot_h
+        for idx, level in enumerate(zone_levels):
             bands.append({
-                'y': plot_y0 + i * band_h,
+                'y': plot_y0 + idx * band_h,
                 'h': band_h,
-                'fill': colors[i],
-                'label': labels[i],
-                'label_y': plot_y0 + i * band_h + band_h / 2.0,
+                'fill': PACE_ZONE_COLORS.get(level, "rgba(59, 130, 246, 0.55)"),
+                'label': _pace_zone_label_from_level(level) or f"Zone {level}",
+                'label_y': plot_y0 + idx * band_h + band_h / 2.0,
             })
 
     elif chart_kind in ['power_zone', 'cycling_output_zones']:

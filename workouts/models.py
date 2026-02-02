@@ -348,20 +348,37 @@ class RideDetail(models.Model):
         
         power_zone_segments = []
         for segment in segments:
-            if segment['type'] == 'power_zone':
+            segment_type = (segment.get('type') or '').lower()
+            zone_num = None
+
+            if segment_type == 'power_zone':
                 for metric in segment.get('metrics', []):
                     if metric.get('name') == 'power_zone':
                         zone_lower = metric.get('lower')
                         zone_upper = metric.get('upper')
-                        # Use the zone number (typically lower == upper for PZ classes)
                         zone_num = zone_lower if zone_lower == zone_upper else zone_lower
-                        
-                        power_zone_segments.append({
-                            'start': segment['start'],
-                            'end': segment['end'],
-                            'zone': zone_num,
-                            'watt_range': zone_ranges.get(zone_num) if user_ftp else None
-                        })
+                        break
+            elif 'spin' in segment_type and 'up' in segment_type:
+                zone_num = 1  # Treat all spin-up segments as Zone 1 targets
+
+            if zone_num is None:
+                continue
+
+            try:
+                zone_num = int(zone_num)
+            except (TypeError, ValueError):
+                continue
+
+            zone_num = max(1, min(7, zone_num))
+
+            power_zone_segments.append({
+                'start': segment.get('start', 0),
+                'end': segment.get('end', 0),
+                'zone': zone_num,
+                'watt_range': zone_ranges.get(zone_num) if user_ftp else None,
+                'segment_type': segment_type,
+                'type': segment_type
+            })
         
         return power_zone_segments
     

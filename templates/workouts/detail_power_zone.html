@@ -521,14 +521,15 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   // Power Zone colors + labels
+  // Match history page palette (mirrors Peloton zone colors)
   const zoneColors = {
-    1: '#6f42c1', // Z1
-    2: '#4c6ef5', // Z2
-    3: '#228be6', // Z3
-    4: '#0ca678', // Z4
-    5: '#ff922b', // Z5
-    6: '#f76707', // Z6
-    7: '#fa5252'  // Z7
+    1: '#6f42c1',
+    2: '#17a2b8',
+    3: '#28a745',
+    4: '#ffc107',
+    5: '#fd7e14',
+    6: '#dc3545',
+    7: '#6610f2'
   };
   const zoneShortLabels = { 1: 'Zone 1', 2: 'Zone 2', 3: 'Zone 3', 4: 'Zone 4', 5: 'Zone 5', 6: 'Zone 6', 7: 'Zone 7' };
 
@@ -683,6 +684,9 @@ document.addEventListener('DOMContentLoaded', function() {
         responsive: true,
         maintainAspectRatio: false,
         animation: false,
+        layout: {
+          padding: 0
+        },
         interaction: {
           mode: 'index',
           intersect: false,
@@ -730,27 +734,17 @@ document.addEventListener('DOMContentLoaded', function() {
             type: 'linear',
             min: 0,
             max: workoutDuration,
-            title: {
-              display: false
-            },
-            grid: { color: 'rgba(255, 255, 255, 0.06)', drawBorder: false },
-            ticks: {
-              autoSkip: true,
-              maxTicksLimit: 9,
-              callback: function(value) { return formatTime(value); },
-              color: 'rgba(255, 255, 255, 0.7)',
-              font: { size: 12 }
-            },
+            display: false,
+            grid: { display: false, drawBorder: false },
+            ticks: { display: false },
             border: { display: false }
           },
           y: {
             type: 'linear',
             position: 'left',
-            title: {
-              display: false
-            },
-            grid: { color: 'rgba(255, 255, 255, 0.1)', drawOnChartArea: true, drawTicks: false },
-            ticks: { color: 'rgba(255, 255, 255, 0.7)' },
+            display: false,
+            grid: { display: false, drawOnChartArea: false, drawTicks: false },
+            ticks: { display: false },
             border: { display: false }
           }
         }

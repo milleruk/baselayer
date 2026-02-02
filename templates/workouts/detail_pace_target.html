@@ -293,19 +293,19 @@
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-2">
               {% if zone_info.zone == 7 or zone_info.name == 'Max' %}
-                <div class="w-4 h-4 rounded" style="background-color: #fa5252;"></div>
+                <div class="w-4 h-4 rounded" style="background-color: #ef4444;"></div>
               {% elif zone_info.zone == 6 or zone_info.name == 'Very Hard' %}
-                <div class="w-4 h-4 rounded" style="background-color: #f76707;"></div>
+                <div class="w-4 h-4 rounded" style="background-color: #ea580c;"></div>
               {% elif zone_info.zone == 5 or zone_info.name == 'Hard' %}
-                <div class="w-4 h-4 rounded" style="background-color: #ff922b;"></div>
+                <div class="w-4 h-4 rounded" style="background-color: #f97316;"></div>
               {% elif zone_info.zone == 4 or zone_info.name == 'Challenging' %}
-                <div class="w-4 h-4 rounded" style="background-color: #0ca678;"></div>
+                <div class="w-4 h-4 rounded" style="background-color: #10b981;"></div>
               {% elif zone_info.zone == 3 or zone_info.name == 'Moderate' %}
-                <div class="w-4 h-4 rounded" style="background-color: #228be6;"></div>
+                <div class="w-4 h-4 rounded" style="background-color: #3b82f6;"></div>
               {% elif zone_info.zone == 2 or zone_info.name == 'Easy' %}
-                <div class="w-4 h-4 rounded" style="background-color: #4c6ef5;"></div>
+                <div class="w-4 h-4 rounded" style="background-color: #6366f1;"></div>
               {% elif zone_info.zone == 1 or zone_info.name == 'Recovery' %}
-                <div class="w-4 h-4 rounded" style="background-color: #6f42c1;"></div>
+                <div class="w-4 h-4 rounded" style="background-color: #a855f7;"></div>
               {% endif %}
               <span class="text-sm text-gray-700 dark:text-gray-300">{{ zone_info.name }}</span>
             </div>
@@ -479,14 +479,14 @@
 
 {% block extra_body %}
 <style>
-/* Pace zone colors - for zone distribution display */
-.pace-color-1 { background: linear-gradient(to right, #a855f7, #9333ea); } /* Recovery */
+/* Pace zone colors mirror Peloton's cue palette */
+.pace-color-1 { background: linear-gradient(to right, #a855f7, #7c3aed); } /* Recovery */
 .pace-color-2 { background: linear-gradient(to right, #6366f1, #4f46e5); } /* Easy */
 .pace-color-3 { background: linear-gradient(to right, #3b82f6, #2563eb); } /* Moderate */
 .pace-color-4 { background: linear-gradient(to right, #10b981, #059669); } /* Challenging */
 .pace-color-5 { background: linear-gradient(to right, #f97316, #ea580c); } /* Hard */
-.pace-color-6 { background: linear-gradient(to right, #f97316, #ea580c); } /* Very Hard */
-.pace-color-7 { background: linear-gradient(to right, #ef4444, #dc2626); } /* Max */
+.pace-color-6 { background: linear-gradient(to right, #ea580c, #c2410c); } /* Very Hard */
+.pace-color-7 { background: linear-gradient(to right, #ef4444, #b91c1c); } /* Max */
 
 /* Music timeline */
 #musicTimeline.hidden { display: none; }
@@ -562,15 +562,15 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }
   
-  // Pace level colors and names (matching class library)
+  // Pace level colors mirror Peloton's official cue palette
   const PACE_LEVEL_COLORS = {
-    1: "#6f42c1",  // Purple - Recovery
-    2: "#4c6ef5",  // Blue - Easy  
-    3: "#228be6",  // Light Blue - Moderate
-    4: "#0ca678",  // Green - Challenging
-    5: "#ff922b",  // Orange - Hard
-    6: "#f76707",  // Dark Orange - Very Hard
-    7: "#fa5252"   // Red - Max
+    1: "#a855f7",  // Recovery
+    2: "#6366f1",  // Easy
+    3: "#3b82f6",  // Moderate
+    4: "#10b981",  // Challenging
+    5: "#f97316",  // Hard
+    6: "#ea580c",  // Very Hard
+    7: "#ef4444"   // Max
   };
   
   const PACE_LEVEL_NAMES = {
@@ -781,6 +781,9 @@ document.addEventListener('DOMContentLoaded', function() {
         responsive: true,
         maintainAspectRatio: false,
         animation: false,
+        layout: {
+          padding: 0
+        },
         interaction: {
           mode: 'index',
           intersect: false,
@@ -850,21 +853,13 @@ document.addEventListener('DOMContentLoaded', function() {
             type: 'linear',
             min: 0,
             max: workoutDuration,
-            title: {
-              display: false
-            },
+            display: false,
             grid: {
-              color: 'rgba(255, 255, 255, 0.06)',
+              display: false,
               drawBorder: false
             },
             ticks: {
-              autoSkip: true,
-              maxTicksLimit: 9,
-              callback: function(value) {
-                return formatTime(value);
-              },
-              color: 'rgba(255, 255, 255, 0.7)',
-              font: { size: 12 }
+              display: false
             },
             border: { display: false }
           },
@@ -872,17 +867,14 @@ document.addEventListener('DOMContentLoaded', function() {
             type: 'linear',
             min: (yMinMph !== null ? yMinMph : 0),
             max: (yMaxMph !== null ? yMaxMph : 12),
-            title: {
-              display: false
-            },
+            display: false,
             grid: {
-              color: 'rgba(255, 255, 255, 0.1)',
-              drawOnChartArea: true,
+              display: false,
+              drawOnChartArea: false,
               drawTicks: false
             },
             ticks: {
-              display: false,  // Hide ticks - zone labels are overlaid
-              color: 'rgba(255, 255, 255, 0.7)'
+              display: false
             },
             border: { display: false }
           }

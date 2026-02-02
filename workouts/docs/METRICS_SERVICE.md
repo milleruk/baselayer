@@ -406,13 +406,13 @@ BASE_PACES_BY_LEVEL = {
 
 # Zone power percentages (% of FTP for normalized power)
 ZONE_POWER_PERCENTAGES = {
-    1: 0.275,  # Midpoint of 0-55%
+    1: 0.45,   # Peloton-style active recovery target (~45% FTP)
     2: 0.65,   # Midpoint of 55-75%
     3: 0.825,  # Midpoint of 75-90%
     4: 0.975,  # Midpoint of 90-105%
     5: 1.125,  # Midpoint of 105-120%
     6: 1.35,   # Midpoint of 120-150%
-    7: 1.75,   # Conservative estimate for 150%+
+    7: 1.60,   # Sprint target (~160% FTP)
 }
 ```
 

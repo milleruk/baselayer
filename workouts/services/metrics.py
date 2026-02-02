@@ -48,14 +48,29 @@ class MetricsCalculator:
 
     # Power zone percentages (% of FTP) for normalized power calculation
     ZONE_POWER_PERCENTAGES = {
-        1: 0.275,  # 0-55% FTP, use 27.5% (midpoint of 0-55%)
-        2: 0.65,   # 55-75% FTP, use 65%
-        3: 0.825,  # 75-90% FTP, use 82.5%
-        4: 0.975,  # 90-105% FTP, use 97.5%
-        5: 1.125,  # 105-120% FTP, use 112.5%
-        6: 1.35,   # 120-150% FTP, use 135%
-        7: 1.75,   # 150%+ FTP, use 175% (conservative estimate)
+        1: 0.45,   # Peloton Z1 target (active recovery ~45% FTP)
+        2: 0.65,   # Z2 midpoint of 55-75%
+        3: 0.825,  # Z3 midpoint of 75-90%
+        4: 0.975,  # Z4 midpoint of 90-105%
+        5: 1.125,  # Z5 midpoint of 105-120%
+        6: 1.35,   # Z6 midpoint of 120-150%
+        7: 1.60,   # Z7 sprint target (~160% FTP)
     }
+
+    def get_power_zone_target_watts(self, ftp: Optional[float]) -> Optional[Dict[int, int]]:
+        """Return Peloton-style target wattage for each power zone."""
+        try:
+            ftp_val = float(ftp)
+        except (TypeError, ValueError):
+            return None
+
+        if ftp_val <= 0:
+            return None
+
+        targets = {}
+        for zone, percentage in self.ZONE_POWER_PERCENTAGES.items():
+            targets[zone] = int(round(ftp_val * percentage))
+        return targets
 
     def calculate_tss(
         self,

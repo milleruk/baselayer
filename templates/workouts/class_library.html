@@ -267,13 +267,13 @@ const userWalkingPaceZones = {% if user_walking_pace_zones %}{{ user_walking_pac
 
 // Power Zone percentages (based on FTP)
 const powerZonePercentages = {
-  1: 0.55,  // Zone 1: 50-65% (using middle ~55%)
-  2: 0.75,  // Zone 2: 65-85% (using middle ~75%)
-  3: 0.85,  // Zone 3: 80-90% (using middle ~85%)
-  4: 0.975, // Zone 4: 95-100% (using middle ~97.5%)
-  5: 1.125, // Zone 5: 110-115% (using middle ~112.5%)
-  6: 1.35,  // Zone 6: 130-140% (using middle ~135%)
-  7: 1.75   // Zone 7: 170%+ (using 175%)
+  1: 0.45,   // Zone 1: Peloton active recovery target (~45%)
+  2: 0.65,   // Zone 2: midpoint of 55-75%
+  3: 0.825,  // Zone 3: midpoint of 75-90%
+  4: 0.975,  // Zone 4: midpoint of 90-105%
+  5: 1.125,  // Zone 5: midpoint of 105-120%
+  6: 1.35,   // Zone 6: midpoint of 120-150%
+  7: 1.60    // Zone 7: sprint target (~160%)
 };
 
 // Helper to format pace (minutes per mile)
