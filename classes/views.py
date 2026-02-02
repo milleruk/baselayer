@@ -14,7 +14,13 @@ from accounts.pace_converter import DEFAULT_RUNNING_PACE_LEVELS
 from accounts.walking_pace_levels_data import DEFAULT_WALKING_PACE_LEVELS
 
 from core.utils.pace_converter import pace_str_from_mph
-from core.utils.workout_targets import extract_spin_up_intervals, calculate_target_line_from_segments
+from core.utils.workout_targets import (
+    extract_spin_up_intervals,
+    calculate_target_line_from_segments,
+    calculate_pace_target_line_from_segments,
+    calculate_power_zone_target_line,
+    target_segment_at_time_with_shift,
+)
 from workouts.services.workout_helpers import estimate_workout_avg_speed_mph, estimate_workout_if_from_tss
 
 import logging
@@ -23,6 +29,40 @@ logger = logging.getLogger(__name__)
 
 # Initialize service instances
 metrics_calculator = MetricsCalculator()
+
+
+# Wrapper functions that need access to metrics_calculator
+def _extract_spin_up_intervals(ride_detail):
+    """Wrapper for extract_spin_up_intervals from core.utils.workout_targets."""
+    return extract_spin_up_intervals(ride_detail)
+
+
+def _calculate_target_line_from_segments(segments, zone_ranges, seconds_array, user_ftp=None, spin_up_intervals=None):
+    """Wrapper for calculate_target_line_from_segments from core.utils.workout_targets."""
+    # Pass zone_power_percentages from MetricsCalculator
+    return calculate_target_line_from_segments(
+        segments, zone_ranges, seconds_array, user_ftp, spin_up_intervals,
+        zone_power_percentages=metrics_calculator.ZONE_POWER_PERCENTAGES
+    )
+
+
+def _calculate_pace_target_line_from_segments(segments, seconds_array):
+    """Wrapper for calculate_pace_target_line_from_segments from core.utils.workout_targets."""
+    return calculate_pace_target_line_from_segments(segments, seconds_array)
+
+
+def _calculate_power_zone_target_line(target_metrics_list, user_ftp, seconds_array):
+    """Wrapper for calculate_power_zone_target_line from core.utils.workout_targets."""
+    # Pass zone_power_percentages from MetricsCalculator
+    return calculate_power_zone_target_line(
+        target_metrics_list, user_ftp, seconds_array,
+        zone_power_percentages=metrics_calculator.ZONE_POWER_PERCENTAGES
+    )
+
+
+def _target_segment_at_time_with_shift(segments, t_seconds, shift_seconds=0):
+    """Wrapper for target_segment_at_time_with_shift from core.utils.workout_targets."""
+    return target_segment_at_time_with_shift(segments, t_seconds, shift_seconds)
 
 def class_library(request):
     """Display all available classes/rides with filtering and pagination"""
