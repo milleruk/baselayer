@@ -12,7 +12,7 @@
 <div class="mb-6 space-y-4">
   <!-- Search Bar -->
   <form 
-    hx-get="{% url 'workouts:library' %}"
+    hx-get="{%url 'classes:library' %}"
     hx-target="#class-list-container"
     hx-swap="innerHTML"
     hx-trigger="submit, change from:.filter-select delay:300ms"
@@ -32,7 +32,7 @@
         name="search" 
         value="{{ search_query }}" 
         placeholder="Search classes by title or instructor" 
-        hx-get="{% url 'workouts:library' %}"
+        hx-get="{%url 'classes:library' %}"
         hx-target="#class-list-container"
         hx-swap="innerHTML"
         hx-trigger="keyup changed delay:500ms, search"
@@ -144,8 +144,8 @@
   <!-- Workout Type Tabs -->
   <div class="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
     <div class="flex gap-1 border-b border-gray-200 dark:border-gray-700 min-w-max sm:min-w-0">
-      <a href="{% url 'workouts:library' %}?{% if search_query %}search={{ search_query }}&{% endif %}{% if instructor_filter %}instructor={{ instructor_filter }}&{% endif %}{% if duration_filter %}duration={{ duration_filter }}&{% endif %}{% if tss_filter %}tss={{ tss_filter }}&{% endif %}{% if year_filter %}year={{ year_filter }}&{% endif %}{% if month_filter %}month={{ month_filter }}&{% endif %}"
-         hx-get="{% url 'workouts:library' %}?{% if search_query %}search={{ search_query }}&{% endif %}{% if instructor_filter %}instructor={{ instructor_filter }}&{% endif %}{% if duration_filter %}duration={{ duration_filter }}&{% endif %}{% if tss_filter %}tss={{ tss_filter }}&{% endif %}{% if year_filter %}year={{ year_filter }}&{% endif %}{% if month_filter %}month={{ month_filter }}&{% endif %}"
+      <a href="{%url 'classes:library' %}?{% if search_query %}search={{ search_query }}&{% endif %}{% if instructor_filter %}instructor={{ instructor_filter }}&{% endif %}{% if duration_filter %}duration={{ duration_filter }}&{% endif %}{% if tss_filter %}tss={{ tss_filter }}&{% endif %}{% if year_filter %}year={{ year_filter }}&{% endif %}{% if month_filter %}month={{ month_filter }}&{% endif %}"
+         hx-get="{%url 'classes:library' %}?{% if search_query %}search={{ search_query }}&{% endif %}{% if instructor_filter %}instructor={{ instructor_filter }}&{% endif %}{% if duration_filter %}duration={{ duration_filter }}&{% endif %}{% if tss_filter %}tss={{ tss_filter }}&{% endif %}{% if year_filter %}year={{ year_filter }}&{% endif %}{% if month_filter %}month={{ month_filter }}&{% endif %}"
          hx-target="#class-list-container"
          hx-swap="innerHTML"
          hx-push-url="true"
@@ -153,8 +153,8 @@
         All
       </a>
       {% for workout_type in workout_types %}
-        <a href="{% url 'workouts:library' %}?type={{ workout_type.slug }}{% if search_query %}&search={{ search_query }}{% endif %}{% if instructor_filter %}&instructor={{ instructor_filter }}{% endif %}{% if duration_filter %}&duration={{ duration_filter }}{% endif %}{% if tss_filter %}&tss={{ tss_filter }}{% endif %}{% if year_filter %}&year={{ year_filter }}{% endif %}{% if month_filter %}&month={{ month_filter }}{% endif %}"
-           hx-get="{% url 'workouts:library' %}?type={{ workout_type.slug }}{% if search_query %}&search={{ search_query }}{% endif %}{% if instructor_filter %}&instructor={{ instructor_filter }}{% endif %}{% if duration_filter %}&duration={{ duration_filter }}{% endif %}{% if tss_filter %}&tss={{ tss_filter }}{% endif %}{% if year_filter %}&year={{ year_filter }}{% endif %}{% if month_filter %}&month={{ month_filter }}{% endif %}"
+        <a href="{%url 'classes:library' %}?type={{ workout_type.slug }}{% if search_query %}&search={{ search_query }}{% endif %}{% if instructor_filter %}&instructor={{ instructor_filter }}{% endif %}{% if duration_filter %}&duration={{ duration_filter }}{% endif %}{% if tss_filter %}&tss={{ tss_filter }}{% endif %}{% if year_filter %}&year={{ year_filter }}{% endif %}{% if month_filter %}&month={{ month_filter }}{% endif %}"
+           hx-get="{%url 'classes:library' %}?type={{ workout_type.slug }}{% if search_query %}&search={{ search_query }}{% endif %}{% if instructor_filter %}&instructor={{ instructor_filter }}{% endif %}{% if duration_filter %}&duration={{ duration_filter }}{% endif %}{% if tss_filter %}&tss={{ tss_filter }}{% endif %}{% if year_filter %}&year={{ year_filter }}{% endif %}{% if month_filter %}&month={{ month_filter }}{% endif %}"
            hx-target="#class-list-container"
            hx-swap="innerHTML"
            hx-push-url="true"

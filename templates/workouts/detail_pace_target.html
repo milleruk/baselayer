@@ -34,7 +34,7 @@
       {% endif %}
       {% if workout.ride_detail %}
 
-        <a href="{% url 'workouts:class_detail' workout.ride_detail.pk %}" class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors">
+        <a href="{%url 'classes:detail' workout.ride_detail.pk %}" class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors">
           View in Library ↗
         </a>
       {% endif %}
