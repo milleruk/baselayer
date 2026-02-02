@@ -1,0 +1,526 @@
+{% extends "base.html" %}
+{% block title %}Class Library{% endblock %}
+{% block page_title %}Class Library{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+  <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">Class Library</h1>
+  <p class="text-gray-600 dark:text-gray-400">Browse and filter all available Peloton classes.</p>
+</div>
+
+<!-- Filters and Search -->
+<div class="mb-6 space-y-4">
+  <!-- Search Bar -->
+  <form 
+    hx-get="{% url 'workouts:library' %}"
+    hx-target="#class-list-container"
+    hx-swap="innerHTML"
+    hx-trigger="submit, change from:.filter-select delay:300ms"
+    hx-indicator="#filter-loading"
+    hx-push-url="true"
+    method="get" 
+    class="flex flex-col sm:flex-row gap-3"
+  >
+    <div class="flex-1 relative">
+      <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+        <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+        </svg>
+      </div>
+      <input 
+        type="text" 
+        name="search" 
+        value="{{ search_query }}" 
+        placeholder="Search classes by title or instructor" 
+        hx-get="{% url 'workouts:library' %}"
+        hx-target="#class-list-container"
+        hx-swap="innerHTML"
+        hx-trigger="keyup changed delay:500ms, search"
+        hx-indicator="#filter-loading"
+        hx-push-url="true"
+        hx-include="[name='instructor'], [name='duration'], [name='tss'], [name='type'], [name='year'], [name='month'], [name='order_by']"
+        class="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-primary focus:border-transparent">
+    </div>
+    
+    <!-- Filter Dropdowns -->
+    <div class="flex flex-wrap gap-2">
+      <!-- TSS Filter -->
+      <div class="relative">
+        <input type="number" name="tss" value="{{ tss_filter }}" placeholder="TSS" min="0" step="0.1"
+               class="w-20 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-primary focus:border-transparent">
+      </div>
+      
+      <!-- Instructor Filter -->
+      <div class="relative min-w-[140px]">
+        <select name="instructor" 
+                class="w-full appearance-none bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 pr-8 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent cursor-pointer text-sm filter-select">
+          <option value="">Add Instructor</option>
+          {% for instructor in instructors %}
+            <option value="{{ instructor.id }}" {% if instructor_filter == instructor.id|stringformat:"s" %}selected{% endif %}>
+              {{ instructor.name }}
+            </option>
+          {% endfor %}
+        </select>
+        <div class="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+          <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+          </svg>
+        </div>
+      </div>
+      
+      <!-- Duration Filter -->
+      <div class="relative min-w-[120px]">
+        <select name="duration" 
+                class="w-full appearance-none bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 pr-8 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent cursor-pointer text-sm filter-select">
+          <option value="">Add Duration</option>
+          {% for duration in durations %}
+            <option value="{{ duration }}" {% if duration_filter == duration|stringformat:"s" %}selected{% endif %}>
+              {{ duration }} min
+            </option>
+          {% endfor %}
+        </select>
+        <div class="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+          <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+          </svg>
+        </div>
+      </div>
+      
+      <!-- Year Filter -->
+      <div class="relative min-w-[100px]">
+        <select name="year" 
+                class="w-full appearance-none bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 pr-8 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent cursor-pointer text-sm filter-select">
+          <option value="">All Years</option>
+          {% for year in available_years %}
+            <option value="{{ year }}" {% if year_filter == year|stringformat:"s" %}selected{% endif %}>
+              {{ year }}
+            </option>
+          {% endfor %}
+        </select>
+        <div class="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+          <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+          </svg>
+        </div>
+      </div>
+      
+      <!-- Month Filter (only shown if year is selected) -->
+      {% if year_filter %}
+      <div class="relative min-w-[120px]">
+        <select name="month" 
+                class="w-full appearance-none bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 pr-8 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent cursor-pointer text-sm filter-select">
+          <option value="">All Months</option>
+          {% for month in available_months %}
+            <option value="{{ month }}" {% if month_filter == month|stringformat:"s" %}selected{% endif %}>
+              {% if month == 1 %}January{% elif month == 2 %}February{% elif month == 3 %}March{% elif month == 4 %}April{% elif month == 5 %}May{% elif month == 6 %}June{% elif month == 7 %}July{% elif month == 8 %}August{% elif month == 9 %}September{% elif month == 10 %}October{% elif month == 11 %}November{% elif month == 12 %}December{% endif %}
+            </option>
+          {% endfor %}
+        </select>
+        <div class="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+          <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+          </svg>
+        </div>
+      </div>
+      {% endif %}
+      
+      <!-- Hidden fields to preserve filters -->
+      {% if workout_type_filter %}
+        <input type="hidden" name="type" value="{{ workout_type_filter }}">
+      {% endif %}
+      
+      <button type="submit" class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors whitespace-nowrap relative">
+        <span class="inline-flex items-center gap-2">
+          <span>Search</span>
+          <svg id="filter-loading" class="htmx-indicator animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+        </span>
+      </button>
+    </div>
+  </form>
+  
+  <!-- Workout Type Tabs -->
+  <div class="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+    <div class="flex gap-1 border-b border-gray-200 dark:border-gray-700 min-w-max sm:min-w-0">
+      <a href="{% url 'workouts:library' %}?{% if search_query %}search={{ search_query }}&{% endif %}{% if instructor_filter %}instructor={{ instructor_filter }}&{% endif %}{% if duration_filter %}duration={{ duration_filter }}&{% endif %}{% if tss_filter %}tss={{ tss_filter }}&{% endif %}{% if year_filter %}year={{ year_filter }}&{% endif %}{% if month_filter %}month={{ month_filter }}&{% endif %}"
+         hx-get="{% url 'workouts:library' %}?{% if search_query %}search={{ search_query }}&{% endif %}{% if instructor_filter %}instructor={{ instructor_filter }}&{% endif %}{% if duration_filter %}duration={{ duration_filter }}&{% endif %}{% if tss_filter %}tss={{ tss_filter }}&{% endif %}{% if year_filter %}year={{ year_filter }}&{% endif %}{% if month_filter %}month={{ month_filter }}&{% endif %}"
+         hx-target="#class-list-container"
+         hx-swap="innerHTML"
+         hx-push-url="true"
+         class="workout-type-tab px-4 py-2 text-sm font-medium {% if not workout_type_filter %}text-primary border-b-2 border-primary{% else %}text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white{% endif %} transition-colors">
+        All
+      </a>
+      {% for workout_type in workout_types %}
+        <a href="{% url 'workouts:library' %}?type={{ workout_type.slug }}{% if search_query %}&search={{ search_query }}{% endif %}{% if instructor_filter %}&instructor={{ instructor_filter }}{% endif %}{% if duration_filter %}&duration={{ duration_filter }}{% endif %}{% if tss_filter %}&tss={{ tss_filter }}{% endif %}{% if year_filter %}&year={{ year_filter }}{% endif %}{% if month_filter %}&month={{ month_filter }}{% endif %}"
+           hx-get="{% url 'workouts:library' %}?type={{ workout_type.slug }}{% if search_query %}&search={{ search_query }}{% endif %}{% if instructor_filter %}&instructor={{ instructor_filter }}{% endif %}{% if duration_filter %}&duration={{ duration_filter }}{% endif %}{% if tss_filter %}&tss={{ tss_filter }}{% endif %}{% if year_filter %}&year={{ year_filter }}{% endif %}{% if month_filter %}&month={{ month_filter }}{% endif %}"
+           hx-target="#class-list-container"
+           hx-swap="innerHTML"
+           hx-push-url="true"
+           class="workout-type-tab px-4 py-2 text-sm font-medium {% if workout_type_filter == workout_type.slug %}text-primary border-b-2 border-primary{% else %}text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white{% endif %} transition-colors">
+          {{ workout_type.name }}
+        </a>
+      {% endfor %}
+    </div>
+  </div>
+  
+  <!-- Active Filters Display -->
+  {% if search_query or instructor_filter or duration_filter or tss_filter or year_filter or month_filter %}
+    <div class="flex flex-wrap gap-2 items-center">
+      <span class="text-sm text-gray-600 dark:text-gray-400">Active filters:</span>
+      {% if search_query %}
+        <span class="inline-flex items-center gap-1 px-3 py-1 text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full">
+          Search: "{{ search_query }}"
+          <a href="?{% if workout_type_filter %}type={{ workout_type_filter }}&{% endif %}{% if instructor_filter %}instructor={{ instructor_filter }}&{% endif %}{% if duration_filter %}duration={{ duration_filter }}&{% endif %}{% if tss_filter %}tss={{ tss_filter }}&{% endif %}{% if year_filter %}year={{ year_filter }}&{% endif %}{% if month_filter %}month={{ month_filter }}&{% endif %}{% if order_by and order_by != '-original_air_time' %}&order_by={{ order_by }}{% endif %}" class="hover:text-gray-900 dark:hover:text-white">×</a>
+        </span>
+      {% endif %}
+      {% if instructor_filter %}
+        {% for instructor in instructors %}
+          {% if instructor.id|stringformat:"s" == instructor_filter %}
+            <span class="inline-flex items-center gap-1 px-3 py-1 text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full">
+              Instructor: {{ instructor.name }}
+              <a href="?{% if workout_type_filter %}type={{ workout_type_filter }}&{% endif %}{% if search_query %}search={{ search_query }}&{% endif %}{% if duration_filter %}duration={{ duration_filter }}&{% endif %}{% if tss_filter %}tss={{ tss_filter }}&{% endif %}{% if year_filter %}year={{ year_filter }}&{% endif %}{% if month_filter %}month={{ month_filter }}&{% endif %}{% if order_by and order_by != '-original_air_time' %}&order_by={{ order_by }}{% endif %}" class="hover:text-gray-900 dark:hover:text-white">×</a>
+            </span>
+          {% endif %}
+        {% endfor %}
+      {% endif %}
+      {% if duration_filter %}
+        <span class="inline-flex items-center gap-1 px-3 py-1 text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full">
+          Duration: {{ duration_filter }} min
+          <a href="?{% if workout_type_filter %}type={{ workout_type_filter }}&{% endif %}{% if search_query %}search={{ search_query }}&{% endif %}{% if instructor_filter %}instructor={{ instructor_filter }}&{% endif %}{% if tss_filter %}tss={{ tss_filter }}&{% endif %}{% if year_filter %}year={{ year_filter }}&{% endif %}{% if month_filter %}month={{ month_filter }}&{% endif %}{% if order_by and order_by != '-original_air_time' %}&order_by={{ order_by }}{% endif %}" class="hover:text-gray-900 dark:hover:text-white">×</a>
+        </span>
+      {% endif %}
+      {% if tss_filter %}
+        <span class="inline-flex items-center gap-1 px-3 py-1 text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full">
+          TSS: ≥{{ tss_filter }}
+          <a href="?{% if workout_type_filter %}type={{ workout_type_filter }}&{% endif %}{% if search_query %}search={{ search_query }}&{% endif %}{% if instructor_filter %}instructor={{ instructor_filter }}&{% endif %}{% if duration_filter %}duration={{ duration_filter }}&{% endif %}{% if year_filter %}year={{ year_filter }}&{% endif %}{% if month_filter %}month={{ month_filter }}&{% endif %}{% if order_by and order_by != '-original_air_time' %}&order_by={{ order_by }}{% endif %}" class="hover:text-gray-900 dark:hover:text-white">×</a>
+        </span>
+      {% endif %}
+      {% if year_filter %}
+        <span class="inline-flex items-center gap-1 px-3 py-1 text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full">
+          Year: {{ year_filter }}{% if month_filter %} {% if month_filter == '1' %}January{% elif month_filter == '2' %}February{% elif month_filter == '3' %}March{% elif month_filter == '4' %}April{% elif month_filter == '5' %}May{% elif month_filter == '6' %}June{% elif month_filter == '7' %}July{% elif month_filter == '8' %}August{% elif month_filter == '9' %}September{% elif month_filter == '10' %}October{% elif month_filter == '11' %}November{% elif month_filter == '12' %}December{% endif %}{% endif %}
+          <a href="?{% if workout_type_filter %}type={{ workout_type_filter }}&{% endif %}{% if search_query %}search={{ search_query }}&{% endif %}{% if instructor_filter %}instructor={{ instructor_filter }}&{% endif %}{% if duration_filter %}duration={{ duration_filter }}&{% endif %}{% if tss_filter %}tss={{ tss_filter }}&{% endif %}{% if order_by and order_by != '-original_air_time' %}&order_by={{ order_by }}{% endif %}" class="hover:text-gray-900 dark:hover:text-white">×</a>
+        </span>
+      {% endif %}
+    </div>
+  {% endif %}
+</div>
+
+<!-- Class List Container -->
+<div id="class-list-container">
+  {% include 'workouts/partials/class_list.html' %}
+</div>
+
+<!-- Back to Top Button - Inside content block so it renders immediately -->
+<button
+  id="back-to-top"
+  onclick="window.scrollTo({ top: 0, behavior: 'smooth' })"
+  style="display: none; position: fixed; bottom: 2rem; right: 2rem; z-index: 99999; padding: 1rem; background-color: #3b82f6; color: white; border: none; border-radius: 50%; box-shadow: 0 10px 25px rgba(59, 130, 246, 0.5); cursor: pointer; transition: all 0.3s ease;"
+  onmouseover="this.style.backgroundColor='#2563eb'; this.style.transform='scale(1.1)'"
+  onmouseout="this.style.backgroundColor='#3b82f6'; this.style.transform='scale(1)'"
+  aria-label="Back to top"
+  title="Back to top"
+>
+  <svg style="width: 24px; height: 24px;" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3">
+    <path stroke-linecap="round" stroke-linejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18"></path>
+  </svg>
+</button>
+
+<script>
+// Back to top button functionality
+(function() {
+  const backToTopButton = document.getElementById('back-to-top');
+  
+  function toggleBackToTop() {
+    if (window.scrollY > 300) {
+      backToTopButton.style.display = 'block';
+      backToTopButton.style.opacity = '1';
+    } else {
+      backToTopButton.style.opacity = '0';
+      setTimeout(() => {
+        if (window.scrollY <= 300) {
+          backToTopButton.style.display = 'none';
+        }
+      }, 300);
+    }
+  }
+  
+  window.addEventListener('scroll', toggleBackToTop);
+  toggleBackToTop(); // Check initial state
+})();
+</script>
+{% endblock %}
+
+<!-- Charts -->
+{% block extra_body %}
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6"></script>
+
+<!-- Chart Initialization -->
+<script>
+// Get user's FTP and pace data from Django context
+const userFTP = {{ request.user.profile.get_current_ftp|default:"null" }};
+const userRunningPaceZones = {% if user_running_pace_zones %}{{ user_running_pace_zones|safe }}{% else %}null{% endif %};
+const userWalkingPaceZones = {% if user_walking_pace_zones %}{{ user_walking_pace_zones|safe }}{% else %}null{% endif %};
+
+// Power Zone percentages (based on FTP)
+const powerZonePercentages = {
+  1: 0.45,   // Zone 1: Peloton active recovery target (~45%)
+  2: 0.65,   // Zone 2: midpoint of 55-75%
+  3: 0.825,  // Zone 3: midpoint of 75-90%
+  4: 0.975,  // Zone 4: midpoint of 90-105%
+  5: 1.125,  // Zone 5: midpoint of 105-120%
+  6: 1.35,   // Zone 6: midpoint of 120-150%
+  7: 1.60    // Zone 7: sprint target (~160%)
+};
+
+// Helper to format pace (minutes per mile)
+function formatPace(secondsPerMile) {
+  if (!secondsPerMile) return null;
+  const mins = Math.floor(secondsPerMile / 60);
+  const secs = Math.round(secondsPerMile % 60);
+  return `${mins}:${secs.toString().padStart(2, '0')} /mi`;
+}
+
+// Store chart instances to destroy them later
+const chartInstances = {};
+
+// Initialize all charts on the page
+function initializeCharts() {
+  const canvases = document.querySelectorAll('canvas[id^="chart-"]');
+  
+  canvases.forEach(canvas => {
+    const rideId = canvas.id.replace('chart-', '');
+    
+    // Skip if already initialized
+    if (chartInstances[rideId]) {
+      return;
+    }
+    
+    const chartDataScript = document.getElementById(`chart-data-${rideId}`);
+    
+    if (!chartDataScript) return;
+    
+    let chartData;
+    try {
+      chartData = JSON.parse(chartDataScript.textContent || '{}');
+    } catch (e) {
+      return;
+    }
+    
+    if (!chartData.segments || !chartData.zones) return;
+    
+    const ctx = canvas.getContext('2d');
+    const isDark = document.documentElement.classList.contains('dark');
+    
+    // Build time series data
+    const timePoints = [];
+    const targetSeries = [];
+    let segmentTime = 0;
+    
+    chartData.segments.forEach(segment => {
+      const duration = segment.duration;
+      let target = segment.zone;
+      
+      if (chartData.type === 'power_zone') {
+        target = Math.max(1, Math.min(7, target || 1));
+      } else {
+        target = Math.max(0, Math.min(6, target || 0));
+      }
+      
+      for (let i = 0; i < duration && (segmentTime + i) < chartData.total_duration; i += 10) {
+        timePoints.push(segmentTime + i);
+        targetSeries.push(target);
+      }
+      segmentTime += duration;
+    });
+    
+    if (chartData.total_duration > 0 && (timePoints.length === 0 || timePoints[timePoints.length - 1] < chartData.total_duration)) {
+      timePoints.push(chartData.total_duration);
+      targetSeries.push(targetSeries[targetSeries.length - 1] || (chartData.type === 'power_zone' ? 1 : 0));
+    }
+    
+    // Create zone bands
+    const zoneBands = chartData.zones.map((zone, index) => {
+      const zoneNum = chartData.type === 'power_zone' ? index + 1 : index;
+      return {
+        label: zone.name,
+        lower: zoneNum - 0.5,
+        upper: zoneNum + 0.5,
+        color: zone.color
+      };
+    });
+    
+    // Zone band plugin
+    const bandPlugin = {
+      id: 'zoneBands',
+      beforeDatasetsDraw(chart, args, opts) {
+        const {ctx, chartArea, scales} = chart;
+        if (!opts || !Array.isArray(opts.bands)) return;
+        const toY = (zone) => scales.y.getPixelForValue(zone);
+        ctx.save();
+        (opts.bands || []).forEach(b => {
+          const yTop = toY(b.upper);
+          const yBot = toY(b.lower);
+          if (yTop == null || yBot == null) return;
+          ctx.fillStyle = b.color;
+          ctx.globalAlpha = 0.15;
+          ctx.fillRect(chartArea.left, yTop, chartArea.right - chartArea.left, yBot - yTop);
+        });
+        ctx.restore();
+      }
+    };
+    
+    // Create chart and store instance
+    chartInstances[rideId] = new Chart(ctx, {
+      type: 'line',
+      data: {
+        datasets: [{
+          label: 'Target',
+          data: timePoints.map((time, index) => ({ x: time, y: targetSeries[index] })),
+          borderWidth: 2,
+          pointRadius: 0,
+          borderColor: '#5b7cfa',
+          backgroundColor: 'rgba(91, 124, 250, 0.1)',
+          fill: true,
+          tension: 0.1
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            enabled: true,
+            backgroundColor: 'rgba(30, 30, 30, 0.9)',
+            titleColor: '#fff',
+            bodyColor: '#76bbf7',
+            borderColor: '#555',
+            borderWidth: 1,
+            padding: 12,
+            displayColors: false,
+            titleFont: {
+              size: 14,
+              weight: 'bold'
+            },
+            bodyFont: {
+              size: 14,
+              weight: 'bold'
+            },
+            callbacks: {
+              title: function(context) {
+                // Convert seconds to MM:SS format
+                const seconds = Math.round(context[0].parsed.x);
+                const mins = Math.floor(seconds / 60);
+                const secs = seconds % 60;
+                return `${mins}:${secs.toString().padStart(2, '0')}`;
+              },
+              label: function(context) {
+                const zone = Math.round(context.parsed.y);
+                const labels = [];
+                
+                if (chartData.type === 'power_zone') {
+                  // Power Zone - show watts if user has FTP
+                  if (userFTP && powerZonePercentages[zone]) {
+                    const targetWatts = Math.round(userFTP * powerZonePercentages[zone]);
+                    labels.push(`Target: ${targetWatts} watts`);
+                  } else {
+                    labels.push(`Target: Zone ${zone}`);
+                  }
+                } else {
+                  // Pace Zone - show zone name first, then pace
+                  // Determine which pace zones to use (running vs walking)
+                  const isWalking = chartData.activity_type === 'walking';
+                  const userPaceZones = isWalking ? userWalkingPaceZones : userRunningPaceZones;
+                  
+                  // Running has 7 zones, Walking has 5 zones
+                  const zoneNames = isWalking 
+                    ? ['recovery', 'easy', 'brisk', 'power', 'max']
+                    : ['recovery', 'easy', 'moderate', 'challenging', 'hard', 'very_hard', 'max'];
+                  const displayNames = isWalking
+                    ? ['Recovery', 'Easy', 'Brisk', 'Power', 'Max']
+                    : ['Recovery', 'Easy', 'Moderate', 'Challenging', 'Hard', 'Very Hard', 'Max'];
+                  
+                  const zoneName = zoneNames[zone];
+                  const displayName = displayNames[zone];
+                  
+                  if (userPaceZones && zoneName && userPaceZones[zoneName]) {
+                    const pace = formatPace(userPaceZones[zoneName]);
+                    labels.push(displayName); // Zone name first
+                    labels.push(`Target: ${pace}`); // Pace second
+                  } else {
+                    // Fallback to zone name only
+                    labels.push(`Target: ${displayName || zone}`);
+                  }
+                }
+                
+                return labels;
+              }
+            }
+          },
+          zoneBands: { bands: zoneBands }
+        },
+        scales: {
+          x: {
+            type: 'linear',
+            min: 0,
+            max: chartData.total_duration,
+            display: false,
+            grid: { display: false }
+          },
+          y: {
+            min: chartData.type === 'power_zone' ? 0.5 : -0.5,
+            max: chartData.type === 'power_zone' ? 7.5 : 6.5,
+            display: false,
+            grid: { display: false }
+          }
+        }
+      },
+      plugins: [bandPlugin]
+    });
+  });
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', initializeCharts);
+
+// Re-initialize after HTMX swaps (for filters and pagination)
+document.body.addEventListener('htmx:afterSwap', function(event) {
+  // Always initialize charts after any swap - let the function handle detection
+  setTimeout(initializeCharts, 150);
+});
+
+// Update active tab styling after HTMX navigation
+document.body.addEventListener('htmx:afterSwap', function(event) {
+  // Only process if swapping class list content
+  if (event.detail.target.id !== 'class-list-container') return;
+  
+  // Get the URL that was just loaded
+  const url = new URL(event.detail.pathInfo.requestPath, window.location.origin);
+  const typeParam = url.searchParams.get('type') || '';
+  
+  // Update all tab styling
+  document.querySelectorAll('.workout-type-tab').forEach(tab => {
+    const tabHref = tab.getAttribute('href') || '';
+    const tabUrl = new URL(tabHref, window.location.origin);
+    const tabType = tabUrl.searchParams.get('type') || '';
+    
+    // Remove all active classes
+    tab.classList.remove('text-primary', 'border-b-2', 'border-primary');
+    tab.classList.add('text-gray-600', 'dark:text-gray-400');
+    
+    // Add active classes if this tab matches current type
+    if (tabType === typeParam) {
+      tab.classList.remove('text-gray-600', 'dark:text-gray-400');
+      tab.classList.add('text-primary', 'border-b-2', 'border-primary');
+    }
+  });
+});
+</script>
+
+{% endblock %}

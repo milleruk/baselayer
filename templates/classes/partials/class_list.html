@@ -1,0 +1,64 @@
+<!-- Class Count and Pagination Info -->
+<div id="class-count-info" class="mb-4 text-sm text-gray-600 dark:text-gray-400">
+  {% if rides_with_metrics %}
+    Showing {{ page_obj.start_index }} - {{ page_obj.end_index }} of {{ page_obj.paginator.count }} class{{ page_obj.paginator.count|pluralize:"es" }}
+  {% endif %}
+</div>
+
+<!-- Class List (Card Layout) -->
+{% if rides_with_metrics %}
+  <div id="class-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+    {% include 'workouts/partials/class_card.html' %}
+  </div>
+{% else %}
+  <div class="text-center py-12">
+    <div class="text-5xl mb-4">📚</div>
+    <p class="text-gray-600 dark:text-gray-400 text-lg mb-2">No classes found</p>
+    <p class="text-gray-500 dark:text-gray-500 text-sm">Try adjusting your filters or search query.</p>
+  </div>
+{% endif %}
+
+<!-- Pagination -->
+{% if rides_with_metrics and is_paginated %}
+  <div class="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6">
+    <div class="text-sm text-gray-600 dark:text-gray-400">
+      Showing {{ page_obj.start_index }} - {{ page_obj.end_index }} of {{ page_obj.paginator.count }} class{{ page_obj.paginator.count|pluralize:"es" }}
+    </div>
+    
+    <div class="flex items-center gap-2">
+      {% if page_obj.has_previous %}
+        <a href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if workout_type_filter %}&type={{ workout_type_filter }}{% endif %}{% if instructor_filter %}&instructor={{ instructor_filter }}{% endif %}{% if duration_filter %}&duration={{ duration_filter }}{% endif %}{% if tss_filter %}&tss={{ tss_filter }}{% endif %}{% if year_filter %}&year={{ year_filter }}{% endif %}{% if month_filter %}&month={{ month_filter }}{% endif %}{% if order_by and order_by != '-original_air_time' %}&order_by={{ order_by }}{% endif %}" 
+           hx-get="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if workout_type_filter %}&type={{ workout_type_filter }}{% endif %}{% if instructor_filter %}&instructor={{ instructor_filter }}{% endif %}{% if duration_filter %}&duration={{ duration_filter }}{% endif %}{% if tss_filter %}&tss={{ tss_filter }}{% endif %}{% if year_filter %}&year={{ year_filter }}{% endif %}{% if month_filter %}&month={{ month_filter }}{% endif %}{% if order_by and order_by != '-original_air_time' %}&order_by={{ order_by }}{% endif %}"
+           hx-target="#class-list-container"
+           hx-swap="innerHTML"
+           hx-push-url="true"
+           class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+          Previous
+        </a>
+      {% else %}
+        <span class="px-4 py-2 text-sm font-medium text-gray-400 dark:text-gray-600 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg cursor-not-allowed opacity-50">
+          Previous
+        </span>
+      {% endif %}
+      
+      <span class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+        Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+      </span>
+      
+      {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if workout_type_filter %}&type={{ workout_type_filter }}{% endif %}{% if instructor_filter %}&instructor={{ instructor_filter }}{% endif %}{% if duration_filter %}&duration={{ duration_filter }}{% endif %}{% if tss_filter %}&tss={{ tss_filter }}{% endif %}{% if year_filter %}&year={{ year_filter }}{% endif %}{% if month_filter %}&month={{ month_filter }}{% endif %}{% if order_by and order_by != '-original_air_time' %}&order_by={{ order_by }}{% endif %}" 
+           hx-get="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if workout_type_filter %}&type={{ workout_type_filter }}{% endif %}{% if instructor_filter %}&instructor={{ instructor_filter }}{% endif %}{% if duration_filter %}&duration={{ duration_filter }}{% endif %}{% if tss_filter %}&tss={{ tss_filter }}{% endif %}{% if year_filter %}&year={{ year_filter }}{% endif %}{% if month_filter %}&month={{ month_filter }}{% endif %}{% if order_by and order_by != '-original_air_time' %}&order_by={{ order_by }}{% endif %}"
+           hx-target="#class-list-container"
+           hx-swap="innerHTML"
+           hx-push-url="true"
+           class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+          Next
+        </a>
+      {% else %}
+        <span class="px-4 py-2 text-sm font-medium text-gray-400 dark:text-gray-600 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg cursor-not-allowed opacity-50">
+          Next
+        </span>
+      {% endif %}
+    </div>
+  </div>
+{% endif %}

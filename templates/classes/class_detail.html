@@ -1,0 +1,342 @@
+{% extends "base.html" %}
+{% load playlist_filters %}
+{% block title %}{{ ride.title }}{% endblock %}
+{% block page_title %}{{ ride.title }}{% endblock %}
+
+{% block content %}
+<!-- Class Header -->
+{% include 'workouts/partials/class_header.html' %}
+
+<!-- Class Type Specific Content -->
+{% if ride.class_type == 'power_zone' or ride.is_power_zone_class %}
+  {% include 'workouts/partials/power_zone_content.html' %}
+{% elif ride.class_type == 'pace_target' or ride.fitness_discipline in 'running,walking,run' %}
+  {% include 'workouts/partials/pace_target_content.html' %}
+{% else %}
+  {% include 'workouts/partials/default_content.html' %}
+{% endif %}
+
+<!-- Playlist Section -->
+{% if playlist and playlist.songs %}
+  <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 sm:p-6 shadow-sm mb-6">
+    <div class="flex items-center justify-between mb-4">
+      <div>
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Class Playlist</h3>
+        <div class="text-sm text-gray-600 dark:text-gray-400 mt-1">
+          {{ playlist.song_count }} song{{ playlist.song_count|pluralize }}
+        </div>
+      </div>
+    </div>
+    
+    <!-- Songs List -->
+    <div class="space-y-2 max-h-96 overflow-y-auto">
+      {% for song in playlist.songs %}
+        <div class="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group">
+          <!-- Song Number -->
+          <div class="flex-shrink-0 w-8 h-8 flex items-center justify-center text-sm font-semibold text-gray-600 dark:text-gray-400 bg-gray-200 dark:bg-gray-600 rounded-full">
+            {{ song.index|add:1 }}
+          </div>
+          
+          <!-- Album Art -->
+          {% if song.album.image_url %}
+            <img src="{{ song.album.image_url }}" alt="{{ song.album.name }}" class="w-12 h-12 rounded object-cover flex-shrink-0">
+          {% else %}
+            <div class="w-12 h-12 rounded bg-gray-300 dark:bg-gray-600 flex items-center justify-center flex-shrink-0">
+              <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"></path>
+              </svg>
+            </div>
+          {% endif %}
+          
+          <!-- Song Info -->
+          <div class="flex-1 min-w-0">
+            <div class="font-semibold text-gray-900 dark:text-white truncate">{{ song.title }}</div>
+            <div class="text-sm text-gray-600 dark:text-gray-400 truncate">
+              {% for artist in song.artists %}
+                {% if not forloop.first %}, {% endif %}{{ artist.artist_name }}
+              {% endfor %}
+            </div>
+            {% if song.album.name %}
+              <div class="text-xs text-gray-500 dark:text-gray-500 truncate">{{ song.album.name }}</div>
+            {% endif %}
+          </div>
+          
+          <!-- Song Timing -->
+          <div class="flex-shrink-0 text-sm text-gray-500 dark:text-gray-400 mr-2">
+            {% if song.start_time_offset %}
+              {{ song.start_time_offset|format_song_time }}
+            {% endif %}
+          </div>
+          
+          <!-- Spotify Link -->
+          {% with spotify_url=song|spotify_search_url %}
+            {% if spotify_url %}
+              <a href="{{ spotify_url }}" target="_blank" rel="noopener noreferrer" 
+                 class="flex-shrink-0 p-2 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                 title="Open in Spotify">
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.42 1.56-.299.421-1.02.599-1.559.3z"/>
+                </svg>
+              </a>
+            {% endif %}
+          {% endwith %}
+          
+          <!-- Explicit Badge -->
+          {% if song.explicit_rating == 1 %}
+            <div class="flex-shrink-0 px-2 py-1 text-xs font-semibold text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-600 rounded">
+              E
+            </div>
+          {% endif %}
+        </div>
+      {% endfor %}
+    </div>
+    
+    <!-- Top Artists -->
+    {% if playlist.top_artists %}
+      <div class="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+        <h4 class="text-sm font-semibold text-gray-900 dark:text-white mb-3">Top Artists</h4>
+        <div class="flex flex-wrap gap-2">
+          {% for artist in playlist.top_artists %}
+            <div class="flex items-center gap-2 px-3 py-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+              {% if artist.image_url %}
+                <img src="{{ artist.image_url }}" alt="{{ artist.artist_name }}" class="w-8 h-8 rounded-full object-cover">
+              {% endif %}
+              <span class="text-sm text-gray-700 dark:text-gray-300">{{ artist.artist_name }}</span>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    {% endif %}
+  </div>
+{% endif %}
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Accordion functionality for class sections
+  const sectionToggles = document.querySelectorAll('.section-toggle');
+  sectionToggles.forEach(toggle => {
+    toggle.addEventListener('click', function() {
+      const sectionKey = this.getAttribute('data-section');
+      const content = this.nextElementSibling;
+      const chevron = this.querySelector('.section-chevron');
+      const isExpanded = this.getAttribute('aria-expanded') === 'true';
+      
+      // Toggle visibility
+      if (isExpanded) {
+        content.classList.add('hidden');
+        chevron.classList.remove('rotate-180');
+        this.setAttribute('aria-expanded', 'false');
+      } else {
+        content.classList.remove('hidden');
+        chevron.classList.add('rotate-180');
+        this.setAttribute('aria-expanded', 'true');
+      }
+    });
+  });
+  
+  // Chart initialization (only for default content with non-interactive charts)
+  const targetMetrics = {{ target_metrics_json|safe }};
+  const rideDuration = {{ ride.duration_minutes }};
+  const isDark = document.documentElement.classList.contains('dark');
+  const textColor = isDark ? 'rgba(255, 255, 255, 0.8)' : 'rgba(0, 0, 0, 0.8)';
+  const gridColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)';
+  
+  const ctx = document.getElementById('classTargetChart');
+  if (!ctx || !targetMetrics) return;
+  
+  // Prepare data based on class type
+  let labels = [];
+  let datasets = [];
+  let zoneColors = [];
+  let yAxisLabels = [];
+  
+  if (targetMetrics && targetMetrics.type === 'power_zone') {
+    // Power Zone class - zones 1-7
+    yAxisLabels = ['ZONE 1', 'ZONE 2', 'ZONE 3', 'ZONE 4', 'ZONE 5', 'ZONE 6', 'ZONE 7'];
+    zoneColors = ['#9333ea', '#3b82f6', '#10b981', '#eab308', '#f97316', '#ef4444', '#ec4899'];
+    
+    // Create time labels (every minute)
+    for (let i = 0; i <= rideDuration; i++) {
+      labels.push(i);
+    }
+    
+    // Create zone data from segments
+    const zoneData = new Array(rideDuration + 1).fill(0);
+    if (targetMetrics.segments && targetMetrics.segments.length > 0) {
+      targetMetrics.segments.forEach(segment => {
+        const zone = segment.zone || 0;
+        const start = Math.floor(segment.start / 60);
+        const end = Math.floor(segment.end / 60);
+        for (let i = start; i <= Math.min(end, rideDuration); i++) {
+          zoneData[i] = zone;
+        }
+      });
+    }
+    
+    datasets = [{
+      label: 'Power Zone',
+      data: zoneData,
+      borderColor: 'rgb(59, 130, 246)',
+      backgroundColor: 'rgba(59, 130, 246, 0.1)',
+      borderWidth: 2,
+      stepped: 'after',
+      fill: true
+    }];
+  } else if (targetMetrics && targetMetrics.type === 'pace') {
+    // Running/Walking class - intensity zones
+    yAxisLabels = ['MAX', 'VERY HARD', 'HARD', 'CHALLENGING', 'MODERATE', 'EASY', 'RECOVERY'];
+    zoneColors = ['#dc2626', '#ef4444', '#f97316', '#eab308', '#10b981', '#3b82f6', '#9333ea'];
+    
+    // Create time labels
+    for (let i = 0; i <= rideDuration; i++) {
+      labels.push(i);
+    }
+    
+    // Map intensity zones to numbers (1-7, with 7 being MAX at top)
+    const zoneMap = {
+      'max': 7,
+      'very_hard': 6,
+      'very hard': 6,
+      'hard': 5,
+      'challenging': 4,
+      'moderate': 3,
+      'easy': 2,
+      'recovery': 1
+    };
+    
+    const intensityData = new Array(rideDuration + 1).fill(0);
+    if (targetMetrics.segments && targetMetrics.segments.length > 0) {
+      targetMetrics.segments.forEach(segment => {
+        const zoneType = (segment.type || segment.zone || '').toLowerCase();
+        const zoneNum = zoneMap[zoneType] || 0;
+        const start = Math.floor(segment.start / 60);
+        const end = Math.floor(segment.end / 60);
+        for (let i = start; i <= Math.min(end, rideDuration); i++) {
+          intensityData[i] = zoneNum;
+        }
+      });
+    }
+    
+    datasets = [{
+      label: 'Intensity Zone',
+      data: intensityData,
+      borderColor: 'rgb(59, 130, 246)',
+      backgroundColor: 'rgba(59, 130, 246, 0.1)',
+      borderWidth: 2,
+      stepped: 'after',
+      fill: true
+    }];
+  } else {
+    // No target metrics - show empty chart
+    for (let i = 0; i <= rideDuration; i++) {
+      labels.push(i);
+    }
+    datasets = [{
+      label: 'No Data',
+      data: new Array(rideDuration + 1).fill(0),
+      borderColor: 'rgba(0, 0, 0, 0)',
+      borderWidth: 0
+    }];
+  }
+  
+  if (!targetMetrics || datasets.length === 0) {
+    // Show message if no target metrics
+    if (ctx && ctx.parentElement) {
+      ctx.parentElement.innerHTML = '<div class="text-center py-12 text-gray-600 dark:text-gray-400">No target metrics data available for this class.</div>';
+    }
+    return;
+  }
+  
+  // Create chart with zone backgrounds
+  new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: datasets
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: {
+        mode: 'index',
+        intersect: false
+      },
+      plugins: {
+        legend: {
+          display: false
+        },
+        tooltip: {
+          backgroundColor: isDark ? 'rgba(31, 41, 55, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+          titleColor: textColor,
+          bodyColor: textColor,
+          callbacks: {
+            label: function(context) {
+              const value = context.parsed.y;
+              if (targetMetrics.type === 'power_zone') {
+                return `Zone ${value}`;
+              } else {
+                return yAxisLabels[7 - value] || 'Unknown';
+              }
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          title: {
+            display: true,
+            text: 'Time (minutes)',
+            color: textColor
+          },
+          ticks: {
+            color: textColor
+          },
+          grid: {
+            color: gridColor
+          }
+        },
+        y: {
+          min: 0,
+          max: 7,
+          ticks: {
+            stepSize: 1,
+            color: textColor,
+            callback: function(value) {
+              if (targetMetrics.type === 'power_zone') {
+                return yAxisLabels[value - 1] || '';
+              } else {
+                return yAxisLabels[7 - value] || '';
+              }
+            }
+          },
+          grid: {
+            color: gridColor
+          }
+        }
+      }
+    },
+    plugins: [{
+      id: 'zoneBackgrounds',
+      beforeDraw: (chart) => {
+        const ctx = chart.ctx;
+        const chartArea = chart.chartArea;
+        const yScale = chart.scales.y;
+        
+        // Draw zone backgrounds
+        for (let i = 0; i < 7; i++) {
+          const zoneNum = targetMetrics.type === 'power_zone' ? i + 1 : 7 - i;
+          const yTop = yScale.getPixelForValue(zoneNum - 0.5);
+          const yBottom = yScale.getPixelForValue(zoneNum - 1.5);
+          const color = zoneColors[i];
+          
+          ctx.save();
+          ctx.fillStyle = color + '40'; // Add transparency
+          ctx.fillRect(chartArea.left, yTop, chartArea.right - chartArea.left, yBottom - yTop);
+          ctx.restore();
+        }
+      }
+    }]
+  });
+});
+</script>
+{% endblock %}

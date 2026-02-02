@@ -57,7 +57,8 @@ INSTALLED_APPS = [
     "recommender",
     "tracker",
     "challenges",
-    "workouts",
+    "classes",  # Peloton class catalog/library
+    "workouts",  # Workout history & tracking
     "peloton",
 ]
 

@@ -6,8 +6,6 @@ from .views import (
     sync_workouts,
     connect,
     sync_status,
-    class_library,
-    class_detail,
 )
 
 app_name = "workouts"
@@ -15,8 +13,6 @@ app_name = "workouts"
 urlpatterns = [
     path("", workout_history, name="history"),
     path("history/suggest/", workout_history_suggest, name="history_suggest"),
-    path("library/", class_library, name="library"),
-    path("library/<int:pk>/", class_detail, name="class_detail"),
     path("<int:pk>/", workout_detail, name="detail"),
     path("sync/", sync_workouts, name="sync"),
     path("sync/status/", sync_status, name="sync_status"),

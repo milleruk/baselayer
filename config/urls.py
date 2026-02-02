@@ -11,7 +11,8 @@ urlpatterns = [
     path("annual-challenge/", include("annual_challenge.urls")),
     path("tracker/", include("tracker.urls")),
     path("challenges/", include("challenges.urls")),
-    path("workouts/", include("workouts.urls")),
+    path("classes/", include("classes.urls")),  # Class library/catalog
+    path("workouts/", include("workouts.urls")),  # Workout history & tracking
     path("peloton/", include("peloton.urls")),
 ]
 
