@@ -9,7 +9,7 @@ from plans.services import generate_weekly_plan
 from .models import WeeklyPlan, DailyPlanItem
 from challenges.models import ChallengeInstance
 from .forms import DailyPlanItemForm
-from core.services import DateRangeService
+from core.services import DateRangeService, ChallengeService
 
 
 def sunday_of_current_week(d: date) -> date:
@@ -22,75 +22,23 @@ def sunday_of_current_week(d: date) -> date:
 
 @login_required
 def weekly_plans(request):
-    challenge_instances = ChallengeInstance.objects.filter(user=request.user).select_related("challenge").prefetch_related("weekly_plans")
+    # Use ChallengeService to get organized challenge data
+    challenge_data = ChallengeService.get_user_challenge_with_week_info(request.user)
     
-    # Check if user has an active challenge
-    # Only show banner for truly active challenges (is_active=True)
-    active_challenge_instance = ChallengeInstance.objects.filter(user=request.user, is_active=True).first()
+    # Get active challenge using service
+    active_challenge_instance = ChallengeService.get_active_challenge(request.user)
     
-    # Check if user already has a plan for the current week
-    current_week_start = sunday_of_current_week(date.today())
-    existing_current_week_plan = WeeklyPlan.objects.filter(user=request.user, week_start=current_week_start).first()
-    
-    # Group plans by challenge instance and add week numbers and access info
-    plans_by_challenge = []
-    for ci in challenge_instances:
-        plans = ci.weekly_plans.all().order_by("week_start")
-        plans_with_week_numbers = []
-        for idx, plan in enumerate(plans, start=1):
-            plan.week_number = idx
-            
-            # Check if this week can be accessed
-            plan.can_access_week = True  # Default to True for standalone plans
-            plan.locked_reason = None
-            
-            if ci.challenge:
-                # For past challenges (has_ended), all weeks are unlocked
-                if ci.challenge.has_ended:
-                    plan.can_access_week = True
-                    plan.locked_reason = None
-                # Check if week is unlocked according to challenge settings
-                elif not ci.challenge.is_week_unlocked(idx):
-                    plan.can_access_week = False
-                    plan.locked_reason = "This week is locked. Please wait for it to be unlocked."
-                # For active challenges, also check if previous weeks are completed
-                elif ci.challenge.is_active and not ci.challenge.has_ended and idx > 1:
-                    # Check if ALL previous weeks are completed
-                    previous_plans = plans.filter(week_start__lt=plan.week_start).order_by("week_start")
-                    incomplete_weeks = [p for p in previous_plans if not p.is_completed]
-                    if incomplete_weeks:
-                        plan.can_access_week = False
-                        # Store which weeks need to be completed
-                        incomplete_week_numbers = []
-                        for p in incomplete_weeks:
-                            for check_idx, check_p in enumerate(plans, start=1):
-                                if check_p.id == p.id:
-                                    incomplete_week_numbers.append(check_idx)
-                                    break
-                        plan.locked_reason = f"Complete Week(s) {', '.join(map(str, incomplete_week_numbers))} first"
-            
-            plans_with_week_numbers.append(plan)
-        
-        # Always include active challenge instances, even if they have no plans yet
-        # Include inactive instances only if they have plans AND are completed (not just left)
+    # Check if user has a plan for the current week
+    current_week_start = DateRangeService.sunday_of_current_week(date.today())
+    existing_current_week_plan = ChallengeService.has_current_week_plan(request.user, current_week_start)
         # For past challenges that are completed, still show them but mark as completed
-        if ci.is_active or (plans_with_week_numbers and ci.completed_at):
-            # Check if user can leave this challenge
-            can_leave, leave_error = ci.can_leave_challenge()
-            plans_by_challenge.append({
-                "challenge_instance": ci,
-                "plans": plans_with_week_numbers,
-                "can_leave": can_leave,
-                "leave_error": leave_error,
-            })
     
-    # Also get standalone plans (not part of a challenge)
+    # Get standalone plans (not part of a challenge)
     standalone_plans = WeeklyPlan.objects.filter(user=request.user, challenge_instance__isnull=True).order_by("-week_start")
     
     return render(request, "tracker/weekly_plans.html", {
-        "plans_by_challenge": plans_by_challenge,
+        "plans_by_challenge": challenge_data,
         "standalone_plans": standalone_plans,
-        "challenge_instances": challenge_instances,
         "active_challenge_instance": active_challenge_instance,
         "existing_current_week_plan": existing_current_week_plan,
     })
@@ -98,17 +46,17 @@ def weekly_plans(request):
 @login_required
 def generate(request):
     # Check if user has an active challenge instance
-    active_challenge_instance = ChallengeInstance.objects.filter(user=request.user, is_active=True).first()
+    active_challenge_instance = ChallengeService.get_active_challenge(request.user)
     
     # Check if user already has a plan for the current week
-    current_week_start = sunday_of_current_week(date.today())
+    current_week_start = DateRangeService.sunday_of_current_week(date.today())
     existing_plan = WeeklyPlan.objects.filter(user=request.user, week_start=current_week_start).first()
     
     if request.method == "POST":
         template_id = request.POST.get("template_id")
         challenge_id = request.POST.get("challenge_id")
         template = get_object_or_404(PlanTemplate, pk=template_id)
-        week_start = sunday_of_current_week(date.today())
+        week_start = DateRangeService.sunday_of_current_week(date.today())
 
         # Check if user already has a plan for this week (unless joining a challenge)
         if not challenge_id and existing_plan:

@@ -9,7 +9,7 @@ from plans.models import PlanTemplate
 from plans.services import generate_weekly_plan
 from tracker.models import WeeklyPlan
 from .models import Challenge, ChallengeInstance, Team, TeamMember, TeamLeaderboard, TeamLeaderVolunteer
-from core.services import DateRangeService
+from core.services import DateRangeService, ChallengeService
 
 User = get_user_model()
 
@@ -20,10 +20,7 @@ def sunday_of_current_week(d: date) -> date:
     DEPRECATED: Use DateRangeService.sunday_of_current_week() instead.
     This wrapper is kept for backward compatibility.
     """
-    return DateRangeService.sunday_of_current_week(d)
-
-
-@login_required
+    return DateRangeService.sunday_of_current_week(d)@login_required
 def challenges_list(request):
     """List all available challenges"""
     today = date.today()

@@ -239,3 +239,259 @@ class FormattingServiceTests(TestCase):
         """Test number formatting with zero."""
         result = FormattingService.format_number(0)
         self.assertEqual(result, '0')
+
+
+class ChallengeServiceTests(TestCase):
+    """Tests for ChallengeService."""
+    
+    def setUp(self):
+        """Set up test data for challenge tests."""
+        from django.contrib.auth import get_user_model
+        from challenges.models import Challenge
+        from datetime import date, timedelta
+        
+        User = get_user_model()
+        
+        # Create test users
+        self.user1 = User.objects.create_user(email='user1@test.com', password='testpass123')
+        self.user2 = User.objects.create_user(email='user2@test.com', password='testpass123')
+        
+        # Create test challenges
+        today = date.today()
+        
+        # Active challenge (currently running)
+        self.active_challenge = Challenge.objects.create(
+            name='Active Challenge',
+            start_date=today - timedelta(days=7),
+            end_date=today + timedelta(days=7),
+            challenge_type='mini',
+            is_active=True,
+            is_visible=True
+        )
+        
+        # Future challenge (can signup)
+        self.future_challenge = Challenge.objects.create(
+            name='Future Challenge',
+            start_date=today + timedelta(days=10),
+            end_date=today + timedelta(days=20),
+            signup_opens_date=today,  # Signup is open now
+            challenge_type='mini',
+            is_active=True,
+            is_visible=True
+        )
+        
+        # Past challenge
+        self.past_challenge = Challenge.objects.create(
+            name='Past Challenge',
+            start_date=today - timedelta(days=30),
+            end_date=today - timedelta(days=10),
+            challenge_type='mini',
+            is_active=False,
+            is_visible=True
+        )
+    
+    def test_get_active_challenge_none(self):
+        """Test getting active challenge when user has none."""
+        from core.services import ChallengeService
+        
+        result = ChallengeService.get_active_challenge(self.user1)
+        self.assertIsNone(result)
+    
+    def test_get_active_challenge_exists(self):
+        """Test getting active challenge when user has one."""
+        from core.services import ChallengeService
+        from challenges.models import ChallengeInstance
+        
+        # Create an active challenge instance
+        instance = ChallengeInstance.objects.create(
+            user=self.user1,
+            challenge=self.active_challenge,
+            is_active=True
+        )
+        
+        result = ChallengeService.get_active_challenge(self.user1)
+        self.assertIsNotNone(result)
+        self.assertEqual(result.id, instance.id)
+        self.assertEqual(result.challenge.id, self.active_challenge.id)
+    
+    def test_has_current_week_plan_false(self):
+        """Test has_current_week_plan returns False when no plan exists."""
+        from core.services import ChallengeService, DateRangeService
+        
+        week_start = DateRangeService.sunday_of_current_week(date.today())
+        result = ChallengeService.has_current_week_plan(self.user1, week_start)
+        self.assertFalse(result)
+    
+    def test_has_current_week_plan_true(self):
+        """Test has_current_week_plan returns True when plan exists."""
+        from core.services import ChallengeService, DateRangeService
+        from tracker.models import WeeklyPlan
+        
+        week_start = DateRangeService.sunday_of_current_week(date.today())
+        
+        # Create a weekly plan
+        WeeklyPlan.objects.create(
+            user=self.user1,
+            week_start=week_start,
+            template_name='Test Template'
+        )
+        
+        result = ChallengeService.has_current_week_plan(self.user1, week_start)
+        self.assertTrue(result)
+    
+    def test_get_challenge_involvement_summary_no_involvement(self):
+        """Test challenge involvement summary with no involvement."""
+        from core.services import ChallengeService
+        
+        summary = ChallengeService.get_challenge_involvement_summary(self.user1)
+        
+        self.assertIsNone(summary['active_challenge'])
+        self.assertEqual(summary['completed_challenges_count'], 0)
+        self.assertFalse(summary['has_involvement'])
+    
+    def test_get_challenge_involvement_summary_with_active(self):
+        """Test challenge involvement summary with active challenge."""
+        from core.services import ChallengeService
+        from challenges.models import ChallengeInstance
+        
+        # Create active instance
+        instance = ChallengeInstance.objects.create(
+            user=self.user1,
+            challenge=self.active_challenge,
+            is_active=True
+        )
+        
+        summary = ChallengeService.get_challenge_involvement_summary(self.user1)
+        
+        self.assertIsNotNone(summary['active_challenge'])
+        self.assertEqual(summary['active_challenge'].id, instance.id)
+        self.assertTrue(summary['has_involvement'])
+    
+    def test_can_join_challenge_active_running(self):
+        """Test can join when challenge is running and signup is not allowed."""
+        from core.services import ChallengeService
+        
+        # Active/running challenges cannot be joined after they start
+        can_join, error = ChallengeService.can_join_challenge(self.user1, self.active_challenge)
+        self.assertFalse(can_join)
+        self.assertIsNotNone(error)
+    
+    def test_can_join_challenge_future(self):
+        """Test can join when challenge is in the future."""
+        from core.services import ChallengeService
+        
+        can_join, error = ChallengeService.can_join_challenge(self.user1, self.future_challenge)
+        self.assertTrue(can_join)
+        self.assertIsNone(error)
+    
+    def test_can_join_challenge_past(self):
+        """Test can join/retake when challenge is in the past."""
+        from core.services import ChallengeService
+        
+        can_join, error = ChallengeService.can_join_challenge(self.user1, self.past_challenge)
+        # Past challenges are retakeable
+        self.assertTrue(can_join)
+        self.assertIsNone(error)
+    
+    def test_can_join_challenge_already_active(self):
+        """Test cannot join same challenge twice with different error scenarios."""
+        from core.services import ChallengeService
+        from challenges.models import ChallengeInstance, Challenge
+        
+        # Create a future challenge we can actually join
+        future_challenge = Challenge.objects.create(
+            name='Future Test Challenge',
+            start_date=date.today() + timedelta(days=10),
+            end_date=date.today() + timedelta(days=20),
+            signup_opens_date=date.today(),
+            challenge_type='mini',
+            is_active=True,
+            is_visible=True
+        )
+        
+        # User joins the future challenge
+        instance = ChallengeInstance.objects.create(
+            user=self.user1,
+            challenge=future_challenge,
+            is_active=True
+        )
+        
+        # Try to join same challenge again
+        can_join, error = ChallengeService.can_join_challenge(self.user1, future_challenge)
+        self.assertFalse(can_join)
+        self.assertIn('already signed up', error)
+    
+    def test_get_all_user_challenge_instances(self):
+        """Test getting all challenge instances for user."""
+        from core.services import ChallengeService
+        from challenges.models import ChallengeInstance
+        
+        # Create multiple instances
+        instance1 = ChallengeInstance.objects.create(
+            user=self.user1,
+            challenge=self.active_challenge,
+            is_active=True
+        )
+        instance2 = ChallengeInstance.objects.create(
+            user=self.user1,
+            challenge=self.future_challenge,
+            is_active=True
+        )
+        
+        # Create inactive instance
+        instance3 = ChallengeInstance.objects.create(
+            user=self.user1,
+            challenge=self.past_challenge,
+            is_active=False
+        )
+        
+        # Get active only
+        result = ChallengeService.get_all_user_challenge_instances(self.user1, include_inactive=False)
+        self.assertEqual(len(result), 2)
+        active_ids = [r.id for r in result]
+        self.assertIn(instance1.id, active_ids)
+        self.assertIn(instance2.id, active_ids)
+        self.assertNotIn(instance3.id, active_ids)
+        
+        # Get all
+        result_all = ChallengeService.get_all_user_challenge_instances(self.user1, include_inactive=True)
+        self.assertEqual(len(result_all), 3)
+    
+    def test_deactivate_challenge_success(self):
+        """Test successfully deactivating a challenge instance."""
+        from core.services import ChallengeService
+        from challenges.models import ChallengeInstance
+        
+        instance = ChallengeInstance.objects.create(
+            user=self.user1,
+            challenge=self.past_challenge,  # Past challenge can be left
+            is_active=True
+        )
+        
+        success, message = ChallengeService.deactivate_challenge(self.user1, instance)
+        self.assertTrue(success)
+        
+        # Verify instance is deactivated
+        instance.refresh_from_db()
+        self.assertFalse(instance.is_active)
+    
+    def test_deactivate_challenge_wrong_user(self):
+        """Test cannot deactivate another user's challenge."""
+        from core.services import ChallengeService
+        from challenges.models import ChallengeInstance
+        
+        instance = ChallengeInstance.objects.create(
+            user=self.user1,
+            challenge=self.past_challenge,
+            is_active=True
+        )
+        
+        # Try to deactivate as different user
+        success, message = ChallengeService.deactivate_challenge(self.user2, instance)
+        self.assertFalse(success)
+        self.assertEqual(message, "Permission denied")
+        
+        # Verify instance is still active
+        instance.refresh_from_db()
+        self.assertTrue(instance.is_active)
+
