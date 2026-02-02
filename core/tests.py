@@ -951,4 +951,172 @@ class ActivityToggleServiceTests(TestCase):
         self.assertEqual(ActivityToggleService.get_activity_name('strength'), 'Strength')
         self.assertIsNone(ActivityToggleService.get_activity_name(''))
         self.assertIsNone(ActivityToggleService.get_activity_name(None))
+
+
+class PlanProcessorServiceTests(TestCase):
+    """Tests for PlanProcessorService."""
     
+    def test_calculate_day_points_3_core(self):
+        """Test points calculation for 3-core plan."""
+        from core.services import PlanProcessorService
+        
+        # 3-core: all days = 50 points
+        self.assertEqual(PlanProcessorService.calculate_day_points(3, 1), 50)
+        self.assertEqual(PlanProcessorService.calculate_day_points(3, 2), 50)
+        self.assertEqual(PlanProcessorService.calculate_day_points(3, 3), 50)
+    
+    def test_calculate_day_points_4_core(self):
+        """Test points calculation for 4-core plan."""
+        from core.services import PlanProcessorService
+        
+        # 4-core: first/last = 50, middle = 25
+        self.assertEqual(PlanProcessorService.calculate_day_points(4, 1), 50)  # First
+        self.assertEqual(PlanProcessorService.calculate_day_points(4, 2), 25)  # Middle
+        self.assertEqual(PlanProcessorService.calculate_day_points(4, 3), 25)  # Middle
+        self.assertEqual(PlanProcessorService.calculate_day_points(4, 4), 50)  # Last
+    
+    def test_calculate_day_points_default(self):
+        """Test default points calculation."""
+        from core.services import PlanProcessorService
+        
+        # Unknown core count defaults to 50
+        self.assertEqual(PlanProcessorService.calculate_day_points(5, 1), 50)
+        self.assertEqual(PlanProcessorService.calculate_day_points(0, 1), 50)
+    
+    def test_is_bonus_completed(self):
+        """Test bonus completion check."""
+        from core.services import PlanProcessorService
+        
+        # Empty list
+        self.assertFalse(PlanProcessorService.is_bonus_completed([]))
+        
+        # Mock items with different completion states
+        class MockItem:
+            def __init__(self, ride=False, run=False, yoga=False, strength=False):
+                self.ride_done = ride
+                self.run_done = run
+                self.yoga_done = yoga
+                self.strength_done = strength
+        
+        # Not completed
+        items_incomplete = [MockItem(False, False, False, False)]
+        self.assertFalse(PlanProcessorService.is_bonus_completed(items_incomplete))
+        
+        # Ride completed
+        items_ride_done = [MockItem(True, False, False, False)]
+        self.assertTrue(PlanProcessorService.is_bonus_completed(items_ride_done))
+        
+        # Run completed
+        items_run_done = [MockItem(False, True, False, False)]
+        self.assertTrue(PlanProcessorService.is_bonus_completed(items_run_done))
+    
+    def test_get_activity_type_for_item(self):
+        """Test activity type detection for items."""
+        from core.services import PlanProcessorService
+        
+        class MockItem:
+            def __init__(self, ride_url='', run_url='', yoga_url='', strength_url=''):
+                self.peloton_ride_url = ride_url
+                self.peloton_run_url = run_url
+                self.peloton_yoga_url = yoga_url
+                self.peloton_strength_url = strength_url
+        
+        # No URLs
+        self.assertIsNone(PlanProcessorService.get_activity_type_for_item(MockItem()))
+        
+        # Ride URL
+        item_ride = MockItem(ride_url='https://example.com/ride')
+        self.assertEqual(PlanProcessorService.get_activity_type_for_item(item_ride), 'ride')
+        
+        # Run URL
+        item_run = MockItem(run_url='https://example.com/run')
+        self.assertEqual(PlanProcessorService.get_activity_type_for_item(item_run), 'run')
+        
+        # Yoga URL
+        item_yoga = MockItem(yoga_url='https://example.com/yoga')
+        self.assertEqual(PlanProcessorService.get_activity_type_for_item(item_yoga), 'yoga')
+        
+        # Strength URL
+        item_strength = MockItem(strength_url='https://example.com/strength')
+        self.assertEqual(PlanProcessorService.get_activity_type_for_item(item_strength), 'strength')
+        
+        # Empty strings don't count
+        item_empty = MockItem(ride_url='', run_url='  ')
+        self.assertIsNone(PlanProcessorService.get_activity_type_for_item(item_empty))
+    
+    def test_is_item_done(self):
+        """Test checking if activity is done."""
+        from core.services import PlanProcessorService
+        
+        class MockItem:
+            def __init__(self, ride=False, run=False, yoga=False, strength=False):
+                self.ride_done = ride
+                self.run_done = run
+                self.yoga_done = yoga
+                self.strength_done = strength
+        
+        item = MockItem(ride=True, run=False, yoga=True, strength=False)
+        
+        self.assertTrue(PlanProcessorService.is_item_done(item, 'ride'))
+        self.assertFalse(PlanProcessorService.is_item_done(item, 'run'))
+        self.assertTrue(PlanProcessorService.is_item_done(item, 'yoga'))
+        self.assertFalse(PlanProcessorService.is_item_done(item, 'strength'))
+        self.assertFalse(PlanProcessorService.is_item_done(item, 'invalid'))
+    
+    def test_organize_workout_days(self):
+        """Test organizing workout items by day and activity."""
+        from core.services import PlanProcessorService
+        
+        class MockItem:
+            def __init__(self, dow, ride_url='', run_url='', yoga_url='', strength_url=''):
+                self.day_of_week = dow
+                self.peloton_ride_url = ride_url
+                self.peloton_run_url = run_url
+                self.peloton_yoga_url = yoga_url
+                self.peloton_strength_url = strength_url
+        
+        items = [
+            MockItem(0, ride_url='url1'),  # Sunday ride
+            MockItem(0, run_url='url2'),   # Sunday run
+            MockItem(1, ride_url='url3'),  # Monday ride
+        ]
+        
+        result = PlanProcessorService.organize_workout_days(items)
+        
+        # Check structure
+        self.assertIn(0, result)  # Sunday
+        self.assertIn(1, result)  # Monday
+        self.assertIn('ride', result[0])
+        self.assertIn('run', result[0])
+        self.assertIn('ride', result[1])
+        
+        # Check counts
+        self.assertEqual(len(result[0]['ride']), 1)
+        self.assertEqual(len(result[0]['run']), 1)
+        self.assertEqual(len(result[1]['ride']), 1)
+    
+    def test_can_user_generate_plan_success(self):
+        """Test successful plan generation validation."""
+        from core.services import PlanProcessorService
+        from django.contrib.auth import get_user_model
+        from datetime import date
+        
+        User = get_user_model()
+        user = User.objects.create_user(email='test@example.com', password='testpass123')
+        week_start = date(2025, 1, 5)  # A Sunday
+        
+        can_generate, error = PlanProcessorService.can_user_generate_plan(user, week_start, None)
+        
+        self.assertTrue(can_generate)
+        self.assertIsNone(error)
+    
+    def test_calculate_week_number_no_challenge(self):
+        """Test week number calculation for standalone plan."""
+        from core.services import PlanProcessorService
+        
+        class MockPlan:
+            challenge_instance = None
+        
+        result = PlanProcessorService.calculate_week_number(MockPlan())
+        self.assertIsNone(result)
+
