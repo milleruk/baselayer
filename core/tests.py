@@ -1120,3 +1120,204 @@ class PlanProcessorServiceTests(TestCase):
         result = PlanProcessorService.calculate_week_number(MockPlan())
         self.assertIsNone(result)
 
+
+# Import utility modules for testing
+from core.utils import pace_converter, chart_helpers, workout_targets
+
+
+class PaceConverterTests(TestCase):
+    """Tests for pace_converter utility module."""
+    
+    def test_pace_zone_to_level_from_int(self):
+        """Test pace zone level conversion from integer."""
+        self.assertEqual(pace_converter.pace_zone_to_level(2), 3)  # 0-indexed to 1-indexed
+        self.assertEqual(pace_converter.pace_zone_to_level(0), 1)
+        self.assertEqual(pace_converter.pace_zone_to_level(6), 7)
+    
+    def test_pace_zone_to_level_from_string(self):
+        """Test pace zone level conversion from string."""
+        self.assertEqual(pace_converter.pace_zone_to_level('moderate'), 3)
+        self.assertEqual(pace_converter.pace_zone_to_level('easy'), 2)
+        self.assertEqual(pace_converter.pace_zone_to_level('max'), 7)
+    
+    def test_pace_zone_to_level_invalid(self):
+        """Test pace zone level with invalid input."""
+        self.assertIsNone(pace_converter.pace_zone_to_level('invalid'))
+        self.assertIsNone(pace_converter.pace_zone_to_level(None))
+        self.assertIsNone(pace_converter.pace_zone_to_level(''))
+    
+    def test_pace_str_from_mph(self):
+        """Test MPH to pace string conversion."""
+        self.assertEqual(pace_converter.pace_str_from_mph(7.5), '8:00/mi')
+        self.assertEqual(pace_converter.pace_str_from_mph(6.0), '10:00/mi')
+        self.assertIsNone(pace_converter.pace_str_from_mph(0))
+        self.assertIsNone(pace_converter.pace_str_from_mph(-5))
+    
+    def test_mph_from_pace_value_string(self):
+        """Test pace value to MPH conversion from string."""
+        self.assertAlmostEqual(pace_converter.mph_from_pace_value('8:00'), 7.5, places=1)
+        self.assertAlmostEqual(pace_converter.mph_from_pace_value('10:00'), 6.0, places=1)
+    
+    def test_mph_from_pace_value_numeric(self):
+        """Test pace value to MPH conversion from numeric."""
+        self.assertAlmostEqual(pace_converter.mph_from_pace_value(8.0), 7.5, places=1)
+        self.assertAlmostEqual(pace_converter.mph_from_pace_value(10.0), 6.0, places=1)
+    
+    def test_mph_from_pace_value_invalid(self):
+        """Test pace value with invalid input."""
+        self.assertIsNone(pace_converter.mph_from_pace_value(0))
+        self.assertIsNone(pace_converter.mph_from_pace_value(''))
+        self.assertIsNone(pace_converter.mph_from_pace_value(None))
+    
+    def test_pace_zone_level_from_speed(self):
+        """Test getting zone level from speed."""
+        pace_ranges = {
+            1: {'max_mph': 4.0},
+            2: {'max_mph': 5.0},
+            3: {'max_mph': 6.0},
+        }
+        self.assertEqual(pace_converter.pace_zone_level_from_speed(3.5, pace_ranges), 1)
+        self.assertEqual(pace_converter.pace_zone_level_from_speed(4.5, pace_ranges), 2)
+        self.assertEqual(pace_converter.pace_zone_level_from_speed(5.5, pace_ranges), 3)
+    
+    def test_pace_zone_label_from_level(self):
+        """Test getting zone label from level."""
+        self.assertEqual(pace_converter.pace_zone_label_from_level(1, uppercase=True), 'RECOVERY')
+        self.assertEqual(pace_converter.pace_zone_label_from_level(2, uppercase=False), 'Easy')
+        self.assertIsNone(pace_converter.pace_zone_label_from_level(10))
+
+
+class ChartHelpersTests(TestCase):
+    """Tests for chart_helpers utility module."""
+    
+    def test_downsample_points_no_downsampling_needed(self):
+        """Test downsample when values already below max_points."""
+        values = [1.0, 2.0, 3.0, 4.0, 5.0]
+        result = chart_helpers.downsample_points(values, max_points=10)
+        self.assertEqual(len(result), 5)
+        self.assertEqual(result, values)
+    
+    def test_downsample_points_with_downsampling(self):
+        """Test downsample when values exceed max_points."""
+        values = list(range(100))
+        result = chart_helpers.downsample_points(values, max_points=10)
+        self.assertEqual(len(result), 10)
+        self.assertEqual(result[0], 0)
+        self.assertEqual(result[-1], 99)
+    
+    def test_downsample_series(self):
+        """Test downsample series of dict points."""
+        series = [{'v': i, 't': i} for i in range(100)]
+        result = chart_helpers.downsample_series(series, max_points=10)
+        self.assertEqual(len(result), 10)
+        self.assertIsInstance(result[0], dict)
+        self.assertEqual(result[0]['v'], 0)
+        self.assertEqual(result[-1]['v'], 99)
+    
+    def test_normalize_series_to_svg_points_basic(self):
+        """Test basic SVG point normalization."""
+        series = [{'v': 100, 't': 0}, {'v': 150, 't': 60}, {'v': 120, 't': 120}]
+        points_str, box, points, vmin, vmax = chart_helpers.normalize_series_to_svg_points(series)
+        
+        self.assertIsNotNone(points_str)
+        self.assertEqual(len(points), 3)
+        self.assertEqual(vmin, 100)
+        self.assertEqual(vmax, 150)
+        self.assertIn('x', points[0])
+        self.assertIn('y', points[0])
+        self.assertIn('v', points[0])
+    
+    def test_normalize_series_insufficient_data(self):
+        """Test SVG normalization with insufficient data."""
+        series = [{'v': 100}]  # Only one point
+        points_str, box, points, vmin, vmax = chart_helpers.normalize_series_to_svg_points(series)
+        
+        self.assertIsNone(points_str)
+        self.assertEqual(len(points), 0)
+        self.assertIsNone(vmin)
+        self.assertIsNone(vmax)
+    
+    def test_scaled_zone_value_from_output(self):
+        """Test scaled zone value calculation."""
+        zone_ranges = {1: (0, 100), 2: (100, 150), 3: (150, 200)}
+        
+        # Test midpoint of zone 2
+        result = chart_helpers.scaled_zone_value_from_output(125, zone_ranges)
+        self.assertAlmostEqual(result, 2.0, places=1)
+        
+        # Test upper bound of zone 2
+        result = chart_helpers.scaled_zone_value_from_output(150, zone_ranges)
+        self.assertAlmostEqual(result, 2.5, places=1)
+
+
+class WorkoutTargetsTests(TestCase):
+    """Tests for workout_targets utility module."""
+    
+    def test_target_value_at_time(self):
+        """Test finding target value at specific time."""
+        segments = [
+            {'start': 0, 'end': 60, 'target': 100},
+            {'start': 60, 'end': 120, 'target': 150},
+        ]
+        self.assertEqual(workout_targets.target_value_at_time(segments, 30), 100)
+        self.assertEqual(workout_targets.target_value_at_time(segments, 90), 150)
+        self.assertIsNone(workout_targets.target_value_at_time(segments, 150))
+    
+    def test_target_value_at_time_with_shift(self):
+        """Test target value with time shift."""
+        segments = [{'start': 60, 'end': 120, 'target': 150}]
+        # With -60 shift, segment effectively starts at 0
+        result = workout_targets.target_value_at_time_with_shift(segments, 30, shift_seconds=-60)
+        self.assertEqual(result, 150)
+    
+    def test_target_segment_at_time_with_shift(self):
+        """Test getting full segment dict at time with shift."""
+        segments = [{'start': 0, 'end': 60, 'zone': 2, 'target': 100}]
+        seg = workout_targets.target_segment_at_time_with_shift(segments, 30)
+        self.assertIsNotNone(seg)
+        self.assertEqual(seg['zone'], 2)
+        self.assertEqual(seg['target'], 100)
+    
+    def test_calculate_target_line_from_segments(self):
+        """Test power zone target line calculation."""
+        segments = [{'start': 0, 'end': 120, 'zone': 2}]
+        zone_ranges = {2: (100, 150)}
+        seconds = list(range(0, 120))
+        
+        targets = workout_targets.calculate_target_line_from_segments(
+            segments, zone_ranges, seconds, user_ftp=200
+        )
+        
+        self.assertEqual(len(targets), 120)
+        self.assertIn('timestamp', targets[0])
+        self.assertIn('target_output', targets[0])
+        # Zone 2 at 65% of FTP 200 = 130 watts
+        self.assertEqual(targets[60]['target_output'], 130)
+    
+    def test_calculate_pace_target_line_from_segments(self):
+        """Test pace target line calculation."""
+        segments = [{'start': 0, 'end': 120, 'zone': 2}]
+        seconds = list(range(0, 120))
+        
+        targets = workout_targets.calculate_pace_target_line_from_segments(segments, seconds)
+        
+        self.assertEqual(len(targets), 120)
+        self.assertIn('timestamp', targets[0])
+        self.assertIn('target_pace_zone', targets[0])
+        self.assertEqual(targets[0]['target_pace_zone'], 2)
+    
+    def test_calculate_power_zone_target_line(self):
+        """Test power zone target line from metrics data."""
+        metrics = [{
+            'segment_type': 'power_zone',
+            'offsets': {'start': 0, 'end': 120},
+            'metrics': [{'name': 'power_zone', 'lower': 3, 'upper': 3}]
+        }]
+        seconds = list(range(0, 120))
+        
+        targets = workout_targets.calculate_power_zone_target_line(metrics, 200, seconds)
+        
+        self.assertEqual(len(targets), 120)
+        # Zone 3 at 82.5% of FTP 200 = 165 watts
+        self.assertEqual(targets[60]['target_output'], 165)
+

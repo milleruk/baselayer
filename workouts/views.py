@@ -33,6 +33,39 @@ from peloton.models import PelotonConnection
 from accounts.pace_converter import DEFAULT_RUNNING_PACE_LEVELS, ZONE_COLORS
 from accounts.walking_pace_levels_data import DEFAULT_WALKING_PACE_LEVELS, WALKING_ZONE_COLORS
 from accounts.rowing_pace_levels_data import DEFAULT_ROWING_PACE_LEVELS, ROWING_ZONE_COLORS
+
+# Import shared utilities from core.utils
+from core.utils.pace_converter import (
+    pace_zone_to_level,
+    pace_str_from_mph,
+    mph_from_pace_value,
+    pace_zone_level_from_speed,
+    scaled_pace_zone_value_from_speed,
+    pace_zone_label_from_level,
+    resolve_pace_context,
+    PACE_ZONE_LEVEL_TO_KEY,
+    PACE_ZONE_KEY_TO_LEVEL,
+    PACE_ZONE_LEVEL_ORDER,
+    PACE_ZONE_LEVEL_LABELS,
+    PACE_ZONE_LEVEL_DISPLAY,
+    PACE_ZONE_COLORS,
+)
+from core.utils.chart_helpers import (
+    downsample_points,
+    downsample_series,
+    normalize_series_to_svg_points,
+    scaled_zone_value_from_output,
+)
+from core.utils.workout_targets import (
+    target_value_at_time,
+    target_value_at_time_with_shift,
+    target_segment_at_time_with_shift,
+    extract_spin_up_intervals,
+    calculate_target_line_from_segments,
+    calculate_pace_target_line_from_segments,
+    calculate_power_zone_target_line,
+)
+
 import logging
 
 logger = logging.getLogger(__name__)
@@ -40,6 +73,122 @@ logger = logging.getLogger(__name__)
 # Initialize service instances (stateless services)
 metrics_calculator = MetricsCalculator()
 chart_builder = ChartBuilder()
+
+
+# Create wrapper functions with underscore prefix for backward compatibility
+def _pace_zone_to_level(zone):
+    """Wrapper for pace_zone_to_level from core.utils.pace_converter."""
+    return pace_zone_to_level(zone)
+
+
+def _pace_str_from_mph(mph):
+    """Wrapper for pace_str_from_mph from core.utils.pace_converter."""
+    return pace_str_from_mph(mph)
+
+
+def _mph_from_pace_value(pace_value):
+    """Wrapper for mph_from_pace_value from core.utils.pace_converter."""
+    return mph_from_pace_value(pace_value)
+
+
+def _pace_zone_level_from_speed(speed_mph, pace_ranges):
+    """Wrapper for pace_zone_level_from_speed from core.utils.pace_converter."""
+    return pace_zone_level_from_speed(speed_mph, pace_ranges)
+
+
+def _scaled_pace_zone_value_from_speed(speed_mph, pace_ranges):
+    """Wrapper for scaled_pace_zone_value_from_speed from core.utils.pace_converter."""
+    return scaled_pace_zone_value_from_speed(speed_mph, pace_ranges)
+
+
+def _pace_zone_label_from_level(level, uppercase=True):
+    """Wrapper for pace_zone_label_from_level from core.utils.pace_converter."""
+    return pace_zone_label_from_level(level, uppercase)
+
+
+def _resolve_pace_context(user_profile, workout_date, discipline):
+    """Wrapper for resolve_pace_context from core.utils.pace_converter."""
+    return resolve_pace_context(user_profile, workout_date, discipline)
+
+
+def _downsample_points(values, max_points=48):
+    """Wrapper for downsample_points from core.utils.chart_helpers."""
+    return downsample_points(values, max_points)
+
+
+def _downsample_series(series, max_points=48):
+    """Wrapper for downsample_series from core.utils.chart_helpers."""
+    return downsample_series(series, max_points)
+
+
+def _normalize_series_to_svg_points(
+    series,
+    width=360,
+    height=120,
+    left_pad=34,
+    right_pad=10,
+    top_pad=8,
+    bottom_pad=8,
+    *,
+    preserve_full_series=False,
+    max_points=120,
+    scaled_min=None,
+    scaled_max=None,
+):
+    """Wrapper for normalize_series_to_svg_points from core.utils.chart_helpers."""
+    return normalize_series_to_svg_points(
+        series, width, height, left_pad, right_pad, top_pad, bottom_pad,
+        preserve_full_series=preserve_full_series, max_points=max_points,
+        scaled_min=scaled_min, scaled_max=scaled_max
+    )
+
+
+def _scaled_zone_value_from_output(output_watts, zone_ranges):
+    """Wrapper for scaled_zone_value_from_output from core.utils.chart_helpers."""
+    return scaled_zone_value_from_output(output_watts, zone_ranges)
+
+
+def _target_value_at_time(segments, t_seconds):
+    """Wrapper for target_value_at_time from core.utils.workout_targets."""
+    return target_value_at_time(segments, t_seconds)
+
+
+def _target_value_at_time_with_shift(segments, t_seconds, shift_seconds=0):
+    """Wrapper for target_value_at_time_with_shift from core.utils.workout_targets."""
+    return target_value_at_time_with_shift(segments, t_seconds, shift_seconds)
+
+
+def _target_segment_at_time_with_shift(segments, t_seconds, shift_seconds=0):
+    """Wrapper for target_segment_at_time_with_shift from core.utils.workout_targets."""
+    return target_segment_at_time_with_shift(segments, t_seconds, shift_seconds)
+
+
+def _extract_spin_up_intervals(ride_detail):
+    """Wrapper for extract_spin_up_intervals from core.utils.workout_targets."""
+    return extract_spin_up_intervals(ride_detail)
+
+
+def _calculate_target_line_from_segments(segments, zone_ranges, seconds_array, user_ftp=None, spin_up_intervals=None):
+    """Wrapper for calculate_target_line_from_segments from core.utils.workout_targets."""
+    # Pass zone_power_percentages from MetricsCalculator
+    return calculate_target_line_from_segments(
+        segments, zone_ranges, seconds_array, user_ftp, spin_up_intervals,
+        zone_power_percentages=metrics_calculator.ZONE_POWER_PERCENTAGES
+    )
+
+
+def _calculate_pace_target_line_from_segments(segments, seconds_array):
+    """Wrapper for calculate_pace_target_line_from_segments from core.utils.workout_targets."""
+    return calculate_pace_target_line_from_segments(segments, seconds_array)
+
+
+def _calculate_power_zone_target_line(target_metrics_list, user_ftp, seconds_array):
+    """Wrapper for calculate_power_zone_target_line from core.utils.workout_targets."""
+    # Pass zone_power_percentages from MetricsCalculator
+    return calculate_power_zone_target_line(
+        target_metrics_list, user_ftp, seconds_array,
+        zone_power_percentages=metrics_calculator.ZONE_POWER_PERCENTAGES
+    )
 
 
 def detect_class_type(ride_data, ride_details=None):
