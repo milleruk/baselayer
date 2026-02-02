@@ -9,6 +9,7 @@ from .models import Exercise
 from tracker.models import WeeklyPlan
 from challenges.models import ChallengeInstance
 from core.services import DateRangeService, ZoneCalculatorService
+from .services import get_dashboard_period, get_dashboard_challenge_context
 from accounts.pace_converter import DEFAULT_RUNNING_PACE_LEVELS
 from accounts.walking_pace_levels_data import DEFAULT_WALKING_PACE_LEVELS
 from accounts.rowing_pace_levels_data import DEFAULT_ROWING_PACE_LEVELS
@@ -17,129 +18,33 @@ from accounts.rowing_pace_levels_data import DEFAULT_ROWING_PACE_LEVELS
 def dashboard(request):
     # Get time period from request (default to 7d)
     period = request.GET.get('period', '7d')
+
+    period_context = get_dashboard_period(period)
+    start_date = period_context['start_date']
+    period_label = period_context['period_label']
+    period_description = period_context['period_description']
+    comparison_label = period_context['comparison_label']
+    comparison_start = period_context['comparison_start']
+    comparison_end = period_context['comparison_end']
     
-    # Calculate date range based on period
-    today = timezone.now().date()
-    if period == '7d':
-        start_date = today - timedelta(days=7)
-        period_label = "Last 7 Days"
-        period_description = "last 7 days"
-        comparison_label = "previous 7 days"
-        comparison_start = today - timedelta(days=14)
-        comparison_end = start_date
-    elif period == '30d':
-        start_date = today - timedelta(days=30)
-        period_label = "Last 30 Days"
-        period_description = "last 30 days"
-        comparison_label = "previous 30 days"
-        comparison_start = today - timedelta(days=60)
-        comparison_end = start_date
-    elif period == '90d':
-        start_date = today - timedelta(days=90)
-        period_label = "Last 90 Days"
-        period_description = "last 90 days"
-        comparison_label = "previous 90 days"
-        comparison_start = today - timedelta(days=180)
-        comparison_end = start_date
-    else:  # 'all'
-        start_date = None
-        period_label = "All Time"
-        period_description = "all time"
-        comparison_label = "N/A"
-        comparison_start = None
-        comparison_end = None
-    
-    # Get active challenge instance (only truly active ones)
-    active_challenge_instance = ChallengeInstance.objects.filter(
-        user=request.user,
-        is_active=True
-    ).select_related('challenge').prefetch_related('weekly_plans', 'team_membership__team').first()
-    
-    # Get team information if user is in a team for this challenge
-    team_info = None
-    if active_challenge_instance:
-        try:
-            from challenges.models import TeamMember
-            team_membership = active_challenge_instance.team_membership
-            team_info = {
-                'name': team_membership.team.name,
-                'id': team_membership.team.id,
-            }
-        except (TeamMember.DoesNotExist, AttributeError):
-            team_info = None
-    
-    # Get current week plan
     current_week_start = DateRangeService.sunday_of_current_week(date.today())
-    current_week_plan = WeeklyPlan.objects.filter(
+    challenge_context = get_dashboard_challenge_context(
         user=request.user,
-        week_start=current_week_start
-    ).select_related('challenge_instance__challenge').first()
-    
-    # Calculate week number if current plan is part of a challenge
-    if current_week_plan and current_week_plan.challenge_instance:
-        all_ci_plans = current_week_plan.challenge_instance.weekly_plans.all().order_by("week_start")
-        for idx, p in enumerate(all_ci_plans, start=1):
-            if p.id == current_week_plan.id:
-                current_week_plan.week_number = idx
-                break
-    
-    # Get completed challenges count (all weeks completed)
-    all_challenge_instances = ChallengeInstance.objects.filter(
-        user=request.user
-    ).prefetch_related('weekly_plans')
-    completed_challenges_count = sum(
-        1 for ci in all_challenge_instances
-        if ci.all_weeks_completed
+        current_week_start=current_week_start,
     )
-    
-    # Check if user has any challenge involvement (active or completed)
-    has_challenge_involvement = active_challenge_instance is not None or completed_challenges_count > 0
-    
-    # Get all plans for stats (only challenge-related plans for accurate stats)
-    # Only calculate stats if user has challenge involvement
-    if has_challenge_involvement:
-        all_plans = WeeklyPlan.objects.filter(
-            user=request.user,
-            challenge_instance__isnull=False
-        ).select_related('challenge_instance')
-        
-        # Calculate stats
-        total_points = sum(plan.total_points for plan in all_plans)
-        total_weeks_completed = sum(1 for plan in all_plans if plan.is_completed)
-        total_weeks = all_plans.count()
-        
-        # Get recent plans (last 3) and calculate week numbers
-        recent_plans = list(all_plans.order_by('-week_start')[:3])
-        for plan in recent_plans:
-            if plan.challenge_instance:
-                all_ci_plans = plan.challenge_instance.weekly_plans.all().order_by("week_start")
-                for idx, p in enumerate(all_ci_plans, start=1):
-                    if p.id == plan.id:
-                        plan.week_number = idx
-                        break
-        
-        # Get upcoming plans (next 2 weeks)
-        next_week_start = current_week_start + timedelta(days=7)
-        upcoming_plans = WeeklyPlan.objects.filter(
-            user=request.user,
-            challenge_instance__isnull=False,
-            week_start__gte=next_week_start
-        ).order_by('week_start')[:2]
-        
-        # Only show recent plans if user has challenge involvement
-        show_recent_plans = len(recent_plans) > 0
-        # Calculate average completion rate
-        avg_completion_rate = (total_weeks_completed / total_weeks * 100) if total_weeks > 0 else 0
-    else:
-        # No challenge involvement - set defaults
-        all_plans = WeeklyPlan.objects.none()
-        total_points = 0
-        total_weeks_completed = 0
-        total_weeks = 0
-        recent_plans = WeeklyPlan.objects.none()
-        upcoming_plans = WeeklyPlan.objects.none()
-        show_recent_plans = False
-        avg_completion_rate = 0
+    active_challenge_instance = challenge_context['active_challenge_instance']
+    team_info = challenge_context['team_info']
+    current_week_plan = challenge_context['current_week_plan']
+    completed_challenges_count = challenge_context['completed_challenges_count']
+    has_challenge_involvement = challenge_context['has_challenge_involvement']
+    all_plans = challenge_context['all_plans']
+    total_points = challenge_context['total_points']
+    total_weeks_completed = challenge_context['total_weeks_completed']
+    total_weeks = challenge_context['total_weeks']
+    recent_plans = challenge_context['recent_plans']
+    upcoming_plans = challenge_context['upcoming_plans']
+    show_recent_plans = challenge_context['show_recent_plans']
+    avg_completion_rate = challenge_context['avg_completion_rate']
     
     # Get recent workouts from Peloton
     # All class data comes from ride_detail via SQL joins
