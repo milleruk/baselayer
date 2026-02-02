@@ -826,3 +826,129 @@ class ZoneCalculatorServiceTests(TestCase):
         self.assertEqual(zone_4['name'], 'Threshold')
         self.assertIsInstance(zone_4['time_seconds'], (int, float))
         self.assertIsInstance(zone_4['time_formatted'], str)
+
+
+class ActivityToggleServiceTests(TestCase):
+    """Tests for ActivityToggleService - validation and utility methods."""
+    
+    def test_is_valid_activity_valid(self):
+        """Test activity validation with valid activities."""
+        from core.services import ActivityToggleService
+        
+        self.assertTrue(ActivityToggleService.is_valid_activity('ride'))
+        self.assertTrue(ActivityToggleService.is_valid_activity('run'))
+        self.assertTrue(ActivityToggleService.is_valid_activity('yoga'))
+        self.assertTrue(ActivityToggleService.is_valid_activity('strength'))
+    
+    def test_is_valid_activity_invalid(self):
+        """Test activity validation with invalid activities."""
+        from core.services import ActivityToggleService
+        
+        self.assertFalse(ActivityToggleService.is_valid_activity('invalid'))
+        self.assertFalse(ActivityToggleService.is_valid_activity('swimming'))
+        self.assertFalse(ActivityToggleService.is_valid_activity(''))
+        self.assertFalse(ActivityToggleService.is_valid_activity(None))
+    
+    def test_get_activity_field(self):
+        """Test mapping activity names to model fields."""
+        from core.services import ActivityToggleService
+        
+        self.assertEqual(ActivityToggleService.get_activity_field('ride'), 'ride_done')
+        self.assertEqual(ActivityToggleService.get_activity_field('run'), 'run_done')
+        self.assertEqual(ActivityToggleService.get_activity_field('yoga'), 'yoga_done')
+        self.assertEqual(ActivityToggleService.get_activity_field('strength'), 'strength_done')
+        self.assertIsNone(ActivityToggleService.get_activity_field('invalid'))
+    
+    def test_get_activity_name(self):
+        """Test getting display names for activities."""
+        from core.services import ActivityToggleService
+        
+        self.assertEqual(ActivityToggleService.get_activity_name('ride'), 'Ride')
+        self.assertEqual(ActivityToggleService.get_activity_name('run'), 'Run')
+        self.assertEqual(ActivityToggleService.get_activity_name('yoga'), 'Yoga')
+        self.assertEqual(ActivityToggleService.get_activity_name('strength'), 'Strength')
+        self.assertIsNone(ActivityToggleService.get_activity_name(''))
+        self.assertIsNone(ActivityToggleService.get_activity_name(None))
+    
+    def test_calculate_activity_points_no_points_when_unchecking(self):
+        """Test that unchecking an activity earns no points."""
+        from core.services import ActivityToggleService
+        from tracker.models import WeeklyPlan
+        from accounts.models import User
+        from datetime import date
+        
+        user = User.objects.create_user(email='pointtest@example.com', password='test')
+        plan = WeeklyPlan.objects.create(user=user, week_start=date.today(), template_name='Test')
+        
+        # Create a mock item
+        from unittest.mock import Mock
+        item = Mock()
+        item.day_of_week = 1
+        
+        # Unchecking should earn no points
+        points = ActivityToggleService.calculate_activity_points(item, is_being_checked=False, plan=plan)
+        self.assertEqual(points, 0)
+    
+    def test_activity_map_coverage(self):
+        """Test that ACTIVITY_MAP contains all expected activities."""
+        from core.services import ActivityToggleService
+        
+        expected_activities = {'ride', 'run', 'yoga', 'strength'}
+        self.assertEqual(set(ActivityToggleService.ACTIVITY_MAP.keys()), expected_activities)
+    
+    def test_get_day_activity_status_all_false(self):
+        """Test getting day activity status when nothing is done."""
+        from core.services import ActivityToggleService
+        from tracker.models import WeeklyPlan
+        from accounts.models import User
+        from datetime import date
+        
+        user = User.objects.create_user(email='statustest@example.com', password='test')
+        plan = WeeklyPlan.objects.create(user=user, week_start=date.today(), template_name='Test')
+        
+        # Get status for a day with no items
+        status = ActivityToggleService.get_day_activity_status(plan, day_of_week=1)
+        
+        self.assertFalse(status['ride'])
+        self.assertFalse(status['run'])
+        self.assertFalse(status['yoga'])
+        self.assertFalse(status['strength'])
+
+class ActivityToggleServiceTests(TestCase):
+    """Tests for ActivityToggleService."""
+    
+    def test_is_valid_activity(self):
+        """Test activity validation."""
+        from core.services import ActivityToggleService
+        
+        self.assertTrue(ActivityToggleService.is_valid_activity('ride'))
+        self.assertTrue(ActivityToggleService.is_valid_activity('run'))
+        self.assertTrue(ActivityToggleService.is_valid_activity('yoga'))
+        self.assertTrue(ActivityToggleService.is_valid_activity('strength'))
+        
+        self.assertFalse(ActivityToggleService.is_valid_activity('invalid'))
+        self.assertFalse(ActivityToggleService.is_valid_activity('swimming'))
+        self.assertFalse(ActivityToggleService.is_valid_activity(''))
+    
+    def test_get_activity_field(self):
+        """Test getting field name for activity."""
+        from core.services import ActivityToggleService
+        
+        self.assertEqual(ActivityToggleService.get_activity_field('ride'), 'ride_done')
+        self.assertEqual(ActivityToggleService.get_activity_field('run'), 'run_done')
+        self.assertEqual(ActivityToggleService.get_activity_field('yoga'), 'yoga_done')
+        self.assertEqual(ActivityToggleService.get_activity_field('strength'), 'strength_done')
+        
+        self.assertIsNone(ActivityToggleService.get_activity_field('invalid'))
+    
+    def test_get_activity_name(self):
+        """Test getting display name for activity."""
+        from core.services import ActivityToggleService
+        
+        self.assertEqual(ActivityToggleService.get_activity_name('ride'), 'Ride')
+        self.assertEqual(ActivityToggleService.get_activity_name('run'), 'Run')
+        self.assertEqual(ActivityToggleService.get_activity_name('yoga'), 'Yoga')
+        self.assertEqual(ActivityToggleService.get_activity_name('strength'), 'Strength')
+        self.assertIsNone(ActivityToggleService.get_activity_name(''))
+        self.assertIsNone(ActivityToggleService.get_activity_name(None))
+    
