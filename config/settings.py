@@ -71,7 +71,7 @@ AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',  # Fallback to default
 ]
 
-LOGIN_REDIRECT_URL = "plans:dashboard"
+LOGIN_REDIRECT_URL = "core:dashboard"
 LOGOUT_REDIRECT_URL = "plans:landing"
 
 MIDDLEWARE = [

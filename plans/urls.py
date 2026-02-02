@@ -1,11 +1,10 @@
 from django.urls import path
-from .views import landing, dashboard, exercise_list, guide, metrics, privacy_policy, terms_and_conditions, features, about, faq, contact, how_it_works, recap, recap_share, recap_share_manage, recap_regenerate, eddington, pace_zones_reference
+from .views import landing, exercise_list, guide, metrics, privacy_policy, terms_and_conditions, features, about, faq, contact, how_it_works, recap, recap_share, recap_share_manage, recap_regenerate, eddington, pace_zones_reference
 
 app_name = "plans"
 
 urlpatterns = [
     path("", landing, name="landing"),
-    path("dashboard/", dashboard, name="dashboard"),
     path("exercises/", exercise_list, name="exercise_list"),
     path("guide/", guide, name="guide"),
     path("guide/pace-zones/", pace_zones_reference, name="pace_zones_reference"),

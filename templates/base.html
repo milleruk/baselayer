@@ -197,7 +197,7 @@
           <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between items-center h-16">
               <div class="flex items-center">
-                <a href="{% url 'plans:dashboard' %}" class="flex items-center group transition-opacity hover:opacity-90">
+                <a href="{% url 'core:dashboard' %}" class="flex items-center group transition-opacity hover:opacity-90">
                   <img src="{% static 'img/logo.png' %}" alt="Chase The Zones" class="h-10 w-auto transition-transform group-hover:scale-105">
                 </a>
                 <div class="hidden md:flex ml-10 space-x-1">
@@ -248,7 +248,7 @@
                       </svg>
                       Profile
                     </a>
-                    <a href="{% url 'plans:dashboard' %}" class="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
+                    <a href="{% url 'core:dashboard' %}" class="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
                       <svg class="w-4 h-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
                       </svg>
@@ -277,7 +277,7 @@
                 <a href="{% url 'workouts:history' %}" class="block px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-800">Workouts</a>
                 <a href="{% url 'recommender:index' %}" class="block px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-800">Recommender</a>
                 <a href="{% url 'annual_challenge:index' %}" class="block px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-800">Annual Challenge</a>
-                <a href="{% url 'plans:dashboard' %}" class="block px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-800">Dashboard</a>
+                <a href="{% url 'core:dashboard' %}" class="block px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-800">Dashboard</a>
               </div>
             </div>
           </div>
@@ -293,7 +293,7 @@
       >
         <!-- Sidebar Header -->
         <div class="flex items-center justify-between h-20 px-6 border-b border-gray-200 dark:border-gray-700">
-          <a href="{% url 'plans:dashboard' %}" class="flex items-center justify-center w-full">
+          <a href="{% url 'core:dashboard' %}" class="flex items-center justify-center w-full">
             <img src="{% static 'img/logo.png' %}" alt="Chase The Zones" class="h-12 md:h-14 w-auto">
           </a>
           <button @click="sidebarOpen = false" class="lg:hidden text-gray-500 dark:text-gray-400">
@@ -308,7 +308,7 @@
           <ul class="space-y-1">
             <!-- Overview Section -->
             <li>
-              <a href="{% url 'plans:dashboard' %}" class="flex items-center px-4 py-3 text-sm font-medium rounded-lg {% if request.resolver_match.url_name == 'dashboard' or request.path == '/' %}bg-primary text-white{% else %}text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700{% endif %}">
+              <a href="{% url 'core:dashboard' %}" class="flex items-center px-4 py-3 text-sm font-medium rounded-lg {% if request.resolver_match.url_name == 'dashboard' or request.path == '/' %}bg-primary text-white{% else %}text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700{% endif %}">
                 <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
                 </svg>
@@ -619,7 +619,7 @@
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex justify-between items-center h-16">
           <div class="flex items-center">
-            <a href="{% url 'plans:dashboard' %}" class="flex items-center group transition-opacity hover:opacity-90">
+            <a href="{% url 'core:dashboard' %}" class="flex items-center group transition-opacity hover:opacity-90">
               <img src="{% static 'img/logo.png' %}" alt="Chase The Zones" class="h-10 w-auto transition-transform group-hover:scale-105">
             </a>
             <div class="hidden md:flex ml-10 space-x-1">

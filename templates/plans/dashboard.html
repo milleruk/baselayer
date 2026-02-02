@@ -11,7 +11,7 @@
     <div class="-mx-2 sm:mx-0 overflow-x-auto">
       <div class="inline-flex rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-1 whitespace-nowrap">
       <button
-        hx-get="{% url 'plans:dashboard' %}?period=7d"
+        hx-get="{% url 'core:dashboard' %}?period=7d"
         hx-target="#dashboard-content"
         hx-swap="innerHTML"
         hx-indicator="#refresh-indicator"
@@ -22,7 +22,7 @@
         Last 7 Days
       </button>
       <button
-        hx-get="{% url 'plans:dashboard' %}?period=30d"
+        hx-get="{% url 'core:dashboard' %}?period=30d"
         hx-target="#dashboard-content"
         hx-swap="innerHTML"
         hx-indicator="#refresh-indicator"
@@ -33,7 +33,7 @@
         Last 30 Days
       </button>
       <button
-        hx-get="{% url 'plans:dashboard' %}?period=90d"
+        hx-get="{% url 'core:dashboard' %}?period=90d"
         hx-target="#dashboard-content"
         hx-swap="innerHTML"
         hx-indicator="#refresh-indicator"
@@ -44,7 +44,7 @@
         Last 90 Days
       </button>
       <button
-        hx-get="{% url 'plans:dashboard' %}?period=all"
+        hx-get="{% url 'core:dashboard' %}?period=all"
         hx-target="#dashboard-content"
         hx-swap="innerHTML"
         hx-indicator="#refresh-indicator"
@@ -60,7 +60,7 @@
   
   <!-- Refresh Button -->
   <button
-    hx-get="{% url 'plans:dashboard' %}?period={{ selected_period }}"
+    hx-get="{% url 'core:dashboard' %}?period={{ selected_period }}"
     hx-target="#dashboard-content"
     hx-swap="innerHTML"
     hx-indicator="#refresh-indicator"
