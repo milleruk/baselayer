@@ -280,6 +280,31 @@ This release introduces background processing capabilities and fixes critical sy
 
 ---
 
+## Release Candidate v0.5.0-rc2 - February 2, 2026
+
+### 🎯 Chart Consistency & Zone Accuracy
+
+This release candidate fixes a critical inconsistency in power zone targeting across the platform and enhances the standard cycling workout experience.
+
+### Key Improvements
+
+**Power Zone Target Fixes**
+- Fixed Zone 1 targeting to properly show 45% FTP (active recovery) instead of incorrect 27.5% FTP
+- All power zones now use official Peloton target percentages instead of zone range midpoints
+- History page mini-charts now match detail page calculations exactly
+- Consistent zone targeting across all workout views
+
+**Enhanced Cycling Experience**
+- Added FTP-based zone shading to standard cycling workout detail pages
+- Zone colors toggle for output charts on non-power-zone cycling classes  
+- Zone labels and %FTP context in tooltips matching power zone class experience
+- Full-canvas chart rendering with hidden axes for cleaner presentation
+
+### Why This Matters
+Previously, Zone 1 targets showed as ~52W instead of the correct ~86W for a 190W FTP user, making active recovery efforts appear harder than intended. This fix ensures accurate pacing across all training zones.
+
+---
+
 ## Release Candidate v0.5.0-rc1 - January 30, 2026
 
 ### ✅ Release Candidate

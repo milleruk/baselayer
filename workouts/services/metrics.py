@@ -449,7 +449,7 @@ class MetricsCalculator:
         ftp: Optional[float] = None,
     ) -> Optional[float]:
         """
-        Get target watts (midpoint) for a power zone.
+        Get target watts for a power zone using Peloton zone target percentages.
 
         Args:
             zone_num: Power zone 1-7
@@ -459,23 +459,31 @@ class MetricsCalculator:
         Returns:
             Target watts or None if invalid
         """
-        if zone_ranges is None:
-            if ftp is None:
-                return None
-            zone_ranges = self.get_power_zone_ranges(ftp)
-
-        if not zone_ranges or not isinstance(zone_num, int):
+        if not isinstance(zone_num, int) or zone_num not in self.ZONE_POWER_PERCENTAGES:
             return None
 
-        lo, hi = zone_ranges.get(zone_num, (None, None))
-        if lo is None:
+        # Get FTP value
+        ftp_val = ftp
+        if ftp_val is None and zone_ranges:
+            # Extract FTP from zone 1 upper bound (55% FTP)
+            zone_1_range = zone_ranges.get(1)
+            if zone_1_range and zone_1_range[1] is not None:
+                ftp_val = zone_1_range[1] / 0.55
+
+        if ftp_val is None:
             return None
 
-        if hi is None:
-            # Zone 7: no upper bound; use lower as conservative target
-            return float(lo)
+        try:
+            ftp_val = float(ftp_val)
+        except (TypeError, ValueError):
+            return None
 
-        return float(lo + (hi - lo) / 2.0)
+        if ftp_val <= 0:
+            return None
+
+        # Use proper Peloton zone target percentages (not range midpoints)
+        target_percentage = self.ZONE_POWER_PERCENTAGES[zone_num]
+        return float(ftp_val * target_percentage)
 
     def get_available_power_zones(self, ftp: Optional[float] = None) -> Optional[List[int]]:
         """

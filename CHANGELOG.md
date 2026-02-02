@@ -18,6 +18,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.0-rc2] - 2026-02-02
+
+### Enhanced
+- **Chart Consistency**: Fixed power zone target lines across all views to use proper Peloton zone target percentages
+  - Zone 1 now correctly shows 45% FTP (active recovery) instead of 27.5% FTP (range midpoint)
+  - All zones (1-7) now use official Peloton target percentages for consistent targeting
+  - History page mini-charts now match detail page target calculations exactly
+- **Cycling Detail Enhancement**: Added FTP-based zone shading and visualization to standard cycling workouts
+  - Zone colors toggle for output charts on non-power-zone cycling classes
+  - Zone labels and %FTP context in tooltips matching power zone class experience
+  - Full-canvas chart rendering with hidden axes for cleaner presentation
+
+### Fixed
+- Power zone target calculation inconsistency between history mini-charts and detail views
+- Zone 1 target now properly represents active recovery effort level
+- Standard cycling classes now provide zone context when user has FTP configured
+
+---
+
 ## [0.5.0-rc1] - 2026-01-30
 
 ### Release Candidate

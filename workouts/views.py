@@ -3606,6 +3606,22 @@ def workout_detail(request, pk):
     
     # Get user profile for target metrics calculations
     user_profile = request.user.profile
+
+    # Determine workout date and FTP snapshot (reused across templates)
+    workout_date = workout.completed_date or workout.recorded_date
+    user_ftp = None
+    if user_profile:
+        try:
+            if workout_date and hasattr(user_profile, 'get_ftp_at_date'):
+                user_ftp = user_profile.get_ftp_at_date(workout_date)
+        except Exception:
+            user_ftp = None
+
+        if not user_ftp and hasattr(user_profile, 'get_current_ftp'):
+            try:
+                user_ftp = user_profile.get_current_ftp()
+            except Exception:
+                user_ftp = None
     
     # Prepare target metrics data based on class type
     target_metrics = None
@@ -3619,9 +3635,6 @@ def workout_detail(request, pk):
         
         if ride_detail.is_power_zone_class or ride_detail.class_type == 'power_zone':
             # Power Zone class - get user's FTP at workout date for zone calculations
-            workout_date = workout.completed_date or workout.recorded_date
-            user_ftp = user_profile.get_ftp_at_date(workout_date)
-            
             # Calculate zone ranges using FTP at workout date (not current FTP)
             zone_ranges = metrics_calculator.get_power_zone_ranges(user_ftp) if user_ftp else None
             
@@ -3780,12 +3793,6 @@ def workout_detail(request, pk):
     target_line_data_json = None
     if target_line_data:
         target_line_data_json = mark_safe(json.dumps(target_line_data))
-    
-    # Get user FTP for power zone classes
-    user_ftp = None
-    if workout.ride_detail and (workout.ride_detail.is_power_zone_class or workout.ride_detail.class_type == 'power_zone'):
-        workout_date = workout.completed_date or workout.recorded_date
-        user_ftp = user_profile.get_ftp_at_date(workout_date)
     
     # Calculate power profile (5s, 1m, 5m, 20m peak power) - matching example code approach
     power_profile = None

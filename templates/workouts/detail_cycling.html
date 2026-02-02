@@ -177,6 +177,12 @@
       </svg>
       Share
     </button>
+    {% if user_ftp %}
+    <label class="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors border border-gray-300 dark:border-gray-600 cursor-pointer">
+      <input type="checkbox" id="toggleZoneColors" checked class="rounded border-gray-400 text-primary focus:ring-primary">
+      <span>Zone Colors</span>
+    </label>
+    {% endif %}
   </div>
 </div>
 {% endif %}
@@ -413,6 +419,7 @@ document.addEventListener('DOMContentLoaded', function() {
     {% endfor %}
   ];
 
+  const userFTP = {{ user_ftp|default:"null" }};
   const targetMetrics = {% if target_metrics_json %}{{ target_metrics_json|safe }}{% else %}null{% endif %};
   
   const rideDetailDurationSeconds = {% if workout.ride_detail and workout.ride_detail.duration_seconds %}{{ workout.ride_detail.duration_seconds }}{% else %}null{% endif %};
@@ -454,6 +461,89 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     }
   }
+
+  // FTP-driven zone palette mirrors power zone detail view
+  const powerZoneColors = {
+    1: '#6f42c1',
+    2: '#17a2b8',
+    3: '#28a745',
+    4: '#ffc107',
+    5: '#fd7e14',
+    6: '#dc3545',
+    7: '#6610f2'
+  };
+  const zoneShortLabels = { 1: 'Zone 1', 2: 'Zone 2', 3: 'Zone 3', 4: 'Zone 4', 5: 'Zone 5', 6: 'Zone 6', 7: 'Zone 7' };
+  const outputZoneRanges = (typeof userFTP === 'number' && userFTP > 0) ? {
+    '1': [0, userFTP * 0.55],
+    '2': [userFTP * 0.55, userFTP * 0.75],
+    '3': [userFTP * 0.75, userFTP * 0.90],
+    '4': [userFTP * 0.90, userFTP * 1.05],
+    '5': [userFTP * 1.05, userFTP * 1.20],
+    '6': [userFTP * 1.20, userFTP * 1.50],
+    '7': [userFTP * 1.50, null]
+  } : null;
+
+  let zoneBandsEnabled = !!outputZoneRanges;
+  let currentMetric = 'output';
+
+  function deriveZoneFromOutput(value) {
+    if (!userFTP || typeof value !== 'number') return null;
+    const pct = Math.round((value / userFTP) * 100);
+    let zone = null;
+    if (pct < 55) zone = 1;
+    else if (pct < 75) zone = 2;
+    else if (pct < 90) zone = 3;
+    else if (pct < 105) zone = 4;
+    else if (pct < 120) zone = 5;
+    else if (pct < 150) zone = 6;
+    else zone = 7;
+    return { zone, pct };
+  }
+
+  const outputZoneBandsPlugin = {
+    id: 'outputZoneBands',
+    beforeDatasetsDraw(chart) {
+      if (!zoneBandsEnabled) return;
+      if (currentMetric !== 'output') return;
+      if (!outputZoneRanges) return;
+      const { ctx, chartArea, scales } = chart;
+      ctx.save();
+      ctx.globalAlpha = 0.18;
+      for (let z = 1; z <= 7; z++) {
+        const range = outputZoneRanges[String(z)];
+        if (!range) continue;
+        const lo = typeof range[0] === 'number' ? range[0] : null;
+        const hi = typeof range[1] === 'number' ? range[1] : null;
+        if (lo === null) continue;
+        const yTop = scales.y.getPixelForValue(hi !== null ? hi : scales.y.max);
+        const yBot = scales.y.getPixelForValue(lo);
+        ctx.fillStyle = powerZoneColors[z] || '#666';
+        ctx.fillRect(chartArea.left, Math.min(yTop, yBot), chartArea.right - chartArea.left, Math.abs(yBot - yTop));
+      }
+      ctx.restore();
+    },
+    afterDraw(chart) {
+      if (currentMetric !== 'output') return;
+      if (!outputZoneRanges) return;
+      const { ctx, chartArea, scales } = chart;
+      ctx.save();
+      ctx.font = '12px sans-serif';
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      for (let z = 1; z <= 7; z++) {
+        const range = outputZoneRanges[String(z)];
+        if (!range) continue;
+        const lo = typeof range[0] === 'number' ? range[0] : null;
+        const hi = typeof range[1] === 'number' ? range[1] : null;
+        if (lo === null) continue;
+        const mid = (hi !== null && typeof hi === 'number') ? ((lo + hi) / 2) : lo;
+        const yPos = scales.y.getPixelForValue(mid);
+        ctx.fillText(zoneShortLabels[z] || `Zone ${z}`, chartArea.left + 8, yPos);
+      }
+      ctx.restore();
+    }
+  };
 
   function formatTime(seconds) {
     const mins = Math.floor(seconds / 60);
@@ -556,6 +646,9 @@ document.addEventListener('DOMContentLoaded', function() {
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        layout: {
+          padding: 0
+        },
         animation: false,
         interaction: {
           mode: 'index',
@@ -591,6 +684,13 @@ document.addEventListener('DOMContentLoaded', function() {
               },
               afterLabel: function(context) {
                 const dsLabel = context.dataset && context.dataset.label ? context.dataset.label : '';
+                if (dsLabel === 'Output') {
+                  const zoneInfo = deriveZoneFromOutput(context.parsed && typeof context.parsed.y === 'number' ? context.parsed.y : null);
+                  if (zoneInfo && zoneInfo.zone) {
+                    return `Zone ${zoneInfo.zone} (${zoneInfo.pct}% FTP)`;
+                  }
+                  return '';
+                }
                 if (dsLabel !== 'Cadence' && dsLabel !== 'Resistance') return '';
                 const t = context.parsed && typeof context.parsed.x === 'number' ? context.parsed.x : null;
                 if (t === null) return '';
@@ -608,33 +708,27 @@ document.addEventListener('DOMContentLoaded', function() {
             type: 'linear',
             min: 0,
             max: workoutDuration,
-            title: { display: false },
-            grid: { color: 'rgba(255, 255, 255, 0.06)', drawBorder: false },
-            ticks: {
-              autoSkip: true,
-              maxTicksLimit: 9,
-              callback: function(value) { return formatTime(value); },
-              color: 'rgba(255, 255, 255, 0.7)',
-              font: { size: 12 }
-            },
+            display: false,
+            grid: { display: false, drawBorder: false },
+            ticks: { display: false },
             border: { display: false }
           },
           y: {
             type: 'linear',
             position: 'left',
-            title: { display: false },
-            grid: { color: 'rgba(255, 255, 255, 0.1)', drawOnChartArea: true, drawTicks: false },
-            ticks: { color: 'rgba(255, 255, 255, 0.7)' },
+            display: false,
+            grid: { display: false, drawOnChartArea: false, drawTicks: false },
+            ticks: { display: false },
             border: { display: false }
           }
         }
-      }
+      },
+      plugins: [outputZoneBandsPlugin]
     });
   }
 
   // Metric toggle (Output / Cadence / Resistance)
   const metricButtons = Array.from(document.querySelectorAll('.metric-toggle'));
-  let currentMetric = 'output';
   const metricConfig = {
     output: { label: 'Output', color: '#e0fe48', bg: 'rgba(224, 254, 72, 0.10)', band: null },
     cadence: { label: 'Cadence', color: '#93c5fd', bg: 'rgba(147, 197, 253, 0.12)', band: 'rgba(147, 197, 253, 0.16)' },
@@ -691,6 +785,17 @@ document.addEventListener('DOMContentLoaded', function() {
       });
     });
     setMetric('output');
+  }
+
+  const zoneColorsToggle = document.getElementById('toggleZoneColors');
+  if (zoneColorsToggle && outputZoneRanges) {
+    zoneBandsEnabled = zoneColorsToggle.checked;
+    zoneColorsToggle.addEventListener('change', function() {
+      zoneBandsEnabled = zoneColorsToggle.checked;
+      if (generalChartInstance) {
+        generalChartInstance.update('none');
+      }
+    });
   }
 
   // Adherence card: % within cadence/resistance targets
