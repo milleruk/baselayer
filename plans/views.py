@@ -19,7 +19,8 @@ def dashboard(request):
     # Get time period from request (default to 7d)
     period = request.GET.get('period', '7d')
 
-    period_context = get_dashboard_period(period)
+    today = timezone.now().date()
+    period_context = get_dashboard_period(period, today=today)
     start_date = period_context['start_date']
     period_label = period_context['period_label']
     period_description = period_context['period_description']
