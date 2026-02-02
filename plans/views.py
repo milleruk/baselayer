@@ -19,9 +19,6 @@ def exercise_list(request):
     exercises = Exercise.objects.all().order_by("category", "name")
     return render(request, "plans/exercises.html", {"exercises": exercises})
 
-def landing(request):
-    return render(request, "plans/landing.html")
-
 def guide(request):
     return render(request, "plans/guide.html")
 
@@ -124,27 +121,6 @@ def pace_zones_reference(request):
         'walking_levels': walking_levels,
         'rowing_levels': rowing_levels,
     })
-
-def privacy_policy(request):
-    return render(request, "plans/privacy_policy.html")
-
-def terms_and_conditions(request):
-    return render(request, "plans/terms_and_conditions.html")
-
-def features(request):
-    return render(request, "plans/features.html")
-
-def about(request):
-    return render(request, "plans/about.html")
-
-def faq(request):
-    return render(request, "plans/faq.html")
-
-def contact(request):
-    return render(request, "plans/contact.html")
-
-def how_it_works(request):
-    return render(request, "plans/how_it_works.html")
 
 def calculate_cycling_zones(workouts, period=None, current_ftp=None):
     """Calculate time spent in each power zone (1-7) for cycling workouts.

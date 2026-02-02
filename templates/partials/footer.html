@@ -20,7 +20,7 @@
           <h3 class="text-white font-bold uppercase text-xs mb-3 sm:mb-4 tracking-wide">PAGES</h3>
           <ul class="space-y-2">
             <li>
-              <a href="{% url 'plans:landing' %}" class="text-gray-400 hover:text-gray-200 transition-colors text-sm block">Home</a>
+              <a href="{% url 'core:landing' %}" class="text-gray-400 hover:text-gray-200 transition-colors text-sm block">Home</a>
             </li>
             {% if user.is_authenticated %}
             <li>
@@ -52,28 +52,28 @@
           <h3 class="text-white font-bold uppercase text-xs mb-3 sm:mb-4 tracking-wide">RESOURCES</h3>
           <ul class="space-y-2">
             <li>
-              <a href="{% url 'plans:about' %}" class="text-gray-400 hover:text-gray-200 transition-colors text-sm block">About</a>
+              <a href="{% url 'core:about' %}" class="text-gray-400 hover:text-gray-200 transition-colors text-sm block">About</a>
             </li>
             <li>
-              <a href="{% url 'plans:how_it_works' %}" class="text-gray-400 hover:text-gray-200 transition-colors text-sm block">How It Works</a>
+              <a href="{% url 'core:how_it_works' %}" class="text-gray-400 hover:text-gray-200 transition-colors text-sm block">How It Works</a>
             </li>
             <li>
-              <a href="{% url 'plans:features' %}" class="text-gray-400 hover:text-gray-200 transition-colors text-sm block">Features</a>
+              <a href="{% url 'core:features' %}" class="text-gray-400 hover:text-gray-200 transition-colors text-sm block">Features</a>
             </li>
             <li>
-              <a href="{% url 'plans:faq' %}" class="text-gray-400 hover:text-gray-200 transition-colors text-sm block">FAQ</a>
+              <a href="{% url 'core:faq' %}" class="text-gray-400 hover:text-gray-200 transition-colors text-sm block">FAQ</a>
             </li>
             <li>
               <a href="{% url 'plans:guide' %}" class="text-gray-400 hover:text-gray-200 transition-colors text-sm block">Help & Guide</a>
             </li>
             <li>
-              <a href="{% url 'plans:contact' %}" class="text-gray-400 hover:text-gray-200 transition-colors text-sm block">Contact</a>
+              <a href="{% url 'core:contact' %}" class="text-gray-400 hover:text-gray-200 transition-colors text-sm block">Contact</a>
             </li>
             <li>
-              <a href="{% url 'plans:privacy_policy' %}" class="text-gray-400 hover:text-gray-200 transition-colors text-sm block">Privacy Policy</a>
+              <a href="{% url 'core:privacy_policy' %}" class="text-gray-400 hover:text-gray-200 transition-colors text-sm block">Privacy Policy</a>
             </li>
             <li>
-              <a href="{% url 'plans:terms_and_conditions' %}" class="text-gray-400 hover:text-gray-200 transition-colors text-sm block">Terms of Use</a>
+              <a href="{% url 'core:terms_and_conditions' %}" class="text-gray-400 hover:text-gray-200 transition-colors text-sm block">Terms of Use</a>
             </li>
           </ul>
         </div>
@@ -112,14 +112,14 @@
           © {% now "Y" %} ChaseTheZones. All rights reserved.
         </div>
         <div class="flex flex-wrap gap-4 text-gray-400">
-          <a href="{% url 'plans:landing' %}" class="hover:text-gray-200 transition-colors">Home</a>
-          <a href="{% url 'plans:how_it_works' %}" class="hover:text-gray-200 transition-colors">How It Works</a>
-          <a href="{% url 'plans:about' %}" class="hover:text-gray-200 transition-colors">About</a>
-          <a href="{% url 'plans:faq' %}" class="hover:text-gray-200 transition-colors">FAQ</a>
-          <a href="{% url 'plans:contact' %}" class="hover:text-gray-200 transition-colors">Contact</a>
+          <a href="{% url 'core:landing' %}" class="hover:text-gray-200 transition-colors">Home</a>
+          <a href="{% url 'core:how_it_works' %}" class="hover:text-gray-200 transition-colors">How It Works</a>
+          <a href="{% url 'core:about' %}" class="hover:text-gray-200 transition-colors">About</a>
+          <a href="{% url 'core:faq' %}" class="hover:text-gray-200 transition-colors">FAQ</a>
+          <a href="{% url 'core:contact' %}" class="hover:text-gray-200 transition-colors">Contact</a>
           <a href="{% url 'plans:guide' %}" class="hover:text-gray-200 transition-colors">Guide</a>
-          <a href="{% url 'plans:privacy_policy' %}" class="hover:text-gray-200 transition-colors">Privacy</a>
-          <a href="{% url 'plans:terms_and_conditions' %}" class="hover:text-gray-200 transition-colors">Terms</a>
+          <a href="{% url 'core:privacy_policy' %}" class="hover:text-gray-200 transition-colors">Privacy</a>
+          <a href="{% url 'core:terms_and_conditions' %}" class="hover:text-gray-200 transition-colors">Terms</a>
         </div>
       </div>
     </div>

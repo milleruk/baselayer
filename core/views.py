@@ -365,3 +365,36 @@ def dashboard(request):
         return render(request, 'plans/partials/dashboard_content.html', context)
     
     return render(request, "plans/dashboard.html", context)
+
+
+# Public/Marketing Views
+def landing(request):
+    return render(request, "plans/landing.html")
+
+
+def features(request):
+    return render(request, "plans/features.html")
+
+
+def about(request):
+    return render(request, "plans/about.html")
+
+
+def how_it_works(request):
+    return render(request, "plans/how_it_works.html")
+
+
+def faq(request):
+    return render(request, "plans/faq.html")
+
+
+def contact(request):
+    return render(request, "plans/contact.html")
+
+
+def privacy_policy(request):
+    return render(request, "plans/privacy_policy.html")
+
+
+def terms_and_conditions(request):
+    return render(request, "plans/terms_and_conditions.html")
