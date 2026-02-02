@@ -495,3 +495,334 @@ class ChallengeServiceTests(TestCase):
         instance.refresh_from_db()
         self.assertTrue(instance.is_active)
 
+
+class ZoneCalculatorServiceTests(TestCase):
+    """Tests for ZoneCalculatorService."""
+    
+    def setUp(self):
+        """Set up test data."""
+        from accounts.models import User
+        from workouts.models import Workout, WorkoutType, RideDetail, WorkoutPerformanceData
+        from django.utils import timezone
+        
+        # Create test user
+        self.user = User.objects.create_user(
+            email='zonetest@example.com',
+            password='testpass123'
+        )
+        
+        # Create workout types
+        self.cycling_type = WorkoutType.objects.create(
+            name='Cycling',
+            slug='cycling'
+        )
+        self.running_type = WorkoutType.objects.create(
+            name='Running',
+            slug='running'
+        )
+    
+    def test_calculate_cycling_zones_no_workouts(self):
+        """Test cycling zone calculation with no workouts."""
+        from core.services import ZoneCalculatorService
+        from workouts.models import Workout
+        from django.utils import timezone
+        
+        workouts = Workout.objects.filter(user=self.user)
+        result = ZoneCalculatorService.calculate_cycling_zones(workouts)
+        
+        self.assertIn('zones', result)
+        self.assertIn('total_seconds', result)
+        self.assertIn('total_formatted', result)
+        
+        # All zones should be 0
+        for zone_num in [1, 2, 3, 4, 5, 6, 7]:
+            self.assertEqual(result['zones'][zone_num]['time_seconds'], 0)
+        self.assertEqual(result['total_seconds'], 0)
+    
+    def test_calculate_cycling_zones_with_workouts(self):
+        """Test cycling zone calculation with actual workouts."""
+        from core.services import ZoneCalculatorService
+        from workouts.models import Workout, RideDetail, WorkoutPerformanceData
+        from django.utils import timezone
+        import uuid
+        
+        # Create a cycling workout
+        now = timezone.now()
+        ride_detail = RideDetail.objects.create(
+            peloton_ride_id=f'cycling_1_{uuid.uuid4().hex[:8]}',
+            title='Cycling Test Ride',
+            description='Test ride for zone calculations',
+            workout_type=self.cycling_type,
+            duration_seconds=3600,
+            fitness_discipline='cycling'
+        )
+        
+        workout = Workout.objects.create(
+            user=self.user,
+            ride_detail=ride_detail,
+            completed_date=now.date(),
+            recorded_date=now.date()
+        )
+        
+        # Create performance data in zone 2 (Endurance - 56-75% FTP)
+        # Create 60 data points spread throughout the workout
+        for i in range(60):
+            WorkoutPerformanceData.objects.create(
+                workout=workout,
+                timestamp=i * 60,  # Every 60 seconds (1 minute)
+                power_zone=2,
+                output=300  # Example power output
+            )
+        
+        workouts = Workout.objects.filter(user=self.user)
+        result = ZoneCalculatorService.calculate_cycling_zones(workouts)
+        
+        self.assertIn('zones', result)
+        self.assertIn('total_seconds', result)
+        self.assertEqual(result['zones'][2]['name'], 'Endurance')
+        # Should have some time in zone 2
+        self.assertGreaterEqual(result['zones'][2]['time_seconds'], 0)
+    
+    def test_calculate_cycling_zones_period_filter_month(self):
+        """Test cycling zone calculation with month filter."""
+        from core.services import ZoneCalculatorService
+        from workouts.models import Workout, RideDetail, WorkoutPerformanceData
+        from django.utils import timezone
+        from datetime import timedelta
+        import uuid
+        
+        now = timezone.now()
+        
+        # Create two cycling workouts - one this month, one last month
+        ride_detail_current = RideDetail.objects.create(
+            peloton_ride_id=f'cycling_2_{uuid.uuid4().hex[:8]}',
+            title='Cycling Current Month',
+            description='Test ride',
+            workout_type=self.cycling_type,
+            duration_seconds=3600,
+            fitness_discipline='cycling'
+        )
+        
+        ride_detail_last = RideDetail.objects.create(
+            peloton_ride_id=f'cycling_3_{uuid.uuid4().hex[:8]}',
+            title='Cycling Last Month',
+            description='Test ride',
+            workout_type=self.cycling_type,
+            duration_seconds=3600,
+            fitness_discipline='cycling'
+        )
+        
+        # Current month workout
+        workout_current = Workout.objects.create(
+            user=self.user,
+            ride_detail=ride_detail_current,
+            completed_date=now.date(),
+            recorded_date=now.date()
+        )
+        
+        # Last month workout
+        last_month = now - timedelta(days=30)
+        workout_last = Workout.objects.create(
+            user=self.user,
+            ride_detail=ride_detail_last,
+            completed_date=last_month.date(),
+            recorded_date=last_month.date()
+        )
+        
+        # Add performance data to both
+        for workout in [workout_current, workout_last]:
+            for i in range(5):
+                WorkoutPerformanceData.objects.create(
+                    workout=workout,
+                    timestamp=i * 360,
+                    power_zone=3,
+                    output=350
+                )
+        
+        workouts = Workout.objects.filter(user=self.user)
+        result_month = ZoneCalculatorService.calculate_cycling_zones(workouts, period='month')
+        result_all = ZoneCalculatorService.calculate_cycling_zones(workouts, period='all')
+        
+        # Month filter should have less or equal time than all time
+        self.assertLessEqual(
+            result_month['zones'][3]['time_seconds'],
+            result_all['zones'][3]['time_seconds']
+        )
+    
+    def test_calculate_running_zones_no_workouts(self):
+        """Test running zone calculation with no workouts."""
+        from core.services import ZoneCalculatorService
+        from workouts.models import Workout
+        
+        workouts = Workout.objects.filter(user=self.user)
+        result = ZoneCalculatorService.calculate_running_zones(workouts)
+        
+        self.assertIn('zones', result)
+        self.assertIn('total_seconds', result)
+        self.assertIn('total_formatted', result)
+        
+        # All zones should be 0
+        for zone in ['recovery', 'easy', 'moderate', 'challenging', 'hard', 'very_hard', 'max']:
+            self.assertEqual(result['zones'][zone]['time_seconds'], 0)
+        self.assertEqual(result['total_seconds'], 0)
+    
+    def test_calculate_running_zones_with_workouts(self):
+        """Test running zone calculation with actual workouts."""
+        from core.services import ZoneCalculatorService
+        from workouts.models import Workout, RideDetail, WorkoutPerformanceData
+        from django.utils import timezone
+        import uuid
+        
+        # Create a running workout
+        now = timezone.now()
+        ride_detail = RideDetail.objects.create(
+            peloton_ride_id=f'running_1_{uuid.uuid4().hex[:8]}',
+            title='Running Test Workout',
+            description='Test run for zone calculations',
+            workout_type=self.running_type,
+            duration_seconds=1800,
+            fitness_discipline='running'
+        )
+        
+        workout = Workout.objects.create(
+            user=self.user,
+            ride_detail=ride_detail,
+            completed_date=now.date(),
+            recorded_date=now.date()
+        )
+        
+        # Create performance data in 'easy' zone
+        # timestamp is seconds from start of workout
+        for i in range(10):
+            WorkoutPerformanceData.objects.create(
+                workout=workout,
+                timestamp=i * 180,  # Every 180 seconds (3 minutes)
+                intensity_zone='easy',
+                speed=5.5
+            )
+        
+        workouts = Workout.objects.filter(user=self.user)
+        result = ZoneCalculatorService.calculate_running_zones(workouts)
+        
+        self.assertIn('zones', result)
+        self.assertIn('total_seconds', result)
+        self.assertEqual(result['zones']['easy']['name'], 'Easy')
+        self.assertGreater(result['zones']['easy']['time_seconds'], 0)
+    
+    def test_calculate_running_zones_period_filter_year(self):
+        """Test running zone calculation with year filter."""
+        from core.services import ZoneCalculatorService
+        from workouts.models import Workout, RideDetail, WorkoutPerformanceData
+        from django.utils import timezone
+        from datetime import timedelta
+        import uuid
+        
+        now = timezone.now()
+        
+        # Create two running workouts - one this year, one last year
+        ride_detail_current = RideDetail.objects.create(
+            peloton_ride_id=f'running_2_{uuid.uuid4().hex[:8]}',
+            title='Running Current Year',
+            description='Test run',
+            workout_type=self.running_type,
+            duration_seconds=1800,
+            fitness_discipline='running'
+        )
+        
+        ride_detail_last = RideDetail.objects.create(
+            peloton_ride_id=f'running_3_{uuid.uuid4().hex[:8]}',
+            title='Running Last Year',
+            description='Test run',
+            workout_type=self.running_type,
+            duration_seconds=1800,
+            fitness_discipline='running'
+        )
+        
+        # Current year workout
+        workout_current = Workout.objects.create(
+            user=self.user,
+            ride_detail=ride_detail_current,
+            completed_date=now.date(),
+            recorded_date=now.date()
+        )
+        
+        # Last year workout
+        last_year = now - timedelta(days=400)
+        workout_last = Workout.objects.create(
+            user=self.user,
+            ride_detail=ride_detail_last,
+            completed_date=last_year.date(),
+            recorded_date=last_year.date()
+        )
+        
+        # Add performance data to both
+        for workout in [workout_current, workout_last]:
+            for i in range(5):
+                WorkoutPerformanceData.objects.create(
+                    workout=workout,
+                    timestamp=i * 360,
+                    intensity_zone='moderate',
+                    speed=6.5
+                )
+        
+        workouts = Workout.objects.filter(user=self.user)
+        result_year = ZoneCalculatorService.calculate_running_zones(workouts, period='year')
+        result_all = ZoneCalculatorService.calculate_running_zones(workouts, period='all')
+        
+        # Year filter should have less or equal time than all time
+        self.assertLessEqual(
+            result_year['zones']['moderate']['time_seconds'],
+            result_all['zones']['moderate']['time_seconds']
+        )
+    
+    def test_zone_format_output_structure(self):
+        """Test that zone calculation returns correct output structure."""
+        from core.services import ZoneCalculatorService
+        from workouts.models import Workout, RideDetail, WorkoutPerformanceData
+        from django.utils import timezone
+        import uuid
+        
+        now = timezone.now()
+        
+        # Create workout with performance data
+        ride_detail = RideDetail.objects.create(
+            peloton_ride_id=f'cycling_4_{uuid.uuid4().hex[:8]}',
+            title='Cycling Structure Test',
+            description='Test ride',
+            workout_type=self.cycling_type,
+            duration_seconds=3600,
+            fitness_discipline='cycling'
+        )
+        
+        workout = Workout.objects.create(
+            user=self.user,
+            ride_detail=ride_detail,
+            completed_date=now.date(),
+            recorded_date=now.date()
+        )
+        
+        for i in range(10):
+            WorkoutPerformanceData.objects.create(
+                workout=workout,
+                timestamp=i * 360,
+                power_zone=4,
+                output=400
+            )
+        
+        workouts = Workout.objects.filter(user=self.user)
+        result = ZoneCalculatorService.calculate_cycling_zones(workouts)
+        
+        # Verify structure
+        self.assertIsInstance(result, dict)
+        self.assertIn('zones', result)
+        self.assertIn('total_seconds', result)
+        self.assertIn('total_formatted', result)
+        
+        # Verify zone structure
+        zone_4 = result['zones'][4]
+        self.assertIn('name', zone_4)
+        self.assertIn('time_seconds', zone_4)
+        self.assertIn('time_formatted', zone_4)
+        self.assertEqual(zone_4['name'], 'Threshold')
+        self.assertIsInstance(zone_4['time_seconds'], (int, float))
+        self.assertIsInstance(zone_4['time_formatted'], str)
