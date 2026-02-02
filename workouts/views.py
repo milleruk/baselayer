@@ -2705,7 +2705,20 @@ def _downsample_series(series, max_points=48):
     return out
 
 
-def _normalize_series_to_svg_points(series, width=360, height=120, left_pad=34, right_pad=10, top_pad=8, bottom_pad=8):
+def _normalize_series_to_svg_points(
+    series,
+    width=360,
+    height=120,
+    left_pad=34,
+    right_pad=10,
+    top_pad=8,
+    bottom_pad=8,
+    *,
+    preserve_full_series=False,
+    max_points=120,
+    scaled_min=None,
+    scaled_max=None,
+):
     """
     Convert a series of dict points (with 'v' and optional 't'/'z') into SVG points.
     Returns: (points_str, plot_box, points_list, vmin, vmax) or (None, plot_box, [], None, None) if insufficient points.
@@ -2716,7 +2729,14 @@ def _normalize_series_to_svg_points(series, width=360, height=120, left_pad=34, 
     plot_y1 = max(top_pad + 10, height - bottom_pad)
     plot_box = (plot_x0, plot_y0, plot_x1, plot_y1)
 
-    ds = _downsample_series(series, max_points=120)
+    cleaned = [p for p in series if isinstance(p, dict) and isinstance(p.get('v'), (int, float))] if isinstance(series, list) else []
+    if len(cleaned) < 2:
+        return None, plot_box, [], None, None
+
+    if preserve_full_series:
+        ds = cleaned
+    else:
+        ds = _downsample_series(cleaned, max_points=max_points)
     if len(ds) < 2:
         return None, plot_box, [], None, None
 
@@ -2742,8 +2762,8 @@ def _normalize_series_to_svg_points(series, width=360, height=120, left_pad=34, 
 
     # For zone-based plots, keep fixed padding so the line sits nicely in the bands.
     if uses_scaled:
-        vmin = 0.5
-        vmax = 7.5
+        vmin = float(scaled_min) if isinstance(scaled_min, (int, float)) else 0.5
+        vmax = float(scaled_max) if isinstance(scaled_max, (int, float)) else 7.5
     else:
         vmin = min(vals)
         vmax = max(vals)
@@ -2805,6 +2825,38 @@ def _power_zone_for_output(output_watts, zone_ranges):
     Delegates to MetricsCalculator service.
     """
     return metrics_calculator.get_power_zone_for_output(output_watts, zone_ranges)
+
+
+def _scaled_zone_value_from_output(output_watts, zone_ranges):
+    """Map an output value onto the zone axis so the line can flow within each band."""
+    if not isinstance(output_watts, (int, float)):
+        return None
+    if not isinstance(zone_ranges, dict) or not zone_ranges:
+        return None
+
+    zone = _power_zone_for_output(output_watts, zone_ranges)
+    if not isinstance(zone, int):
+        return None
+
+    lo, hi = zone_ranges.get(zone, (None, None))
+    if not isinstance(lo, (int, float)):
+        return float(zone)
+
+    lo = float(lo)
+    hi_val = float(hi) if isinstance(hi, (int, float)) else None
+    if hi_val is None:
+        hi_val = lo + max(lo * 0.25, 25.0)
+
+    span = hi_val - lo
+    if span <= 0:
+        span = max(lo * 0.25, 25.0)
+
+    value = float(output_watts)
+    clamped = min(max(value, lo), lo + span)
+    frac = (clamped - lo) / span
+    frac = max(0.0, min(frac, 1.0))
+
+    return (zone - 0.5) + frac
 
 
 def _pace_zone_targets_for_level(pace_level):
@@ -3013,8 +3065,6 @@ def _build_workout_card_chart(workout, user_profile=None):
                 zc = _power_zone_for_output(point['v'], zone_ranges)
                 if isinstance(zc, int):
                     point['z'] = zc
-            if isinstance(point.get('z'), int):
-                point['sv'] = float(point['z'])
         elif chart_kind == 'pace':
             z = getattr(p, 'intensity_zone', None)
             if isinstance(z, str) and z:
@@ -3027,8 +3077,31 @@ def _build_workout_card_chart(workout, user_profile=None):
             zc = _power_zone_for_output(point['v'], zone_ranges)
             if isinstance(zc, int):
                 point['z'] = zc
-                point['sv'] = float(zc)
+        if chart_kind in ['power_zone', 'cycling_output_zones']:
+            scaled_sv = _scaled_zone_value_from_output(point['v'], zone_ranges)
+            if scaled_sv is not None:
+                point['sv'] = scaled_sv
+            elif isinstance(point.get('z'), int):
+                point['sv'] = float(point['z'])
         series.append(point)
+
+    scaled_min = None
+    scaled_max = None
+    display_max_zone = 7
+    if chart_kind in ['power_zone', 'cycling_output_zones']:
+        max_zone_hit = 0
+        for pt in series:
+            z_val = pt.get('sv') or pt.get('z')
+            try:
+                z_int = int(round(float(z_val))) if z_val is not None else None
+            except Exception:
+                z_int = None
+            if isinstance(z_int, int) and 1 <= z_int <= 7:
+                max_zone_hit = max(max_zone_hit, z_int)
+        if max_zone_hit > 0:
+            display_max_zone = min(7, max_zone_hit + 2)
+        scaled_min = 0.5
+        scaled_max = display_max_zone + 0.5
 
     # Build target segments (optional)
     target_segments = None
@@ -3137,13 +3210,17 @@ def _build_workout_card_chart(workout, user_profile=None):
 
                 # Scaled target for zone-space plotting
                 if chart_kind in ['power_zone', 'cycling_output_zones']:
-                    zt = seg.get('zone')
-                    try:
-                        zt = int(zt) if zt is not None else None
-                    except Exception:
-                        zt = None
-                    if isinstance(zt, int) and 1 <= zt <= 7:
-                        pt['stv'] = float(zt)
+                    stv = _scaled_zone_value_from_output(tv, zone_ranges) if isinstance(tv, (int, float)) else None
+                    if stv is None:
+                        zt = seg.get('zone')
+                        try:
+                            zt = int(zt) if zt is not None else None
+                        except Exception:
+                            zt = None
+                        if isinstance(zt, int) and 1 <= zt <= 7:
+                            stv = float(zt)
+                    if isinstance(stv, (int, float)):
+                        pt['stv'] = stv
                 elif chart_kind == 'pace':
                     zt = seg.get('zone')
                     if isinstance(zt, str):
@@ -3151,8 +3228,9 @@ def _build_workout_card_chart(workout, user_profile=None):
                         if isinstance(lvl, int):
                             pt['stv'] = float(lvl)
 
-    width = 360
-    height = 120
+    width = 420
+    height = 150
+    preserve_full_series = chart_kind in ['power_zone', 'cycling_output_zones']
     points_str, plot_box, points_list, vmin, vmax = _normalize_series_to_svg_points(
         series,
         width=width,
@@ -3161,6 +3239,10 @@ def _build_workout_card_chart(workout, user_profile=None):
         right_pad=0,
         top_pad=6,
         bottom_pad=8,
+        preserve_full_series=preserve_full_series,
+        max_points=120,
+        scaled_min=scaled_min,
+        scaled_max=scaled_max,
     )
     if not points_str:
         return None
@@ -3195,48 +3277,27 @@ def _build_workout_card_chart(workout, user_profile=None):
                 'label_y': plot_y0 + i * band_h + band_h / 2.0,
             })
 
-    elif is_power_zone:
-        # Power zones (fixed bands for card preview; output line overlays)
-        labels = ["Zone 7", "Zone 6", "Zone 5", "Zone 4", "Zone 3", "Zone 2", "Zone 1"]
-        colors = [
-            "rgba(239, 68, 68, 0.45)",   # red-500
-            "rgba(249, 115, 22, 0.45)",  # orange-500
-            "rgba(245, 158, 11, 0.45)",  # amber-500
-            "rgba(34, 197, 94, 0.45)",   # green-500
-            "rgba(20, 184, 166, 0.45)",  # teal-500
-            "rgba(59, 130, 246, 0.45)",  # blue-500
-            "rgba(124, 58, 237, 0.45)",  # violet-600
-        ]
-        band_h = plot_h / 7.0
-        for i in range(7):
+    elif chart_kind in ['power_zone', 'cycling_output_zones']:
+        zone_colors = {
+            7: "rgba(239, 68, 68, 0.45)",   # red-500
+            6: "rgba(249, 115, 22, 0.45)",  # orange-500
+            5: "rgba(245, 158, 11, 0.45)",  # amber-500
+            4: "rgba(34, 197, 94, 0.45)",   # green-500
+            3: "rgba(20, 184, 166, 0.45)",  # teal-500
+            2: "rgba(59, 130, 246, 0.45)",  # blue-500
+            1: "rgba(124, 58, 237, 0.45)",  # violet-600
+        }
+        top_zone = display_max_zone or 7
+        top_zone = max(1, min(7, top_zone))
+        zone_range = list(range(top_zone, 0, -1))
+        band_h = plot_h / float(len(zone_range))
+        for idx, zone in enumerate(zone_range):
             bands.append({
-                'y': plot_y0 + i * band_h,
+                'y': plot_y0 + idx * band_h,
                 'h': band_h,
-                'fill': colors[i],
-                'label': labels[i],
-                'label_y': plot_y0 + i * band_h + band_h / 2.0,
-            })
-
-    elif is_cycling and not is_power_zone:
-        # Non–Power Zone cycling: follow power zones (Z1–Z7), computed from FTP when possible
-        labels = ["Zone 7", "Zone 6", "Zone 5", "Zone 4", "Zone 3", "Zone 2", "Zone 1"]
-        colors = [
-            "rgba(239, 68, 68, 0.45)",   # red-500
-            "rgba(249, 115, 22, 0.45)",  # orange-500
-            "rgba(245, 158, 11, 0.45)",  # amber-500
-            "rgba(34, 197, 94, 0.45)",   # green-500
-            "rgba(20, 184, 166, 0.45)",  # teal-500
-            "rgba(59, 130, 246, 0.45)",  # blue-500
-            "rgba(124, 58, 237, 0.45)",  # violet-600
-        ]
-        band_h = plot_h / 7.0
-        for i in range(7):
-            bands.append({
-                'y': plot_y0 + i * band_h,
-                'h': band_h,
-                'fill': colors[i],
-                'label': labels[i],
-                'label_y': plot_y0 + i * band_h + band_h / 2.0,
+                'fill': zone_colors.get(zone, zone_colors[1]),
+                'label': f"Zone {zone}",
+                'label_y': plot_y0 + idx * band_h + band_h / 2.0,
             })
 
     # Safe JSON for inline script blocks in templates
