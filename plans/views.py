@@ -8,7 +8,7 @@ import json
 from .models import Exercise
 from tracker.models import WeeklyPlan
 from challenges.models import ChallengeInstance
-from tracker.views import sunday_of_current_week
+from core.services import DateRangeService
 from accounts.pace_converter import DEFAULT_RUNNING_PACE_LEVELS
 from accounts.walking_pace_levels_data import DEFAULT_WALKING_PACE_LEVELS
 from accounts.rowing_pace_levels_data import DEFAULT_ROWING_PACE_LEVELS
@@ -69,7 +69,7 @@ def dashboard(request):
             team_info = None
     
     # Get current week plan
-    current_week_start = sunday_of_current_week(date.today())
+    current_week_start = DateRangeService.sunday_of_current_week(date.today())
     current_week_plan = WeeklyPlan.objects.filter(
         user=request.user,
         week_start=current_week_start

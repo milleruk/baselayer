@@ -3,7 +3,7 @@ from django.utils import timezone
 from datetime import timedelta, date
 from tracker.models import WeeklyPlan
 from challenges.models import ChallengeInstance
-from tracker.views import sunday_of_current_week
+from core.services import DateRangeService
 from plans.services import generate_weekly_plan
 
 
@@ -70,12 +70,12 @@ class Command(BaseCommand):
             # For past challenges, generate all weeks from challenge start
             # For current/upcoming challenges, generate from current week or challenge start
             if challenge.has_ended:
-                start_week = sunday_of_current_week(challenge_start)
+                start_week = DateRangeService.sunday_of_current_week(challenge_start)
                 use_start_from_today = False
             else:
-                challenge_week_start = sunday_of_current_week(challenge_start)
-                start_week = max(sunday_of_current_week(today), challenge_week_start)
-                use_start_from_today = (start_week == sunday_of_current_week(today))
+                challenge_week_start = DateRangeService.sunday_of_current_week(challenge_start)
+                start_week = max(DateRangeService.sunday_of_current_week(today), challenge_week_start)
+                use_start_from_today = (start_week == DateRangeService.sunday_of_current_week(today))
             
             # Generate plans for each week of the challenge
             current_week_start = start_week
@@ -101,7 +101,7 @@ class Command(BaseCommand):
                         user=ci.user,
                         week_start=current_week_start,
                         template=template,
-                        start_from_today=(use_start_from_today and current_week_start == sunday_of_current_week(today)),
+                        start_from_today=(use_start_from_today and current_week_start == DateRangeService.sunday_of_current_week(today)),
                         challenge_instance=ci,
                         week_number=week_num
                     )

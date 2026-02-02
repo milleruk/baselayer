@@ -9,16 +9,18 @@ from plans.models import PlanTemplate
 from plans.services import generate_weekly_plan
 from tracker.models import WeeklyPlan
 from .models import Challenge, ChallengeInstance, Team, TeamMember, TeamLeaderboard, TeamLeaderVolunteer
+from core.services import DateRangeService
 
 User = get_user_model()
 
 
 def sunday_of_current_week(d: date) -> date:
-    """Get the Sunday of the current week (week starts on Sunday)"""
-    # weekday() returns 0=Monday, 6=Sunday
-    # We want Sunday to be day 0, so we adjust
-    days_since_sunday = (d.weekday() + 1) % 7
-    return d - timedelta(days=days_since_sunday)
+    """Get the Sunday of the current week (week starts on Sunday).
+    
+    DEPRECATED: Use DateRangeService.sunday_of_current_week() instead.
+    This wrapper is kept for backward compatibility.
+    """
+    return DateRangeService.sunday_of_current_week(d)
 
 
 @login_required

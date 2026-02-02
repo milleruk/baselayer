@@ -47,6 +47,10 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
 
+    # Core services (shared across apps)
+    "core",
+    
+    # Project apps
     "accounts",
     "plans",
     "annual_challenge",

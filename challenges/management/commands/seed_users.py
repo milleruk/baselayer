@@ -7,7 +7,7 @@ import string
 
 from challenges.models import Challenge, ChallengeInstance, Team, TeamMember
 from plans.services import generate_weekly_plan
-from tracker.views import sunday_of_current_week
+from core.services import DateRangeService
 
 User = get_user_model()
 
@@ -156,13 +156,13 @@ class Command(BaseCommand):
                 # For current/upcoming challenges, generate from current week or challenge start (whichever is later)
                 if challenge.has_ended:
                     # Past challenge - generate all weeks from challenge start
-                    start_week = sunday_of_current_week(challenge_start)
+                    start_week = DateRangeService.sunday_of_current_week(challenge_start)
                     use_start_from_today = False
                 else:
                     # Current or upcoming challenge - start from current week or challenge start
-                    challenge_week_start = sunday_of_current_week(challenge_start)
-                    start_week = max(sunday_of_current_week(today), challenge_week_start)
-                    use_start_from_today = (start_week == sunday_of_current_week(today))
+                    challenge_week_start = DateRangeService.sunday_of_current_week(challenge_start)
+                    start_week = max(DateRangeService.sunday_of_current_week(today), challenge_week_start)
+                    use_start_from_today = (start_week == DateRangeService.sunday_of_current_week(today))
                 
                 # Generate plans for each week of the challenge
                 current_week_start = start_week
@@ -181,7 +181,7 @@ class Command(BaseCommand):
                         user=user,
                         week_start=current_week_start,
                         template=template,
-                        start_from_today=(use_start_from_today and current_week_start == sunday_of_current_week(today)),
+                        start_from_today=(use_start_from_today and current_week_start == DateRangeService.sunday_of_current_week(today)),
                         challenge_instance=challenge_instance,
                         week_number=week_num
                     )
