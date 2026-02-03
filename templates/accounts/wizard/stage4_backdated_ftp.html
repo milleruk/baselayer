@@ -1,0 +1,100 @@
+{% extends "accounts/wizard/base.html" %}
+
+{% block title %}Add Historical FTP Data | Chase The Zones{% endblock %}
+
+{% block content %}
+<div>
+  <div class="mb-8">
+    <h1 class="mb-2 font-semibold text-gray-800 text-title-sm dark:text-white/90 sm:text-title-md">
+      Add Historical FTP Data
+    </h1>
+    <p class="text-sm text-gray-500 dark:text-gray-400">
+      Add any previous FTP tests you've done. This helps build your historical performance chart.
+    </p>
+  </div>
+
+  <!-- Existing Entries -->
+  {% if ftp_entries %}
+    <div class="mb-6">
+      <h3 class="font-semibold text-gray-900 dark:text-white mb-3">Your FTP History</h3>
+      <div class="space-y-2 max-h-48 overflow-y-auto">
+        {% for entry in ftp_entries %}
+          <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+            <div>
+              <p class="font-medium text-gray-900 dark:text-white">{{ entry.ftp_value }}W</p>
+              <p class="text-sm text-gray-600 dark:text-gray-400">{{ entry.recorded_date|date:"M d, Y" }}</p>
+            </div>
+            <span class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ entry.get_source_display }}</span>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  {% endif %}
+
+  <!-- Add New Entry -->
+  <form method="post" class="space-y-5">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="add_entry">
+    
+    <div class="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+      <p class="text-sm text-blue-800 dark:text-blue-300">
+        <strong>Tip:</strong> Enter your FTP from earliest to latest to build a complete history.
+      </p>
+    </div>
+
+    <div>
+      <label for="{{ form.ftp_value.id_for_label }}" class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">
+        FTP (Watts) <span class="text-error-500">*</span>
+      </label>
+      <input
+        type="number"
+        id="{{ form.ftp_value.id_for_label }}"
+        name="{{ form.ftp_value.name }}"
+        placeholder="e.g., 240"
+        required
+        min="50"
+        max="500"
+        class="dark:bg-dark-900 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30 dark:focus:border-brand-800"
+      />
+      {% if form.ftp_value.errors %}
+        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.ftp_value.errors.0 }}</p>
+      {% endif %}
+    </div>
+
+    <div>
+      <label for="{{ form.recorded_date.id_for_label }}" class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">
+        Date <span class="text-error-500">*</span>
+      </label>
+      <input
+        type="date"
+        id="{{ form.recorded_date.id_for_label }}"
+        name="{{ form.recorded_date.name }}"
+        required
+        class="dark:bg-dark-900 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:focus:border-brand-800"
+      />
+      {% if form.recorded_date.errors %}
+        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.recorded_date.errors.0 }}</p>
+      {% endif %}
+    </div>
+
+    <button
+      type="submit"
+      class="w-full h-11 rounded-lg bg-primary text-white font-medium transition-colors hover:bg-primary/90 active:bg-primary/80"
+    >
+      Add Entry
+    </button>
+  </form>
+
+  <!-- Continue Button -->
+  <form method="post" class="mt-4">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="done">
+    <button
+      type="submit"
+      class="w-full h-11 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white font-medium transition-colors hover:bg-gray-300 dark:hover:bg-gray-600"
+    >
+      I'm Done Adding Entries
+    </button>
+  </form>
+</div>
+{% endblock %}

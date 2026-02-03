@@ -66,6 +66,7 @@ def _target_segment_at_time_with_shift(segments, t_seconds, shift_seconds=0):
     """Wrapper for target_segment_at_time_with_shift from core.utils.workout_targets."""
     return target_segment_at_time_with_shift(segments, t_seconds, shift_seconds)
 
+@login_required
 def class_library(request):
     """Display all available classes/rides with filtering and pagination"""
     # ClassLibraryFilter is imported at module level from .services.filters
@@ -947,16 +948,28 @@ def class_detail(request, pk):
                         user_pace_level_obj = DefaultPaceLevel(user_pace_level, default_data[user_pace_level])
                 
                 # Extract bands data for JavaScript
-                if user_pace_level_obj and hasattr(user_pace_level_obj, 'bands'):
+                if user_pace_level_obj:
                     bands_list = []
-                    for band in user_pace_level_obj.bands.all():
-                        bands_list.append({
-                            'zone': band.zone,
-                            'min_mph': float(band.min_mph),
-                            'max_mph': float(band.max_mph),
-                            'min_pace': float(band.min_pace),
-                            'max_pace': float(band.max_pace),
-                        })
+                    # Use get_bands() for database PaceLevel objects, or bands attribute for DefaultPaceLevel
+                    bands_data = user_pace_level_obj.get_bands() if hasattr(user_pace_level_obj, 'get_bands') else user_pace_level_obj.bands
+                    for band in bands_data:
+                        # Handle both dict (from get_bands) and object (from DefaultPaceLevel)
+                        if isinstance(band, dict):
+                            bands_list.append({
+                                'zone': band['zone'],
+                                'min_mph': float(band['min_mph']),
+                                'max_mph': float(band['max_mph']),
+                                'min_pace': float(band['min_pace']),
+                                'max_pace': float(band['max_pace']),
+                            })
+                        else:
+                            bands_list.append({
+                                'zone': band.zone,
+                                'min_mph': float(band.min_mph),
+                                'max_mph': float(band.max_mph),
+                                'min_pace': float(band.min_pace),
+                                'max_pace': float(band.max_pace),
+                            })
                     # Sort by zone order (recovery, easy, moderate, etc.)
                     zone_order = ['recovery', 'easy', 'moderate', 'challenging', 'hard', 'very_hard', 'max', 'brisk', 'power']
                     bands_list.sort(key=lambda x: zone_order.index(x['zone']) if x['zone'] in zone_order else 999)

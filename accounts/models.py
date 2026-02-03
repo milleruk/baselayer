@@ -379,42 +379,40 @@ class PaceLevel(models.Model):
     
     def __str__(self):
         return f"{self.user.email} - Level {self.level} ({self.get_activity_type_display()}) on {self.recorded_date}"
+    
+    def get_bands(self):
+        """
+        Calculate pace bands on the fly from default data.
+        Returns a list of dicts with band information.
+        """
+        from .pace_converter import DEFAULT_RUNNING_PACE_LEVELS
+        from .walking_pace_levels_data import DEFAULT_WALKING_PACE_LEVELS
+        
+        # Get the appropriate default data
+        if self.activity_type == 'walking':
+            default_levels = DEFAULT_WALKING_PACE_LEVELS
+        else:
+            default_levels = DEFAULT_RUNNING_PACE_LEVELS
+        
+        # Get the level data
+        level_data = default_levels.get(self.level, {})
+        
+        # Convert to list of dicts for easy template access
+        bands = []
+        for zone, data in level_data.items():
+            if isinstance(data, tuple) and len(data) >= 5:
+                min_mph, max_mph, min_pace, max_pace, description = data[:5]
+                bands.append({
+                    'zone': zone,
+                    'min_mph': min_mph,
+                    'max_mph': max_mph,
+                    'min_pace': min_pace,
+                    'max_pace': max_pace,
+                    'description': description
+                })
+        
+        return bands
 
-
-class PaceBand(models.Model):
-    """Individual pace band within a pace level"""
-    # Running zones
-    RUNNING_ZONE_CHOICES = [
-        ('recovery', 'Recovery'),
-        ('easy', 'Easy'),
-        ('moderate', 'Moderate'),
-        ('challenging', 'Challenging'),
-        ('hard', 'Hard'),
-        ('very_hard', 'Very Hard'),
-        ('max', 'Max'),
-    ]
-    # Walking zones
-    WALKING_ZONE_CHOICES = [
-        ('recovery', 'Recovery'),
-        ('easy', 'Easy'),
-        ('brisk', 'Brisk'),
-        ('power', 'Power'),
-        ('max', 'Max'),
-    ]
-    
-    pace_level = models.ForeignKey(PaceLevel, on_delete=models.CASCADE, related_name='bands')
-    zone = models.CharField(max_length=20, help_text="Pace zone name")
-    min_mph = models.DecimalField(max_digits=4, decimal_places=1, help_text="Minimum speed in MPH")
-    max_mph = models.DecimalField(max_digits=4, decimal_places=1, help_text="Maximum speed in MPH")
-    min_pace = models.DecimalField(max_digits=5, decimal_places=2, help_text="Minimum pace in min/mile")
-    max_pace = models.DecimalField(max_digits=5, decimal_places=2, help_text="Maximum pace in min/mile")
-    description = models.CharField(max_length=255, blank=True, help_text="Description of this pace zone")
-    
-    class Meta:
-        ordering = ['zone']
-        db_table = 'accounts_paceband'
-        unique_together = ('pace_level', 'zone')
-    
     def __str__(self):
         return f"{self.pace_level} - {self.zone.title()}"
     
@@ -432,3 +430,46 @@ class PaceBand(models.Model):
             'max': 'Max',
         }
         return zone_map.get(self.zone, self.zone.title())
+
+
+class OnboardingWizard(models.Model):
+    """Tracks user progress through the onboarding wizard"""
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='onboarding_wizard')
+    current_stage = models.IntegerField(default=1, choices=[(i, f'Stage {i}') for i in range(1, 7)])
+    completed_stages = models.JSONField(default=list, help_text="List of completed stage numbers (1-6)")
+    
+    # Store intermediate data in case user closes browser
+    stage_data = models.JSONField(default=dict, blank=True, help_text="Intermediate form data for resuming wizard")
+    
+    # Track dates
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    completed_at = models.DateTimeField(null=True, blank=True, help_text="When wizard was fully completed")
+    
+    class Meta:
+        db_table = 'accounts_onboardingwizard'
+        verbose_name = "Onboarding Wizard"
+        verbose_name_plural = "Onboarding Wizards"
+    
+    def __str__(self):
+        return f"{self.user.email} - Stage {self.current_stage}"
+    
+    def is_complete(self):
+        """Check if wizard is fully completed (all 6 stages)"""
+        return len(self.completed_stages) == 6 and self.completed_at is not None
+    
+    def mark_stage_complete(self, stage_number):
+        """Mark a stage as complete"""
+        if stage_number not in self.completed_stages:
+            self.completed_stages.append(stage_number)
+        
+        # If all 6 stages done, mark wizard complete
+        if len(self.completed_stages) == 6:
+            from django.utils import timezone
+            self.completed_at = timezone.now()
+        
+        self.save()
+    
+    def get_progress_percentage(self):
+        """Get completion percentage (0-100)"""
+        return int((len(self.completed_stages) / 6) * 100)

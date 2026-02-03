@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib.auth import login, update_session_auth_hash
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import LoginView
@@ -6,7 +7,8 @@ from django.contrib import messages
 from django.http import JsonResponse, HttpResponseRedirect
 from django.urls import reverse
 from challenges.models import ChallengeInstance
-from .models import Profile, WeightEntry, FTPEntry, PaceEntry, PaceLevel, PaceBand
+from core.models import SiteSettings
+from .models import Profile, WeightEntry, FTPEntry, PaceEntry, PaceLevel, OnboardingWizard
 from .forms import ProfileForm, EmailChangeForm, CustomPasswordChangeForm, WeightForm, FTPForm, PaceForm, EmailUserCreationForm, EmailAuthenticationForm
 from .pace_converter import DEFAULT_RUNNING_PACE_LEVELS, ZONE_COLORS
 from .walking_pace_levels_data import DEFAULT_WALKING_PACE_LEVELS, WALKING_ZONE_COLORS
@@ -15,11 +17,15 @@ def register(request):
     if request.method == "POST":
         form = EmailUserCreationForm(request.POST)
         if form.is_valid():
-            user = form.save()
-            # New users are inactive by default - don't auto-login
-            # Show message that account needs activation
-            messages.info(request, 'Your account has been created successfully! However, your account is currently inactive and requires administrator approval before you can log in. You will be notified once your account has been activated.')
-            return redirect("login")
+            user = form.save(commit=False)
+            site_settings = SiteSettings.get_settings()
+            user.is_active = not site_settings.require_user_activation
+            user.save()
+            messages.success(request, "Welcome! Let's set up your account.")
+            # Auto-login user to allow wizard completion (they'll still need activation to use features)
+            user.backend = settings.AUTHENTICATION_BACKENDS[0]
+            login(request, user)
+            return redirect("wizard_redirect")
     else:
         form = EmailUserCreationForm()
     return render(request, "accounts/register.html", {"form": form})
@@ -52,6 +58,28 @@ class CustomLoginView(LoginView):
                 pass  # User doesn't exist, let default error handling work
         
         return super().form_invalid(form)
+
+    def get_success_url(self):
+        """Redirect users with incomplete onboarding to the wizard."""
+        user = self.request.user
+        if user.is_authenticated:
+            wizard, _ = OnboardingWizard.objects.get_or_create(user=user)
+            if not wizard.is_complete():
+                stage = wizard.current_stage or 1
+                if stage == 1:
+                    return reverse('wizard_stage_1')
+                if stage == 2:
+                    return reverse('wizard_stage_2')
+                if stage == 3:
+                    return reverse('wizard_stage_3')
+                if stage == 4:
+                    return f"{reverse('wizard_stage_4')}?sport_index=0"
+                if stage == 5:
+                    return reverse('wizard_stage_5')
+                if stage == 6:
+                    return reverse('wizard_stage_6')
+
+        return super().get_success_url()
 
 
 def account_inactive(request):
@@ -429,18 +457,7 @@ def create_pace_level(request):
                 notes=notes
             )
             
-            # Create pace bands
-            level_data = default_levels[level]
-            for zone, (min_mph, max_mph, min_pace, max_pace, description) in level_data.items():
-                PaceBand.objects.create(
-                    pace_level=pace_level,
-                    zone=zone,
-                    min_mph=min_mph,
-                    max_mph=max_mph,
-                    min_pace=min_pace,
-                    max_pace=max_pace,
-                    description=description
-                )
+            # No need to create pace bands - they're calculated on the fly via get_bands()
             
             messages.success(request, f'Pace Level {level} ({activity_type}) created successfully!')
         else:

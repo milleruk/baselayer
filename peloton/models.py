@@ -153,3 +153,12 @@ class PelotonConnection(models.Model):
             return PelotonClient(username=self.username, password=self.password)
         else:
             raise ValueError("No Peloton credentials, bearer token, or session available")
+
+
+def get_existing_peloton_connection(peloton_user_id: str, exclude_user_id: int | None = None):
+    if not peloton_user_id:
+        return None
+    qs = PelotonConnection.objects.filter(peloton_user_id=str(peloton_user_id))
+    if exclude_user_id:
+        qs = qs.exclude(user_id=exclude_user_id)
+    return qs.first()

@@ -6,6 +6,11 @@ from .models import Profile, WeightEntry, FTPEntry, PaceEntry
 
 User = get_user_model()
 
+# Tailwind CSS classes for form inputs
+INPUT_CLASS = 'dark:bg-dark-900 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30 dark:focus:border-brand-800'
+SELECT_CLASS = 'dark:bg-dark-900 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:focus:border-brand-800'
+
+
 
 class EmailAuthenticationForm(AuthenticationForm):
     """Custom authentication form that uses email instead of username"""
@@ -34,39 +39,10 @@ class EmailAuthenticationForm(AuthenticationForm):
         if email:
             email = email.lower().strip()
         return email
-    
-    def confirm_login_allowed(self, user):
-        """Override to prevent login for inactive accounts - redirect handled in view"""
-        if not user.is_active:
-            raise ValidationError(
-                'Your account is currently inactive.',
-                code='inactive',
-            )
-        super().confirm_login_allowed(user)
 
 
 class EmailUserCreationForm(forms.ModelForm):
     """Custom user creation form that uses email instead of username"""
-    first_name = forms.CharField(
-        label='First Name',
-        required=True,
-        max_length=150,
-        widget=forms.TextInput(attrs={
-            'placeholder': 'Enter your first name',
-            'class': 'dark:bg-dark-900 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30 dark:focus:border-brand-800',
-            'autocomplete': 'given-name'
-        })
-    )
-    last_name = forms.CharField(
-        label='Last Name',
-        required=True,
-        max_length=150,
-        widget=forms.TextInput(attrs={
-            'placeholder': 'Enter your last name',
-            'class': 'dark:bg-dark-900 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30 dark:focus:border-brand-800',
-            'autocomplete': 'family-name'
-        })
-    )
     email = forms.EmailField(
         label='Email',
         required=True,
@@ -97,7 +73,7 @@ class EmailUserCreationForm(forms.ModelForm):
     
     class Meta:
         model = User
-        fields = ('first_name', 'last_name', 'email',)
+        fields = ('email',)
     
     def clean_email(self):
         email = self.cleaned_data.get('email')
@@ -241,6 +217,177 @@ class FTPForm(forms.ModelForm):
             })
         }
 
+
+# ========== WIZARD FORMS ==========
+
+class WizardStage1Form(forms.Form):
+    """Stage 1: User Details (Name + DOB)"""
+    first_name = forms.CharField(
+        label='First Name',
+        required=True,
+        max_length=150,
+        widget=forms.TextInput(attrs={
+            'placeholder': 'Enter your first name',
+            'class': INPUT_CLASS,
+            'autocomplete': 'given-name'
+        })
+    )
+    last_name = forms.CharField(
+        label='Last Name',
+        required=True,
+        max_length=150,
+        widget=forms.TextInput(attrs={
+            'placeholder': 'Enter your last name',
+            'class': INPUT_CLASS,
+            'autocomplete': 'family-name'
+        })
+    )
+    date_of_birth = forms.DateField(
+        label='Date of Birth',
+        required=False,
+        widget=forms.DateInput(attrs={
+            'type': 'date',
+            'class': INPUT_CLASS
+        })
+    )
+
+
+class WizardStage3Form(forms.Form):
+    """Stage 3: Sport Selection"""
+    SPORT_CHOICES = [
+        ('cycling', 'Cycling'),
+        ('running', 'Running'),
+        ('walking', 'Walking'),
+    ]
+    
+    sports = forms.MultipleChoiceField(
+        label='What sports do you participate in?',
+        choices=SPORT_CHOICES,
+        widget=forms.CheckboxSelectMultiple(attrs={
+            'class': 'w-4 h-4 rounded'
+        }),
+        required=True,
+        help_text='Select one, two, or all three'
+    )
+
+
+class WizardStage4FTPForm(forms.Form):
+    """Stage 4: FTP Entries for Cycling"""
+    current_ftp = forms.IntegerField(
+        label='Current FTP (Watts)',
+        required=True,
+        widget=forms.NumberInput(attrs={
+            'placeholder': 'e.g., 250',
+            'class': INPUT_CLASS,
+            'min': '50',
+            'max': '500'
+        }),
+        help_text='Your current Functional Threshold Power in watts'
+    )
+    add_backdated = forms.BooleanField(
+        label='Add historical FTP entries?',
+        required=False,
+        widget=forms.CheckboxInput(attrs={
+            'class': 'w-4 h-4 rounded'
+        })
+    )
+
+
+class WizardStage4PaceForm(forms.Form):
+    """Stage 4: Pace Level for Running/Walking (activity-specific)"""
+    pace_level = forms.ChoiceField(
+        label='Pace Level (1-10)',
+        required=True,
+        choices=[(i, f'Level {i}') for i in range(1, 11)],
+        widget=forms.Select(attrs={
+            'class': SELECT_CLASS
+        }),
+        help_text='1 = Slow/Recovery, 10 = Maximum Effort'
+    )
+    
+    add_backdated = forms.BooleanField(
+        label='Add historical pace entries?',
+        required=False,
+        widget=forms.CheckboxInput(attrs={
+            'class': 'w-4 h-4 rounded'
+        })
+    )
+
+
+class WizardStage4BackdatedFTPForm(forms.ModelForm):
+    """Form for adding multiple FTP entries"""
+    class Meta:
+        model = FTPEntry
+        fields = ['ftp_value', 'recorded_date']
+        widgets = {
+            'ftp_value': forms.NumberInput(attrs={
+                'placeholder': 'FTP in watts',
+                'class': INPUT_CLASS,
+                'min': '50',
+                'max': '500'
+            }),
+            'recorded_date': forms.DateInput(attrs={
+                'type': 'date',
+                'class': INPUT_CLASS
+            })
+        }
+
+
+class WizardStage4BackdatedPaceForm(forms.ModelForm):
+    """Form for adding multiple pace entries"""
+    class Meta:
+        model = PaceEntry
+        fields = ['level', 'recorded_date']
+        widgets = {
+            'level': forms.Select(attrs={
+                'class': SELECT_CLASS
+            }, choices=[(i, f'Level {i}') for i in range(1, 11)]),
+            'recorded_date': forms.DateInput(attrs={
+                'type': 'date',
+                'class': INPUT_CLASS
+            })
+        }
+
+
+class WizardStage5Form(forms.Form):
+    """Stage 5: Weight Entry"""
+    current_weight = forms.DecimalField(
+        label='Current Weight (lbs)',
+        required=False,
+        decimal_places=2,
+        widget=forms.NumberInput(attrs={
+            'placeholder': 'e.g., 165.50',
+            'class': INPUT_CLASS,
+            'step': '0.01',
+            'min': '50'
+        })
+    )
+    add_backdated = forms.BooleanField(
+        label='Add historical weight entries?',
+        required=False,
+        widget=forms.CheckboxInput(attrs={
+            'class': 'w-4 h-4 rounded'
+        })
+    )
+
+
+class WizardStage5BackdatedForm(forms.ModelForm):
+    """Form for adding multiple weight entries"""
+    class Meta:
+        model = WeightEntry
+        fields = ['weight', 'recorded_date']
+        widgets = {
+            'weight': forms.NumberInput(attrs={
+                'placeholder': 'Weight in lbs',
+                'class': INPUT_CLASS,
+                'step': '0.01',
+                'min': '50'
+            }),
+            'recorded_date': forms.DateInput(attrs={
+                'type': 'date',
+                'class': INPUT_CLASS
+            })
+        }
 
 class PaceForm(forms.ModelForm):
     """Form for adding pace entries"""

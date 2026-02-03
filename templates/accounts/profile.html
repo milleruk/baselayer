@@ -284,7 +284,7 @@
             </span>
           </div>
           <div class="grid grid-cols-2 gap-1.5">
-            {% for band in current_running_pace_level.bands.all %}
+            {% for band in current_running_pace_level.get_bands %}
               <div class="px-2 py-1.5 rounded text-white text-[10px] {% if band.zone == 'recovery' %}bg-green-500{% elif band.zone == 'easy' %}bg-blue-500{% elif band.zone == 'moderate' %}bg-yellow-500{% elif band.zone == 'challenging' %}bg-orange-500{% elif band.zone == 'hard' %}bg-red-500{% elif band.zone == 'very_hard' %}bg-purple-500{% elif band.zone == 'max' %}bg-pink-500{% endif %}">
                 <div class="font-bold leading-tight">{{ band.get_zone_display|upper }}</div>
                 <div class="opacity-90 text-[9px] leading-tight mt-0.5">{{ band.min_mph }}-{{ band.max_mph }} MPH</div>
@@ -315,7 +315,7 @@
             </span>
           </div>
           <div class="grid grid-cols-2 gap-1.5">
-            {% for band in current_walking_pace_level.bands.all %}
+            {% for band in current_walking_pace_level.get_bands %}
               <div class="px-2 py-1.5 rounded text-white text-[10px] {% if band.zone == 'recovery' %}bg-green-500{% elif band.zone == 'easy' %}bg-blue-500{% elif band.zone == 'brisk' %}bg-yellow-500{% elif band.zone == 'power' %}bg-orange-500{% elif band.zone == 'max' %}bg-red-500{% endif %}">
                 <div class="font-bold leading-tight">{{ band.get_zone_display|upper }}</div>
                 <div class="opacity-90 text-[9px] leading-tight mt-0.5">{{ band.min_mph }}-{{ band.max_mph }} MPH</div>

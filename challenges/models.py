@@ -58,6 +58,7 @@ class Challenge(models.Model):
         db_table = "tracker_challenge"
         managed = False
         ordering = ["start_date", "created_at"]  # Earliest first
+
     
     def __str__(self):
         return self.name

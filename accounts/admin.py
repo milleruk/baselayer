@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.utils.safestring import mark_safe
-from .models import User, Profile, WeightEntry, FTPEntry, PaceEntry, PaceLevel, PaceBand
+from .models import User, Profile, WeightEntry, FTPEntry, PaceEntry, PaceLevel, OnboardingWizard
 
 
 @admin.register(User)
@@ -11,7 +11,7 @@ class UserAdmin(BaseUserAdmin):
     list_filter = ['is_staff', 'is_active', 'date_joined']
     search_fields = ['email', 'first_name', 'last_name']
     ordering = ['-date_joined']  # Show newest users first (likely inactive)
-    actions = ['activate_users', 'deactivate_users']
+    actions = ['activate_users', 'deactivate_users', 'reset_user_accounts']
     
     def inactive_status(self, obj):
         """Display status badge for inactive users"""
@@ -47,6 +47,50 @@ class UserAdmin(BaseUserAdmin):
         count = queryset.update(is_active=False)
         self.message_user(request, f'Successfully deactivated {count} user(s).')
     deactivate_users.short_description = 'Deactivate selected users'
+    
+    def reset_user_accounts(self, request, queryset):
+        """Admin action to reset user accounts - clears all profile data and forces re-onboarding"""
+        from peloton.models import PelotonConnection
+        
+        # Don't allow resetting superusers
+        queryset = queryset.exclude(is_superuser=True)
+        
+        reset_count = 0
+        for user in queryset:
+            # Reset onboarding wizard
+            OnboardingWizard.objects.filter(user=user).delete()
+            
+            # Clear profile data but keep the profile record
+            if hasattr(user, 'profile'):
+                profile = user.profile
+                profile.full_name = ''
+                profile.date_of_birth = None
+                profile.ftp_score = None
+                profile.pace_target_level = None
+                profile.peloton_leaderboard_name = ''
+                profile.save()
+            
+            # Delete all performance entries
+            WeightEntry.objects.filter(user=user).delete()
+            FTPEntry.objects.filter(user=user).delete()
+            PaceEntry.objects.filter(user=user).delete()
+            
+            # Delete custom pace levels (PaceBands will cascade delete automatically)
+            PaceLevel.objects.filter(user=user).delete()
+            
+            # Deactivate Peloton connection (but keep credentials in case they want to reconnect)
+            PelotonConnection.objects.filter(user=user).update(
+                is_active=False,
+                peloton_user_id=None
+            )
+            
+            reset_count += 1
+        
+        self.message_user(
+            request, 
+            f'Successfully reset {reset_count} user account(s). They will need to complete the onboarding wizard on next login.'
+        )
+    reset_user_accounts.short_description = 'Reset user accounts (clear all data, force re-onboarding)'
 
 
 @admin.register(Profile)
@@ -110,12 +154,6 @@ class PaceEntryAdmin(admin.ModelAdmin):
     ordering = ['-recorded_date', '-created_at']
 
 
-class PaceBandInline(admin.TabularInline):
-    model = PaceBand
-    extra = 0
-    fields = ['zone', 'min_mph', 'max_mph', 'min_pace', 'max_pace', 'description']
-
-
 @admin.register(PaceLevel)
 class PaceLevelAdmin(admin.ModelAdmin):
     list_display = ['user', 'activity_type', 'level', 'recorded_date', 'notes', 'created_at']
@@ -123,12 +161,26 @@ class PaceLevelAdmin(admin.ModelAdmin):
     list_filter = ['activity_type', 'level', 'recorded_date', 'created_at']
     date_hierarchy = 'recorded_date'
     ordering = ['-recorded_date', '-level']
-    inlines = [PaceBandInline]
 
 
-@admin.register(PaceBand)
-class PaceBandAdmin(admin.ModelAdmin):
-    list_display = ['pace_level', 'zone', 'min_mph', 'max_mph', 'min_pace', 'max_pace']
-    search_fields = ['pace_level__user__email', 'description']
-    list_filter = ['zone', 'pace_level__level']
-    ordering = ['pace_level', 'zone']
+@admin.register(OnboardingWizard)
+class OnboardingWizardAdmin(admin.ModelAdmin):
+    list_display = ['user', 'current_stage', 'completed_stages_display', 'progress_display', 'created_at', 'completed_at']
+    search_fields = ['user__email']
+    list_filter = ['current_stage', 'created_at', 'completed_at']
+    readonly_fields = ['user', 'created_at', 'updated_at', 'completed_at', 'progress_display']
+    
+    def completed_stages_display(self, obj):
+        """Display completed stages as a list"""
+        if not obj.completed_stages:
+            return "—"
+        stages = ', '.join(str(s) for s in sorted(obj.completed_stages))
+        return f"Stages {stages}"
+    completed_stages_display.short_description = 'Completed Stages'
+    
+    def progress_display(self, obj):
+        """Display progress bar"""
+        percentage = obj.get_progress_percentage()
+        return mark_safe(f'<div style="width: 200px; height: 20px; background-color: #e0e0e0; border-radius: 10px; overflow: hidden;"><div style="width: {percentage}%; height: 100%; background-color: #4CAF50; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px; font-weight: bold;">{percentage}%</div></div>')
+    progress_display.short_description = 'Progress'
+

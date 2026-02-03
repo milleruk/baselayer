@@ -2,6 +2,40 @@ from django.db import models
 from django.utils import timezone
 
 
+class SiteSettings(models.Model):
+    """
+    Singleton model for site-wide settings.
+    Only one instance should exist.
+    """
+    require_user_activation = models.BooleanField(
+        default=True,
+        help_text="If enabled, new user accounts require admin activation before they can log in. "
+                  "Disable this when out of development mode to allow automatic registration."
+    )
+    
+    class Meta:
+        verbose_name = "Site Settings"
+        verbose_name_plural = "Site Settings"
+    
+    def __str__(self):
+        return "Site Settings"
+    
+    @classmethod
+    def get_settings(cls):
+        """Get or create the singleton settings instance."""
+        settings, created = cls.objects.get_or_create(pk=1)
+        return settings
+    
+    def save(self, *args, **kwargs):
+        """Ensure only one instance exists (singleton pattern)."""
+        self.pk = 1
+        super().save(*args, **kwargs)
+    
+    def delete(self, *args, **kwargs):
+        """Prevent deletion of the singleton instance."""
+        pass
+
+
 class RideSyncQueue(models.Model):
     """
     Tracks Peloton class IDs that need to be synced to the local RideDetail database.

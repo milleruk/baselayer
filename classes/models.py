@@ -6,4 +6,3 @@ and because it's used by both workout history and class library functionality.
 """
 from django.db import models
 
-# RideDetail and related models are imported from workouts.models when needed

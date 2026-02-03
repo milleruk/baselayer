@@ -9,7 +9,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.conf import settings
 from accounts.models import Profile
-from .models import PelotonConnection
+from .models import PelotonConnection, get_existing_peloton_connection
 from .forms import PelotonConnectionForm
 from .services.peloton import PelotonClient, PelotonAPIError
 
@@ -247,6 +247,19 @@ def connect_peloton(request):
                     )
                     
                     if peloton_user_id:
+                        existing = get_existing_peloton_connection(peloton_user_id, exclude_user_id=request.user.id)
+                        if existing:
+                            messages.error(
+                                request,
+                                "This Peloton account is already linked to another user. Please log in with the account associated with it."
+                            )
+                            connection.peloton_user_id = None
+                            connection.is_active = False
+                            connection.save()
+                            return render(request, 'peloton/connect.html', {
+                                'form': form,
+                                'connection': connection,
+                            })
                         connection.peloton_user_id = str(peloton_user_id)
                     
                     # Update profile with leaderboard name from /api/me
@@ -382,6 +395,16 @@ def oauth_callback(request):
                 user_data.get('peloton_user_id')
             )
             if peloton_user_id:
+                existing = get_existing_peloton_connection(peloton_user_id, exclude_user_id=request.user.id)
+                if existing:
+                    messages.error(
+                        request,
+                        "This Peloton account is already linked to another user. Please log in with the account associated with it."
+                    )
+                    connection.peloton_user_id = None
+                    connection.is_active = False
+                    connection.save()
+                    return redirect('peloton:connect')
                 connection.peloton_user_id = str(peloton_user_id)
                 
                 # Fetch user overview for additional stats

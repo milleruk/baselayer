@@ -46,6 +46,11 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    
+     # django-allauth
+     "django.contrib.sites",
+     "allauth",
+     "allauth.account",
 
     # Core services (shared across apps)
     "core",
@@ -65,14 +70,33 @@ INSTALLED_APPS = [
 # Custom User Model
 AUTH_USER_MODEL = 'accounts.User'
 
-# Custom Authentication Backend
+# Authentication Backend
+# Using allauth's backend which handles email-based authentication
 AUTHENTICATION_BACKENDS = [
     'accounts.backends.EmailBackend',
-    'django.contrib.auth.backends.ModelBackend',  # Fallback to default
+    'allauth.account.auth_backends.AuthenticationBackend',
 ]
 
+# Login/Logout redirects
 LOGIN_REDIRECT_URL = "core:dashboard"
-LOGOUT_REDIRECT_URL = "plans:landing"
+LOGOUT_REDIRECT_URL = "core:landing"
+
+# Django Sites Framework (required by allauth)
+SITE_ID = 1
+
+# django-allauth Configuration (using new API)
+ACCOUNT_UNIQUE_EMAIL = True  # Email must be unique
+ACCOUNT_USER_MODEL_USERNAME_FIELD = None  # Tell allauth there's no username field
+ACCOUNT_LOGIN_METHODS = {'email'}  # Email-only authentication
+ACCOUNT_SIGNUP_FIELDS = ['email*', 'password1*', 'password2*']  # Email and password fields
+ACCOUNT_EMAIL_VERIFICATION = 'none'  # Disable email verification
+ACCOUNT_ADAPTER = 'accounts.adapters.AccountAdapter'
+ACCOUNT_SIGNUP_REDIRECT_URL = LOGIN_REDIRECT_URL
+ACCOUNT_LOGIN_ON_EMAIL_CONFIRMATION = True
+
+# Disable rate limiting to avoid IP detection issues
+ACCOUNT_LOGIN_RATE_LIMIT = None
+ACCOUNT_SIGNUP_RATE_LIMIT = None
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -80,9 +104,12 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "accounts.middleware.OnboardingRedirectMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "allauth.account.middleware.AccountMiddleware",
 ]
+
 
 ROOT_URLCONF = "config.urls"
 
@@ -112,6 +139,33 @@ STATICFILES_DIRS = [BASE_DIR / "static"]
 # Media files (user uploads)
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
+
+# Onboarding wizard redirect exceptions
+ONBOARDING_EXEMPT_URLNAMES = {
+    "login",
+    "logout",
+    "account_logout",  # allauth logout
+    "account_signup",  # allauth signup/registration
+    "register",
+    "account_inactive",
+    "wizard_redirect",
+    "wizard_stage_1",
+    "wizard_stage_2",
+    "wizard_stage_3",
+    "wizard_stage_4",
+    "wizard_stage_4_backdated_ftp",
+    "wizard_stage_4_backdated_pace",
+    "wizard_stage_5",
+    "wizard_stage_5_backdated",
+    "wizard_stage_6",
+    "wizard_restart",
+    "landing",
+}
+ONBOARDING_EXEMPT_PATH_PREFIXES = [
+    "/admin/",
+    f"/{STATIC_URL.lstrip('/')}",
+    f"/{MEDIA_URL.lstrip('/')}",
+]
 
 WSGI_APPLICATION = "config.wsgi.application"
 

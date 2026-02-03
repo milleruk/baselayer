@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0"
+    />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>{% block title %}Setup Wizard | Chase The Zones{% endblock %}</title>
+    {% load static %}
+    
+    <!-- Tailwind CSS CDN with TailAdmin theme config -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="{% static 'js/tailwind-config.js' %}"></script>
+    
+    <!-- TailAdmin Theme CSS -->
+    <link rel="stylesheet" href="{% static 'css/tailadmin.css' %}" />
+    
+    <!-- Alpine.js -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x/dist/cdn.min.js"></script>
+    
+    <!-- Dark mode initialization -->
+    <script src="{% static 'js/dark-mode-init.js' %}"></script>
+  </head>
+  <body
+    x-data="{ 'darkMode': (() => {
+      if (typeof Storage !== 'undefined') {
+        const saved = localStorage.getItem('darkMode');
+        return saved !== null ? saved === 'true' : false;
+      }
+      return false;
+    })() }"
+    x-init="
+      darkMode = JSON.parse(localStorage.getItem('darkMode') || 'false');
+      $watch('darkMode', value => {
+        localStorage.setItem('darkMode', JSON.stringify(value));
+        if (value) {
+          document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+        }
+      })"
+    :class="{'dark bg-gray-900': darkMode === true}"
+    class="font-outfit"
+  >
+    <!-- ===== Page Wrapper Start ===== -->
+    <div class="relative p-6 bg-white z-1 dark:bg-gray-900 sm:p-0">
+      <div class="flex flex-col justify-center w-full min-h-screen dark:bg-gray-900 sm:p-0 lg:flex-row">
+        <!-- Left Panel: Progress -->
+        <div class="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-primary/5 to-primary/10 dark:from-gray-800 dark:to-gray-900 p-12 flex-col justify-center">
+          <div class="max-w-md mx-auto">
+            <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-8">Setup Your Account</h2>
+            
+            <!-- Progress Steps -->
+            <div class="space-y-6">
+              {% for stage_num in "123456"|make_list %}
+                <div class="flex items-center gap-4">
+                  <div class="flex-shrink-0">
+                    {% if stage_num|add:"0" <= stage %}
+                      <div class="flex items-center justify-center h-10 w-10 rounded-full bg-primary text-white font-bold">
+                        {% if stage_num|add:"0" < stage %}
+                          <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                        {% else %}
+                          {{ stage_num }}
+                        {% endif %}
+                      </div>
+                    {% else %}
+                      <div class="flex items-center justify-center h-10 w-10 rounded-full bg-gray-300 dark:bg-gray-700 text-gray-600 dark:text-gray-400 font-bold">{{ stage_num }}</div>
+                    {% endif %}
+                  </div>
+                  <div class="flex-1">
+                    {% if stage_num == "1" %}
+                      <p class="font-semibold text-gray-900 dark:text-white">Profile Details</p>
+                      <p class="text-sm text-gray-600 dark:text-gray-400">Your name and info</p>
+                    {% elif stage_num == "2" %}
+                      <p class="font-semibold text-gray-900 dark:text-white">Peloton Account</p>
+                      <p class="text-sm text-gray-600 dark:text-gray-400">Connect your account</p>
+                    {% elif stage_num == "3" %}
+                      <p class="font-semibold text-gray-900 dark:text-white">Sport Selection</p>
+                      <p class="text-sm text-gray-600 dark:text-gray-400">Choose your activities</p>
+                    {% elif stage_num == "4" %}
+                      <p class="font-semibold text-gray-900 dark:text-white">Performance Metrics</p>
+                      <p class="text-sm text-gray-600 dark:text-gray-400">FTP, pace levels</p>
+                    {% elif stage_num == "5" %}
+                      <p class="font-semibold text-gray-900 dark:text-white">Weight History</p>
+                      <p class="text-sm text-gray-600 dark:text-gray-400">Optional tracking</p>
+                    {% elif stage_num == "6" %}
+                      <p class="font-semibold text-gray-900 dark:text-white">You're Ready!</p>
+                      <p class="text-sm text-gray-600 dark:text-gray-400">Finish up</p>
+                    {% endif %}
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+            
+            <!-- Progress Bar -->
+            <div class="mt-12">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Progress</span>
+                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ wizard.get_progress_percentage }}%</span>
+              </div>
+              <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
+                <div class="bg-primary h-full rounded-full transition-all duration-300" style="width: {{ wizard.get_progress_percentage }}%"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Right Panel: Form -->
+        <div class="flex flex-col flex-1 w-full lg:w-1/2">
+          <div class="flex flex-col justify-center flex-1 w-full max-w-md mx-auto py-8 px-6">
+            <div class="flex items-center justify-between mb-4">
+              <form method="post" action="{% url 'wizard_restart' %}">
+                {% csrf_token %}
+                <button
+                  type="submit"
+                  class="text-sm font-medium text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                >
+                  Restart wizard
+                </button>
+              </form>
+              <form method="post" action="{% url 'account_logout' %}">
+                {% csrf_token %}
+                <button
+                  type="submit"
+                  class="text-sm font-medium text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                >
+                  Log out
+                </button>
+              </form>
+            </div>
+            {% if messages %}
+              {% for message in messages %}
+                <div class="mb-6 p-4 rounded-lg border {% if message.tags == 'error' %}bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-800 dark:text-red-200{% elif message.tags == 'success' %}bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-800 dark:text-green-200{% elif message.tags == 'warning' %}bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800 text-yellow-800 dark:text-yellow-200{% else %}bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200{% endif %}">
+                  {{ message }}
+                </div>
+              {% endfor %}
+            {% endif %}
+            
+            <!-- Mobile Progress Indicator -->
+            <div class="lg:hidden mb-8">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Stage {{ stage }} of {{ total_stages }}</span>
+                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ wizard.get_progress_percentage }}%</span>
+              </div>
+              <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
+                <div class="bg-primary h-full rounded-full transition-all duration-300" style="width: {{ wizard.get_progress_percentage }}%"></div>
+              </div>
+            </div>
+            
+            {% block content %}{% endblock %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
