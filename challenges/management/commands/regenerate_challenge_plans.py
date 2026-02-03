@@ -83,11 +83,8 @@ class Command(BaseCommand):
             weeks_generated = 0
             
             while current_week_start <= challenge_end:
-                # Calculate week number based on challenge start
-                if current_week_start >= challenge_start:
-                    week_num = ((current_week_start - challenge_start).days // 7) + 1
-                else:
-                    week_num = 1
+                # Week numbers are sequential (1, 2, 3, ...) to match seeding logic
+                # No recalculation needed - just increment after each iteration
                 
                 # Check if plan already exists for this week
                 existing_plan = WeeklyPlan.objects.filter(
@@ -110,6 +107,7 @@ class Command(BaseCommand):
                     weeks_generated += 1
                 
                 current_week_start += timedelta(days=7)
+                week_num += 1
             
             if weeks_generated > 0:
                 self.stdout.write(

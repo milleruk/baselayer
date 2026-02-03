@@ -252,6 +252,21 @@ class RideDetail(models.Model):
     def __str__(self):
         return f"{self.title} ({self.fitness_discipline_display_name or self.fitness_discipline})"
     
+    def get_peloton_url(self):
+        """
+        Get the standardized Peloton class URL in UK modal format.
+        
+        This method ensures a consistent URL format across the application:
+        https://members.onepeloton.co.uk/classes/all?modal=classDetailsModal&classId=[ID]
+        
+        Returns:
+            str: The standardized Peloton URL for this class
+        """
+        from challenges.utils import generate_peloton_url
+        if self.peloton_ride_id:
+            return generate_peloton_url(self.peloton_ride_id)
+        return self.peloton_class_url or ''
+    
     @property
     def duration_minutes(self):
         """Return duration in minutes"""

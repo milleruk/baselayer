@@ -432,7 +432,7 @@ class ClassLibraryViewTestCase(TestCase):
     def setUp(self):
         """Set up for each test"""
         self.client = Client()
-        self.url = reverse('classes:library')
+        self.url = reverse('workouts:library')
     
     def test_view_requires_login(self):
         """Test that view requires authentication"""

@@ -476,6 +476,16 @@ class ChallengeWorkoutAssignment(models.Model):
     alternative_group = models.IntegerField(null=True, blank=True, help_text="Group ID for alternative workouts (same group = user chooses one)")
     order_in_group = models.IntegerField(default=0, help_text="Order within alternative group")
     
+    # Reference to actual RideDetail object in local library (optional, populated after sync)
+    ride_detail = models.ForeignKey(
+        'workouts.RideDetail',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='challenge_assignments',
+        help_text="Link to RideDetail object once synced from Peloton API"
+    )
+    
     class Meta:
         db_table = "tracker_challengeworkoutassignment"
         managed = False

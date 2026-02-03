@@ -1,0 +1,434 @@
+{% extends "base.html" %}
+{% load dict_filters %}
+{% block title %}Assign Peloton Workouts - {{ challenge.name }}{% endblock %}
+
+{% block content %}
+<div class="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+  <div>
+    <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">Assign Peloton Workouts</h1>
+    <p class="text-gray-600 dark:text-gray-400 mb-4">
+      Search and assign classes. Search by title, class ID, or paste a Peloton URL. Edit inline - no page reload.
+    </p>
+    <div id="workoutStats" class="flex gap-4 flex-wrap">
+      <div class="px-4 py-2 bg-gray-100 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+        <span class="text-sm text-gray-600 dark:text-gray-400">Total Needed:</span>
+        <span class="ml-2 text-lg font-bold text-gray-900 dark:text-white" id="totalNeeded">0</span>
+      </div>
+      <div class="px-4 py-2 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+        <span class="text-sm text-gray-600 dark:text-gray-400">Assigned:</span>
+        <span class="ml-2 text-lg font-bold text-green-700 dark:text-green-300" id="totalAssigned">0</span>
+      </div>
+      <div class="px-4 py-2 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+        <span class="text-sm text-gray-600 dark:text-gray-400">Missing:</span>
+        <span class="ml-2 text-lg font-bold text-red-700 dark:text-red-300" id="totalMissing">0</span>
+      </div>
+    </div>
+  </div>
+  <div>
+    <a href="{% url 'challenges:admin_challenges_list' %}" class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+      ← Back to Challenges
+    </a>
+  </div>
+</div>
+
+<form method="post" id="workout-assignment-form" action="{% url 'challenges:admin_assign_workouts' challenge.id %}">
+  {% csrf_token %}
+  
+  <!-- Template Tabs -->
+  {% if workout_structure|length > 1 %}
+  <div class="mb-6 flex gap-2 border-b border-gray-200 dark:border-gray-700">
+    {% for template_data in workout_structure %}
+    <button type="button" 
+            class="px-4 py-3 text-sm font-medium border-b-2 transition-colors {% if forloop.first %}border-primary text-primary{% else %}border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white{% endif %}"
+            data-template-id="{{ template_data.template.id }}"
+            onclick="switchTemplate({{ template_data.template.id }})">
+      {{ template_data.template.name }}
+    </button>
+    {% endfor %}
+  </div>
+  {% endif %}
+  
+  {% for template_data in workout_structure %}
+  <div class="template-content {% if not forloop.first %}hidden{% endif %}" data-template-id="{{ template_data.template.id }}">
+    <div class="mb-6 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6">
+      <div class="mb-4">
+        <h2 class="text-xl font-bold text-gray-900 dark:text-white">{{ template_data.template.name }}</h2>
+        <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">{{ template_data.template.description|default:"No description" }}</p>
+      </div>
+    
+    {% for week_data in template_data.weeks %}
+    <div class="mb-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 overflow-hidden" data-week="{{ week_data.week_number }}" data-template="{{ template_data.template.id }}">
+      <div class="px-4 py-3 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors" onclick="toggleWeek({{ template_data.template.id }}, {{ week_data.week_number }})">
+        <div class="flex items-center gap-3">
+          <h3 class="text-lg font-semibold text-primary">Week {{ week_data.week_number }}</h3>
+          <span class="text-sm text-gray-600 dark:text-gray-400">
+            <span class="week-stat-assigned font-medium text-green-600 dark:text-green-400" data-week="{{ week_data.week_number }}" data-template="{{ template_data.template.id }}">0</span> / 
+            <span class="week-stat-total" data-week="{{ week_data.week_number }}" data-template="{{ template_data.template.id }}">0</span> assigned
+          </span>
+        </div>
+        <svg class="w-5 h-5 text-gray-500 dark:text-gray-400 week-toggle-icon transition-transform" data-week="{{ week_data.week_number }}" data-template="{{ template_data.template.id }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+        </svg>
+      </div>
+      
+      <div class="week-content hidden p-4" id="week-{{ template_data.template.id }}-{{ week_data.week_number }}-content">
+        {% for day_data in week_data.days %}
+        {% if day_data.peloton_focus %}
+        <div class="mb-4 p-4 rounded-lg border {% if day_data.assignments.ride or day_data.assignments.run or day_data.assignments.yoga or day_data.assignments.strength %}border-green-300 dark:border-green-700 bg-green-50/50 dark:bg-green-900/10{% else %}border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800{% endif %}" 
+             data-day="{{ day_data.day_of_week }}" 
+             data-week="{{ week_data.week_number }}"
+             data-template="{{ template_data.template.id }}">
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-3">
+              <div class="font-bold text-gray-900 dark:text-white">{{ day_data.day_label }}</div>
+              <div class="text-sm text-gray-600 dark:text-gray-400 italic">{{ day_data.peloton_focus }}</div>
+            </div>
+            {% if day_data.assignments.ride or day_data.assignments.run or day_data.assignments.yoga or day_data.assignments.strength %}
+              <span class="px-2 py-1 text-xs font-semibold bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200 rounded" title="Workout assigned">✓</span>
+            {% endif %}
+          </div>
+          
+          <!-- Render activities as cards -->
+          {% if day_data.has_ride %}
+            {% include "challenges/admin/includes/activity_card.html" with activity_type="ride" activity_label="🚴 Ride" assignments=day_data.assignments.ride template=template_data.template week=week_data.week_number day=day_data.day_of_week allows_alternatives=day_data.allows_alternatives %}
+          {% endif %}
+          
+          {% if day_data.has_run %}
+            {% include "challenges/admin/includes/activity_card.html" with activity_type="run" activity_label="🏃 Run" assignments=day_data.assignments.run template=template_data.template week=week_data.week_number day=day_data.day_of_week allows_alternatives=day_data.allows_alternatives %}
+          {% endif %}
+          
+          {% if day_data.has_yoga %}
+            {% include "challenges/admin/includes/activity_card.html" with activity_type="yoga" activity_label="🧘 Yoga" assignments=day_data.assignments.yoga template=template_data.template week=week_data.week_number day=day_data.day_of_week allows_alternatives=day_data.allows_alternatives %}
+          {% endif %}
+          
+          {% if day_data.has_strength %}
+            {% include "challenges/admin/includes/activity_card.html" with activity_type="strength" activity_label="💪 Strength" assignments=day_data.assignments.strength template=template_data.template week=week_data.week_number day=day_data.day_of_week allows_alternatives=day_data.allows_alternatives %}
+          {% endif %}
+        </div>
+        {% endif %}
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+  
+  <!-- Save Button -->
+  <div class="mt-8 flex gap-3">
+    <button type="submit" class="px-6 py-3 bg-primary text-white font-medium rounded-lg hover:bg-primary-dark transition-colors">
+      Save Assignments
+    </button>
+    <a href="{% url 'challenges:admin_challenges_list' %}" class="px-6 py-3 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-medium rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+      Cancel
+    </a>
+  </div>
+</form>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6"></script>
+<script>
+// Store chart instances
+const chartInstances = {};
+
+document.addEventListener('DOMContentLoaded', function() {
+  setupWorkoutCards();
+  updateStats();
+});
+
+// Setup workout cards with search and inline editing
+function setupWorkoutCards() {
+  const form = document.getElementById('workout-assignment-form');
+  
+  // For each day/activity combo, setup the card interface
+  document.querySelectorAll('[data-activity-container]').forEach(container => {
+    const activityType = container.dataset.activityContainer;
+    const template = container.dataset.template;
+    const week = container.dataset.week;
+    const day = container.dataset.day;
+    const key = `${template}_${week}_${day}_${activityType}`;
+    
+    // If assignment exists, show card; otherwise show search
+    const assignment = container.dataset.assignment ? JSON.parse(container.dataset.assignment) : null;
+    
+    if (assignment && assignment.id) {
+      showCard(container, assignment);
+    } else {
+      showSearch(container);
+    }
+  });
+}
+
+// Show search interface
+function showSearch(container) {
+  const searchHtml = `
+    <div class="search-interface space-y-2">
+      <input type="text" 
+             class="w-full px-3 py-2 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent search-input"
+             placeholder="🔍 Search by title, ID, or paste URL..."
+             data-activity="${container.dataset.activityContainer}"
+             data-template="${container.dataset.template}"
+             data-week="${container.dataset.week}"
+             data-day="${container.dataset.day}">
+      <div class="search-results hidden absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-56 overflow-y-auto z-50"></div>
+    </div>
+  `;
+  container.innerHTML = searchHtml;
+  
+  // Attach search handler
+  const input = container.querySelector('.search-input');
+  let timeout;
+  input.addEventListener('input', function() {
+    clearTimeout(timeout);
+    const q = this.value.trim();
+    if (q.length < 2) {
+      container.querySelector('.search-results').classList.add('hidden');
+      return;
+    }
+    
+    timeout = setTimeout(() => {
+      fetch(`/challenges/api/search-classes/?q=${encodeURIComponent(q)}&activity=${encodeURIComponent(this.dataset.activity)}`)
+        .then(r => r.json())
+        .then(data => {
+          const resultsDiv = container.querySelector('.search-results');
+          resultsDiv.innerHTML = '';
+          
+          if (!data.results.length) {
+            resultsDiv.innerHTML = '<div class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">No classes found</div>';
+          } else {
+            data.results.forEach(ride => {
+              const item = document.createElement('div');
+              item.className = 'px-4 py-3 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 border-b border-gray-200 dark:border-gray-700 last:border-b-0 flex items-center justify-between group';
+              item.innerHTML = `
+                <div class="flex-1">
+                  <div class="font-medium text-gray-900 dark:text-white">${ride.title}</div>
+                  <div class="text-xs text-gray-600 dark:text-gray-400">${ride.instructor} • ${ride.duration}min</div>
+                </div>
+                <div class="text-lg group-hover:scale-125 transition-transform">${ride.has_chart ? '📊' : '✓'}</div>
+              `;
+              item.addEventListener('click', () => selectClass(container, ride));
+              resultsDiv.appendChild(item);
+            });
+          }
+          
+          resultsDiv.classList.remove('hidden');
+        })
+        .catch(err => {
+          const resultsDiv = container.querySelector('.search-results');
+          resultsDiv.innerHTML = '<div class="px-4 py-3 text-sm text-red-600">Error searching</div>';
+          resultsDiv.classList.remove('hidden');
+        });
+    }, 300);
+  });
+}
+
+// Select a class from search results
+function selectClass(container, ride) {
+  // Store assignment data
+  container.dataset.assignmentData = JSON.stringify({
+    id: ride.id,
+    title: ride.title,
+    image_url: ride.image_url,
+    peloton_url: ride.peloton_url,
+    instructor: ride.instructor,
+    duration: ride.duration,
+    target_metrics_data: ride.target_metrics_data
+  });
+  
+  showCard(container, {
+    id: ride.id,
+    title: ride.title,
+    image_url: ride.image_url,
+    peloton_url: ride.peloton_url,
+    instructor: ride.instructor,
+    duration: ride.duration,
+    target_metrics_data: ride.target_metrics_data
+  });
+  
+  // Update form with hidden ride_id
+  const template = container.dataset.template;
+  const week = container.dataset.week;
+  const day = container.dataset.day;
+  const activity = container.dataset.activityContainer;
+  const fieldName = `ride_id_${template}_${week}_${day}_${activity}`;
+  let input = document.querySelector(`input[name="${fieldName}"]`);
+  if (!input) {
+    input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = fieldName;
+    container.parentElement.appendChild(input);
+  }
+  input.value = ride.id;
+  
+  updateStats();
+}
+
+// Show class card
+function showCard(container, assignment) {
+  const html = `
+    <div class="class-card rounded-lg border border-gray-300 dark:border-gray-600 overflow-hidden bg-white dark:bg-gray-800 hover:shadow-lg transition-shadow">
+      <!-- Image -->
+      ${assignment.image_url ? `<img src="${assignment.image_url}" alt="${assignment.title}" class="w-full h-32 sm:h-40 object-cover">` : '<div class="w-full h-32 sm:h-40 bg-gray-200 dark:bg-gray-700 flex items-center justify-center"><span class="text-gray-400">No image</span></div>'}
+      
+      <!-- Content -->
+      <div class="p-3 space-y-3">
+        <div>
+          <h4 class="font-semibold text-gray-900 dark:text-white text-sm line-clamp-2">${assignment.title}</h4>
+          <p class="text-xs text-gray-600 dark:text-gray-400 mt-1">${assignment.instructor} • ${assignment.duration}min</p>
+        </div>
+        
+        <!-- Chart -->
+        ${assignment.target_metrics_data && Object.keys(assignment.target_metrics_data).length > 0 ? `
+          <div class="relative h-16 border-t border-gray-200 dark:border-gray-700 pt-2">
+            <canvas id="chart_${assignment.id}" class="w-full h-full"></canvas>
+            <script>
+              renderChart(${JSON.stringify(assignment.target_metrics_data)}, 'chart_${assignment.id}');
+            </script>
+          </div>
+        ` : '<p class="text-xs text-gray-500 italic border-t border-gray-200 dark:border-gray-700 pt-2">No target metrics</p>'}
+        
+        <!-- Actions -->
+        <div class="flex justify-between items-center pt-2 border-t border-gray-200 dark:border-gray-700">
+          <a href="${assignment.peloton_url}" target="_blank" class="text-primary text-sm hover:underline flex items-center gap-1">
+            🔗 Peloton
+          </a>
+          <button type="button" onclick="editClass(this)" class="text-primary text-sm hover:underline">
+            ✏️ Edit
+          </button>
+        </div>
+        
+        <!-- Points -->
+        <div class="flex items-center gap-2 pt-2 border-t border-gray-200 dark:border-gray-700">
+          <label class="text-xs text-gray-600 dark:text-gray-400 whitespace-nowrap">Points:</label>
+          <input type="number" value="50" min="0" max="100" class="flex-1 px-2 py-1 text-sm bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-primary points-input">
+        </div>
+      </div>
+    </div>
+  `;
+  
+  container.innerHTML = html;
+  container.classList.add('class-card-container');
+}
+
+// Edit class (toggle back to search)
+function editClass(btn) {
+  const container = btn.closest('[data-activity-container]');
+  // Clear the hidden field
+  const template = container.dataset.template;
+  const week = container.dataset.week;
+  const day = container.dataset.day;
+  const activity = container.dataset.activityContainer;
+  const fieldName = `ride_id_${template}_${week}_${day}_${activity}`;
+  const input = document.querySelector(`input[name="${fieldName}"]`);
+  if (input) input.value = '';
+  
+  showSearch(container);
+  updateStats();
+}
+
+// Simple chart rendering
+function renderChart(metricsData, canvasId) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas || chartInstances[canvasId]) return;
+  
+  try {
+    const segments = metricsData.target_metrics || [];
+    const totalDuration = metricsData.total_expected_output || 1800;
+    
+    const timePoints = [];
+    const targetSeries = [];
+    let time = 0;
+    
+    segments.forEach(seg => {
+      const duration = seg.duration || 10;
+      const zone = Math.max(0, Math.min(7, seg.zone || 1));
+      
+      for (let i = 0; i < duration && time < totalDuration; i += 10) {
+        timePoints.push(time);
+        targetSeries.push(zone);
+        time += 10;
+      }
+    });
+    
+    const ctx = canvas.getContext('2d');
+    chartInstances[canvasId] = new Chart(ctx, {
+      type: 'line',
+      data: {
+        datasets: [{
+          label: 'Target',
+          data: timePoints.map((t, i) => ({x: t, y: targetSeries[i]})),
+          borderWidth: 2,
+          pointRadius: 0,
+          borderColor: '#5b7cfa',
+          backgroundColor: 'rgba(91, 124, 250, 0.1)',
+          fill: true,
+          tension: 0.1
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { type: 'linear', min: 0, max: totalDuration },
+          y: { min: 0, max: 7, ticks: { stepSize: 1 } }
+        }
+      }
+    });
+  } catch (e) {
+    console.warn('Could not render chart:', e);
+  }
+}
+
+// Template switching
+function switchTemplate(templateId) {
+  document.querySelectorAll('.template-content').forEach(el => el.classList.add('hidden'));
+  document.querySelector(`[data-template-id="${templateId}"]`).classList.remove('hidden');
+  
+  document.querySelectorAll('.workout-type-tab').forEach(btn => {
+    btn.classList.remove('border-primary', 'text-primary');
+    btn.classList.add('border-transparent', 'text-gray-600');
+  });
+}
+
+// Week toggle
+function toggleWeek(templateId, weekNum) {
+  const content = document.getElementById(`week-${templateId}-${weekNum}-content`);
+  content.classList.toggle('hidden');
+  
+  const icon = document.querySelector(`.week-toggle-icon[data-template="${templateId}"][data-week="${weekNum}"]`);
+  icon.classList.toggle('rotate-180');
+}
+
+// Update stats
+function updateStats() {
+  let totalNeeded = 0, totalAssigned = 0;
+  
+  document.querySelectorAll('[data-activity-container]').forEach(container => {
+    totalNeeded++;
+    if (container.querySelector('.class-card')) {
+      totalAssigned++;
+    }
+  });
+  
+  document.getElementById('totalNeeded').textContent = totalNeeded;
+  document.getElementById('totalAssigned').textContent = totalAssigned;
+  document.getElementById('totalMissing').textContent = totalNeeded - totalAssigned;
+  
+  // Update week stats
+  document.querySelectorAll('[data-week][data-template]').forEach(week => {
+    const weekNum = week.dataset.week;
+    const templateId = week.dataset.template;
+    const assigned = week.querySelectorAll('[data-activity-container] .class-card').length;
+    const total = week.querySelectorAll('[data-activity-container]').length;
+    
+    const assignedSpan = document.querySelector(`.week-stat-assigned[data-week="${weekNum}"][data-template="${templateId}"]`);
+    const totalSpan = document.querySelector(`.week-stat-total[data-week="${weekNum}"][data-template="${templateId}"]`);
+    
+    if (assignedSpan) assignedSpan.textContent = assigned;
+    if (totalSpan) totalSpan.textContent = total;
+  });
+}
+</script>
+
+{% endblock %}

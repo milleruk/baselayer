@@ -3,10 +3,13 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.db.models import Q, Count
+from django.http import JsonResponse
 from datetime import date
 from .models import Challenge, ChallengeInstance, ChallengeWorkoutAssignment, ChallengeWeekUnlock, ChallengeBonusWorkout, Team, TeamMember, TeamLeaderVolunteer
+from .utils import extract_class_id
 from django.contrib.auth import get_user_model
 from django.utils import timezone
+from core.services.ride_detail import get_or_check_ride_detail, queue_missing_rides
 
 User = get_user_model()
 from plans.models import PlanTemplate
@@ -431,9 +434,12 @@ def admin_assign_workouts(request, challenge_id):
                     for activity_type in ["ride", "run", "yoga", "strength"]:
                         # Process primary workout
                         url_key = f"workout_{template.id}_{week_num}_{day_num}_{activity_type}"
+                        ride_id_key = f"ride_id_{template.id}_{week_num}_{day_num}_{activity_type}"
                         title_key = f"title_{template.id}_{week_num}_{day_num}_{activity_type}"
                         points_key = f"points_{template.id}_{week_num}_{day_num}_{activity_type}"
                         
+                        # Try to get ride_id first (from search), fallback to URL
+                        ride_id = request.POST.get(ride_id_key, "").strip()
                         peloton_url = request.POST.get(url_key, "").strip()
                         workout_title = request.POST.get(title_key, "").strip()
                         points_str = request.POST.get(points_key, "50").strip()
@@ -443,7 +449,27 @@ def admin_assign_workouts(request, challenge_id):
                         except (ValueError, TypeError):
                             points = 50
                         
-                        if peloton_url:
+                        # Get ride_detail if ride_id is provided
+                        ride_detail = None
+                        if ride_id:
+                            try:
+                                from workouts.models import RideDetail
+                                ride_detail = RideDetail.objects.get(id=ride_id)
+                                # Use ride_detail's URL if no URL provided
+                                if not peloton_url and ride_detail.peloton_class_url:
+                                    peloton_url = ride_detail.peloton_class_url
+                                if not workout_title:
+                                    workout_title = ride_detail.title
+                            except (RideDetail.DoesNotExist, ValueError):
+                                pass
+                        
+                        if peloton_url or ride_detail:
+                            defaults = {
+                                "peloton_url": peloton_url,
+                                "workout_title": workout_title,
+                                "points": points,
+                                "ride_detail": ride_detail,
+                            }
                             assignment, created = ChallengeWorkoutAssignment.objects.update_or_create(
                                 challenge=challenge,
                                 template=template,
@@ -452,11 +478,7 @@ def admin_assign_workouts(request, challenge_id):
                                 activity_type=activity_type,
                                 alternative_group=None,
                                 order_in_group=0,
-                                defaults={
-                                    "peloton_url": peloton_url,
-                                    "workout_title": workout_title,
-                                    "points": points,
-                                }
+                                defaults=defaults
                             )
                             if created:
                                 assignments_created += 1
@@ -476,9 +498,12 @@ def admin_assign_workouts(request, challenge_id):
                             alternative_index = 1
                             while alternative_index <= 10:
                                 url_key = f"workout_{template.id}_{week_num}_{day_num}_{activity_type}_alt{alternative_index}"
+                                ride_id_key = f"ride_id_{template.id}_{week_num}_{day_num}_{activity_type}_alt{alternative_index}"
                                 title_key = f"title_{template.id}_{week_num}_{day_num}_{activity_type}_alt{alternative_index}"
                                 points_key = f"points_{template.id}_{week_num}_{day_num}_{activity_type}_alt{alternative_index}"
                                 
+                                # Try to get ride_id first (from search), fallback to URL
+                                ride_id = request.POST.get(ride_id_key, "").strip()
                                 peloton_url = request.POST.get(url_key, "").strip()
                                 workout_title = request.POST.get(title_key, "").strip()
                                 points_str = request.POST.get(points_key, "50").strip()
@@ -488,7 +513,27 @@ def admin_assign_workouts(request, challenge_id):
                                 except (ValueError, TypeError):
                                     points = 50
                                 
-                                if peloton_url:
+                                # Get ride_detail if ride_id is provided
+                                ride_detail = None
+                                if ride_id:
+                                    try:
+                                        from workouts.models import RideDetail
+                                        ride_detail = RideDetail.objects.get(id=ride_id)
+                                        # Use ride_detail's URL if no URL provided
+                                        if not peloton_url and ride_detail.peloton_class_url:
+                                            peloton_url = ride_detail.peloton_class_url
+                                        if not workout_title:
+                                            workout_title = ride_detail.title
+                                    except (RideDetail.DoesNotExist, ValueError):
+                                        pass
+                                
+                                if peloton_url or ride_detail:
+                                    defaults = {
+                                        "peloton_url": peloton_url,
+                                        "workout_title": workout_title,
+                                        "points": points,
+                                        "ride_detail": ride_detail,
+                                    }
                                     assignment, created = ChallengeWorkoutAssignment.objects.update_or_create(
                                         challenge=challenge,
                                         template=template,
@@ -497,11 +542,7 @@ def admin_assign_workouts(request, challenge_id):
                                         activity_type=activity_type,
                                         alternative_group=day_num,
                                         order_in_group=alternative_index,
-                                        defaults={
-                                            "peloton_url": peloton_url,
-                                            "workout_title": workout_title,
-                                            "points": points,
-                                        }
+                                        defaults=defaults
                                     )
                                     if created:
                                         assignments_created += 1
@@ -566,6 +607,36 @@ def admin_assign_workouts(request, challenge_id):
                     challenge=challenge,
                     week_number=week_num
                 ).delete()
+        
+        # Validate that all assigned workouts exist in the local library
+        # Collect all peloton URLs/IDs from assignments
+        all_class_ids = []
+        all_assignments = ChallengeWorkoutAssignment.objects.filter(challenge=challenge)
+        for assignment in all_assignments:
+            if assignment.peloton_url:
+                try:
+                    class_id = extract_class_id(assignment.peloton_url)
+                    all_class_ids.append(class_id)
+                except ValueError:
+                    # Invalid URL format - will be handled elsewhere
+                    pass
+        
+        # Queue missing rides for sync but allow partial saves
+        if all_class_ids:
+            validation_result = queue_missing_rides(all_class_ids)
+            missing_count = validation_result['missing_count']
+            
+            if missing_count > 0:
+                # Queue the missing rides but allow save to proceed
+                queued_count = validation_result['queued_count']
+                already_queued_count = validation_result['already_queued_count']
+                
+                info_msg = (
+                    f"Assignments saved! Note: {missing_count} classes were queued for sync "
+                    f"({queued_count} newly queued, {already_queued_count} already queued). "
+                    f"Full workout details will appear after sync completes."
+                )
+                messages.info(request, info_msg)
         
         messages.success(request, f"Workout assignments saved! ({assignments_created} created, {assignments_updated} updated, {bonus_created + bonus_updated} bonus workouts)")
         
@@ -943,3 +1014,68 @@ def admin_assign_user_to_team_ajax(request, challenge_id):
         return JsonResponse({'success': False, 'error': 'Invalid JSON'}, status=400)
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@login_required
+@user_passes_test(is_admin, login_url='/')
+def search_ride_classes(request):
+    """
+    API endpoint to search RideDetail classes in local database.
+    Searches by: class ID (exact match), title (partial match)
+    Returns JSON with class details including chart/target_metrics availability.
+    """
+    from workouts.models import RideDetail
+    from django.http import JsonResponse
+    
+    query = request.GET.get('q', '').strip()
+    activity_type = request.GET.get('activity', '').strip()
+    
+    if not query or len(query) < 2:
+        return JsonResponse({'results': []})
+    
+    # First try exact match on class ID (most specific)
+    rides = RideDetail.objects.filter(peloton_ride_id__iexact=query)
+    
+    # If no exact match, search by title (partial match)
+    if not rides.exists():
+        rides = RideDetail.objects.filter(title__icontains=query)
+    
+    # Apply activity type filter if specified
+    if activity_type:
+        discipline_map = {
+            'ride': 'cycling',
+            'run': 'running',
+            'yoga': 'yoga',
+            'strength': 'strength',
+        }
+        discipline = discipline_map.get(activity_type.lower())
+        if discipline:
+            rides = rides.filter(fitness_discipline__iexact=discipline)
+    
+    # Return top 10 results with chart/target availability
+    results = []
+    for ride in rides[:10]:
+        # Check if this class has target metrics (chart/target plan in library)
+        # target_metrics_data is a dict - non-empty means it has chart data
+        has_chart = bool(ride.target_metrics_data) if ride.target_metrics_data else False
+        
+        # Generate proper .com Peloton URL format
+        peloton_url = ride.peloton_class_url or ''
+        if ride.peloton_ride_id:
+            peloton_url = f"https://members.onepeloton.com/classes/cycling/{ride.peloton_ride_id}?modal=classDetailsModal&classId={ride.peloton_ride_id}"
+        
+        results.append({
+            'id': ride.id,
+            'peloton_id': ride.peloton_ride_id,
+            'title': ride.title,
+            'discipline': ride.fitness_discipline_display_name or ride.fitness_discipline,
+            'instructor': ride.instructor.name if ride.instructor else 'Unknown',
+            'duration': ride.duration_minutes,
+            'difficulty': ride.difficulty_level or 'N/A',
+            'has_chart': has_chart,
+            'image_url': ride.image_url or '',
+            'peloton_url': peloton_url,
+            'target_metrics_data': ride.target_metrics_data or {},
+        })
+    
+    return JsonResponse({'results': results})

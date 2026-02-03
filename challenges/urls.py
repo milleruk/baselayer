@@ -1,6 +1,6 @@
 from django.urls import path
 from .views import challenges_list, select_challenge_template, select_team, join_challenge, complete_challenge, leave_challenge, challenge_detail, hide_completed_challenge, retake_challenge, team_admin, team_admin_all_users, team_leader_overview
-from .admin_views import admin_challenges_list, admin_challenge_create, admin_challenge_edit, admin_challenge_delete, admin_assign_workouts, admin_manage_teams, admin_assign_teams_dragdrop, admin_assign_user_to_team_ajax
+from .admin_views import admin_challenges_list, admin_challenge_create, admin_challenge_edit, admin_challenge_delete, admin_assign_workouts, admin_manage_teams, admin_assign_teams_dragdrop, admin_assign_user_to_team_ajax, search_ride_classes
 
 app_name = "challenges"
 
@@ -29,4 +29,6 @@ urlpatterns = [
     path("admin/<int:challenge_id>/manage-teams/", admin_manage_teams, name="admin_manage_teams"),
     path("admin/<int:challenge_id>/assign-teams/", admin_assign_teams_dragdrop, name="admin_assign_teams_dragdrop"),
     path("admin/<int:challenge_id>/assign-user-to-team/", admin_assign_user_to_team_ajax, name="admin_assign_user_to_team_ajax"),
+    # API endpoints
+    path("api/search-classes/", search_ride_classes, name="search_ride_classes"),
 ]

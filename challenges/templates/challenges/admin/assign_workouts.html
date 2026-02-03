@@ -7,7 +7,7 @@
   <div>
     <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">Assign Peloton Workouts</h1>
     <p class="text-gray-600 dark:text-gray-400 mb-4">
-      Assign Peloton workout URLs for each day and activity type. Each day should have a different workout (no duplicates within a week).
+      Search your class library by title or class ID. 📊 = class has target metrics/chart. Click to select, or paste URL manually if not found.
     </p>
     <div id="workoutStats" class="flex gap-4 flex-wrap">
       <div class="px-4 py-2 bg-gray-100 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
@@ -90,17 +90,17 @@
           
           {% if day_data.has_ride %}
           <div class="mb-4 workout-activity-section" data-activity="ride">
-            <label class="flex items-center gap-2 mb-2 text-sm font-semibold text-gray-700 dark:text-gray-300">
-              <span>🚴</span>
-              <span>Ride</span>
-              {% if day_data.allows_alternatives %}
-                <span class="px-2 py-0.5 text-xs font-medium bg-primary/20 text-primary rounded">Allows Alternatives</span>
-              {% elif day_data.assignments.ride|length > 0 %}
-                <span class="px-2 py-0.5 text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200 rounded">Filled</span>
-              {% else %}
-                <span class="px-2 py-0.5 text-xs font-medium bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200 rounded">Required</span>
-              {% endif %}
-            </label>
+              <label class="flex items-center gap-2 mb-2 text-sm font-semibold text-gray-700 dark:text-gray-300">
+                <span>🚴</span>
+                <span>Ride</span>
+                {% if day_data.allows_alternatives and "PZE (Z2)" not in day_data.peloton_focus %}
+                  <span class="px-2 py-0.5 text-xs font-medium bg-primary/20 text-primary rounded">Allows Alternatives</span>
+                {% elif day_data.assignments.ride|length > 0 %}
+                  <span class="px-2 py-0.5 text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200 rounded">Filled</span>
+                {% else %}
+                  <span class="px-2 py-0.5 text-xs font-medium bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200 rounded">Required</span>
+                {% endif %}
+              </label>
             
             {% for alt in day_data.assignments.ride %}
             <div class="workout-alternative-row mb-3 {% if not forloop.first %}mt-4 pt-4 border-t border-gray-200 dark:border-gray-700{% endif %}">
@@ -114,14 +114,23 @@
                   <input 
                     type="url" 
                     name="workout_{{ template_data.template.id }}_{{ week_data.week_number }}_{{ day_data.day_of_week }}_ride{% if not forloop.first %}_alt{{ forloop.counter }}{% endif %}"
-                    value="{{ alt.peloton_url }}"
+                    value=""
                     placeholder="https://www.onepeloton.com/..."
-                    class="flex-1 px-3 py-2 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent workout-url-input {% if alt.peloton_url %}border-green-500{% endif %}"
+                    class="flex-1 px-3 py-2 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent workout-url-input"
                     data-template="{{ template_data.template.id }}"
                     data-week="{{ week_data.week_number }}"
                     data-activity="ride"
                     data-day="{{ day_data.day_of_week }}"
+                    data-ride-title="{{ alt.ride_detail.title|default:alt.workout_title|default:''|escapejs }}"
+                    data-ride-instructor="{{ alt.ride_detail.instructor.name|default:''|escapejs }}"
+                    data-ride-duration="{{ alt.ride_detail.duration_minutes|default:'' }}"
+                    data-ride-image="{{ alt.ride_detail.image_url|default:''|escapejs }}"
+                    data-ride-link="{{ alt.ride_detail.peloton_class_url|default:''|escapejs }}"
+                    data-ride-metrics="{{ alt.ride_detail.target_metrics_data|default:''|escapejs }}"
                   >
+                  {% if alt.ride_detail_id %}
+                    <input type="hidden" name="ride_id_{{ template_data.template.id }}_{{ week_data.week_number }}_{{ day_data.day_of_week }}_ride{% if not forloop.first %}_alt{{ forloop.counter }}{% endif %}" value="{{ alt.ride_detail_id }}">
+                  {% endif %}
                   {% if alt.peloton_url %}
                     <a href="{{ alt.peloton_url }}" target="_blank" class="px-3 py-2 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors" title="Preview workout">
                       <svg class="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -188,7 +197,7 @@
             </div>
             {% endfor %}
             
-            {% if day_data.allows_alternatives %}
+            {% if day_data.allows_alternatives and "PZE (Z2)" not in day_data.peloton_focus %}
             <button type="button" class="mt-2 px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors" 
                     onclick="addWorkoutAlternative(this, '{{ template_data.template.id }}', '{{ week_data.week_number }}', '{{ day_data.day_of_week }}', 'ride')">
               + Add Alternative
@@ -758,7 +767,16 @@ document.addEventListener('DOMContentLoaded', function() {
       weekStats[key].needed++;
       totalNeeded++;
       
-      if (input.value.trim()) {
+      let isAssigned = false;
+      if (input.dataset.activity === 'ride') {
+        const rideIdName = input.name.replace('workout_', 'ride_id_');
+        const rideIdField = document.querySelector(`input[name="${rideIdName}"]`);
+        isAssigned = !!(rideIdField && rideIdField.value.trim());
+      } else {
+        isAssigned = !!input.value.trim();
+      }
+
+      if (isAssigned) {
         weekStats[key].assigned++;
         totalAssigned++;
         
@@ -769,16 +787,18 @@ document.addEventListener('DOMContentLoaded', function() {
           dayCard.classList.add('border-green-300', 'dark:border-green-700', 'bg-green-50/50', 'dark:bg-green-900/10');
         }
         
-        // Show preview link if not exists
-        const inputGroup = input.parentElement;
-        if (inputGroup && !inputGroup.querySelector('a[target="_blank"]')) {
-          const link = document.createElement('a');
-          link.href = input.value.trim();
-          link.target = '_blank';
-          link.className = 'px-3 py-2 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors';
-          link.title = 'Preview workout';
-          link.innerHTML = '<svg class="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>';
-          inputGroup.appendChild(link);
+        // Show preview link if not exists (non-ride only)
+        if (input.dataset.activity !== 'ride') {
+          const inputGroup = input.parentElement;
+          if (inputGroup && !inputGroup.querySelector('a[target="_blank"]')) {
+            const link = document.createElement('a');
+            link.href = input.value.trim();
+            link.target = '_blank';
+            link.className = 'px-3 py-2 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors';
+            link.title = 'Preview workout';
+            link.innerHTML = '<svg class="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>';
+            inputGroup.appendChild(link);
+          }
         }
       } else {
         input.classList.remove('border-green-500');
@@ -830,6 +850,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }
   
+  // Expose for other handlers
+  window.updateStats = updateStats;
+
   // Update preview link when URL changes
   urlInputs.forEach(input => {
     input.addEventListener('input', function() {
@@ -902,19 +925,32 @@ document.addEventListener('DOMContentLoaded', function() {
     const weekGroups = {};
     
     urlInputs.forEach(input => {
-      if (input.value.trim()) {
-        const template = input.dataset.template;
-        const week = input.dataset.week;
-        const key = `${template}_${week}`;
-        
-        if (!weekGroups[key]) {
-          weekGroups[key] = [];
+      const activity = input.dataset.activity;
+      const template = input.dataset.template;
+      const week = input.dataset.week;
+      const day = input.dataset.day;
+      const key = `${template}_${week}`;
+      
+      if (!weekGroups[key]) {
+        weekGroups[key] = [];
+      }
+      
+      if (activity === 'ride') {
+        const rideIdName = input.name.replace('workout_', 'ride_id_');
+        const rideIdField = document.querySelector(`input[name="${rideIdName}"]`);
+        if (rideIdField && rideIdField.value.trim()) {
+          weekGroups[key].push({
+            url: `ride_id:${rideIdField.value.trim()}`,
+            activity: activity,
+            day: day,
+            input: input
+          });
         }
-        
+      } else if (input.value.trim()) {
         weekGroups[key].push({
           url: input.value.trim().toLowerCase(),
-          activity: input.dataset.activity,
-          day: input.dataset.day,
+          activity: activity,
+          day: day,
           input: input
         });
       }
@@ -1018,6 +1054,254 @@ document.addEventListener('DOMContentLoaded', function() {
   
   // Initial stats update
   updateStats();
+  
+  // Add simple class search functionality
+  addClassSearch();
 });
+
+// Simple AJAX class search
+function addClassSearch() {
+  const workoutInputs = document.querySelectorAll('.workout-url-input[data-activity="ride"]');
+  
+  // Hide ride title inputs (description field) in UI
+  document.querySelectorAll('input[name^="title_"][name*="_ride"]').forEach(titleInput => {
+    titleInput.classList.add('hidden');
+  });
+
+  workoutInputs.forEach(input => {
+    // Keep URL input for form submission, but hide it from UI
+    input.classList.add('hidden');
+    // Create search wrapper with dropdown
+    const parent = input.parentElement;
+    const wrapper = document.createElement('div');
+    wrapper.className = 'relative flex-1';
+    
+    // Create search input (replace the URL input)
+    const searchInput = document.createElement('input');
+    searchInput.type = 'text';
+    searchInput.className = 'w-full px-3 py-2 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent';
+    searchInput.placeholder = '🔍 Search by title or class ID...';
+    searchInput.dataset.activity = input.dataset.activity;
+    
+    // Card container (shown when a ride is saved)
+    const cardContainer = document.createElement('div');
+    cardContainer.className = 'hidden rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3';
+
+    // Pre-fill from saved ride if present
+    if (input.dataset.rideTitle) {
+      renderRideCard(cardContainer, input);
+      cardContainer.classList.remove('hidden');
+      searchInput.classList.add('hidden');
+    }
+
+    // Results dropdown
+    const dropdown = document.createElement('div');
+    dropdown.className = 'absolute hidden top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-56 overflow-y-auto z-50';
+    
+    wrapper.appendChild(searchInput);
+    wrapper.appendChild(cardContainer);
+    wrapper.appendChild(dropdown);
+    parent.insertBefore(wrapper, input);
+    
+    // Debounced search
+    let timeout;
+    searchInput.addEventListener('input', function() {
+      clearTimeout(timeout);
+      const q = this.value.trim();
+      const activity = this.dataset.activity;
+      
+      if (q.length < 2) {
+        dropdown.classList.add('hidden');
+        return;
+      }
+      
+      timeout = setTimeout(() => {
+        // Simple AJAX call to database search only
+        fetch(`/challenges/api/search-classes/?q=${encodeURIComponent(q)}&activity=${encodeURIComponent(activity)}`)
+          .then(r => r.json())
+          .then(data => {
+            dropdown.innerHTML = '';
+            
+            if (!data.results.length) {
+              dropdown.innerHTML = '<div class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">No classes found</div>';
+            } else {
+              data.results.forEach(ride => {
+                const item = document.createElement('div');
+                item.className = 'px-4 py-3 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 border-b border-gray-200 dark:border-gray-700 last:border-b-0 flex items-center justify-between group';
+                
+                // Chart indicator
+                const chartIcon = ride.has_chart ? '📊' : '';
+                
+                item.innerHTML = `
+                  <div class="flex-1">
+                    <div class="font-medium text-gray-900 dark:text-white">${ride.title}</div>
+                    <div class="text-xs text-gray-600 dark:text-gray-400">${ride.instructor} • ${ride.duration}min</div>
+                  </div>
+                  <div class="text-lg group-hover:scale-125 transition-transform">${chartIcon}</div>
+                `;
+                
+                item.addEventListener('click', () => selectWorkout(input, searchInput, dropdown, ride, cardContainer));
+                dropdown.appendChild(item);
+              });
+            }
+            
+            dropdown.classList.remove('hidden');
+          })
+          .catch(err => {
+            dropdown.innerHTML = '<div class="px-4 py-3 text-sm text-red-600">Error searching</div>';
+            dropdown.classList.remove('hidden');
+          });
+      }, 300);
+    });
+    
+    // Close dropdown when clicking outside
+    document.addEventListener('click', e => {
+      if (!wrapper.contains(e.target)) dropdown.classList.add('hidden');
+    });
+  });
+}
+
+function renderRideCard(container, input) {
+  console.log('renderRideCard called with input datasets:', input.dataset);
+  const title = input.dataset.rideTitle || 'Saved Ride';
+  const instructor = input.dataset.rideInstructor || '';
+  const duration = input.dataset.rideDuration ? `${input.dataset.rideDuration}min` : '';
+  const image = input.dataset.rideImage || '';
+  const link = input.dataset.rideLink || '';
+
+  const meta = [instructor, duration].filter(Boolean).join(' • ');
+  console.log('Building SVG with metrics:', input.dataset.rideMetrics);
+  const svg = buildMetricsSvg(input.dataset.rideMetrics);
+  console.log('Generated SVG result:', svg);
+
+  container.innerHTML = `
+    <div class="flex gap-3">
+      ${image ? `<img src="${image}" alt="${title}" class="w-24 h-16 rounded-md object-cover bg-gray-100 dark:bg-gray-700" />` : ''}
+      <div class="flex-1">
+        <div class="text-sm font-semibold text-gray-900 dark:text-white">${title}</div>
+        <div class="text-xs text-gray-600 dark:text-gray-400">${meta}</div>
+        ${svg ? `<div class="mt-2">${svg}</div>` : ''}
+        <div class="mt-2 flex items-center gap-2">
+          ${link ? `<a href="${link}" target="_blank" class="text-xs font-medium text-primary hover:underline">View on Peloton</a>` : ''}
+          <button type="button" class="text-xs font-medium text-gray-700 dark:text-gray-300 hover:underline" data-edit-ride>✏️ Edit</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  const editBtn = container.querySelector('[data-edit-ride]');
+  if (editBtn) {
+    editBtn.addEventListener('click', () => {
+      const rideIdName = input.name.replace('workout_', 'ride_id_');
+      const rideIdField = document.querySelector(`input[name="${rideIdName}"]`);
+      if (rideIdField) rideIdField.value = '';
+      input.dataset.rideTitle = '';
+      input.dataset.rideInstructor = '';
+      input.dataset.rideDuration = '';
+      input.dataset.rideImage = '';
+      input.dataset.rideLink = '';
+      input.dataset.rideMetrics = '';
+      container.classList.add('hidden');
+      const searchInput = container.parentElement.querySelector('input[type="text"]');
+      if (searchInput) {
+        searchInput.value = '';
+        searchInput.classList.remove('hidden', 'border-green-500');
+      }
+      updateStats();
+    });
+  }
+}
+
+function buildMetricsSvg(metricsData) {
+  console.log('buildMetricsSvg input:', metricsData);
+  if (!metricsData) return '';
+  
+  let data;
+  try {
+    // Handle both object and string inputs - avoid double JSON parsing
+    data = typeof metricsData === 'string' ? JSON.parse(metricsData) : metricsData;
+    console.log('Parsed metrics data:', data);
+  } catch (e) {
+    console.warn('Failed to parse metrics JSON:', e);
+    return '';
+  }
+  
+  const targetMetrics = data?.target_metrics || [];
+  if (!targetMetrics.length) {
+    console.log('No target_metrics found');
+    return '';
+  }
+  
+  const first = targetMetrics.find(m => m.segments || m.segment_list) || targetMetrics[0];
+  const segments = first?.segments || first?.segment_list || [];
+  console.log('Found segments:', segments);
+  
+  if (!segments.length) {
+    console.log('No segments found');
+    return '';
+  }
+
+  const durations = segments.map(s => {
+    const duration = s.duration || s.duration_seconds || s.length || 60;
+    return Math.max(duration, 1);
+  });
+  
+  const total = durations.reduce((a, b) => a + b, 0) || 1;
+  let x = 0;
+  
+  const colors = ['#8b5cf6','#3b82f6','#14b8a6','#22c55e','#f59e0b','#f97316','#ef4444'];
+  
+  const rects = segments.map((s, idx) => {
+    const w = (durations[idx] / total) * 100;
+    const color = s.color || colors[idx % colors.length];
+    const rect = `<rect x="${x}" y="0" width="${w}" height="8" fill="${color}" />`;
+    x += w;
+    return rect;
+  }).join('');
+
+  const svg = `<svg viewBox="0 0 100 8" class="w-full h-2" preserveAspectRatio="none">${rects}</svg>`;
+  console.log('Generated SVG:', svg);
+  return svg;
+}
+
+// Select a workout from search results
+function selectWorkout(urlInput, searchInput, dropdown, ride, cardContainer) {
+  // Create hidden ride_id field
+  const fieldName = urlInput.name;
+  const rideIdName = fieldName.replace('workout_', 'ride_id_');
+  let rideIdField = document.querySelector(`input[name="${rideIdName}"]`);
+  
+  if (!rideIdField) {
+    rideIdField = document.createElement('input');
+    rideIdField.type = 'hidden';
+    rideIdField.name = rideIdName;
+    urlInput.parentElement.appendChild(rideIdField);
+  }
+  
+  rideIdField.value = ride.id;
+  // Keep URL empty; we link ride_id to RideDetail for URL/title
+  urlInput.value = '';
+  
+  // Show confirmation with chart indicator
+  urlInput.dataset.rideTitle = ride.title || '';
+  urlInput.dataset.rideInstructor = ride.instructor || '';
+  urlInput.dataset.rideDuration = ride.duration || '';
+  urlInput.dataset.rideImage = ride.image_url || '';
+  urlInput.dataset.rideLink = ride.peloton_url || '';
+  // Store metrics as JSON string only once - avoid double encoding
+  urlInput.dataset.rideMetrics = ride.target_metrics_data ? JSON.stringify(ride.target_metrics_data) : '';
+  console.log('Stored ride metrics:', urlInput.dataset.rideMetrics);
+
+  if (cardContainer) {
+    renderRideCard(cardContainer, urlInput);
+    cardContainer.classList.remove('hidden');
+  }
+  searchInput.value = '';
+  searchInput.classList.add('hidden');
+  searchInput.classList.remove('border-green-500');
+  
+  dropdown.classList.add('hidden');
+  updateStats();
+}
 </script>
 {% endblock %}

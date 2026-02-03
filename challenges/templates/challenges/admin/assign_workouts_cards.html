@@ -1,0 +1,615 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Assign Workouts - {{ challenge.name }}{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js"></script>
+<style>
+  .class-card {
+    @apply rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden bg-white dark:bg-gray-800 shadow-sm;
+  }
+  
+  .class-card-image {
+    @apply w-full h-32 sm:h-40 object-cover bg-gray-100 dark:bg-gray-700;
+  }
+  
+  .class-card-content {
+    @apply p-3 sm:p-4;
+  }
+  
+  .class-card-header {
+    @apply mb-3;
+  }
+  
+  .class-card-title {
+    @apply text-base font-semibold text-gray-900 dark:text-white line-clamp-2;
+  }
+  
+  .class-card-meta {
+    @apply text-xs text-gray-600 dark:text-gray-400 mt-1;
+  }
+  
+  .class-card-chart {
+    @apply my-4 h-32 flex items-center justify-center;
+  }
+  
+  .class-card-footer {
+    @apply flex gap-2 items-center flex-wrap pt-3 border-t border-gray-200 dark:border-gray-700 text-sm;
+  }
+  
+  .btn-small {
+    @apply px-3 py-2 rounded text-sm font-medium transition-colors;
+  }
+  
+  .btn-gray-small {
+    @apply btn-small bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white hover:bg-gray-300 dark:hover:bg-gray-600;
+  }
+  
+  .search-container {
+    @apply relative;
+  }
+  
+  .search-results {
+    @apply absolute top-full left-0 right-0 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-10 max-h-64 overflow-y-auto;
+  }
+  
+  .search-result-item {
+    @apply px-4 py-3 border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors;
+  }
+  
+  .search-result-item:last-child {
+    @apply border-b-0;
+  }
+  
+  .points-input {
+    @apply w-20 px-2 py-1.5 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-center text-sm;
+  }
+  
+  .search-input {
+    @apply w-full px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary;
+  }
+  
+  .activity-grid {
+    @apply grid grid-cols-1 gap-4;
+  }
+  
+  .section-title {
+    @apply text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2;
+  }
+
+  .hidden {
+    display: none !important;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+  <!-- Header -->
+  <div class="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">Assign Peloton Workouts</h1>
+      <p class="text-gray-600 dark:text-gray-400 mb-2">
+        Search your class library by title or class ID. 📊 = class has target metrics/chart. Click to select, or edit to change.
+      </p>
+    </div>
+    <div>
+      <a href="{% url 'challenges:admin_challenges_list' %}" class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+        ← Back to Challenges
+      </a>
+    </div>
+  </div>
+
+  <!-- Template Tabs -->
+  {% if workout_structure|length > 1 %}
+  <div class="mb-6 flex gap-2 border-b border-gray-200 dark:border-gray-700">
+    {% for item in workout_structure %}
+    <button type="button"
+            onclick="switchTemplate({{ item.template.id }})" 
+            class="template-tab px-4 py-3 text-sm font-medium border-b-2 transition-colors {% if forloop.first %}border-primary text-primary{% else %}border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white{% endif %}"
+            data-template-id="{{ item.template.id }}">
+      {{ item.template.name }}
+    </button>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- Form -->
+  <form id="assignmentsForm" method="post" class="space-y-4">
+    {% csrf_token %}
+    
+    <!-- Templates Container -->
+    {% for item in workout_structure %}
+    <div id="template-{{ item.template.id }}" class="template-content {% if not forloop.first %}hidden{% endif %}" data-template-id="{{ item.template.id }}">
+      <div class="mb-6 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6">
+        <div class="mb-4">
+          <h2 class="text-xl font-bold text-gray-900 dark:text-white">{{ item.template.name }}</h2>
+          <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">{{ item.template.description|default:"No description" }}</p>
+        </div>
+
+        <!-- Weeks -->
+        {% for week in item.weeks %}
+        <div class="mb-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 overflow-hidden" data-week="{{ week.week_number }}" data-template="{{ item.template.id }}">
+          <div class="px-4 py-3 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors" onclick="toggleWeek({{ item.template.id }}, {{ week.week_number }})">
+            <div class="flex items-center gap-3">
+              <h3 class="text-lg font-semibold text-primary">Week {{ week.week_number }}</h3>
+            </div>
+            <svg class="w-5 h-5 text-gray-500 dark:text-gray-400 week-toggle-icon transition-transform" data-week="{{ week.week_number }}" data-template="{{ item.template.id }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+            </svg>
+          </div>
+
+          <div class="week-content hidden p-4" id="week-{{ item.template.id }}-{{ week.week_number }}-content">
+            {% for day in week.days %}
+            {% if day.has_ride or day.has_run or day.has_yoga or day.has_strength %}
+            <div class="mb-4 p-4 rounded-lg border {% if day.assignments.ride or day.assignments.run or day.assignments.yoga or day.assignments.strength %}border-green-300 dark:border-green-700 bg-green-50/50 dark:bg-green-900/10{% else %}border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800{% endif %}"
+                 data-day="{{ day.day_of_week }}"
+                 data-week="{{ week.week_number }}"
+                 data-template="{{ item.template.id }}">
+              <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center gap-3">
+                  <div class="font-bold text-gray-900 dark:text-white">{{ day.day_label }}</div>
+                  <div class="text-sm text-gray-600 dark:text-gray-400 italic">{{ day.peloton_focus }}</div>
+                </div>
+                {% if day.assignments.ride or day.assignments.run or day.assignments.yoga or day.assignments.strength %}
+                  <span class="px-2 py-1 text-xs font-semibold bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200 rounded" title="Workout assigned">✓</span>
+                {% endif %}
+              </div>
+
+              <!-- Activities Grid -->
+              <div class="activity-grid">
+            <!-- Ride Activity -->
+            {% if day.has_ride %}
+            <div class="mb-4 workout-activity-section" data-activity="ride">
+              <label class="flex items-center gap-2 mb-2 text-sm font-semibold text-gray-700 dark:text-gray-300">
+                <span>🚴</span>
+                <span>Ride</span>
+                {% if day.allows_alternatives %}
+                  <span class="px-2 py-0.5 text-xs font-medium bg-primary/20 text-primary rounded">Allows Alternatives</span>
+                {% elif day.assignments.ride|length > 0 %}
+                  <span class="px-2 py-0.5 text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200 rounded">Filled</span>
+                {% else %}
+                  <span class="px-2 py-0.5 text-xs font-medium bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200 rounded">Required</span>
+                {% endif %}
+              </label>
+              {% with assignment=day.assignments.ride|first %}
+                <div data-activity-container 
+                     data-activity="ride" 
+                     data-template="{{ item.template.id }}" 
+                     data-week="{{ week.week_number }}" 
+                     data-day="{{ day.day_of_week }}"
+                     {% if assignment %}data-assignment="{{ assignment|safe }}"{% endif %}>
+                </div>
+              {% endwith %}
+            </div>
+            {% endif %}
+
+            <!-- Run Activity -->
+            {% if day.has_run %}
+            <div class="mb-4 workout-activity-section" data-activity="run">
+              <label class="flex items-center gap-2 mb-2 text-sm font-semibold text-gray-700 dark:text-gray-300">
+                <span>🏃</span>
+                <span>Run</span>
+                {% if day.allows_alternatives %}
+                  <span class="px-2 py-0.5 text-xs font-medium bg-primary/20 text-primary rounded">Allows Alternatives</span>
+                {% elif day.assignments.run|length > 0 %}
+                  <span class="px-2 py-0.5 text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200 rounded">Filled</span>
+                {% else %}
+                  <span class="px-2 py-0.5 text-xs font-medium bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200 rounded">Required</span>
+                {% endif %}
+              </label>
+              {% with assignment=day.assignments.run|first %}
+                <div data-activity-container 
+                     data-activity="run" 
+                     data-template="{{ item.template.id }}" 
+                     data-week="{{ week.week_number }}" 
+                     data-day="{{ day.day_of_week }}"
+                     {% if assignment %}data-assignment="{{ assignment|safe }}"{% endif %}>
+                </div>
+              {% endwith %}
+            </div>
+            {% endif %}
+
+            <!-- Yoga Activity -->
+            {% if day.has_yoga %}
+            <div class="mb-4 workout-activity-section" data-activity="yoga">
+              <label class="flex items-center gap-2 mb-2 text-sm font-semibold text-gray-700 dark:text-gray-300">
+                <span>🧘</span>
+                <span>Yoga</span>
+                {% if day.allows_alternatives %}
+                  <span class="px-2 py-0.5 text-xs font-medium bg-primary/20 text-primary rounded">Allows Alternatives</span>
+                {% elif day.assignments.yoga|length > 0 %}
+                  <span class="px-2 py-0.5 text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200 rounded">Filled</span>
+                {% else %}
+                  <span class="px-2 py-0.5 text-xs font-medium bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200 rounded">Required</span>
+                {% endif %}
+              </label>
+              {% with assignment=day.assignments.yoga|first %}
+                <div data-activity-container 
+                     data-activity="yoga" 
+                     data-template="{{ item.template.id }}" 
+                     data-week="{{ week.week_number }}" 
+                     data-day="{{ day.day_of_week }}"
+                     {% if assignment %}data-assignment="{{ assignment|safe }}"{% endif %}>
+                </div>
+              {% endwith %}
+            </div>
+            {% endif %}
+
+            <!-- Strength Activity -->
+            {% if day.has_strength %}
+            <div class="mb-4 workout-activity-section" data-activity="strength">
+              <label class="flex items-center gap-2 mb-2 text-sm font-semibold text-gray-700 dark:text-gray-300">
+                <span>💪</span>
+                <span>Strength</span>
+                {% if day.allows_alternatives %}
+                  <span class="px-2 py-0.5 text-xs font-medium bg-primary/20 text-primary rounded">Allows Alternatives</span>
+                {% elif day.assignments.strength|length > 0 %}
+                  <span class="px-2 py-0.5 text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200 rounded">Filled</span>
+                {% else %}
+                  <span class="px-2 py-0.5 text-xs font-medium bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200 rounded">Required</span>
+                {% endif %}
+              </label>
+              {% with assignment=day.assignments.strength|first %}
+                <div data-activity-container 
+                     data-activity="strength" 
+                     data-template="{{ item.template.id }}" 
+                     data-week="{{ week.week_number }}" 
+                     data-day="{{ day.day_of_week }}"
+                     {% if assignment %}data-assignment="{{ assignment|safe }}"{% endif %}>
+                </div>
+              {% endwith %}
+            </div>
+            {% endif %}
+          </div>
+        </div>
+        {% endif %}
+        {% endfor %}
+      </div>
+    </div>
+      {% endfor %}
+    </div>
+    {% endfor %}
+
+    <!-- Hidden Fields for Ride IDs -->
+    <div id="hiddenFields"></div>
+
+    <!-- Submit Button -->
+    <div class="mt-6 flex gap-4">
+      <button type="submit" class="px-5 py-2.5 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded-lg transition-colors">
+        ✅ Save Assignments
+      </button>
+      <a href="{% url 'challenges:admin_challenge_edit' challenge.id %}" class="px-5 py-2.5 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-900 dark:text-white text-sm font-semibold rounded-lg transition-colors">
+        Cancel
+      </a>
+    </div>
+  </form>
+</div>
+
+<!-- Card Template -->
+<template id="classCardTemplate">
+  <div class="class-card">
+    <div class="class-card-image-container relative">
+      <img class="class-card-image" alt="">
+      <div class="absolute top-2 right-2 flex gap-1">
+        <span class="chart-badge px-2 py-1 bg-blue-600 text-white text-xs font-bold rounded hidden">📊</span>
+      </div>
+    </div>
+    <div class="class-card-content">
+      <div class="class-card-header">
+        <h4 class="class-card-title"></h4>
+        <p class="class-card-meta"></p>
+      </div>
+      <div class="class-card-chart" style="display:none;">
+        <canvas></canvas>
+      </div>
+      <div class="class-card-footer">
+        <a class="peloton-link text-primary hover:underline text-sm font-semibold" target="_blank">🔗 Peloton</a>
+        <button type="button" class="edit-btn btn-gray-small ml-auto">✏️ Edit</button>
+        <div class="flex items-center gap-2">
+          <label class="text-sm font-semibold text-gray-700 dark:text-gray-300">Pts:</label>
+          <input type="number" class="points-input" value="50" min="0" max="999">
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<!-- Search Template -->
+<template id="searchTemplate">
+  <div class="search-container mb-4">
+    <input type="text" class="search-input" placeholder="Search class by title or ID..." autocomplete="off">
+    <div class="search-results hidden"></div>
+  </div>
+</template>
+
+<script>
+const API_ENDPOINT = '{% url "challenges:search_ride_classes" %}';
+let searchDebounceTimers = {};
+let hiddenFields = {};
+let assignmentData = {};
+
+document.addEventListener('DOMContentLoaded', function() {
+  initializeAllContainers();
+});
+
+function initializeAllContainers() {
+  const containers = document.querySelectorAll('[data-activity-container]');
+  containers.forEach(container => {
+    renderContainer(container);
+  });
+}
+
+function renderContainer(container) {
+  const assignmentStr = container.dataset.assignment;
+  
+  if (assignmentStr) {
+    try {
+      const assignment = JSON.parse(assignmentStr);
+      const activity = container.dataset.activity;
+      const template = container.dataset.template;
+      const week = container.dataset.week;
+      const day = container.dataset.day;
+      const key = `${template}_${week}_${day}_${activity}`;
+      assignmentData[key] = assignment;
+      showCard(container, assignment);
+    } catch (e) {
+      console.error('Failed to parse assignment:', e);
+      showSearch(container);
+    }
+  } else {
+    showSearch(container);
+  }
+}
+
+function showSearch(container) {
+  const template = document.getElementById('searchTemplate');
+  const clone = template.content.cloneNode(true);
+  container.innerHTML = '';
+  container.appendChild(clone);
+  
+  const input = container.querySelector('.search-input');
+  const resultsDiv = container.querySelector('.search-results');
+  const activity = container.dataset.activity;
+  
+  input.addEventListener('input', function(e) {
+    clearTimeout(searchDebounceTimers[activity]);
+    
+    if (e.target.value.length < 2) {
+      resultsDiv.classList.add('hidden');
+      return;
+    }
+    
+    searchDebounceTimers[activity] = setTimeout(() => {
+      searchClasses(e.target.value, activity, resultsDiv, container);
+    }, 300);
+  });
+}
+
+function searchClasses(query, activity, resultsDiv, container) {
+  fetch(`${API_ENDPOINT}?q=${encodeURIComponent(query)}&activity=${encodeURIComponent(activity)}`)
+    .then(r => r.json())
+    .then(data => {
+      if (data.results && data.results.length > 0) {
+        resultsDiv.innerHTML = data.results.map(result => {
+          const json = JSON.stringify(result).replace(/'/g, '&apos;');
+          return `
+            <div class="search-result-item" onclick="selectClass(event, '${json}')">
+              <div class="font-semibold text-gray-900 dark:text-white">${result.title}</div>
+              <div class="text-xs text-gray-500 dark:text-gray-400">${result.instructor} • ${result.duration}min • ${result.discipline}</div>
+            </div>
+          `;
+        }).join('');
+        resultsDiv.classList.remove('hidden');
+      } else {
+        resultsDiv.innerHTML = '<div class="p-4 text-center text-gray-500 dark:text-gray-400">No results found</div>';
+        resultsDiv.classList.remove('hidden');
+      }
+    })
+    .catch(err => {
+      console.error('Search error:', err);
+      resultsDiv.innerHTML = '<div class="p-4 text-center text-red-600">Error searching</div>';
+      resultsDiv.classList.remove('hidden');
+    });
+}
+
+function selectClass(event, classDataStr) {
+  event.preventDefault();
+  event.stopPropagation();
+  
+  try {
+    const classData = JSON.parse(classDataStr.replace(/&apos;/g, "'"));
+    const container = event.target.closest('[data-activity-container]');
+    
+    if (!container) return;
+    
+    const activity = container.dataset.activity;
+    const template = container.dataset.template;
+    const week = container.dataset.week;
+    const day = container.dataset.day;
+    const key = `${template}_${week}_${day}_${activity}`;
+    
+    assignmentData[key] = classData;
+    
+    const fieldName = `ride_id_${template}_${week}_${day}_${activity}`;
+    hiddenFields[fieldName] = classData.id;
+    
+    showCard(container, classData);
+  } catch (e) {
+    console.error('Failed to select class:', e);
+  }
+}
+
+function showCard(container, classData) {
+  const template = document.getElementById('classCardTemplate');
+  const clone = template.content.cloneNode(true);
+  
+  const img = clone.querySelector('.class-card-image');
+  img.src = classData.image_url || '';
+  img.alt = classData.title || '';
+  
+  clone.querySelector('.class-card-title').textContent = classData.title || 'Unknown Class';
+  clone.querySelector('.class-card-meta').textContent = 
+    `${classData.instructor || 'Unknown'} • ${classData.duration || 0}min • ${classData.difficulty || 'N/A'}`;
+  
+  const pLink = clone.querySelector('.peloton-link');
+  if (classData.peloton_url) {
+    pLink.href = classData.peloton_url;
+  } else {
+    pLink.style.display = 'none';
+  }
+  
+  if (classData.has_chart && classData.target_metrics_data && Object.keys(classData.target_metrics_data).length > 0) {
+    clone.querySelector('.chart-badge').classList.remove('hidden');
+    const chartDiv = clone.querySelector('.class-card-chart');
+    chartDiv.style.display = 'flex';
+    setTimeout(() => {
+      renderChart(clone.querySelector('canvas'), classData.target_metrics_data);
+    }, 0);
+  }
+  
+  const pointsInput = clone.querySelector('.points-input');
+  pointsInput.value = classData.points || 50;
+  
+  const editBtn = clone.querySelector('.edit-btn');
+  editBtn.addEventListener('click', function(e) {
+    e.preventDefault();
+    editClass(container);
+  });
+  
+  container.innerHTML = '';
+  container.appendChild(clone);
+}
+
+function editClass(container) {
+  const activity = container.dataset.activity;
+  const template = container.dataset.template;
+  const week = container.dataset.week;
+  const day = container.dataset.day;
+  const fieldName = `ride_id_${template}_${week}_${day}_${activity}`;
+  
+  const pointsInput = container.querySelector('.points-input');
+  const points = pointsInput ? parseInt(pointsInput.value) || 50 : 50;
+  const key = `${template}_${week}_${day}_${activity}`;
+  if (assignmentData[key]) {
+    assignmentData[key].points = points;
+  }
+  
+  delete hiddenFields[fieldName];
+  
+  showSearch(container);
+}
+
+function renderChart(canvas, metricsData) {
+  if (!metricsData || typeof metricsData !== 'object') {
+    return;
+  }
+  
+  const zones = metricsData.zones || [];
+  if (zones.length === 0) return;
+  
+  const labels = zones.map(z => z.name || `Zone ${z.zone}`);
+  const colors = zones.map(z => z.color || '#999');
+  const values = zones.map(z => z.duration_minutes || 0);
+  
+  new Chart(canvas, {
+    type: 'doughnut',
+    data: {
+      labels: labels,
+      datasets: [{
+        data: values,
+        backgroundColor: colors,
+        borderColor: 'transparent',
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: {
+            padding: 12,
+            font: { size: 11 },
+            color: document.documentElement.classList.contains('dark') ? '#d1d5db' : '#374151',
+          }
+        }
+      }
+    }
+  });
+}
+
+document.getElementById('assignmentsForm').addEventListener('submit', function(e) {
+  e.preventDefault();
+  
+  document.querySelectorAll('.points-input').forEach((input) => {
+    const container = input.closest('[data-activity-container]');
+    if (container) {
+      const activity = container.dataset.activity;
+      const template = container.dataset.template;
+      const week = container.dataset.week;
+      const day = container.dataset.day;
+      const key = `${template}_${week}_${day}_${activity}`;
+      if (assignmentData[key]) {
+        assignmentData[key].points = parseInt(input.value) || 50;
+      }
+    }
+  });
+  
+  const hiddenFieldsDiv = document.getElementById('hiddenFields');
+  hiddenFieldsDiv.innerHTML = '';
+  
+  for (const [fieldName, rideId] of Object.entries(hiddenFields)) {
+    const input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = fieldName;
+    input.value = rideId;
+    hiddenFieldsDiv.appendChild(input);
+  }
+  
+  for (const [key, data] of Object.entries(assignmentData)) {
+    if (hiddenFields[`ride_id_${key}`] !== undefined) {
+      const fieldName = `points_${key}`;
+      const input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = fieldName;
+      input.value = data.points || 50;
+      hiddenFieldsDiv.appendChild(input);
+    }
+  }
+  
+  this.submit();
+});
+
+function switchTemplate(templateId) {
+  document.querySelectorAll('.template-content').forEach(el => {
+    el.classList.add('hidden');
+  });
+  const active = document.querySelector(`.template-content[data-template-id="${templateId}"]`);
+  if (active) {
+    active.classList.remove('hidden');
+  }
+  
+  document.querySelectorAll('.template-tab').forEach(btn => {
+    btn.classList.remove('border-primary', 'text-primary');
+    btn.classList.add('border-transparent', 'text-gray-600', 'dark:text-gray-400');
+  });
+  
+  const tab = document.querySelector(`.template-tab[data-template-id="${templateId}"]`);
+  if (tab) {
+    tab.classList.add('border-primary', 'text-primary');
+    tab.classList.remove('border-transparent', 'text-gray-600', 'dark:text-gray-400');
+  }
+}
+
+function toggleWeek(templateId, weekNumber) {
+  const content = document.getElementById(`week-${templateId}-${weekNumber}-content`);
+  if (!content) return;
+  content.classList.toggle('hidden');
+  const icon = document.querySelector(`.week-toggle-icon[data-template="${templateId}"][data-week="${weekNumber}"]`);
+  if (icon) {
+    icon.classList.toggle('rotate-180', !content.classList.contains('hidden'));
+  }
+}
+</script>
+{% endblock %}

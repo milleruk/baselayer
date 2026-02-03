@@ -8,6 +8,7 @@ from django.contrib.auth import get_user_model
 from peloton.models import PelotonConnection
 from peloton.services.peloton import PelotonClient, PelotonAPIError
 from .models import Workout, RideDetail, WorkoutDetails, WorkoutPerformanceData, Instructor, WorkoutType
+from challenges.utils import generate_peloton_url
 from .views import _store_playlist_from_data, detect_class_type
 
 logger = logging.getLogger(__name__)
@@ -52,22 +53,8 @@ def store_ride_detail_from_api(client, ride_id, logger_instance=None):
         if not isinstance(equipment_tags, list):
             equipment_tags = []
         
-        # Generate Peloton class URL
-        peloton_class_url = ''
-        fitness_discipline = ride_data.get('fitness_discipline', '').lower()
-        if fitness_discipline and ride_id:
-            discipline_paths = {
-                'cycling': 'cycling',
-                'running': 'treadmill',
-                'walking': 'walking',
-                'yoga': 'yoga',
-                'strength': 'strength',
-                'stretching': 'stretching',
-                'meditation': 'meditation',
-                'cardio': 'cardio',
-            }
-            path = discipline_paths.get(fitness_discipline, 'cycling')
-            peloton_class_url = f"https://members.onepeloton.com/classes/{path}/{ride_id}"
+        # Generate standardized Peloton URL in UK format
+        peloton_class_url = generate_peloton_url(ride_id) if ride_id else ''
         
         # Check if RideDetail already exists
         ride_detail, created = RideDetail.objects.get_or_create(

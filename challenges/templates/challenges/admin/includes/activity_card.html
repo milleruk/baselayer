@@ -1,0 +1,51 @@
+<!-- Activity card component -->
+<div class="mb-4 workout-activity-section" data-activity="{{ activity_type }}">
+  <label class="flex items-center gap-2 mb-3 text-sm font-semibold text-gray-700 dark:text-gray-300">
+    <span>{{ activity_label }}</span>
+    {% if allows_alternatives %}
+      <span class="px-2 py-0.5 text-xs font-medium bg-primary/20 text-primary rounded">Alternatives</span>
+    {% elif assignments|length > 0 %}
+      <span class="px-2 py-0.5 text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200 rounded">Filled</span>
+    {% else %}
+      <span class="px-2 py-0.5 text-xs font-medium bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200 rounded">Required</span>
+    {% endif %}
+  </label>
+  
+  <!-- Primary assignment or search -->
+  {% if assignments|length > 0 %}
+    {% for assignment in assignments|slice:":1" %}
+      <div data-activity-container="{{ activity_type }}" 
+           data-template="{{ template.id }}" 
+           data-week="{{ week }}" 
+           data-day="{{ day }}"
+           data-assignment="{{ assignment|safe }}">
+        <!-- Populated by JavaScript -->
+      </div>
+    {% endfor %}
+  {% else %}
+    <div data-activity-container="{{ activity_type }}" 
+         data-template="{{ template.id }}" 
+         data-week="{{ week }}" 
+         data-day="{{ day }}">
+      <!-- Populated by JavaScript -->
+    </div>
+  {% endif %}
+  
+  <!-- Alternatives (if enabled) -->
+  {% if allows_alternatives and assignments|length > 1 %}
+    {% for assignment in assignments|slice:"1:" %}
+      <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+        <div class="text-center mb-3">
+          <span class="px-3 py-1 text-xs font-bold bg-primary/20 text-primary rounded-full">OR</span>
+        </div>
+        <div data-activity-container="{{ activity_type }}" 
+             data-template="{{ template.id }}" 
+             data-week="{{ week }}" 
+             data-day="{{ day }}"
+             data-assignment="{{ assignment|safe }}">
+          <!-- Populated by JavaScript -->
+        </div>
+      </div>
+    {% endfor %}
+  {% endif %}
+</div>

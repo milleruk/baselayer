@@ -116,52 +116,54 @@ def select_challenge_template(request, challenge_id):
     current_week_start = sunday_of_current_week(date.today())
     existing_current_week_plan = WeeklyPlan.objects.filter(user=request.user, week_start=current_week_start).first()
     
-    # Filter templates based on challenge categories
-    categories = [cat.strip().lower() for cat in challenge.categories.split(",") if cat.strip()]
-    all_templates = PlanTemplate.objects.all()
-    matching_templates = set()  # Use set to avoid duplicates
-    
-    # Filter templates based on categories
-    for template in all_templates:
-        template_name_lower = template.name.lower()
-        should_include = False
-        
-        # Check if template matches any category
-        if "cycling" in categories:
-            if "ride" in template_name_lower or "2 runs 2 rides" in template_name_lower:
-                should_include = True
-        if "running" in categories:
-            if "run" in template_name_lower or "2 runs 2 rides" in template_name_lower:
-                should_include = True
-        if "strength" in categories:
-            if "strength" in template_name_lower:
-                should_include = True
-            # Also include "Just Kegels" for strength challenges
-            if "just kegels" in template_name_lower:
-                should_include = True
-        if "yoga" in categories:
-            if "yoga" in template_name_lower:
-                should_include = True
-            # Also include "Just Kegels" for yoga challenges
-            if "just kegels" in template_name_lower:
-                should_include = True
-        
-        # Always include the default template if set
-        if challenge.default_template and template == challenge.default_template:
-            should_include = True
-        
-        if should_include:
-            matching_templates.add(template)
-    
-    # If no templates matched categories, use available_templates or fallback to all
-    if not matching_templates:
-        if challenge.available_templates.exists():
-            templates = challenge.available_templates.all().order_by("name")
-        else:
-            # Fallback: show all templates if none are specified (backward compatibility)
-            templates = all_templates.order_by("name")
+    # Filter templates: only show templates that are explicitly available for this challenge
+    # This ensures users can only join with templates that have seeded assignments
+    if challenge.available_templates.exists():
+        # Primary: Use explicitly configured available templates
+        templates = challenge.available_templates.all().order_by("name")
     else:
-        templates = list(matching_templates)
+        # Fallback: If no templates configured, try to match by category
+        categories = [cat.strip().lower() for cat in challenge.categories.split(",") if cat.strip()]
+        all_templates = PlanTemplate.objects.all()
+        matching_templates = set()  # Use set to avoid duplicates
+        
+        # Filter templates based on categories
+        for template in all_templates:
+            template_name_lower = template.name.lower()
+            should_include = False
+            
+            # Check if template matches any category
+            if "cycling" in categories:
+                if "ride" in template_name_lower or "2 runs 2 rides" in template_name_lower:
+                    should_include = True
+            if "running" in categories:
+                if "run" in template_name_lower or "2 runs 2 rides" in template_name_lower:
+                    should_include = True
+            if "strength" in categories:
+                if "strength" in template_name_lower:
+                    should_include = True
+                # Also include "Just Kegels" for strength challenges
+                if "just kegels" in template_name_lower:
+                    should_include = True
+            if "yoga" in categories:
+                if "yoga" in template_name_lower:
+                    should_include = True
+                # Also include "Just Kegels" for yoga challenges
+                if "just kegels" in template_name_lower:
+                    should_include = True
+            
+            # Always include the default template if set
+            if challenge.default_template and template == challenge.default_template:
+                should_include = True
+            
+            if should_include:
+                matching_templates.add(template)
+        
+        # Use matched templates or all templates as final fallback
+        if matching_templates:
+            templates = list(matching_templates)
+        else:
+            templates = all_templates.order_by("name")
     
     # Order templates and prioritize default template
     templates = sorted(templates, key=lambda t: t.name)

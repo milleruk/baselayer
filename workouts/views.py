@@ -30,42 +30,10 @@ from .services.class_filter import ClassLibraryFilter
 from .services.metrics import MetricsCalculator
 from .services.chart_builder import ChartBuilder
 from peloton.models import PelotonConnection
+from challenges.utils import generate_peloton_url
 from accounts.pace_converter import DEFAULT_RUNNING_PACE_LEVELS, ZONE_COLORS
 from accounts.walking_pace_levels_data import DEFAULT_WALKING_PACE_LEVELS, WALKING_ZONE_COLORS
 from accounts.rowing_pace_levels_data import DEFAULT_ROWING_PACE_LEVELS, ROWING_ZONE_COLORS
-
-# Import shared utilities from core.utils
-from core.utils.pace_converter import (
-    pace_zone_to_level,
-    pace_str_from_mph,
-    mph_from_pace_value,
-    pace_zone_level_from_speed,
-    scaled_pace_zone_value_from_speed,
-    pace_zone_label_from_level,
-    resolve_pace_context,
-    PACE_ZONE_LEVEL_TO_KEY,
-    PACE_ZONE_KEY_TO_LEVEL,
-    PACE_ZONE_LEVEL_ORDER,
-    PACE_ZONE_LEVEL_LABELS,
-    PACE_ZONE_LEVEL_DISPLAY,
-    PACE_ZONE_COLORS,
-)
-from core.utils.chart_helpers import (
-    downsample_points,
-    downsample_series,
-    normalize_series_to_svg_points,
-    scaled_zone_value_from_output,
-)
-from core.utils.workout_targets import (
-    target_value_at_time,
-    target_value_at_time_with_shift,
-    target_segment_at_time_with_shift,
-    extract_spin_up_intervals,
-    calculate_target_line_from_segments,
-    calculate_pace_target_line_from_segments,
-    calculate_power_zone_target_line,
-)
-
 import logging
 
 logger = logging.getLogger(__name__)
@@ -73,122 +41,6 @@ logger = logging.getLogger(__name__)
 # Initialize service instances (stateless services)
 metrics_calculator = MetricsCalculator()
 chart_builder = ChartBuilder()
-
-
-# Create wrapper functions with underscore prefix for backward compatibility
-def _pace_zone_to_level(zone):
-    """Wrapper for pace_zone_to_level from core.utils.pace_converter."""
-    return pace_zone_to_level(zone)
-
-
-def _pace_str_from_mph(mph):
-    """Wrapper for pace_str_from_mph from core.utils.pace_converter."""
-    return pace_str_from_mph(mph)
-
-
-def _mph_from_pace_value(pace_value):
-    """Wrapper for mph_from_pace_value from core.utils.pace_converter."""
-    return mph_from_pace_value(pace_value)
-
-
-def _pace_zone_level_from_speed(speed_mph, pace_ranges):
-    """Wrapper for pace_zone_level_from_speed from core.utils.pace_converter."""
-    return pace_zone_level_from_speed(speed_mph, pace_ranges)
-
-
-def _scaled_pace_zone_value_from_speed(speed_mph, pace_ranges):
-    """Wrapper for scaled_pace_zone_value_from_speed from core.utils.pace_converter."""
-    return scaled_pace_zone_value_from_speed(speed_mph, pace_ranges)
-
-
-def _pace_zone_label_from_level(level, uppercase=True):
-    """Wrapper for pace_zone_label_from_level from core.utils.pace_converter."""
-    return pace_zone_label_from_level(level, uppercase)
-
-
-def _resolve_pace_context(user_profile, workout_date, discipline):
-    """Wrapper for resolve_pace_context from core.utils.pace_converter."""
-    return resolve_pace_context(user_profile, workout_date, discipline)
-
-
-def _downsample_points(values, max_points=48):
-    """Wrapper for downsample_points from core.utils.chart_helpers."""
-    return downsample_points(values, max_points)
-
-
-def _downsample_series(series, max_points=48):
-    """Wrapper for downsample_series from core.utils.chart_helpers."""
-    return downsample_series(series, max_points)
-
-
-def _normalize_series_to_svg_points(
-    series,
-    width=360,
-    height=120,
-    left_pad=34,
-    right_pad=10,
-    top_pad=8,
-    bottom_pad=8,
-    *,
-    preserve_full_series=False,
-    max_points=120,
-    scaled_min=None,
-    scaled_max=None,
-):
-    """Wrapper for normalize_series_to_svg_points from core.utils.chart_helpers."""
-    return normalize_series_to_svg_points(
-        series, width, height, left_pad, right_pad, top_pad, bottom_pad,
-        preserve_full_series=preserve_full_series, max_points=max_points,
-        scaled_min=scaled_min, scaled_max=scaled_max
-    )
-
-
-def _scaled_zone_value_from_output(output_watts, zone_ranges):
-    """Wrapper for scaled_zone_value_from_output from core.utils.chart_helpers."""
-    return scaled_zone_value_from_output(output_watts, zone_ranges)
-
-
-def _target_value_at_time(segments, t_seconds):
-    """Wrapper for target_value_at_time from core.utils.workout_targets."""
-    return target_value_at_time(segments, t_seconds)
-
-
-def _target_value_at_time_with_shift(segments, t_seconds, shift_seconds=0):
-    """Wrapper for target_value_at_time_with_shift from core.utils.workout_targets."""
-    return target_value_at_time_with_shift(segments, t_seconds, shift_seconds)
-
-
-def _target_segment_at_time_with_shift(segments, t_seconds, shift_seconds=0):
-    """Wrapper for target_segment_at_time_with_shift from core.utils.workout_targets."""
-    return target_segment_at_time_with_shift(segments, t_seconds, shift_seconds)
-
-
-def _extract_spin_up_intervals(ride_detail):
-    """Wrapper for extract_spin_up_intervals from core.utils.workout_targets."""
-    return extract_spin_up_intervals(ride_detail)
-
-
-def _calculate_target_line_from_segments(segments, zone_ranges, seconds_array, user_ftp=None, spin_up_intervals=None):
-    """Wrapper for calculate_target_line_from_segments from core.utils.workout_targets."""
-    # Pass zone_power_percentages from MetricsCalculator
-    return calculate_target_line_from_segments(
-        segments, zone_ranges, seconds_array, user_ftp, spin_up_intervals,
-        zone_power_percentages=metrics_calculator.ZONE_POWER_PERCENTAGES
-    )
-
-
-def _calculate_pace_target_line_from_segments(segments, seconds_array):
-    """Wrapper for calculate_pace_target_line_from_segments from core.utils.workout_targets."""
-    return calculate_pace_target_line_from_segments(segments, seconds_array)
-
-
-def _calculate_power_zone_target_line(target_metrics_list, user_ftp, seconds_array):
-    """Wrapper for calculate_power_zone_target_line from core.utils.workout_targets."""
-    # Pass zone_power_percentages from MetricsCalculator
-    return calculate_power_zone_target_line(
-        target_metrics_list, user_ftp, seconds_array,
-        zone_power_percentages=metrics_calculator.ZONE_POWER_PERCENTAGES
-    )
 
 
 def detect_class_type(ride_data, ride_details=None):
@@ -208,6 +60,2143 @@ def detect_class_type(ride_data, ride_details=None):
         return 'power_zone'
     
     # Priority 2: Check pace_target_type for running/walking
+def _pace_zone_to_level(zone):
+    """
+    Map pace intensity zone identifier (string/int) to 1-7 level.
+    Returns None if unknown.
+    """
+    if isinstance(zone, (int, float)):
+        try:
+            value = int(round(float(zone)))
+        except Exception:
+            return None
+        if 0 <= value <= 6:
+            return value + 1
+        if 1 <= value <= 7:
+            return value
+        return None
+    if not isinstance(zone, str) or not zone:
+        return None
+    z = zone.strip().lower().replace('-', '_').replace(' ', '_')
+    if z.isdigit():
+        try:
+            val = int(z)
+        except ValueError:
+            val = None
+        if val is not None:
+            return _pace_zone_to_level(val)
+    if z in PACE_ZONE_KEY_TO_LEVEL:
+        return PACE_ZONE_KEY_TO_LEVEL[z]
+    compressed = z.replace('_', '')
+    for key, value in PACE_ZONE_KEY_TO_LEVEL.items():
+        if key.replace('_', '') == compressed:
+            return value
+    return None
+
+
+    pace_target_type = ride_data.get('pace_target_type') or (ride_details.get('pace_target_type') if ride_details else None)
+    if pace_target_type:
+        return 'pace_target'
+    
+    # Priority 3: Check target_metrics_data for segment types
+    target_metrics_data = ride_data.get('target_metrics_data') or (ride_details.get('target_metrics_data') if ride_details else {})
+    if target_metrics_data:
+        target_metrics = target_metrics_data.get('target_metrics', [])
+        segment_types = [s.get('segment_type', '').lower() for s in target_metrics if s.get('segment_type')]
+        if 'power_zone' in segment_types:
+            return 'power_zone'
+        if any('pace' in st for st in segment_types):
+            return 'pace_target'
+    
+    # Priority 4: Check title keywords (case-insensitive)
+    title = (ride_data.get('title') or '').lower()
+    fitness_discipline = (ride_data.get('fitness_discipline') or '').lower()
+    
+    # Check for power zone in title first (works across disciplines)
+    if 'power zone' in title or ' pz ' in title or title.startswith('pz ') or title.endswith(' pz'):
+        return 'power_zone'
+    
+    # Cycling class types
+    if fitness_discipline in ['cycling', 'ride']:
+        if 'climb' in title:
+            return 'climb'
+        if 'interval' in title:
+            return 'intervals'
+        if 'progression' in title:
+            return 'progression'
+        if 'low impact' in title:
+            return 'low_impact'
+        if 'beginner' in title:
+            return 'beginner'
+        if 'groove' in title:
+            return 'groove'
+        if 'pro cyclist' in title or 'pro cyclist' in title:
+            return 'pro_cyclist'
+        if 'live dj' in title:
+            return 'live_dj'
+        if 'peloton studio original' in title:
+            return 'peloton_studio_original'
+        if 'warm up' in title or 'warmup' in title:
+            return 'warm_up'
+        if 'cool down' in title or 'cooldown' in title:
+            return 'cool_down'
+        if 'music' in title or 'theme' in title:
+            return 'music' if 'music' in title else 'theme'
+    
+    # Running class types
+    elif fitness_discipline in ['running', 'run']:
+        if 'pace' in title or 'pace target' in title:
+            return 'pace_target'
+        if 'speed' in title:
+            return 'speed'
+        if 'endurance' in title:
+            return 'endurance'
+        if 'walk' in title and 'run' in title:
+            return 'walk_run'
+        if 'form' in title or 'drill' in title:
+            return 'form_drills'
+        if 'warm up' in title or 'warmup' in title:
+            return 'warm_up'
+        if 'cool down' in title or 'cooldown' in title:
+            return 'cool_down'
+        if 'beginner' in title:
+            return 'beginner'
+        if 'music' in title or 'theme' in title:
+            return 'music' if 'music' in title else 'theme'
+    
+    # Walking class types
+    elif fitness_discipline in ['walking', 'walk']:
+        if 'pace' in title or 'pace target' in title:
+            return 'pace_target'
+        if 'power walk' in title:
+            return 'power_walk'
+        if 'hiking' in title:
+            return 'hiking'
+        if 'warm up' in title or 'warmup' in title:
+            return 'warm_up'
+        if 'cool down' in title or 'cooldown' in title:
+            return 'cool_down'
+        if 'music' in title or 'theme' in title:
+            return 'music' if 'music' in title else 'theme'
+        if 'peloton studio original' in title:
+            return 'peloton_studio_original'
+    
+    # Strength class types
+    elif fitness_discipline in ['strength', 'strength_training']:
+        if 'full body' in title or 'total strength' in title:
+            return 'full_body'
+        if 'core' in title:
+            return 'core'
+        if 'upper body' in title:
+            return 'upper_body'
+        if 'lower body' in title or 'glutes' in title or 'legs' in title:
+            return 'lower_body'
+        if 'strength basics' in title or ('basics' in title and 'strength' in title):
+            return 'strength_basics'
+        if ('arms' in title and 'light' in title) or 'arms & light weights' in title:
+            return 'arms_light_weights'
+        if 'strength for sport' in title or ('sport' in title and 'strength' in title):
+            return 'strength_for_sport'
+        if 'resistance bands' in title or 'resistance band' in title:
+            return 'resistance_bands'
+        if 'adaptive' in title:
+            return 'adaptive'
+        if 'barre' in title:
+            return 'barre'
+        if 'kettlebell' in title:
+            return 'kettlebells'
+        if 'boxing' in title or 'bootcamp' in title:
+            return 'boxing_bootcamp'
+        if 'bodyweight' in title or 'body weight' in title:
+            return 'bodyweight'
+        if 'warm up' in title or 'warmup' in title:
+            return 'warm_up'
+        if 'cool down' in title or 'cooldown' in title:
+            return 'cool_down'
+    
+    # Yoga class types
+    elif fitness_discipline in ['yoga']:
+        if 'focus flow' in title:
+            return 'focus_flow'
+        if 'slow flow' in title:
+            return 'slow_flow'
+        if 'sculpt flow' in title:
+            return 'sculpt_flow'
+        if 'yoga + pilates' in title or 'yoga pilates' in title or 'pilates' in title:
+            return 'yoga_pilates'
+        if 'yin yoga' in title or 'yin' in title:
+            return 'yin_yoga'
+        if 'yoga anywhere' in title:
+            return 'yoga_anywhere'
+        if 'yoga basics' in title or 'basics' in title:
+            return 'yoga_basics'
+        if 'family' in title or 'pre/postnatal' in title or 'prenatal' in title or 'postnatal' in title:
+            return 'family_pre_postnatal'
+        if 'beyond the pose' in title:
+            return 'beyond_the_pose'
+        if 'power' in title:
+            return 'power'
+        if 'restorative' in title:
+            return 'restorative'
+        if 'morning' in title:
+            return 'morning'
+        if 'flow' in title:
+            return 'flow'
+        if 'theme' in title:
+            return 'theme'
+    
+    # Meditation class types
+    elif fitness_discipline in ['meditation']:
+        if 'daily meditation' in title:
+            return 'daily_meditation'
+        if 'sleep' in title:
+            return 'sleep'
+        if 'relaxation' in title:
+            return 'relaxation'
+        if 'emotions' in title:
+            return 'emotions'
+        if 'meditation basics' in title or 'basics' in title:
+            return 'meditation_basics'
+        if 'breath' in title or 'breathing' in title:
+            return 'breath'
+        if 'mindfulness' in title:
+            return 'mindfulness'
+        if 'walking meditation' in title:
+            return 'walking_meditation'
+        if 'morning' in title:
+            return 'morning'
+        if 'theme' in title:
+            return 'theme'
+        if 'family' in title or 'pre/postnatal' in title or 'prenatal' in title or 'postnatal' in title:
+            return 'family_pre_postnatal'
+    
+    # Default: return None (will be stored as empty/null)
+    return None
+
+
+@login_required
+def class_library(request):
+    """Display all available classes/rides with filtering and pagination"""
+    from workouts.services.class_filter import ClassLibraryFilter
+    
+    # Get base queryset - only allowed types
+    rides = RideDetail.objects.filter(
+        Q(workout_type__slug__in=ClassLibraryFilter.ALLOWED_TYPES) |
+        Q(fitness_discipline__in=ClassLibraryFilter.ALLOWED_DISCIPLINES)
+    ).exclude(
+        class_type__in=['warm_up', 'cool_down']
+    ).exclude(
+        Q(title__icontains='warm up') | Q(title__icontains='warmup') |
+        Q(title__icontains='cool down') | Q(title__icontains='cooldown')
+    ).select_related('workout_type', 'instructor')
+    
+    # Apply filters using the service
+    class_filter = ClassLibraryFilter(rides)
+    
+    # Apply all filters from request using chainable API
+    class_filter.apply_search(request.GET.get('search', '').strip())
+    class_filter.apply_workout_type_filter(request.GET.get('type', ''))
+    class_filter.apply_instructor_filter(request.GET.get('instructor', ''))
+    class_filter.apply_duration_filter(request.GET.get('duration', ''))
+    class_filter.apply_year_filter(request.GET.get('year', ''))
+    class_filter.apply_month_filter(request.GET.get('year', ''), request.GET.get('month', ''))
+    class_filter.apply_ordering(request.GET.get('order_by', '-original_air_time'))
+    
+    rides = class_filter.get_queryset()
+    filters = class_filter.get_filters()
+    
+    # For backward compatibility, extract individual filters
+    search_query = filters.get('search', '')
+    workout_type_filter = filters.get('workout_type', '')
+    instructor_filter = filters.get('instructor', '')
+    duration_filter = filters.get('duration', '')
+    year_filter = filters.get('year', '')
+    month_filter = filters.get('month', '')
+    order_by = filters.get('order_by', '-original_air_time')
+    
+    # TSS filter (not part of ClassLibraryFilter yet - applied post-metrics calculation)
+    tss_filter = request.GET.get('tss', '')
+    
+    # Pagination
+    paginator = Paginator(rides, 12)  # 12 rides per page
+    page_number = request.GET.get('page', 1)
+    page_obj = paginator.get_page(page_number)
+    
+    # Add pagination flag for template
+    is_paginated = page_obj.has_other_pages()
+    
+    # Get base queryset for filter options
+    base_rides = RideDetail.objects.filter(
+        Q(workout_type__slug__in=ClassLibraryFilter.ALLOWED_TYPES) |
+        Q(fitness_discipline__in=ClassLibraryFilter.ALLOWED_DISCIPLINES)
+    ).exclude(
+        class_type__in=['warm_up', 'cool_down']
+    ).exclude(
+        Q(title__icontains='warm up') | Q(title__icontains='warmup') |
+        Q(title__icontains='cool down') | Q(title__icontains='cooldown')
+    )
+    
+    # Get filter options - only show allowed types
+    workout_types = WorkoutType.objects.filter(
+        Q(slug__in=ClassLibraryFilter.ALLOWED_TYPES) |
+        Q(ride_details__fitness_discipline__in=ClassLibraryFilter.ALLOWED_DISCIPLINES)
+    ).distinct().order_by('name')
+    
+    # Get instructors from the filtered rides
+    instructors = Instructor.objects.filter(
+        Q(ride_details__workout_type__slug__in=ClassLibraryFilter.ALLOWED_TYPES) |
+        Q(ride_details__fitness_discipline__in=ClassLibraryFilter.ALLOWED_DISCIPLINES)
+    ).distinct().order_by('name')
+    
+    # Get available durations using service method
+    durations = ClassLibraryFilter.get_available_durations(base_rides)
+    
+    # Get available years using service method
+    available_years_list = ClassLibraryFilter.get_available_years(base_rides)
+    
+    # Get available months using service method
+    available_months = ClassLibraryFilter.get_available_months(base_rides, year_filter) if year_filter else []
+    
+    # Calculate TSS/IF and zone data for each ride (for card display)
+    user_profile = request.user.profile if hasattr(request.user, 'profile') else None
+    rides_with_metrics = []
+    for ride in page_obj:
+        ride_data = {
+            'ride': ride,
+            'tss': None,
+            'if_value': None,
+            'zone_data': None,
+            'chart_data': None,  # For mini chart visualization
+            'difficulty': None,
+        }
+        
+        # Try to get from target_class_metrics first
+        if ride.target_class_metrics:
+            ride_data['tss'] = ride.target_class_metrics.get('total_expected_output') or ride.target_class_metrics.get('tss')
+            ride_data['if_value'] = ride.target_class_metrics.get('if') or ride.target_class_metrics.get('intensity_factor')
+        
+        # Calculate zone distribution for chart
+        zone_distribution = []
+        if ride.class_type == 'power_zone' or ride.is_power_zone_class:
+            user_ftp = user_profile.get_current_ftp() if user_profile else None
+            if user_ftp:
+                segments = ride.get_power_zone_segments(user_ftp=user_ftp)
+                if segments:
+                    zone_times = {}
+                    total_duration = ride.duration_seconds
+                    warm_up_cutoff = total_duration * 0.15  # First 15% is warm up
+                    cool_down_start = total_duration * 0.90  # Last 10% is cool down
+                    
+                    for segment in segments:
+                        zone = segment.get('zone', 0)
+                        start = segment.get('start', 0)
+                        # Skip warm up and cool down segments
+                        if start < warm_up_cutoff or start >= cool_down_start:
+                            continue
+                        duration = segment.get('end', 0) - segment.get('start', 0)
+                        zone_times[zone] = zone_times.get(zone, 0) + duration
+                    
+                    # Calculate total time excluding warm up and cool down for percentage calculation
+                    main_workout_duration = total_duration * 0.75  # 75% of class is main workout (excluding 15% warm up + 10% cool down)
+                    
+                    # Order zones from Zone 1 to Zone 7 for proper stacking (bottom to top)
+                    for zone in range(1, 8):
+                        time_sec = zone_times.get(zone, 0)
+                        if time_sec > 0:
+                            # Calculate percentage based on main workout duration (excluding warm up/cool down)
+                            percentage = (time_sec / main_workout_duration * 100) if main_workout_duration > 0 else 0
+                            zone_distribution.append({
+                                'zone': zone,
+                                'percentage': percentage
+                            })
+                    
+                    # Calculate TSS/IF if not already set
+                    if ride_data['tss'] is None or ride_data['if_value'] is None:
+                        zone_power_percentages = metrics_calculator.ZONE_POWER_PERCENTAGES
+                        total_weighted_power = 0.0
+                        total_time = 0.0
+                        for zone_info in zone_distribution:
+                            zone = zone_info.get('zone')
+                            time_sec = zone_times.get(zone, 0)
+                            if zone and zone in zone_power_percentages and time_sec > 0:
+                                zone_power = user_ftp * zone_power_percentages[zone]
+                                total_weighted_power += zone_power * time_sec
+                                total_time += time_sec
+                        
+                        if total_time > 0:
+                            normalized_power = total_weighted_power / total_time
+                            ride_data['if_value'] = normalized_power / user_ftp
+                            ride_data['tss'] = (ride.duration_seconds / 3600.0) * (ride_data['if_value'] ** 2) * 100
+                    
+                    # Generate chart data for mini chart (including full class with warm up and cool down)
+                    if segments:
+                        chart_segments = []
+                        total_duration = ride.duration_seconds
+                        
+                        for i, segment in enumerate(segments):
+                            zone_num = segment.get('zone', 1)
+                            start = segment.get('start', 0)
+                            end = segment.get('end', 0)
+                            
+                            if start == end and i < len(segments) - 1:
+                                next_segment = segments[i + 1]
+                                end = next_segment.get('start', start + 60)
+                            elif start == end:
+                                end = start + 60
+                            
+                            duration = end - start
+                            if duration <= 0:
+                                continue
+                            
+                            chart_zone = max(1, min(7, int(zone_num)))
+                            chart_segments.append({
+                                'duration': duration,
+                                'zone': chart_zone,
+                                'start': start,
+                                'end': end,
+                            })
+                        
+                        if chart_segments:
+                            ride_data['chart_data'] = mark_safe(json.dumps({
+                                'type': 'power_zone',
+                                'segments': chart_segments,
+                                'total_duration': ride.duration_seconds,
+                                'zones': [
+                                    {'name': 'Zone 1', 'color': '#9333ea'},
+                                    {'name': 'Zone 2', 'color': '#3b82f6'},
+                                    {'name': 'Zone 3', 'color': '#10b981'},
+                                    {'name': 'Zone 4', 'color': '#eab308'},
+                                    {'name': 'Zone 5', 'color': '#f97316'},
+                                    {'name': 'Zone 6', 'color': '#ef4444'},
+                                    {'name': 'Zone 7', 'color': '#ec4899'},
+                                ]
+                            }))
+        
+        elif ride.class_type == 'pace_target' or ride.fitness_discipline in ['running', 'walking', 'run', 'walk']:
+            # Determine activity type for this class (MUST be first!)
+            activity_type = 'running'  # default
+            if ride.fitness_discipline in ['walking', 'walk']:
+                activity_type = 'walking'
+            elif ride.workout_type and ride.workout_type.slug in ['walking', 'walk']:
+                activity_type = 'walking'
+            elif 'walk' in (ride.title or '').lower():
+                activity_type = 'walking'
+            
+            # Always try to generate chart data for running/walking classes
+            chart_segments = []
+            zone_times = {}
+            zone_name_map = {0: 'recovery', 1: 'easy', 2: 'moderate', 3: 'challenging', 
+                            4: 'hard', 5: 'very_hard', 6: 'max'}
+            
+            # Try method 1: target_metrics_data
+            if ride.target_metrics_data and isinstance(ride.target_metrics_data, dict):
+                target_metrics_list = ride.target_metrics_data.get('target_metrics', [])
+                if target_metrics_list:
+                    segments = ride.get_target_metrics_segments()
+                    
+                    total_duration = ride.duration_seconds
+                    warm_up_cutoff = total_duration * 0.15  # First 15% is warm up
+                    cool_down_start = total_duration * 0.90  # Last 10% is cool down
+                    
+                    for segment in segments:
+                        if segment.get('type') == 'pace_target':
+                            start = segment.get('start', 0)
+                            # Skip warm up and cool down segments
+                            if start < warm_up_cutoff or start >= cool_down_start:
+                                continue
+                            for metric in segment.get('metrics', []):
+                                if metric.get('name') == 'pace_target':
+                                    zone = metric.get('lower') or metric.get('upper')
+                                    if zone is not None:
+                                        zone = int(zone) - 1  # Convert 1-7 to 0-6
+                                        duration = segment.get('end', 0) - segment.get('start', 0)
+                                        zone_times[zone] = zone_times.get(zone, 0) + duration
+                    
+                    # Generate chart segments from target_metrics_segments (including full class with warm up and cool down)
+                    total_duration = ride.duration_seconds
+                    
+                    for i, segment in enumerate(segments):
+                        if segment.get('type') == 'pace_target':
+                            for metric in segment.get('metrics', []):
+                                if metric.get('name') == 'pace_target':
+                                    zone = metric.get('lower') or metric.get('upper')
+                                    if zone is not None:
+                                        zone = int(zone) - 1  # Convert 1-7 to 0-6
+                                        start = segment.get('start', 0)
+                                        end = segment.get('end', 0)
+                                        
+                                        if start == end and i < len(segments) - 1:
+                                            next_segment = segments[i + 1] if i + 1 < len(segments) else None
+                                            if next_segment:
+                                                end = next_segment.get('start', start + 60)
+                                        elif start == end:
+                                            end = start + 60
+                                        
+                                        duration = end - start
+                                        if duration <= 0:
+                                            continue
+                                        
+                                        chart_segments.append({
+                                            'duration': duration,
+                                            'zone': zone,
+                                            'start': start,
+                                            'end': end,
+                                        })
+            
+            # Method 2: Fallback to get_pace_segments if no chart data yet
+            if not chart_segments and hasattr(ride, 'get_pace_segments'):
+                pace_zones = user_profile.get_pace_zone_targets(activity_type=activity_type) if user_profile else None
+                pace_segments = ride.get_pace_segments(user_pace_zones=pace_zones)
+                if pace_segments:
+                    total_duration = ride.duration_seconds
+                    
+                    for i, segment in enumerate(pace_segments):
+                        zone_num = segment.get('zone', 1)  # 1-7 from get_pace_segments
+                        zone = zone_num - 1  # Convert to 0-6
+                        start = segment.get('start', 0)
+                        end = segment.get('end', 0)
+                        
+                        if start == end and i < len(pace_segments) - 1:
+                            next_segment = pace_segments[i + 1]
+                            end = next_segment.get('start', start + 60)
+                        elif start == end:
+                            end = start + 60
+                        
+                        duration = end - start
+                        if duration <= 0:
+                            continue
+                        
+                        chart_segments.append({
+                            'duration': duration,
+                            'zone': zone,
+                            'start': start,
+                            'end': end,
+                        })
+                    
+                    # Also populate zone_times for zone_distribution (excluding warm up and cool down)
+                    total_duration = ride.duration_seconds
+                    warm_up_cutoff = total_duration * 0.15  # First 15% is warm up
+                    cool_down_start = total_duration * 0.90  # Last 10% is cool down
+                    
+                    for segment in pace_segments:
+                        start = segment.get('start', 0)
+                        # Skip warm up and cool down segments
+                        if start < warm_up_cutoff or start >= cool_down_start:
+                            continue
+                        zone_num = segment.get('zone', 1)
+                        zone = zone_num - 1  # Convert to 0-6
+                        duration = segment.get('end', 0) - segment.get('start', 0)
+                        zone_times[zone] = zone_times.get(zone, 0) + duration
+            
+            # Generate chart data if we have segments
+            if chart_segments:
+                ride_data['chart_data'] = mark_safe(json.dumps({
+                    'type': 'pace_target',
+                    'activity_type': activity_type,  # Add activity type (running or walking)
+                    'segments': chart_segments,
+                    'total_duration': ride.duration_seconds,
+                    'zones': [
+                        {'name': 'Recovery', 'color': '#6f42c1'},
+                        {'name': 'Easy', 'color': '#4c6ef5'},
+                        {'name': 'Moderate', 'color': '#228be6'},
+                        {'name': 'Challenging', 'color': '#0ca678'},
+                        {'name': 'Hard', 'color': '#ff922b'},
+                        {'name': 'Very Hard', 'color': '#f76707'},
+                        {'name': 'Max', 'color': '#fa5252'},
+                    ]
+                }))
+            
+            # Calculate zone distribution for display
+            total_duration = ride.duration_seconds
+            # Calculate total time excluding warm up and cool down for percentage calculation
+            main_workout_duration = total_duration * 0.75  # 75% of class is main workout (excluding 15% warm up + 10% cool down)
+            
+            if zone_times:
+                # Order zones from recovery (0) to max (6) for proper stacking (bottom to top)
+                zone_order = ['recovery', 'easy', 'moderate', 'challenging', 'hard', 'very_hard', 'max']
+                for zone_name in zone_order:
+                    # Find zone number for this zone name
+                    zone_num = [k for k, v in zone_name_map.items() if v == zone_name]
+                    if zone_num:
+                        time_sec = zone_times.get(zone_num[0], 0) if zone_num else 0
+                        if time_sec > 0:
+                            # Calculate percentage based on main workout duration (excluding warm up/cool down)
+                            percentage = (time_sec / main_workout_duration * 100) if main_workout_duration > 0 else 0
+                            zone_distribution.append({
+                                'zone': zone_name,
+                                'percentage': percentage
+                            })
+                
+                # Calculate difficulty from intensity distribution
+                if zone_distribution:
+                    pace_zone_intensity_factors = {
+                        'recovery': 0.5, 'easy': 0.7, 'moderate': 1.0,
+                        'challenging': 1.15, 'hard': 1.3, 'very_hard': 1.5, 'max': 1.8
+                    }
+                    total_weighted_intensity = 0.0
+                    total_time = 0.0
+                    for zone_info in zone_distribution:
+                        zone_name = zone_info.get('zone')
+                        # Find the zone number for this zone name
+                        zone_num = [k for k, v in zone_name_map.items() if v == zone_name]
+                        time_sec = zone_times.get(zone_num[0], 0) if zone_num else 0
+                        zone_if = pace_zone_intensity_factors.get(zone_name, 1.0)
+                        if time_sec > 0:
+                            total_weighted_intensity += zone_if * time_sec
+                            total_time += time_sec
+                    
+                    if total_time > 0:
+                        avg_intensity = total_weighted_intensity / total_time
+                        # Convert to difficulty rating (0-10 scale)
+                        ride_data['difficulty'] = round((avg_intensity / 1.8) * 10, 1)
+                        
+                        # Also calculate IF/TSS
+                        ride_data['if_value'] = avg_intensity
+                        ride_data['tss'] = (ride.duration_seconds / 3600.0) * (avg_intensity ** 2) * 100
+        
+        ride_data['zone_data'] = zone_distribution
+        
+        # Apply TSS filter if specified
+        if tss_filter:
+            try:
+                tss_value = float(tss_filter)
+                if ride_data['tss'] is None or ride_data['tss'] < tss_value:
+                    continue  # Skip this ride if TSS doesn't meet filter
+            except (ValueError, TypeError):
+                pass
+        
+        rides_with_metrics.append(ride_data)
+    
+    # Handle AJAX requests for live search
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' and request.GET.get('ajax') == '1':
+        # Return JSON response for AJAX requests
+        results = []
+        for ride_data in rides_with_metrics[:12]:  # Limit to 12 for preview
+            ride = ride_data['ride']
+            results.append({
+                'id': ride.id,
+                'title': ride.title,
+                'duration_minutes': ride.duration_minutes,
+                'instructor': ride.instructor.name if ride.instructor else None,
+                'workout_type': ride.workout_type.name if ride.workout_type else None,
+                'original_air_date': ride.original_air_date.strftime('%b %d, %Y') if ride.original_air_date else None,
+                'url': f'/workouts/library/{ride.id}/',
+            })
+        
+        return JsonResponse({
+            'success': True,
+            'results': results,
+            'total': page_obj.paginator.count,
+            'has_more': page_obj.has_next(),
+        })
+    
+    # Get user's pace zones for both running and walking from the pace level data files
+    user_running_pace_zones = None
+    user_walking_pace_zones = None
+    if request.user.is_authenticated and hasattr(request.user, 'profile'):
+        from accounts.pace_converter import DEFAULT_RUNNING_PACE_LEVELS
+        from accounts.walking_pace_levels_data import DEFAULT_WALKING_PACE_LEVELS
+        
+        # Running pace zones (7 zones)
+        running_pace_entry = request.user.pace_entries.filter(activity_type='running', is_active=True).first()
+        if running_pace_entry and running_pace_entry.level in DEFAULT_RUNNING_PACE_LEVELS:
+            level_data = DEFAULT_RUNNING_PACE_LEVELS[running_pace_entry.level]
+            user_running_pace_zones = {}
+            for zone_name, (min_mph, max_mph, min_pace, max_pace, desc) in level_data.items():
+                # Use min_pace (the faster/lower end of the range) as target
+                # Convert decimal minutes to seconds
+                user_running_pace_zones[zone_name] = int(min_pace * 60)
+        
+        # Walking pace zones (5 zones)
+        walking_pace_entry = request.user.pace_entries.filter(activity_type='walking', is_active=True).first()
+        if walking_pace_entry and walking_pace_entry.level in DEFAULT_WALKING_PACE_LEVELS:
+            level_data = DEFAULT_WALKING_PACE_LEVELS[walking_pace_entry.level]
+            user_walking_pace_zones = {}
+            for zone_name, (min_mph, max_mph, min_pace, max_pace, desc) in level_data.items():
+                # Use min_pace (the faster/lower end of the range) as target
+                # Convert decimal minutes to seconds
+                user_walking_pace_zones[zone_name] = int(min_pace * 60)
+    
+    context = {
+        'rides_with_metrics': rides_with_metrics,
+        'page_obj': page_obj,
+        'is_paginated': is_paginated,
+        'search_query': search_query,
+        'workout_type_filter': workout_type_filter,
+        'year_filter': year_filter,
+        'month_filter': month_filter,
+        'available_years': available_years_list,
+        'available_months': available_months,
+        'instructor_filter': instructor_filter,
+        'duration_filter': duration_filter,
+        'tss_filter': tss_filter,
+        'workout_types': workout_types,
+        'instructors': instructors,
+        'durations': durations,
+        'order_by': order_by,
+        'user_running_pace_zones': user_running_pace_zones,
+        'user_walking_pace_zones': user_walking_pace_zones,
+    }
+    
+    # Add year/month filter variables to context
+    context.update({
+        'year_filter': year_filter,
+        'month_filter': month_filter,
+        'available_years': available_years_list,
+        'available_months': available_months,
+    })
+    
+    # If HTMX request, return appropriate partial
+    if request.headers.get('HX-Request'):
+        # For filters/pagination, return full class list
+        return render(request, 'workouts/partials/class_list.html', context)
+    
+    # Otherwise return full page
+    return render(request, "workouts/class_library.html", context)
+
+
+@login_required
+def class_detail(request, pk):
+    """Display detailed view of a single class/ride"""
+    ride = get_object_or_404(
+        RideDetail.objects.select_related('workout_type', 'instructor').prefetch_related('playlist'),
+        pk=pk
+    )
+    
+    # Get user profile for target metrics calculations
+    try:
+        user_profile = request.user.profile
+    except:
+        from accounts.models import Profile
+        user_profile = Profile.objects.get_or_create(user=request.user)[0]
+    
+    # Prepare target metrics data based on class type
+    target_metrics = None
+    target_metrics_json = None
+    zone_distribution = []
+    class_segments = []
+    target_line_data = None  # Initialize outside block for scope
+    user_pace_level = None  # Initialize early to avoid UnboundLocalError for non-pace classes
+    user_pace_bands = None  # Initialize early to avoid UnboundLocalError for non-pace classes
+    spin_up_intervals = _extract_spin_up_intervals(ride)
+    
+    if ride.class_type == 'power_zone' or ride.is_power_zone_class:
+        # Power Zone class - get user's FTP for zone calculations
+        user_ftp = user_profile.get_current_ftp()
+        segments = ride.get_power_zone_segments(user_ftp=user_ftp)
+        zone_ranges = user_profile.get_power_zone_ranges() if user_ftp else None
+        target_metrics = {
+            'type': 'power_zone',
+            'segments': segments,
+            'zone_ranges': zone_ranges,
+            'user_ftp': user_ftp
+        }
+        
+        # Build chart data for power zone classes (similar to pace target)
+        # Prefer segments_data (segment_list) as it has exact class plan timings
+        power_zone_chart = None
+        total_duration = ride.duration_seconds
+        
+        # Create 7 power zones (1-7)
+        chart_zones = []
+        zone_labels = ["Zone 1", "Zone 2", "Zone 3", "Zone 4", "Zone 5", "Zone 6", "Zone 7"]
+        zone_colors = ["#9333ea", "#3b82f6", "#10b981", "#eab308", "#f97316", "#ef4444", "#ec4899"]
+        
+        for i in range(7):
+            chart_zones.append({
+                "name": zone_labels[i],
+                "label": zone_labels[i],
+                "color": zone_colors[i]
+            })
+        
+        chart_segments = []
+        
+        # Method 1: Use segments_data (segment_list) if available - this has exact class plan timings
+        if ride.segments_data and ride.segments_data.get('segment_list'):
+            segment_list = ride.segments_data.get('segment_list', [])
+            
+            for seg in segment_list:
+                subsegments = seg.get('subsegments_v2', [])
+                section_start = seg.get('start_time_offset', 0)
+                
+                for subseg in subsegments:
+                    subseg_offset = subseg.get('offset', 0)
+                    subseg_length = subseg.get('length', 0)
+                    display_name = subseg.get('display_name', '')
+                    
+                    if subseg_length > 0 and display_name:
+                        # Calculate absolute start/end times
+                        abs_start = section_start + subseg_offset
+                        abs_end = abs_start + subseg_length
+                        
+                        # Extract zone number from display_name (e.g., "Zone 1", "Zone 2", etc.)
+                        zone_num = 1  # Default
+                        zone_match = re.search(r'zone\s*(\d+)', display_name, re.IGNORECASE)
+                        if zone_match:
+                            zone_num = int(zone_match.group(1))
+                        
+                        # Clamp zone to 1-7 range
+                        chart_zone = max(1, min(7, int(zone_num)))
+                        
+                        chart_segments.append({
+                            "duration": subseg_length,
+                            "zone": chart_zone,
+                            "start": abs_start,
+                            "end": abs_end,
+                        })
+        
+        # Method 2: Fallback to target_metrics_data segments if segments_data not available
+        if not chart_segments and segments:
+            for i, segment in enumerate(segments):
+                zone_num = segment.get('zone', 1)  # Power zone 1-7
+                start = segment.get('start', 0)
+                end = segment.get('end', 0)
+                
+                # If start == end (point-in-time segment), use next segment's start as end
+                if start == end and i < len(segments) - 1:
+                    next_segment = segments[i + 1]
+                    end = next_segment.get('start', start + 60)  # Default to 60 seconds if no next segment
+                elif start == end:
+                    # Last segment with start==end, extend to class duration
+                    end = total_duration
+                
+                # Ensure end doesn't exceed class duration
+                end = min(end, total_duration)
+                
+                # For the last segment, ensure it extends to exactly the class duration
+                if i == len(segments) - 1:
+                    end = total_duration
+                
+                duration = end - start
+                
+                # Skip segments with zero or negative duration
+                if duration <= 0:
+                    continue
+                
+                # Clamp zone to 1-7 range (power zones are 1-7, not 0-6)
+                chart_zone = max(1, min(7, int(zone_num)))
+                
+                chart_segments.append({
+                    "duration": duration,
+                    "zone": chart_zone,  # Power zones are 1-7
+                    "start": start,
+                    "end": end,
+                })
+        
+        if chart_segments:
+            # Sort segments by start time to ensure proper order
+            chart_segments.sort(key=lambda x: x['start'])
+            
+            # Use exact class duration (no offset)
+            power_zone_chart = {
+                'chart_data': {
+                    'type': 'power_zone',
+                    'segments': chart_segments,
+                    'zones': chart_zones,
+                    'total_duration': total_duration,  # Exact class duration
+                }
+            }
+        
+        # Calculate target line data for visualization (matching workout_detail approach)
+        if segments and len(segments) > 0 and user_ftp and zone_ranges:
+            # Generate timestamps array for target line (every 5 seconds, matching workout_detail)
+            timestamps = list(range(0, total_duration + 1, 5))
+            
+            # Calculate target line from segments
+            target_line_data = _calculate_target_line_from_segments(
+                segments,
+                zone_ranges,
+                timestamps,
+                user_ftp,
+                spin_up_intervals=spin_up_intervals,
+            )
+        
+        # Calculate zone distribution
+        if segments:
+            zone_times = {}
+            for segment in segments:
+                zone = segment.get('zone', 0)
+                duration = segment.get('end', 0) - segment.get('start', 0)
+                zone_times[zone] = zone_times.get(zone, 0) + duration
+            
+            total_duration = ride.duration_seconds
+            for zone in range(1, 8):
+                time_sec = zone_times.get(zone, 0)
+                if time_sec > 0:
+                    minutes = time_sec // 60
+                    seconds = time_sec % 60
+                    percentage = (time_sec / total_duration * 100) if total_duration > 0 else 0
+                    zone_distribution.append({
+                        'zone': zone,
+                        'time_sec': time_sec,
+                        'time_str': f"{minutes:02d}:{seconds:02d}",
+                        'percentage': int(percentage)
+                    })
+    elif ride.fitness_discipline in ['running', 'walking', 'run']:
+        # Running/Walking class - build chart data
+        # Prefer segments_data (segment_list) as it has exact class plan timings
+        pace_chart = None
+        total_duration = ride.duration_seconds
+        
+        # Create 7 pace zones (0-6)
+        chart_zones = []
+        pace_labels = ["Recovery", "Easy", "Moderate", "Challenging", "Hard", "Very Hard", "Max"]
+        pace_colors = ["#6f42c1", "#4c6ef5", "#228be6", "#0ca678", "#ff922b", "#f76707", "#fa5252"]
+        
+        for i in range(7):
+            chart_zones.append({
+                "name": pace_labels[i],
+                "label": pace_labels[i],
+                "color": pace_colors[i]
+            })
+        
+        chart_segments = []
+        
+        # Method 1: Use segments_data (segment_list) if available - this has exact class plan timings
+        if ride.segments_data and ride.segments_data.get('segment_list'):
+            segment_list = ride.segments_data.get('segment_list', [])
+            
+            # Map pace names to zone numbers (0-6)
+            # Handle various formats: "Recovery", "Easy", "Moderate", "Challenging", "Hard", "Very Hard", "Max"
+            # Also handle variations like "Very Hard" vs "VeryHard" vs "very_hard"
+            pace_name_to_zone = {
+                'recovery': 0, 
+                'easy': 1, 
+                'moderate': 2, 
+                'challenging': 3,
+                'hard': 4, 
+                'very hard': 5, 
+                'veryhard': 5,
+                'very_hard': 5,
+                'max': 6,
+                'maximum': 6,
+                'drills': 1,  # Map drills to Easy pace (not a measured pace target)
+                'drill': 1
+            }
+            
+            for seg in segment_list:
+                subsegments = seg.get('subsegments_v2', [])
+                section_start = seg.get('start_time_offset', 0)
+                
+                for subseg in subsegments:
+                    # NOTE: subseg 'offset' is already absolute from class start, not relative to section
+                    subseg_offset = subseg.get('offset', 0)  # Absolute offset from class start
+                    subseg_length = subseg.get('length', 0)
+                    display_name = subseg.get('display_name', '')
+                    
+                    if subseg_length > 0 and display_name:
+                        # Calculate absolute start/end times
+                        # offset is already absolute, so use it directly
+                        abs_start = subseg_offset
+                        abs_end = abs_start + subseg_length
+                        
+                        # Skip segments that start beyond the class duration
+                        if abs_start >= total_duration:
+                            continue
+                        
+                        # Clamp end time to class duration
+                        abs_end = min(abs_end, total_duration)
+                        subseg_length = abs_end - abs_start
+                        
+                        if subseg_length <= 0:
+                            continue
+                        
+                        # Extract pace level from display_name (e.g., "Recovery", "Easy", "Moderate", etc.)
+                        # Try exact match first, then substring match (longest phrases first to avoid partial matches)
+                        pace_level = 2  # Default to Moderate
+                        display_lower = display_name.lower().strip()
+                        
+                        # Try exact match first (most reliable)
+                        if display_lower in pace_name_to_zone:
+                            pace_level = pace_name_to_zone[display_lower]
+                        else:
+                            # Try substring match (handle cases like "Moderate Pace" or "Easy Run")
+                            # Sort by length descending to match longer phrases first (e.g., "very hard" before "hard")
+                            sorted_pace_names = sorted(pace_name_to_zone.items(), key=lambda x: len(x[0]), reverse=True)
+                            for pace_name, zone_num in sorted_pace_names:
+                                # Check if pace name is at the start of display_name or as a whole word
+                                if display_lower.startswith(pace_name) or \
+                                   f' {pace_name} ' in f' {display_lower} ' or \
+                                   display_lower.endswith(f' {pace_name}'):
+                                    pace_level = zone_num
+                                    break
+                        
+                        chart_segments.append({
+                            "duration": subseg_length,
+                            "zone": pace_level,
+                            "pace_level": pace_level,
+                            "start": abs_start,
+                            "end": abs_end,
+                        })
+        
+        # Method 2: Fallback to target_metrics_data if segments_data not available
+        if not chart_segments and ride.target_metrics_data and isinstance(ride.target_metrics_data, dict):
+            target_metrics_list = ride.target_metrics_data.get('target_metrics', [])
+            if target_metrics_list and isinstance(target_metrics_list, list):
+                for idx, metric in enumerate(target_metrics_list):
+                    if 'offsets' in metric and 'metrics' in metric:
+                        start_time = metric['offsets']['start']
+                        end_time = metric['offsets']['end']
+                        duration = end_time - start_time
+                        
+                        if duration <= 0:
+                            continue
+                        
+                        # Ensure end doesn't exceed class duration
+                        end_time = min(end_time, total_duration)
+                        
+                        # For the last segment, ensure it extends to exactly the class duration
+                        if idx == len(target_metrics_list) - 1:
+                            end_time = total_duration
+                        
+                        duration = end_time - start_time
+                        
+                        if duration <= 0:
+                            continue
+                        
+                        # Find pace intensity from metrics (0-6)
+                        pace_intensity = 0
+                        for m in metric['metrics']:
+                            if m.get('name') == 'pace_intensity':
+                                # Use upper value as the pace intensity (0-6)
+                                pace_intensity = m.get('upper', 0)
+                                break
+                        
+                        # Clamp to 0-6 range
+                        pace_level = max(0, min(6, int(pace_intensity)))
+                        
+                        chart_segments.append({
+                            "duration": duration,
+                            "zone": pace_level,  # Use 'zone' to match reference format
+                            "pace_level": pace_level,
+                            "start": start_time,
+                            "end": end_time,
+                        })
+        
+        if chart_segments:
+            # Sort segments by start time to ensure proper order
+            chart_segments.sort(key=lambda x: x['start'])
+            
+            # Calculate actual duration from segments (use last segment's end time)
+            # This ensures we match the actual class plan duration from segments_data
+            actual_duration = total_duration
+            if chart_segments:
+                last_segment_end = max(seg.get('end', 0) for seg in chart_segments)
+                # Use last segment end time, but don't exceed ride duration
+                # If segments only go to 23:10 but ride is 30:00, use 23:10 (actual class plan)
+                actual_duration = min(last_segment_end, total_duration)
+            
+            # Use actual duration from segments (matches class plan)
+            pace_chart = {
+                'chart_data': {
+                    'type': 'pace_target',
+                    'segments': chart_segments,
+                    'zones': chart_zones,
+                    'total_duration': actual_duration,  # Actual duration from segments
+                }
+            }
+        
+        # Fallback: use get_pace_segments if segments_data and target_metrics_data approaches didn't work
+        # But first double-check segments_data wasn't missed
+        if not pace_chart and ride.segments_data and ride.segments_data.get('segment_list'):
+            # Try segments_data one more time (in case it was skipped earlier)
+            segment_list = ride.segments_data.get('segment_list', [])
+            fallback_chart_segments = []
+            
+            # Map pace names to zone numbers (0-6)
+            # Handle various formats: "Recovery", "Easy", "Moderate", "Challenging", "Hard", "Very Hard", "Max"
+            pace_name_to_zone = {
+                'recovery': 0, 
+                'easy': 1, 
+                'moderate': 2, 
+                'challenging': 3,
+                'hard': 4, 
+                'very hard': 5, 
+                'veryhard': 5,
+                'very_hard': 5,
+                'max': 6,
+                'maximum': 6,
+                'drills': 1,  # Map drills to Easy pace (not a measured pace target)
+                'drill': 1
+            }
+            
+            for seg in segment_list:
+                subsegments = seg.get('subsegments_v2', [])
+                section_start = seg.get('start_time_offset', 0)
+                
+                for subseg in subsegments:
+                    # NOTE: subseg 'offset' is already absolute from class start, not relative to section
+                    subseg_offset = subseg.get('offset', 0)  # Absolute offset from class start
+                    subseg_length = subseg.get('length', 0)
+                    display_name = subseg.get('display_name', '')
+                    
+                    if subseg_length > 0 and display_name:
+                        # Calculate absolute start/end times
+                        # offset is already absolute, so use it directly
+                        abs_start = subseg_offset
+                        abs_end = abs_start + subseg_length
+                        
+                        # Skip segments that start beyond the class duration
+                        if abs_start >= total_duration:
+                            continue
+                        
+                        # Clamp end time to class duration
+                        abs_end = min(abs_end, total_duration)
+                        subseg_length = abs_end - abs_start
+                        
+                        if subseg_length <= 0:
+                            continue
+                        
+                        # Extract pace level from display_name (e.g., "Recovery", "Easy", "Moderate", etc.)
+                        # Try exact match first, then substring match (longest phrases first to avoid partial matches)
+                        pace_level = 2  # Default to Moderate
+                        display_lower = display_name.lower().strip()
+                        
+                        # Try exact match first (most reliable)
+                        if display_lower in pace_name_to_zone:
+                            pace_level = pace_name_to_zone[display_lower]
+                        else:
+                            # Try substring match (handle cases like "Moderate Pace" or "Easy Run")
+                            # Sort by length descending to match longer phrases first (e.g., "very hard" before "hard")
+                            sorted_pace_names = sorted(pace_name_to_zone.items(), key=lambda x: len(x[0]), reverse=True)
+                            for pace_name, zone_num in sorted_pace_names:
+                                # Check if pace name is at the start of display_name or as a whole word
+                                if display_lower.startswith(pace_name) or \
+                                   f' {pace_name} ' in f' {display_lower} ' or \
+                                   display_lower.endswith(f' {pace_name}'):
+                                    pace_level = zone_num
+                                    break
+                        
+                        fallback_chart_segments.append({
+                            "duration": subseg_length,
+                            "zone": pace_level,
+                            "pace_level": pace_level,
+                            "start": abs_start,
+                            "end": abs_end,
+                        })
+            
+            if fallback_chart_segments:
+                # Sort segments by start time to ensure proper order
+                fallback_chart_segments.sort(key=lambda x: x['start'])
+                
+                # Calculate actual duration from segments (use last segment's end time)
+                actual_duration = total_duration
+                if fallback_chart_segments:
+                    last_segment_end = max(seg.get('end', 0) for seg in fallback_chart_segments)
+                    # Use last segment end time, but don't exceed ride duration
+                    # If segments only go to 23:10 but ride is 30:00, use 23:10 (actual class plan)
+                    actual_duration = min(last_segment_end, total_duration)
+                
+                pace_chart = {
+                    'chart_data': {
+                        'type': 'pace_target',
+                        'segments': fallback_chart_segments,
+                        'zones': chart_zones,
+                        'total_duration': actual_duration,  # Actual duration from segments
+                    }
+                }
+        
+        # Final fallback: use get_pace_segments if all else fails
+        if not pace_chart:
+            # Determine activity type for pace zone targets
+            activity_type = 'running'
+            if user_profile and ride.fitness_discipline in ['running', 'run', 'walking', 'walk']:
+                activity_type = 'running' if ride.fitness_discipline in ['running', 'run'] else 'walking'
+            pace_zones = user_profile.get_pace_zone_targets(activity_type=activity_type) if user_profile else None
+            segments = ride.get_pace_segments(user_pace_zones=pace_zones)
+            target_metrics = {
+                'type': 'pace',
+                'segments': segments,
+                'pace_zones': pace_zones
+            }
+            
+            # Build pace chart data for interactive visualization
+            # Use default pace zones if user doesn't have them set (for visualization)
+            if segments:
+                # Default pace zones (Level 5 - moderate pace) if user doesn't have pace_target_level
+                default_pace_zones = {
+                    'recovery': 10.0,      # 10:00/mile
+                    'easy': 9.0,           # 9:00/mile
+                    'moderate': 8.5,        # 8:30/mile
+                    'challenging': 8.0,     # 8:00/mile
+                    'hard': 7.5,           # 7:30/mile
+                    'very_hard': 7.0,      # 7:00/mile
+                    'max': 6.5             # 6:30/mile
+                }
+                effective_pace_zones = pace_zones if pace_zones else default_pace_zones
+                
+                # Build chart_data structure matching reference template (fallback method)
+                # Segments with zone/pace_level (0-6) and duration
+                # Note: get_pace_segments returns zones 1-7, but chart expects 0-6
+                # Use segments as-is from Peloton API (they already include full class duration)
+                chart_segments = []
+                for i, segment in enumerate(segments):
+                    zone_num = segment.get('zone', 1)  # Pace intensity from get_pace_segments (1-7)
+                    zone_name = segment.get('zone_name', 'recovery')
+                    start = segment.get('start', 0)
+                    end = segment.get('end', 0)
+                    
+                    # If start == end (point-in-time segment), use next segment's start as end
+                    if start == end and i < len(segments) - 1:
+                        next_segment = segments[i + 1]
+                        end = next_segment.get('start', start + 60)  # Default to 60 seconds if no next segment
+                    elif start == end:
+                        # Last segment with start==end, extend to class duration
+                        end = total_duration
+                    
+                    # Ensure end doesn't exceed class duration
+                    end = min(end, total_duration)
+                    
+                    # For the last segment, ensure it extends to exactly the class duration
+                    if i == len(segments) - 1:
+                        end = total_duration
+                    
+                    duration = end - start
+                    
+                    # Skip segments with zero or negative duration
+                    if duration <= 0:
+                        continue
+                    
+                    # Convert zone from 1-7 to 0-6 for chart (1->0, 2->1, ..., 7->6)
+                    chart_zone = zone_num - 1 if zone_num > 0 else 0
+                    chart_zone = max(0, min(6, chart_zone))  # Clamp to 0-6
+                    
+                    chart_segments.append({
+                        'zone': chart_zone,  # 0-6 for chart
+                        'pace_level': chart_zone,  # Same as zone for pace target
+                        'duration': duration,
+                        'start': start,
+                        'end': end,
+                        'zone_name': zone_name,
+                    })
+                
+                # Build zones array for chart (0-6 pace levels)
+                chart_zones = []
+                pace_labels = ["Recovery", "Easy", "Moderate", "Challenging", "Hard", "Very Hard", "Max"]
+                pace_colors = ["#6f42c1", "#4c6ef5", "#228be6", "#0ca678", "#ff922b", "#f76707", "#fa5252"]
+                
+                for i in range(7):
+                    chart_zones.append({
+                        'name': pace_labels[i],
+                        'label': pace_labels[i],
+                        'color': pace_colors[i],
+                    })
+                
+                total_duration = ride.duration_seconds
+                # Use exact class duration (no offset)
+                pace_chart = {
+                    'chart_data': {
+                        'type': 'pace_target',
+                        'segments': chart_segments,
+                        'zones': chart_zones,
+                        'total_duration': total_duration,  # Exact class duration
+                    }
+                }
+        
+        # Calculate target line data for visualization (matching power zone approach)
+        if chart_segments and len(chart_segments) > 0:
+            # Generate timestamps array for target line (every 5 seconds, matching power zone)
+            timestamps = list(range(0, total_duration + 1, 5))
+            
+            # Calculate target line from segments
+            target_line_data = _calculate_pace_target_line_from_segments(
+                chart_segments,
+                timestamps
+            )
+        # Set target_metrics for backward compatibility
+        if pace_chart:
+            # Still create target_metrics structure for other parts of the template
+            # Determine activity type for pace zone targets
+            activity_type = 'running'
+            if user_profile and ride.fitness_discipline in ['running', 'run', 'walking', 'walk']:
+                activity_type = 'running' if ride.fitness_discipline in ['running', 'run'] else 'walking'
+            pace_zones = user_profile.get_pace_zone_targets(activity_type=activity_type) if user_profile else None
+            segments = ride.get_pace_segments(user_pace_zones=pace_zones) if hasattr(ride, 'get_pace_segments') else []
+            target_metrics = {
+                'type': 'pace',
+                'segments': segments,
+                'pace_zones': pace_zones
+            }
+        else:
+            target_metrics = {
+                'type': 'pace',
+                'segments': [],
+                'pace_zones': None
+            }
+        
+        # Set target_metrics for backward compatibility (if not already set)
+        if 'target_metrics' not in locals() or not target_metrics:
+            if pace_chart:
+                # Still create target_metrics structure for other parts of the template
+                # Determine activity type for pace zone targets
+                activity_type = 'running'
+                if user_profile and ride.fitness_discipline in ['running', 'run', 'walking', 'walk']:
+                    activity_type = 'running' if ride.fitness_discipline in ['running', 'run'] else 'walking'
+                pace_zones = user_profile.get_pace_zone_targets(activity_type=activity_type) if user_profile else None
+                segments = ride.get_pace_segments(user_pace_zones=pace_zones) if hasattr(ride, 'get_pace_segments') else []
+                target_metrics = {
+                    'type': 'pace',
+                    'segments': segments,
+                    'pace_zones': pace_zones
+                }
+            else:
+                target_metrics = {
+                    'type': 'pace',
+                    'segments': [],
+                    'pace_zones': None
+                }
+        
+        # Pace Target class - get user's pace level for pace calculations (matching FTP pattern)
+        # (Class library override is client-side only; server provides defaults + full ranges)
+        activity_type = 'running' if ride.fitness_discipline in ['running', 'run'] else 'walking'
+        user_pace_level = None
+        user_pace_bands = None  # Pace bands data for JavaScript
+        pace_ranges_by_level = None  # {level: {zone_name: {min_mph, max_mph, middle_mph, min_pace, max_pace}}}
+        pace_ranges = None  # Active level's ranges (same shape as above)
+        pace_zones_from_level = None  # Legacy compatibility (seconds-per-mile-ish ints)
+        
+        if user_profile and ride.fitness_discipline in ['running', 'run', 'walking', 'walk']:
+            # Get the latest active pace target from user's profile (matching get_current_ftp pattern)
+            user_pace_level = user_profile.get_current_pace(activity_type=activity_type)
+            
+            # If no active PaceEntry, try to get the latest PaceEntry regardless of is_active status
+            if user_pace_level is None:
+                from accounts.models import PaceEntry
+                latest_pace_entry = PaceEntry.objects.filter(
+                    user=request.user,
+                    activity_type=activity_type
+                ).order_by('-recorded_date', '-created_at').first()
+                if latest_pace_entry:
+                    user_pace_level = latest_pace_entry.level
+            
+            # Fallback to pace_target_level if no PaceEntry exists at all
+            if user_pace_level is None:
+                if user_profile and user_profile.pace_target_level is not None:
+                    user_pace_level = user_profile.pace_target_level
+                else:
+                    user_pace_level = 5  # Default to level 5
+
+            # Build full pace range data (mph) for the active level and all levels (for client-side override)
+            default_data = DEFAULT_RUNNING_PACE_LEVELS if activity_type == 'running' else DEFAULT_WALKING_PACE_LEVELS
+            if default_data:
+                pace_ranges_by_level = {}
+                for lvl, lvl_data in default_data.items():
+                    if not isinstance(lvl_data, dict):
+                        continue
+                    lvl_ranges = {}
+                    lvl_pace_zones = {}
+                    for zone_name, (min_mph, max_mph, min_pace, max_pace, _desc) in lvl_data.items():
+                        middle_mph = (min_mph + max_mph) / 2
+                        lvl_ranges[zone_name] = {
+                            'min_mph': min_mph,
+                            'max_mph': max_mph,
+                            'middle_mph': middle_mph,
+                            'min_pace': min_pace,
+                            'max_pace': max_pace,
+                        }
+                        # Keep "pace_zones" compatibility (older code expects ints)
+                        try:
+                            lvl_pace_zones[zone_name] = int(float(min_pace) * 60)
+                        except Exception:
+                            pass
+                    pace_ranges_by_level[int(lvl)] = lvl_ranges
+
+                if user_pace_level in pace_ranges_by_level:
+                    pace_ranges = pace_ranges_by_level.get(int(user_pace_level))
+                    # Also provide "pace_zones" for this level if template logic wants it
+                    pace_zones_from_level = {}
+                    for zone_name, r in (pace_ranges or {}).items():
+                        try:
+                            pace_zones_from_level[zone_name] = int(float(r.get('min_pace')) * 60)
+                        except Exception:
+                            pass
+            
+            # Get the PaceLevel object with bands for this level (similar to how FTP is used for power zones)
+            if user_pace_level:
+                from accounts.models import PaceLevel
+                user_pace_level_obj = PaceLevel.objects.filter(
+                    user=request.user,
+                    activity_type=activity_type,
+                    level=user_pace_level
+                ).prefetch_related('bands').order_by('-recorded_date').first()
+                
+                # If no PaceLevel found, use defaults
+                if not user_pace_level_obj:
+                    from datetime import date
+                    from decimal import Decimal
+                    
+                    # Define DefaultPaceLevel class locally (same as in accounts/views.py)
+                    class DefaultPaceLevel:
+                        def __init__(self, level, default_data):
+                            self.level = level
+                            self.recorded_date = date.today()
+                            self._default_data = default_data
+                        
+                        @property
+                        def bands(self):
+                            class DefaultBands:
+                                def __init__(self, default_data):
+                                    self._default_data = default_data
+                                
+                                def all(self):
+                                    class DefaultBand:
+                                        def __init__(self, zone, data):
+                                            self.zone = zone
+                                            self.min_mph = Decimal(str(data[0]))
+                                            self.max_mph = Decimal(str(data[1]))
+                                            self.min_pace = Decimal(str(data[2]))
+                                            self.max_pace = Decimal(str(data[3]))
+                                            self.description = data[4]
+                                    
+                                    return [DefaultBand(zone, data) for zone, data in self._default_data.items()]
+                            
+                            return DefaultBands(self._default_data)
+                    
+                    default_data = DEFAULT_RUNNING_PACE_LEVELS if activity_type == 'running' else DEFAULT_WALKING_PACE_LEVELS
+                    if user_pace_level in default_data:
+                        user_pace_level_obj = DefaultPaceLevel(user_pace_level, default_data[user_pace_level])
+                
+                # Extract bands data for JavaScript
+                if user_pace_level_obj and hasattr(user_pace_level_obj, 'bands'):
+                    bands_list = []
+                    for band in user_pace_level_obj.bands.all():
+                        bands_list.append({
+                            'zone': band.zone,
+                            'min_mph': float(band.min_mph),
+                            'max_mph': float(band.max_mph),
+                            'min_pace': float(band.min_pace),
+                            'max_pace': float(band.max_pace),
+                        })
+                    # Sort by zone order (recovery, easy, moderate, etc.)
+                    zone_order = ['recovery', 'easy', 'moderate', 'challenging', 'hard', 'very_hard', 'max', 'brisk', 'power']
+                    bands_list.sort(key=lambda x: zone_order.index(x['zone']) if x['zone'] in zone_order else 999)
+                    user_pace_bands = bands_list
+        else:
+            # Fallback if no user profile or unknown activity type
+            if user_profile and user_profile.pace_target_level is not None:
+                user_pace_level = user_profile.pace_target_level
+            else:
+                user_pace_level = 5
+
+            # Provide defaults for chart rendering / client-side override even without a user profile
+            default_data = DEFAULT_RUNNING_PACE_LEVELS if activity_type == 'running' else DEFAULT_WALKING_PACE_LEVELS
+            if default_data:
+                pace_ranges_by_level = {}
+                for lvl, lvl_data in default_data.items():
+                    if not isinstance(lvl_data, dict):
+                        continue
+                    lvl_ranges = {}
+                    for zone_name, (min_mph, max_mph, min_pace, max_pace, _desc) in lvl_data.items():
+                        middle_mph = (min_mph + max_mph) / 2
+                        lvl_ranges[zone_name] = {
+                            'min_mph': min_mph,
+                            'max_mph': max_mph,
+                            'middle_mph': middle_mph,
+                            'min_pace': min_pace,
+                            'max_pace': max_pace,
+                        }
+                    pace_ranges_by_level[int(lvl)] = lvl_ranges
+                pace_ranges = pace_ranges_by_level.get(int(user_pace_level))
+
+        # Ensure target_metrics carries mph pace range data (workout-parity) for the chart
+        try:
+            if target_metrics and isinstance(target_metrics, dict) and target_metrics.get('type') == 'pace':
+                target_metrics['pace_level'] = user_pace_level
+                if pace_zones_from_level is not None:
+                    # Only set if we successfully computed (don't clobber existing meaningful values)
+                    target_metrics['pace_zones'] = target_metrics.get('pace_zones') or pace_zones_from_level
+                target_metrics['pace_ranges'] = pace_ranges
+                target_metrics['pace_ranges_by_level'] = pace_ranges_by_level
+        except Exception:
+            pass
+        
+        # Calculate time in zones for running (L0-L6 format matching reference template)
+        time_in_zones = {}
+        if pace_chart and pace_chart.get('chart_data'):
+            chart_data = pace_chart.get('chart_data', {})
+            segments = chart_data.get('segments', [])
+            total_duration = chart_data.get('total_duration', ride.duration_seconds)
+            
+            # Initialize time_in_zones with L0-L6 keys
+            for level in range(7):
+                time_in_zones[f'L{level}'] = 0
+            
+            # Calculate time in each pace level (0-6)
+            for segment in segments:
+                zone = segment.get('zone', 0)  # 0-6 pace level
+                duration = segment.get('duration', 0)
+                if 0 <= zone <= 6:
+                    time_in_zones[f'L{zone}'] = time_in_zones.get(f'L{zone}', 0) + duration
+            
+            # Format times as MM:SS
+            for level in range(7):
+                seconds = time_in_zones.get(f'L{level}', 0)
+                minutes = seconds // 60
+                secs = seconds % 60
+                time_in_zones[f'L{level}'] = f"{minutes}:{secs:02d}"
+        else:
+            # Default empty times
+            for level in range(7):
+                time_in_zones[f'L{level}'] = "0:00"
+        
+        # Calculate zone distribution for running using chart_data (Time in Targets)
+        # Use the same data structure as the chart for consistency
+        if pace_chart and pace_chart.get('chart_data'):
+            chart_data = pace_chart.get('chart_data', {})
+            segments = chart_data.get('segments', [])
+            total_duration = chart_data.get('total_duration', ride.duration_seconds)
+            
+            # Map zone numbers (0-6) to zone names
+            zone_name_map = {
+                0: 'recovery',
+                1: 'easy',
+                2: 'moderate',
+                3: 'challenging',
+                4: 'hard',
+                5: 'very_hard',
+                6: 'max'
+            }
+            
+            # Display names for zones
+            zone_display_map = {
+                0: 'Recovery',
+                1: 'Easy',
+                2: 'Moderate',
+                3: 'Challenging',
+                4: 'Hard',
+                5: 'Very Hard',
+                6: 'Max'
+            }
+            
+            # Calculate time in each zone
+            zone_times = {}
+            for segment in segments:
+                zone = segment.get('zone', 0)  # 0-6 pace level
+                duration = segment.get('duration', 0)
+                if 0 <= zone <= 6:
+                    zone_name = zone_name_map.get(zone, 'recovery')
+                    zone_times[zone_name] = zone_times.get(zone_name, 0) + duration
+            
+            # Order zones from highest to lowest intensity (for display)
+            zone_order = ['max', 'very_hard', 'hard', 'challenging', 'moderate', 'easy', 'recovery']
+            for zone_name in zone_order:
+                time_sec = zone_times.get(zone_name, 0)
+                if time_sec > 0:
+                    minutes = time_sec // 60
+                    seconds = time_sec % 60
+                    percentage = (time_sec / total_duration * 100) if total_duration > 0 else 0
+                    # Find the zone number for display
+                    zone_num = [k for k, v in zone_name_map.items() if v == zone_name][0] if zone_name in zone_name_map.values() else 0
+                    zone_distribution.append({
+                        'zone': zone_name,
+                        'zone_display': zone_display_map.get(zone_num, zone_name.replace('_', ' ').title()),
+                        'time_sec': time_sec,
+                        'time_str': f"{minutes:02d}:{seconds:02d}",
+                        'percentage': int(percentage)
+                    })
+        else:
+            # Fallback: use get_pace_segments if chart_data not available
+            intensity_zones = ['recovery', 'easy', 'moderate', 'challenging', 'hard', 'very_hard', 'max']
+            zone_times = {}
+            # Determine activity type for pace zone targets
+            activity_type = 'running'
+            if user_profile and ride.fitness_discipline in ['running', 'run', 'walking', 'walk']:
+                activity_type = 'running' if ride.fitness_discipline in ['running', 'run'] else 'walking'
+            pace_zones = user_profile.get_pace_zone_targets(activity_type=activity_type) if user_profile else None
+            segments = ride.get_pace_segments(user_pace_zones=pace_zones) if hasattr(ride, 'get_pace_segments') else []
+            if segments:
+                for segment in segments:
+                    # Use zone_name if available, otherwise map from zone number
+                    zone_name = segment.get('zone_name', '')
+                    if not zone_name:
+                        zone_num = segment.get('zone', 1)
+                        zone_map = {1: 'recovery', 2: 'easy', 3: 'moderate', 4: 'challenging', 
+                                   5: 'hard', 6: 'very_hard', 7: 'max'}
+                        zone_name = zone_map.get(zone_num, 'moderate')
+                    duration = segment.get('end', 0) - segment.get('start', 0)
+                    if zone_name in intensity_zones:
+                        zone_times[zone_name] = zone_times.get(zone_name, 0) + duration
+            
+            total_duration = ride.duration_seconds
+            # Order zones from highest to lowest intensity (for display)
+            zone_order = ['max', 'very_hard', 'hard', 'challenging', 'moderate', 'easy', 'recovery']
+            zone_display_map = {
+                'recovery': 'Recovery',
+                'easy': 'Easy',
+                'moderate': 'Moderate',
+                'challenging': 'Challenging',
+                'hard': 'Hard',
+                'very_hard': 'Very Hard',
+                'max': 'Max'
+            }
+            for zone_name in zone_order:
+                time_sec = zone_times.get(zone_name, 0)
+                if time_sec > 0:
+                    minutes = time_sec // 60
+                    seconds = time_sec % 60
+                    percentage = (time_sec / total_duration * 100) if total_duration > 0 else 0
+                    zone_distribution.append({
+                        'zone': zone_name,
+                        'zone_display': zone_display_map.get(zone_name, zone_name.replace('_', ' ').title()),
+                        'time_sec': time_sec,
+                        'time_str': f"{minutes:02d}:{seconds:02d}",
+                        'percentage': int(percentage)
+                    })
+    else:
+        # Standard cycling class - cadence/resistance ranges
+        segments = ride.get_cadence_resistance_segments()
+        target_metrics = {
+            'type': 'cadence_resistance',
+            'segments': segments
+        }
+    
+    # Organize class segments into Warm Up, Main, and Cool Down sections
+    # Use segments_data (segment_list) if available, otherwise fall back to target_metrics_data
+    class_sections = {}
+    
+    # Map icon_name to section key
+    icon_to_section = {
+        'warmup': 'warm_up',
+        'warm_up': 'warm_up',
+        'cycling': 'main',
+        'running': 'main',
+        'walking': 'main',
+        'rowing': 'main',
+        'cooldown': 'cool_down',
+        'cool_down': 'cool_down',
+    }
+    
+    # Map fitness discipline to appropriate icons and names
+    discipline_icons = {
+        'running': '🏃',
+        'walking': '🚶',
+        'cycling': '🚴',
+        'rowing': '🚣',
+    }
+    main_icon = discipline_icons.get(ride.fitness_discipline, '🏃')
+    main_name = ride.fitness_discipline_display_name or ride.fitness_discipline.title() if ride.fitness_discipline else 'Main Set'
+    
+    # Initialize sections
+    section_templates = {
+        'warm_up': {'name': 'Warm Up', 'icon': '🔥', 'description': 'Gradually increase your effort to prepare for the main class.'},
+        'main': {'name': main_name, 'icon': main_icon, 'description': f"Main {ride.fitness_discipline_display_name.lower() if ride.fitness_discipline_display_name else 'class'} segment."},
+        'cool_down': {'name': 'Cool Down', 'icon': '❄️', 'description': 'Gradually decrease your effort to recover.'}
+    }
+    
+    # Try to use segments_data first (more accurate structure)
+    if ride.segments_data and ride.segments_data.get('segment_list'):
+        segment_list = ride.segments_data.get('segment_list', [])
+        
+        for seg in segment_list:
+            icon_name = seg.get('icon_name', '').lower()
+            section_key = icon_to_section.get(icon_name)
+            
+            if not section_key:
+                # Default to main if we can't determine
+                section_key = 'main'
+            
+            # Initialize section if not exists
+            if section_key not in class_sections:
+                class_sections[section_key] = {
+                    'name': section_templates[section_key]['name'],
+                    'icon': section_templates[section_key]['icon'],
+                    'description': section_templates[section_key]['description'],
+                    'segments': [],
+                    'duration': 0
+                }
+            
+            # Get subsegments from subsegments_v2
+            subsegments = seg.get('subsegments_v2', [])
+            section_start = seg.get('start_time_offset', 0)
+            
+            for subseg in subsegments:
+                # NOTE: subseg 'offset' is already absolute from class start, not relative to section
+                subseg_offset = subseg.get('offset', 0)  # Absolute offset from class start
+                subseg_length = subseg.get('length', 0)
+                display_name = subseg.get('display_name', '')
+                
+                if subseg_length > 0 and display_name:
+                    # Calculate absolute start/end times
+                    # offset is already absolute, so use it directly
+                    abs_start = subseg_offset
+                    abs_end = abs_start + subseg_length
+                    
+                    # Skip segments that start at or beyond the class duration
+                    total_duration = ride.duration_seconds
+                    if abs_start >= total_duration:
+                        continue
+                    
+                    # Clamp end time to class duration
+                    abs_end = min(abs_end, total_duration)
+                    subseg_length = abs_end - abs_start
+                    
+                    if subseg_length <= 0:
+                        continue
+                    
+                    class_sections[section_key]['segments'].append({
+                        'name': display_name,
+                        'start': abs_start,
+                        'end': abs_end,
+                        'duration': subseg_length,
+                        'duration_str': f"{subseg_length // 60}:{(subseg_length % 60):02d}"
+                    })
+                    class_sections[section_key]['duration'] += subseg_length
+    
+    # Fallback: Use target_metrics_data if segments_data not available
+    if not class_sections and ride.target_metrics_data:
+        # Initialize sections
+        for key, template in section_templates.items():
+            class_sections[key] = {
+                'name': template['name'],
+                'icon': template['icon'],
+                'description': template['description'],
+                'segments': [],
+                'duration': 0
+            }
+        
+        target_metrics_list = ride.target_metrics_data.get('target_metrics', [])
+        total_duration = ride.duration_seconds
+        
+        if total_duration > 0 and target_metrics_list:
+            warm_up_cutoff = total_duration * 0.15
+            cool_down_start = total_duration * 0.90
+            
+            # Get segments based on class type
+            if ride.fitness_discipline in ['running', 'walking']:
+                # Determine activity type for pace zone targets
+                activity_type = 'running' if ride.fitness_discipline in ['running', 'run'] else 'walking'
+                pace_zones = user_profile.get_pace_zone_targets(activity_type=activity_type) if hasattr(user_profile, 'get_pace_zone_targets') and user_profile else None
+                pace_segs = ride.get_pace_segments(user_pace_zones=pace_zones)
+                # Map zone numbers (1-7) and zone names to display names
+                pace_name_map = {
+                    'recovery': 'Recovery',
+                    'easy': 'Easy',
+                    'moderate': 'Moderate',
+                    'challenging': 'Challenging',
+                    'hard': 'Hard',
+                    'very_hard': 'Very Hard',
+                    'max': 'Max',
+                    'brisk': 'Brisk',
+                    'power': 'Power',
+                    # Also map zone numbers for backward compatibility
+                    '1': 'Recovery',
+                    '2': 'Easy',
+                    '3': 'Moderate',
+                    '4': 'Challenging',
+                    '5': 'Hard',
+                    '6': 'Very Hard',
+                    '7': 'Max',
+                }
+                
+                for pace_seg in pace_segs:
+                    seg_start = pace_seg['start']
+                    seg_end = pace_seg['end']
+                    seg_duration = seg_end - seg_start
+                    
+                    if seg_start < warm_up_cutoff:
+                        section_key = 'warm_up'
+                    elif seg_start >= cool_down_start:
+                        section_key = 'cool_down'
+                    else:
+                        section_key = 'main'
+                    
+                    # Use zone_name if available, otherwise map from zone number
+                    zone_name = pace_seg.get('zone_name', '')
+                    if not zone_name:
+                        zone_num = pace_seg.get('zone', 1)
+                        zone_map = {1: 'recovery', 2: 'easy', 3: 'moderate', 4: 'challenging', 
+                                   5: 'hard', 6: 'very_hard', 7: 'max'}
+                        zone_name = zone_map.get(zone_num, 'moderate')
+                    
+                    pace_name = pace_name_map.get(zone_name.lower(), zone_name.replace('_', ' ').title())
+                    
+                    class_sections[section_key]['segments'].append({
+                        'name': pace_name,
+                        'start': seg_start,
+                        'end': seg_end,
+                        'duration': seg_duration,
+                        'duration_str': f"{seg_duration // 60}:{(seg_duration % 60):02d}"
+                    })
+                    class_sections[section_key]['duration'] += seg_duration
+                    
+            elif ride.is_power_zone_class or any(s.get('segment_type', '').lower() == 'power_zone' for s in target_metrics_list):
+                # Check if this is a power zone class (by flag or by segment types)
+                pz_segs = ride.get_power_zone_segments(user_ftp=user_profile.get_current_ftp() if hasattr(user_profile, 'get_current_ftp') else None)
+                
+                # If get_power_zone_segments returns empty but we have power_zone segments, extract directly
+                if not pz_segs and any(s.get('segment_type', '').lower() == 'power_zone' for s in target_metrics_list):
+                    for segment in target_metrics_list:
+                        if segment.get('segment_type', '').lower() == 'power_zone':
+                            offsets = segment.get('offsets', {})
+                            start = offsets.get('start', 0)
+                            end = offsets.get('end', 0)
+                            duration = end - start
+                            
+                            # Extract zone number from metrics
+                            zone_num = None
+                            for metric in segment.get('metrics', []):
+                                if metric.get('name') == 'power_zone':
+                                    zone_lower = metric.get('lower')
+                                    zone_upper = metric.get('upper')
+                                    zone_num = zone_lower if zone_lower == zone_upper else zone_lower
+                                    break
+                            
+                            if duration > 0 and zone_num:
+                                if start < warm_up_cutoff:
+                                    section_key = 'warm_up'
+                                elif start >= cool_down_start:
+                                    section_key = 'cool_down'
+                                else:
+                                    section_key = 'main'
+                                
+                                class_sections[section_key]['segments'].append({
+                                    'name': f"Zone {zone_num}",
+                                    'start': start,
+                                    'end': end,
+                                    'duration': duration,
+                                    'duration_str': f"{duration // 60}:{(duration % 60):02d}",
+                                    'zone': zone_num
+                                })
+                                class_sections[section_key]['duration'] += duration
+                else:
+                    # Use the method result
+                    for pz_seg in pz_segs:
+                        seg_start = pz_seg['start']
+                        seg_end = pz_seg['end']
+                        seg_duration = seg_end - seg_start
+                        zone_num = pz_seg.get('zone')
+                        
+                        if seg_start < warm_up_cutoff:
+                            section_key = 'warm_up'
+                        elif seg_start >= cool_down_start:
+                            section_key = 'cool_down'
+                        else:
+                            section_key = 'main'
+                        
+                        class_sections[section_key]['segments'].append({
+                            'name': f"Zone {zone_num}",
+                            'start': seg_start,
+                            'end': seg_end,
+                            'duration': seg_duration,
+                            'duration_str': f"{seg_duration // 60}:{(seg_duration % 60):02d}",
+                            'zone': zone_num
+                        })
+                        class_sections[section_key]['duration'] += seg_duration
+            else:
+                # For other classes (non-PZ cycling, rowing, etc.), use target_metrics segments
+                # Group segments by their segment_type to determine sections
+                for segment in target_metrics_list:
+                    segment_type = segment.get('segment_type', '').lower()
+                    offsets = segment.get('offsets', {})
+                    start = offsets.get('start', 0)
+                    end = offsets.get('end', 0)
+                    duration = end - start
+                    
+                    if duration > 0:
+                        # Determine section based on segment_type or timing
+                        if segment_type in ['warm_up', 'warmup']:
+                            section_key = 'warm_up'
+                        elif segment_type in ['cooldown', 'cool_down']:
+                            section_key = 'cool_down'
+                        elif start < warm_up_cutoff:
+                            section_key = 'warm_up'
+                        elif start >= cool_down_start:
+                            section_key = 'cool_down'
+                        else:
+                            section_key = 'main'
+                        
+                        # Try to get a meaningful name from metrics
+                        segment_name = segment_type.replace('_', ' ').title() if segment_type else 'Segment'
+                        metrics = segment.get('metrics', [])
+                        
+                        # For cadence/resistance classes, try to extract meaningful info
+                        if metrics:
+                            metric_names = [m.get('name', '') for m in metrics]
+                            if 'cadence' in str(metric_names).lower():
+                                segment_name = 'Cadence Segment'
+                            elif 'resistance' in str(metric_names).lower():
+                                segment_name = 'Resistance Segment'
+                        
+                        class_sections[section_key]['segments'].append({
+                            'name': segment_name,
+                            'start': start,
+                            'end': end,
+                            'duration': duration,
+                            'duration_str': f"{duration // 60}:{(duration % 60):02d}"
+                        })
+                        class_sections[section_key]['duration'] += duration
+    
+    # Filter out empty sections and sort segments within each section
+    for section_key in list(class_sections.keys()):
+        if not class_sections[section_key]['segments']:
+            del class_sections[section_key]
+        else:
+            # Sort segments by start time
+            class_sections[section_key]['segments'].sort(key=lambda x: x['start'])
+    
+    # Calculate TSS and IF based on zone distribution
+    # This must happen after zone_distribution is populated
+    tss = None
+    if_value = None
+    
+    # Try to get from target_class_metrics first (if Peloton provides it)
+    if ride.target_class_metrics:
+        tss = ride.target_class_metrics.get('total_expected_output') or ride.target_class_metrics.get('tss')
+        if_value = ride.target_class_metrics.get('if') or ride.target_class_metrics.get('intensity_factor')
+    
+    # Calculate TSS and IF from zone distribution if not available and we have zone data
+    if (tss is None or if_value is None) and zone_distribution and ride.duration_seconds:
+        total_duration_hours = ride.duration_seconds / 3600.0
+        
+        if ride.class_type == 'power_zone' or ride.is_power_zone_class:
+            # Power Zone TSS/IF calculation
+            user_ftp = user_profile.get_current_ftp() if user_profile else None
+            if user_ftp and user_ftp > 0:
+                # Calculate normalized power from time in zones
+                # Use mid-point of each zone as representative power
+                zone_power_percentages = metrics_calculator.ZONE_POWER_PERCENTAGES
+                
+                # Calculate weighted average power
+                total_weighted_power = 0.0
+                total_time = 0.0
+                
+                for zone_info in zone_distribution:
+                    zone = zone_info.get('zone')
+                    time_sec = zone_info.get('time_sec', 0)
+                    if zone and zone in zone_power_percentages and time_sec > 0:
+                        zone_power = user_ftp * zone_power_percentages[zone]
+                        total_weighted_power += zone_power * time_sec
+                        total_time += time_sec
+                
+                if total_time > 0:
+                    normalized_power = total_weighted_power / total_time
+                    # IF = normalized power / FTP
+                    if_value = normalized_power / user_ftp
+                    # TSS = (duration in hours) × IF² × 100
+                    tss = total_duration_hours * (if_value ** 2) * 100
+        
+        elif ride.class_type == 'pace_target' or ride.fitness_discipline in ['running', 'walking', 'run']:
+            # Pace Target TSS/IF calculation
+            # Use threshold pace (moderate pace) as reference
+            user_pace_level = user_profile.pace_target_level if user_profile else 5
+            if user_pace_level:
+                # Map pace zones to intensity factors relative to threshold (moderate)
+                # Recovery = 0.5, Easy = 0.7, Moderate = 1.0, Challenging = 1.15, Hard = 1.3, Very Hard = 1.5, Max = 1.8
+                pace_zone_intensity_factors = {
+                    'recovery': 0.5,
+                    'easy': 0.7,
+                    'moderate': 1.0,
+                    'challenging': 1.15,
+                    'hard': 1.3,
+                    'very_hard': 1.5,
+                    'max': 1.8,
+                }
+                
+                # Calculate weighted average intensity factor
+                total_weighted_intensity = 0.0
+                total_time = 0.0
+                
+                for zone_info in zone_distribution:
+                    zone_key = zone_info.get('zone')  # This is the zone name like 'recovery', 'easy', etc.
+                    time_sec = zone_info.get('time_sec', 0)
+                    
+                    # Handle both string zone names and zone_display
+                    if isinstance(zone_key, str) and zone_key.lower() in pace_zone_intensity_factors:
+                        zone_if = pace_zone_intensity_factors[zone_key.lower()]
+                    elif isinstance(zone_key, int):
+                        # If zone is numeric (0-6), map to zone names
+                        zone_map = {0: 'recovery', 1: 'easy', 2: 'moderate', 3: 'challenging', 
+                                   4: 'hard', 5: 'very_hard', 6: 'max'}
+                        zone_name = zone_map.get(zone_key, 'moderate')
+                        zone_if = pace_zone_intensity_factors.get(zone_name, 1.0)
+                    else:
+                        # Try to get from zone_display
+                        zone_display = zone_info.get('zone_display', '').lower()
+                        zone_if = pace_zone_intensity_factors.get(zone_display, 1.0)
+                    
+                    if time_sec > 0:
+                        total_weighted_intensity += zone_if * time_sec
+                        total_time += time_sec
+                
+                if total_time > 0:
+                    # IF = weighted average intensity factor
+                    if_value = total_weighted_intensity / total_time
+                    # TSS = (duration in hours) × IF² × 100
+                    tss = total_duration_hours * (if_value ** 2) * 100
+    
+    # Convert to JSON for template
+    if target_metrics:
+        target_metrics_json = mark_safe(json.dumps(target_metrics))
+    
+    # Get playlist if available
+    playlist = None
+    try:
+        playlist = ride.playlist
+    except:
+        pass
+    
+    # Convert chart data to JSON for template (for both pace target and power zone)
+    pace_chart_json = None
+    power_zone_chart_json = None
+    chart_data = None  # For reference template compatibility
+    # Note: user_pace_level should already be set in the pace target block above (line 1345-1438)
+    # Don't set a default here as it would overwrite the value already set
+    
+    # Handle pace target chart data
+    if 'pace_chart' in locals() and pace_chart and pace_chart.get('chart_data'):
+        # Use chart_data structure for JavaScript (matches reference template)
+        chart_data_for_js = pace_chart.get('chart_data', {})
+        if chart_data_for_js and chart_data_for_js.get('segments') and chart_data_for_js.get('zones'):
+            pace_chart_json = mark_safe(json.dumps(chart_data_for_js))
+            chart_data = chart_data_for_js  # Also pass as chart_data for reference template (matches reference template variable name)
+    
+    # Handle power zone chart data
+    if 'power_zone_chart' in locals() and power_zone_chart and power_zone_chart.get('chart_data'):
+        chart_data_for_js = power_zone_chart.get('chart_data', {})
+        if chart_data_for_js and chart_data_for_js.get('segments') and chart_data_for_js.get('zones'):
+            power_zone_chart_json = mark_safe(json.dumps(chart_data_for_js))
+            chart_data = chart_data_for_js  # Use same variable name for consistency
+    
+    # Ensure user_pace_level is set (fallback, matching user_ftp pattern)
+    # Only set if not already set in the pace target block above
+    # Note: user_pace_level should already be set in the pace target block (line 1345-1438)
+    # This is just a safety fallback in case it wasn't set (shouldn't happen, but defensive programming)
+    # IMPORTANT: Use new system (PaceEntry) first, fallback to old system (pace_target_level) only if needed
+    if user_pace_level is None:
+        # For pace target classes, try to get current pace from PaceEntry (new system)
+        if user_profile and ride.fitness_discipline in ['running', 'run', 'walking', 'walk']:
+            activity_type = 'running' if ride.fitness_discipline in ['running', 'run'] else 'walking'
+            # Use new system: get_current_pace() looks for active PaceEntry
+            user_pace_level = user_profile.get_current_pace(activity_type=activity_type)
+            
+            # If no active PaceEntry, try to get the latest PaceEntry regardless of is_active status
+            if user_pace_level is None:
+                from accounts.models import PaceEntry
+                latest_pace_entry = PaceEntry.objects.filter(
+                    user=request.user,
+                    activity_type=activity_type
+                ).order_by('-recorded_date', '-created_at').first()
+                if latest_pace_entry:
+                    user_pace_level = latest_pace_entry.level
+            
+            # Fallback to old system: pace_target_level (deprecated but still used as fallback)
+            if user_pace_level is None:
+                if user_profile and user_profile.pace_target_level is not None:
+                    user_pace_level = user_profile.pace_target_level
+                else:
+                    user_pace_level = 5
+        else:
+            # For non-pace classes, use old system as fallback
+            if user_profile and user_profile.pace_target_level is not None:
+                user_pace_level = user_profile.pace_target_level
+            else:
+                user_pace_level = 5
+    
+    # Format class date (matching reference template)
+    class_date = None
+    if ride.original_air_time:
+        try:
+            # Peloton timestamps are in milliseconds
+            timestamp = ride.original_air_time
+            if timestamp > 1e10:  # If timestamp is in milliseconds, convert to seconds
+                timestamp = timestamp / 1000
+            dt = datetime.fromtimestamp(timestamp)
+            class_date = dt.strftime("%d/%m/%y @ %I:%M%p ET")
+        except (ValueError, OSError, TypeError):
+            # Fallback to created_at if conversion fails
+            if hasattr(ride, 'created_at') and ride.created_at:
+                class_date = ride.created_at.strftime("%d/%m/%y @ %I:%M%p ET")
+    elif hasattr(ride, 'created_at') and ride.created_at:
+        class_date = ride.created_at.strftime("%d/%m/%y @ %I:%M%p ET")
+    
+    # Past workouts for this class (used for Power Zone / Pace Target / Cycling comparisons)
+    times_taken = 0
+    workouts_page_obj = None
+    qs_workouts = request.GET.copy()
+    try:
+        qs_workouts.pop('workouts_page')
+    except Exception:
+        pass
+    qs_without_workouts_page = qs_workouts.urlencode()
+
+    try:
+        class_workouts_qs = (
+            Workout.objects.filter(user=request.user, ride_detail=ride)
+            .select_related('ride_detail', 'details')
+            .order_by('-completed_date', 'id')
+        )
+        times_taken = class_workouts_qs.count()
+        if times_taken > 0:
+            paginator = Paginator(class_workouts_qs, 20)
+            workouts_page_number = request.GET.get('workouts_page', 1)
+            workouts_page_obj = paginator.get_page(workouts_page_number)
+
+            # Derived fields for run/walk tables (pace/speed/IF)
+            fd = (getattr(ride, 'fitness_discipline', '') or '').lower()
+            is_run_walk = (ride.class_type == 'pace_target') or (fd in ['running', 'walking', 'run', 'walk'])
+            if is_run_walk:
+                for w in workouts_page_obj.object_list:
+                    avg_speed_mph = _estimate_workout_avg_speed_mph(w)
+                    w.derived_avg_speed_mph = avg_speed_mph
+                    w.derived_avg_pace_str = _pace_str_from_mph(avg_speed_mph) if avg_speed_mph else None
+                    w.derived_if = _estimate_workout_if_from_tss(w)
+        else:
+            workouts_page_obj = None
+    except Exception:
+        times_taken = 0
+        workouts_page_obj = None
+
+    # Generate Peloton URL (matching reference template)
+    peloton_url = None
+    if ride.peloton_class_url:
+        peloton_url = ride.peloton_class_url
+    else:
+        # Generate URL based on ride ID and discipline
+        base_url = "https://members.onepeloton.com/classes"
+        discipline_map = {
+            'cycling': 'cycling',
+            'running': 'tread',
+            'walking': 'tread',
+            'strength': 'strength',
+            'stretching': 'yoga'
+        }
+        discipline = discipline_map.get(ride.fitness_discipline, 'cycling')
+        peloton_url = f"{base_url}/{discipline}?modal=classDetailsModal&classId={ride.peloton_ride_id}"
+    
+    # Pass target_line_data as Python object for json_script filter (not pre-encoded JSON)
+    # The json_script filter will handle JSON encoding automatically
+    # Note: target_line_data is already a Python list/dict, not a JSON string
+    context = {
+        'ride': ride,
+        'target_metrics': target_metrics,
+        'target_metrics_json': target_metrics_json,
+        'target_line_data': target_line_data if target_line_data else None,  # Pass Python object, not JSON string
+        'zone_distribution': zone_distribution,
+        'class_segments': class_segments,
+        'class_sections': class_sections,
+        'spin_up_intervals': spin_up_intervals,
+        'user_profile': user_profile,
+        'tss': tss,
+        'if_value': if_value,
+        'playlist': playlist,
+        'pace_chart': pace_chart if 'pace_chart' in locals() else None,
+        'pace_chart_json': pace_chart_json,
+        'power_zone_chart': power_zone_chart if 'power_zone_chart' in locals() else None,
+        'power_zone_chart_json': power_zone_chart_json,
+        'chart_data': chart_data,  # For reference template compatibility
+        'user_pace_level': user_pace_level if user_pace_level is not None else (user_profile.pace_target_level if user_profile and user_profile.pace_target_level is not None else 5),
+        'user_pace_bands': user_pace_bands if 'user_pace_bands' in locals() else None,
+        'has_pace_target': bool(user_profile.pace_target_level) if user_profile else False,
+        'time_in_zones': time_in_zones if 'time_in_zones' in locals() else {},
+        'class_date': class_date,
+        'peloton_url': peloton_url,
+        'user_ftp': user_ftp if 'user_ftp' in locals() else (user_profile.get_current_ftp() if user_profile else None),
+        'times_taken': times_taken,
+        'workouts_page_obj': workouts_page_obj,
+        'qs_without_workouts_page': qs_without_workouts_page,
+    }
+    
+    return render(request, 'workouts/class_detail.html', context)
 
 
 @login_required
@@ -568,6 +2557,25 @@ def workout_history_suggest(request):
     return JsonResponse({'results': results})
 
 
+def _downsample_points(values, max_points=48):
+    """Downsample a list of numeric values to at most max_points, preserving shape."""
+    if not isinstance(values, list):
+        return []
+    cleaned = [v for v in values if isinstance(v, (int, float))]
+    if len(cleaned) <= max_points:
+        return cleaned
+    if max_points < 2:
+        return cleaned[:1]
+    step = (len(cleaned) - 1) / float(max_points - 1)
+    out = []
+    for i in range(max_points):
+        idx = int(round(i * step))
+        if idx < 0:
+            idx = 0
+        if idx >= len(cleaned):
+            idx = len(cleaned) - 1
+        out.append(cleaned[idx])
+    return out
 
 
 def _estimate_workout_avg_speed_mph(workout):
@@ -593,6 +2601,21 @@ def _estimate_workout_avg_speed_mph(workout):
     return sum(speeds) / float(len(speeds))
 
 
+def _pace_str_from_mph(mph):
+    """Convert mph -> mm:ss/mi pace string."""
+    try:
+        mph = float(mph)
+        if mph <= 0:
+            return None
+        pace_min_per_mile = 60.0 / mph
+        minutes = int(pace_min_per_mile)
+        seconds = int(round((pace_min_per_mile - minutes) * 60.0))
+        if seconds == 60:
+            minutes += 1
+            seconds = 0
+        return f"{minutes}:{seconds:02d}/mi"
+    except Exception:
+        return None
 
 
 def _estimate_workout_if_from_tss(workout):
@@ -696,8 +2719,129 @@ def _estimate_workout_tss(workout, user_profile=None):
     )
 
 
+def _downsample_series(series, max_points=48):
+    """Downsample a list of dict points (must include 'v') to at most max_points."""
+    if not isinstance(series, list):
+        return []
+    cleaned = [p for p in series if isinstance(p, dict) and isinstance(p.get('v'), (int, float))]
+    if len(cleaned) <= max_points:
+        return cleaned
+    if max_points < 2:
+        return cleaned[:1]
+    step = (len(cleaned) - 1) / float(max_points - 1)
+    out = []
+    for i in range(max_points):
+        idx = int(round(i * step))
+        if idx < 0:
+            idx = 0
+        if idx >= len(cleaned):
+            idx = len(cleaned) - 1
+        out.append(cleaned[idx])
+    return out
 
 
+def _normalize_series_to_svg_points(
+    series,
+    width=360,
+    height=120,
+    left_pad=34,
+    right_pad=10,
+    top_pad=8,
+    bottom_pad=8,
+    *,
+    preserve_full_series=False,
+    max_points=120,
+    scaled_min=None,
+    scaled_max=None,
+):
+    """
+    Convert a series of dict points (with 'v' and optional 't'/'z') into SVG points.
+    Returns: (points_str, plot_box, points_list, vmin, vmax) or (None, plot_box, [], None, None) if insufficient points.
+    """
+    plot_x0 = left_pad
+    plot_x1 = max(left_pad + 10, width - right_pad)
+    plot_y0 = top_pad
+    plot_y1 = max(top_pad + 10, height - bottom_pad)
+    plot_box = (plot_x0, plot_y0, plot_x1, plot_y1)
+
+    cleaned = [p for p in series if isinstance(p, dict) and isinstance(p.get('v'), (int, float))] if isinstance(series, list) else []
+    if len(cleaned) < 2:
+        return None, plot_box, [], None, None
+
+    if preserve_full_series:
+        ds = cleaned
+    else:
+        ds = _downsample_series(cleaned, max_points=max_points)
+    if len(ds) < 2:
+        return None, plot_box, [], None, None
+
+    # Allow plotting in "scaled value" space (e.g. zone 1-7) while keeping raw v for tooltips.
+    uses_scaled = any(isinstance(p.get('sv'), (int, float)) for p in ds) or any(isinstance(p.get('stv'), (int, float)) for p in ds)
+
+    def _v_for_plot(p):
+        sv = p.get('sv')
+        if isinstance(sv, (int, float)):
+            return float(sv)
+        return float(p['v'])
+
+    vals = [_v_for_plot(p) for p in ds]
+    # Include target values in scaling if present
+    for p in ds:
+        stv = p.get('stv')
+        if isinstance(stv, (int, float)):
+            vals.append(float(stv))
+            continue
+        tv = p.get('tv')
+        if isinstance(tv, (int, float)):
+            vals.append(float(tv))
+
+    # For zone-based plots, keep fixed padding so the line sits nicely in the bands.
+    if uses_scaled:
+        vmin = float(scaled_min) if isinstance(scaled_min, (int, float)) else 0.5
+        vmax = float(scaled_max) if isinstance(scaled_max, (int, float)) else 7.5
+    else:
+        vmin = min(vals)
+        vmax = max(vals)
+    if vmax == vmin:
+        vmax = vmin + 1.0
+
+    n = len(ds)
+    xs = []
+    if n == 1:
+        xs = [plot_x0]
+    else:
+        span = (plot_x1 - plot_x0)
+        xs = [plot_x0 + (span * i / float(n - 1)) for i in range(n)]
+
+    def y_for(v):
+        norm = (v - vmin) / float(vmax - vmin)
+        return plot_y1 - norm * (plot_y1 - plot_y0)
+
+    points = []
+    pts = []
+    for i in range(n):
+        raw_v = float(ds[i]['v'])
+        v = _v_for_plot(ds[i])
+        x = float(xs[i])
+        y = float(y_for(v))
+        point = {
+            'x': round(x, 1),
+            'y': round(y, 1),
+            't': int(ds[i].get('t', 0) or 0),
+            'v': raw_v,
+        }
+        tv = ds[i].get('tv')
+        if isinstance(tv, (int, float)):
+            point['tv'] = float(tv)
+        stv = ds[i].get('stv')
+        if isinstance(stv, (int, float)):
+            point['stv'] = float(stv)
+        if ds[i].get('z') is not None:
+            point['z'] = ds[i].get('z')
+        pts.append(f"{point['x']:.1f},{point['y']:.1f}")
+        points.append(point)
+
+    return " ".join(pts), plot_box, points, vmin, vmax
 
 
 def _zone_ranges_for_ftp(ftp):
@@ -718,6 +2862,36 @@ def _power_zone_for_output(output_watts, zone_ranges):
     return metrics_calculator.get_power_zone_for_output(output_watts, zone_ranges)
 
 
+def _scaled_zone_value_from_output(output_watts, zone_ranges):
+    """Map an output value onto the zone axis so the line can flow within each band."""
+    if not isinstance(output_watts, (int, float)):
+        return None
+    if not isinstance(zone_ranges, dict) or not zone_ranges:
+        return None
+
+    zone = _power_zone_for_output(output_watts, zone_ranges)
+    if not isinstance(zone, int):
+        return None
+
+    lo, hi = zone_ranges.get(zone, (None, None))
+    if not isinstance(lo, (int, float)):
+        return float(zone)
+
+    lo = float(lo)
+    hi_val = float(hi) if isinstance(hi, (int, float)) else None
+    if hi_val is None:
+        hi_val = lo + max(lo * 0.25, 25.0)
+
+    span = hi_val - lo
+    if span <= 0:
+        span = max(lo * 0.25, 25.0)
+
+    value = float(output_watts)
+    clamped = min(max(value, lo), lo + span)
+    frac = (clamped - lo) / span
+    frac = max(0.0, min(frac, 1.0))
+
+    return (zone - 0.5) + frac
 
 
 def _pace_zone_targets_for_level(pace_level):
@@ -739,20 +2913,307 @@ def _target_watts_for_zone(zone_ranges, zone_num):
     return metrics_calculator.get_target_watts_for_zone(zone_num, zone_ranges)
 
 
+def _target_value_at_time(segments, t_seconds):
+    """Find the segment covering time t_seconds and return its 'target' value."""
+    if not segments or not isinstance(t_seconds, int):
+        return None
+    for seg in segments:
+        try:
+            start = int(seg.get('start', 0))
+            end = int(seg.get('end', 0))
+        except Exception:
+            continue
+        if t_seconds >= start and (end == 0 or t_seconds < end):
+            return seg.get('target')
+    return None
 
 
+def _target_value_at_time_with_shift(segments, t_seconds, shift_seconds=0):
+    """
+    Return target value at time t_seconds, applying a time shift to the *segment windows*.
+
+    A negative shift (e.g. -60) means the target segments start earlier on the chart.
+    Equivalent lookup: target(t) = target_original(t - shift).
+    """
+    if not isinstance(t_seconds, int):
+        return None
+    try:
+        s = int(shift_seconds or 0)
+    except Exception:
+        s = 0
+    return _target_value_at_time(segments, t_seconds - s)
 
 
+def _target_segment_at_time_with_shift(segments, t_seconds, shift_seconds=0):
+    """Return the target segment dict at time t_seconds with optional time shift."""
+    if not segments or not isinstance(t_seconds, int):
+        return None
+    try:
+        s = int(shift_seconds or 0)
+    except Exception:
+        s = 0
+    t = t_seconds - s
+    for seg in segments:
+        try:
+            start = int(seg.get('start', 0))
+            end = int(seg.get('end', 0))
+        except Exception:
+            continue
+        if t >= start and (end == 0 or t < end):
+            return seg
+    return None
 
 
+def _extract_spin_up_intervals(ride_detail):
+    """Return list of {'start': int, 'end': int} intervals covering Spin Ups segments."""
+    intervals = []
+    if not ride_detail:
+        return intervals
+
+    total_duration = ride_detail.duration_seconds or 0
+
+    # Prefer segments_data (includes display names such as "Spin Ups")
+    segments_data = getattr(ride_detail, 'segments_data', None) or {}
+    segment_list = segments_data.get('segment_list') if isinstance(segments_data, dict) else None
+    if segment_list:
+        for seg in segment_list:
+            subsegments = seg.get('subsegments_v2', [])
+            section_start = seg.get('start_time_offset', 0) or 0
+            for subseg in subsegments:
+                display_name = (subseg.get('display_name') or '').lower()
+                if 'spin' not in display_name or 'up' not in display_name:
+                    continue
+                sub_offset = subseg.get('offset', 0) or 0
+                duration = subseg.get('length', 0) or 0
+                if duration <= 0:
+                    continue
+                start = section_start + sub_offset
+                end = start + duration
+                if total_duration:
+                    start = max(0, min(start, total_duration))
+                    end = max(start, min(end, total_duration))
+                intervals.append({'start': int(start), 'end': int(end)})
+
+    # Fallback to target_metrics_data if needed
+    if not intervals and ride_detail.target_metrics_data:
+        target_metrics_list = ride_detail.target_metrics_data.get('target_metrics', []) or []
+        for segment in target_metrics_list:
+            segment_type = (segment.get('segment_type') or '').lower()
+            if 'spin' not in segment_type or 'up' not in segment_type:
+                continue
+            offsets = segment.get('offsets', {})
+            start = offsets.get('start', 0) or 0
+            end = offsets.get('end', 0) or 0
+            if end > start:
+                intervals.append({'start': int(max(0, start)), 'end': int(max(start, end))})
+
+    if not intervals:
+        return intervals
+
+    intervals.sort(key=lambda x: x['start'])
+    merged = [intervals[0]]
+    for current in intervals[1:]:
+        last = merged[-1]
+        if current['start'] <= last['end']:
+            last['end'] = max(last['end'], current['end'])
+        else:
+            merged.append(current)
+    return merged
 
 
+PACE_ZONE_LEVEL_TO_KEY = {
+    1: 'recovery',
+    2: 'easy',
+    3: 'moderate',
+    4: 'challenging',
+    5: 'hard',
+    6: 'very_hard',
+    7: 'max',
+}
+PACE_ZONE_KEY_TO_LEVEL = {v: k for k, v in PACE_ZONE_LEVEL_TO_KEY.items()}
+PACE_ZONE_LEVEL_ORDER = tuple(PACE_ZONE_LEVEL_TO_KEY.keys())
+PACE_ZONE_LEVEL_LABELS = {
+    1: "RECOVERY",
+    2: "EASY",
+    3: "MODERATE",
+    4: "CHALLENGING",
+    5: "HARD",
+    6: "VERY HARD",
+    7: "MAX",
+}
+PACE_ZONE_LEVEL_DISPLAY = {
+    1: "Recovery",
+    2: "Easy",
+    3: "Moderate",
+    4: "Challenging",
+    5: "Hard",
+    6: "Very Hard",
+    7: "Max",
+}
+PACE_ZONE_COLORS = {
+    7: "rgba(239, 68, 68, 0.55)",
+    6: "rgba(249, 115, 22, 0.55)",
+    5: "rgba(245, 158, 11, 0.55)",
+    4: "rgba(34, 197, 94, 0.55)",
+    3: "rgba(20, 184, 166, 0.55)",
+    2: "rgba(59, 130, 246, 0.55)",
+    1: "rgba(124, 58, 237, 0.55)",
+}
 
 
+def _pace_zone_label_from_level(level, uppercase=True):
+    try:
+        lvl = int(level)
+    except Exception:
+        return None
+    labels = PACE_ZONE_LEVEL_LABELS if uppercase else PACE_ZONE_LEVEL_DISPLAY
+    return labels.get(lvl)
 
 
+def _mph_from_pace_value(pace_value):
+    def _minutes_from_numeric(value):
+        try:
+            minutes = float(value)
+        except (TypeError, ValueError):
+            return None
+        if minutes <= 0:
+            return None
+        # Peloton APIs sometimes return pace as seconds per mile (e.g., 360 for 6:00/mi).
+        # Detect clearly out-of-range "minutes" values and treat them as seconds.
+        if minutes >= 60:
+            minutes = minutes / 60.0
+        return minutes
+
+    if isinstance(pace_value, (int, float)):
+        minutes = _minutes_from_numeric(pace_value)
+        return 60.0 / minutes if minutes else None
+
+    if isinstance(pace_value, str):
+        pace_value = pace_value.strip()
+        if not pace_value:
+            return None
+        try:
+            if ':' in pace_value:
+                mins, secs = pace_value.split(':', 1)
+                total_minutes = int(mins) + float(secs) / 60.0
+            else:
+                total_minutes = _minutes_from_numeric(float(pace_value))
+            if total_minutes and total_minutes > 0:
+                return 60.0 / total_minutes
+        except (ValueError, ZeroDivisionError):
+            return None
+    return None
 
 
+def _pace_zone_level_from_speed(speed_mph, pace_ranges):
+    if not isinstance(speed_mph, (int, float)) or not pace_ranges:
+        return None
+    speed = float(speed_mph)
+    for level in PACE_ZONE_LEVEL_ORDER:
+        rng = pace_ranges.get(level)
+        if not rng:
+            continue
+        max_mph = rng.get('max_mph')
+        if isinstance(max_mph, (int, float)) and speed <= max_mph + 1e-6:
+            return level
+    return PACE_ZONE_LEVEL_ORDER[-1]
+
+
+def _scaled_pace_zone_value_from_speed(speed_mph, pace_ranges):
+    level = _pace_zone_level_from_speed(speed_mph, pace_ranges)
+    if not isinstance(level, int):
+        return None
+    rng = pace_ranges.get(level) or {}
+    try:
+        min_mph = float(rng.get('min_mph', 0.0))
+        max_mph = float(rng.get('max_mph', min_mph + 0.5))
+        speed = float(speed_mph)
+    except (TypeError, ValueError):
+        return float(level)
+    span = max(max_mph - min_mph, 0.25)
+    clamped = min(max(speed, min_mph), max_mph)
+    frac = (clamped - min_mph) / span
+    return (level - 0.5) + max(0.0, min(frac, 1.0))
+
+
+def _resolve_pace_context(user_profile, workout_date, discipline):
+    activity_type = 'walking' if discipline in ['walking', 'walk'] else 'running'
+    pace_level = None
+    if user_profile and workout_date and hasattr(user_profile, 'get_pace_at_date'):
+        try:
+            pace_level = user_profile.get_pace_at_date(workout_date, activity_type=activity_type)
+        except Exception:
+            pace_level = None
+    if pace_level is None and user_profile and hasattr(user_profile, 'get_current_pace'):
+        try:
+            pace_level = user_profile.get_current_pace(activity_type=activity_type)
+        except Exception:
+            pace_level = None
+    if pace_level is None and user_profile:
+        pace_level = getattr(user_profile, 'pace_target_level', None)
+    try:
+        pace_level = int(pace_level)
+    except Exception:
+        pace_level = None
+    if pace_level is None or pace_level < 1 or pace_level > 10:
+        pace_level = 5
+
+    pace_level_data = None
+    try:
+        if activity_type == 'walking':
+            from accounts.walking_pace_levels_data import DEFAULT_WALKING_PACE_LEVELS
+
+            pace_level_data = DEFAULT_WALKING_PACE_LEVELS.get(pace_level)
+        else:
+            from accounts.pace_converter import DEFAULT_RUNNING_PACE_LEVELS
+
+            pace_level_data = DEFAULT_RUNNING_PACE_LEVELS.get(pace_level)
+    except Exception:
+        pace_level_data = None
+
+    pace_ranges = {}
+    pace_zone_thresholds = {}
+    if pace_level_data:
+        for level in PACE_ZONE_LEVEL_ORDER:
+            key = PACE_ZONE_LEVEL_TO_KEY[level]
+            zone_tuple = pace_level_data.get(key)
+            if not zone_tuple or len(zone_tuple) < 5:
+                continue
+            try:
+                min_mph = float(zone_tuple[0])
+                max_mph = float(zone_tuple[1])
+                min_pace = float(zone_tuple[2])  # decimal minutes per mile
+            except (TypeError, ValueError):
+                continue
+            pace_ranges[level] = {
+                'min_mph': min_mph,
+                'max_mph': max_mph,
+                'mid_mph': (min_mph + max_mph) / 2.0,
+                'zone_key': key,
+            }
+            try:
+                pace_zone_thresholds[key] = int(round(min_pace * 60.0))
+            except Exception:
+                continue
+
+    return {
+        'activity_type': activity_type,
+        'pace_level': pace_level,
+        'pace_ranges': pace_ranges or None,
+        'pace_zone_thresholds': pace_zone_thresholds or None,
+    }
+
+
+    mapping = {
+        "recovery": 1,
+        "easy": 2,
+        "moderate": 3,
+        "challenging": 4,
+        "hard": 5,
+        "very_hard": 6,
+        "max": 7,
+    }
+    return mapping.get(z)
 
 
 def _build_workout_card_chart(workout, user_profile=None):
@@ -2062,10 +4523,331 @@ def workout_detail(request, pk):
     return render(request, template_name, context)
 
 
+def _calculate_target_line_from_segments(segments, zone_ranges, seconds_array, user_ftp=None, spin_up_intervals=None):
+    """
+    Calculate target output line from class plan segments (from ride_detail.get_power_zone_segments()).
+    Uses the middle of each zone's watt range as the target.
+    Returns a list matching seconds_array length with target watts for each timestamp.
+    Shifts target line 60 seconds backwards (earlier).
+    Optionally accepts spin_up_intervals to backfill gaps (Spin Ups) so the line stays continuous.
+    """
+    if not segments or not zone_ranges or not seconds_array:
+        return []
+    
+    sample_count = len(seconds_array)
+    target_series = [None] * sample_count
+    max_timestamp = seconds_array[-1] if seconds_array else None
+    
+    # Shift target line 60 seconds backwards
+    TIME_SHIFT = -60
+    
+    # Try to get FTP directly; fallback to zone range upper bound (Z1 upper ≈ 55% FTP)
+    ftp_value = None
+    try:
+        if user_ftp:
+            ftp_value = float(user_ftp)
+    except (TypeError, ValueError):
+        ftp_value = None
+
+    zone_ranges_map = zone_ranges or {}
+
+    if ftp_value is None and zone_ranges_map:
+        zone1 = zone_ranges_map.get(1)
+        if zone1 and zone1[1]:
+            try:
+                ftp_value = float(zone1[1]) / 0.55
+            except (TypeError, ValueError, ZeroDivisionError):
+                ftp_value = None
+
+    zone_power_percentages = metrics_calculator.ZONE_POWER_PERCENTAGES
+
+    # Helper function to calculate target watts from zone number
+    def _zone_to_watts(zone_num):
+        if zone_num and ftp_value and zone_num in zone_power_percentages:
+            return round(ftp_value * zone_power_percentages[zone_num])
+
+        if zone_num and zone_num in zone_ranges_map:
+            lower, upper = zone_ranges_map[zone_num]
+            if lower is not None and upper is not None:
+                return round((lower + upper) / 2)
+            elif lower is not None:
+                if zone_num == 7:
+                    target_pct = zone_power_percentages.get(7)
+                    if target_pct and lower > 0:
+                        # lower ≈ 1.50 * FTP → rescale to target_pct
+                        scaling = target_pct / 1.50
+                        return round(lower * scaling)
+                return round(lower * 1.25)
+        return None
+    
+    base_segments = list(segments or [])
+
+    # Process each segment from the class plan
+    for segment in base_segments:
+        zone_num = segment.get('zone')
+        if not zone_num:
+            continue
+        
+        # Shift segment times 60 seconds backwards
+        start_time = max(0, segment.get('start', 0) + TIME_SHIFT)
+        end_time = max(0, segment.get('end', 0) + TIME_SHIFT)
+        
+        if end_time <= start_time:
+            continue
+        
+        # Skip segments that start after the workout ends (prevents index lookup failure)
+        if max_timestamp is not None and start_time > max_timestamp:
+            continue
+        
+        # Calculate target watts for this zone (middle of zone range)
+        target_watts = _zone_to_watts(zone_num)
+        if target_watts is None:
+            continue
+        
+        # Map time offsets to array indices using seconds_array
+        start_idx = 0
+        end_idx = sample_count
+        
+        for i, timestamp in enumerate(seconds_array):
+            if isinstance(timestamp, (int, float)) and timestamp >= start_time:
+                start_idx = i
+                break
+        
+        for i in range(len(seconds_array) - 1, -1, -1):
+            timestamp = seconds_array[i]
+            if isinstance(timestamp, (int, float)) and timestamp <= end_time:
+                end_idx = i + 1
+                break
+        
+        # Fill target_series for this segment
+        for i in range(start_idx, min(end_idx, sample_count)):
+            target_series[i] = target_watts
+
+    # Fill any gaps (None values) using spin-up intervals (treated as Zone 1 unless specified)
+    if spin_up_intervals:
+        for interval in spin_up_intervals:
+            if not isinstance(interval, dict):
+                continue
+            start_raw = interval.get('start')
+            end_raw = interval.get('end')
+            if start_raw is None or end_raw is None:
+                continue
+            try:
+                start_val = int(start_raw)
+                end_val = int(end_raw)
+            except (TypeError, ValueError):
+                continue
+            if end_val <= start_val:
+                continue
+
+            # Shift interval to match chart alignment
+            start_time = max(0, start_val + TIME_SHIFT)
+            end_time = max(0, end_val + TIME_SHIFT)
+            if end_time <= start_time:
+                continue
+            if max_timestamp is not None and start_time > max_timestamp:
+                continue
+
+            spin_zone = interval.get('zone') or 1
+            target_watts = _zone_to_watts(spin_zone)
+            if target_watts is None:
+                continue
+
+            start_idx = 0
+            end_idx = sample_count
+
+            for i, timestamp in enumerate(seconds_array):
+                if isinstance(timestamp, (int, float)) and timestamp >= start_time:
+                    start_idx = i
+                    break
+
+            for i in range(len(seconds_array) - 1, -1, -1):
+                timestamp = seconds_array[i]
+                if isinstance(timestamp, (int, float)) and timestamp <= end_time:
+                    end_idx = i + 1
+                    break
+
+            for i in range(start_idx, min(end_idx, sample_count)):
+                if target_series[i] is None:
+                    target_series[i] = target_watts
+    
+    # Convert to list of {timestamp, target_output} objects for template
+    target_line_list = []
+    for i, timestamp in enumerate(seconds_array):
+        if not isinstance(timestamp, (int, float)):
+            continue
+        target_line_list.append({
+            'timestamp': int(timestamp),
+            'target_output': target_series[i] if i < len(target_series) else None
+        })
+    
+    return target_line_list
 
 
+def _calculate_pace_target_line_from_segments(segments, seconds_array):
+    """
+    Calculate target pace line from class plan segments (for running/walking classes).
+    Returns a list matching seconds_array length with target pace zones (0-6) for each timestamp.
+    No time shift applied for pace targets (unlike power zones).
+    """
+    if not segments or not seconds_array:
+        return []
+    
+    sample_count = len(seconds_array)
+    max_timestamp = seconds_array[-1] if seconds_array else None
+    target_series = [None] * sample_count
+    
+    # Process each segment from the class plan
+    for idx, segment in enumerate(segments):
+        # Get pace zone/level (0-6)
+        zone_num = segment.get('zone') or segment.get('pace_level')
+        if zone_num is None:
+            continue
+        
+        # Ensure zone is in 0-6 range
+        zone_num = max(0, min(6, int(zone_num)))
+        
+        # Get segment times (no shift for pace targets)
+        start_time = max(0, segment.get('start', 0))
+        end_time = max(0, segment.get('end', 0))
+        
+        if end_time <= start_time:
+            continue
+        
+        # Skip segments that start after the workout ends (prevents index lookup failure)
+        if max_timestamp is not None and start_time > max_timestamp:
+            continue
+        
+        # Map time offsets to array indices using seconds_array
+        start_idx = 0
+        end_idx = sample_count
+        
+        for i, timestamp in enumerate(seconds_array):
+            if isinstance(timestamp, (int, float)) and timestamp >= start_time:
+                start_idx = i
+                break
+        
+        for i in range(len(seconds_array) - 1, -1, -1):
+            timestamp = seconds_array[i]
+            if isinstance(timestamp, (int, float)) and timestamp <= end_time:
+                end_idx = i + 1
+                break
+        
+        # Fill target_series for this segment
+        for i in range(start_idx, min(end_idx, sample_count)):
+            target_series[i] = zone_num
+    
+    # Convert to list of {timestamp, target_pace_zone} objects for template
+    target_line_list = []
+    for i, timestamp in enumerate(seconds_array):
+        if not isinstance(timestamp, (int, float)):
+            continue
+        target_line_list.append({
+            'timestamp': int(timestamp),
+            'target_pace_zone': target_series[i] if i < len(target_series) else None
+        })
+    
+    return target_line_list
 
 
+def _calculate_power_zone_target_line(target_metrics_list, user_ftp, seconds_array):
+    """
+    Calculate target output line data points from target_metrics_performance_data.
+    Returns a list matching seconds_array length with target watts for each timestamp.
+    Similar to reference implementation - creates a target_series array aligned with actual data.
+    Shifts target line 60 seconds backwards (earlier).
+    
+    Power zone target percentages:
+    Zone 1: 45% of FTP (active recovery target)
+    Zone 2: 65% of FTP (midpoint of 55-75%)
+    Zone 3: 82.5% of FTP (midpoint of 75-90%)
+    Zone 4: 97.5% of FTP (midpoint of 90-105%)
+    Zone 5: 112.5% of FTP (midpoint of 105-120%)
+    Zone 6: 135% of FTP (midpoint of 120-150%)
+    Zone 7: 160% of FTP (typical sprint target)
+    """
+    zone_power_percentages = metrics_calculator.ZONE_POWER_PERCENTAGES
+    
+    # Shift target line 60 seconds backwards
+    TIME_SHIFT = -60
+    
+    # Create target series array matching seconds_array length
+    sample_count = len(seconds_array)
+    target_series = [None] * sample_count
+    max_timestamp = seconds_array[-1] if seconds_array else None
+    
+    # Helper function to calculate target watts from zone number
+    def _zone_to_watts(zone_num):
+        if zone_num and zone_num in zone_power_percentages:
+            return round(user_ftp * zone_power_percentages[zone_num])
+        return None
+    
+    # Process each target metric segment
+    for segment in target_metrics_list:
+        if segment.get('segment_type') != 'power_zone':
+            continue
+            
+        offsets = segment.get('offsets', {})
+        # Shift segment times 60 seconds backwards
+        start_offset = max(0, offsets.get('start', 0) + TIME_SHIFT)
+        end_offset = max(0, offsets.get('end', 0) + TIME_SHIFT)
+        
+        if start_offset is None or end_offset is None or end_offset <= start_offset:
+            continue
+        
+        # Skip segments that start after the workout ends (prevents index lookup failure)
+        if max_timestamp is not None and start_offset > max_timestamp:
+            continue
+        
+        # Extract zone number from metrics
+        zone_num = None
+        for metric in segment.get('metrics', []):
+            if metric.get('name') == 'power_zone':
+                zone_lower = metric.get('lower')
+                zone_upper = metric.get('upper')
+                # Use lower if they match, otherwise use lower (we'll apply midpoint percentage)
+                zone_num = zone_lower if zone_lower == zone_upper else zone_lower
+                break
+        
+        if zone_num is None:
+            continue
+        
+        # Calculate target watts for this zone
+        target_watts = _zone_to_watts(zone_num)
+        if target_watts is None:
+            continue
+        
+        # Map time offsets to array indices using seconds_array
+        # Find indices where seconds_array matches start/end times
+        start_idx = 0
+        end_idx = sample_count
+        
+        for i, timestamp in enumerate(seconds_array):
+            if isinstance(timestamp, (int, float)) and timestamp >= start_offset:
+                start_idx = i
+                break
+        
+        for i in range(len(seconds_array) - 1, -1, -1):
+            timestamp = seconds_array[i]
+            if isinstance(timestamp, (int, float)) and timestamp <= end_offset:
+                end_idx = i + 1
+                break
+        
+        # Fill target_series for this segment
+        for i in range(start_idx, min(end_idx, sample_count)):
+            target_series[i] = target_watts
+    
+    # Convert to list of {timestamp, target_output} objects for template
+    target_line_list = []
+    for i, timestamp in enumerate(seconds_array):
+        if not isinstance(timestamp, (int, float)):
+            continue
+        target_line_list.append({
+            'timestamp': int(timestamp),
+            'target_output': target_series[i] if i < len(target_series) else None
+        })
+    
+    return target_line_list
 
 
 @login_required
@@ -2572,24 +5354,8 @@ def sync_workouts(request):
                         if not isinstance(equipment_ids, list):
                             equipment_ids = []
                         
-                        # Generate class URL
-                        peloton_class_url = f"https://members.onepeloton.com/classes/cycling/{ride_id}" if ride_id else ''
-                        # Try to determine discipline from ride_data
-                        fitness_discipline = ride_data.get('fitness_discipline', '')
-                        if fitness_discipline:
-                            # Map discipline to URL path
-                            discipline_paths = {
-                                'cycling': 'cycling',
-                                'running': 'treadmill',
-                                'walking': 'walking',
-                                'yoga': 'yoga',
-                                'strength': 'strength',
-                                'stretching': 'stretching',
-                                'meditation': 'meditation',
-                                'cardio': 'cardio',
-                            }
-                            path = discipline_paths.get(fitness_discipline, 'cycling')
-                            peloton_class_url = f"https://members.onepeloton.com/classes/{path}/{ride_id}"
+                        # Generate standardized Peloton URL in UK format
+                        peloton_class_url = generate_peloton_url(ride_id) if ride_id else ''
                         
                         ride_detail, ride_detail_created = RideDetail.objects.update_or_create(
                             peloton_ride_id=ride_id,

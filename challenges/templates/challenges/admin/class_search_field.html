@@ -1,0 +1,188 @@
+{% comment %}
+Reusable class search field component.
+Usage: {% include "challenges/admin/class_search_field.html" with activity=activity_type template_id=template.id week=week_number day=day_of_week item=assignment alt_index=1 %}
+
+Parameters:
+- activity: The activity type (ride, run, yoga, strength)
+- template_id: The template ID
+- week: The week number
+- day: The day of week number
+- item: The assignment object (for populated values)
+- alt_index: The alternative index (optional, for alternatives)
+{% endcomment %}
+
+<div class="relative">
+  {% with field_name=activity|default:"" %}
+  {% if alt_index %}
+    {% set ride_id_key="ride_id_"|add:template_id|add:"_"|add:week|add:"_"|add:day|add:"_"|add:activity|add:"_alt"|add:alt_index %}
+    {% set url_key="workout_"|add:template_id|add:"_"|add:week|add:"_"|add:day|add:"_"|add:activity|add:"_alt"|add:alt_index %}
+    {% set title_key="title_"|add:template_id|add:"_"|add:week|add:"_"|add:day|add:"_"|add:activity|add:"_alt"|add:alt_index %}
+  {% else %}
+    {% set ride_id_key="ride_id_"|add:template_id|add:"_"|add:week|add:"_"|add:day|add:"_"|add:activity %}
+    {% set url_key="workout_"|add:template_id|add:"_"|add:week|add:"_"|add:day|add:"_"|add:activity %}
+    {% set title_key="title_"|add:template_id|add:"_"|add:week|add:"_"|add:day|add:"_"|add:activity %}
+  {% endif %}
+  
+  <div class="mb-3 p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+    <!-- Search Input -->
+    <div class="mb-3">
+      <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        Search Classes from Library
+      </label>
+      <div class="relative">
+        <input
+          type="text"
+          class="class-search-input w-full px-3 py-2 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+          placeholder="Search by title, ID, or paste a URL... (e.g., 45 min Power Zone, f9800c4a3df, or peloton.com link)"
+          data-activity="{{ activity }}"
+          data-template="{{ template_id }}"
+          data-week="{{ week }}"
+          data-day="{{ day }}"
+          data-alt="{{ alt_index|default:0 }}"
+        />
+        <div class="absolute right-3 top-2.5 text-gray-400 dark:text-gray-600">
+          <svg class="w-5 h-5 animate-none search-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+          </svg>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Search Results Dropdown -->
+    <div class="class-search-results hidden absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-96 overflow-y-auto">
+      <!-- Results will be inserted here by JavaScript -->
+    </div>
+    
+    <!-- Hidden fields for selected class -->
+    <input type="hidden" name="{{ ride_id_key }}" class="selected-ride-id" value="{{ item.ride_detail.id|default:'' }}" />
+    
+    <!-- Display selected class info -->
+    <div class="selected-class-info {% if not item.ride_detail %}hidden{% endif %} mt-3 p-3 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
+      <div class="flex items-start justify-between">
+        <div class="flex-1">
+          <p class="text-sm font-semibold text-green-900 dark:text-green-100 selected-class-title">
+            {% if item.ride_detail %}{{ item.ride_detail.title }}{% endif %}
+          </p>
+          <p class="text-xs text-green-700 dark:text-green-300 mt-1">
+            <span class="selected-class-discipline">{% if item.ride_detail %}{{ item.ride_detail.fitness_discipline_display_name }}{% endif %}</span>
+            {% if item.ride_detail %} • <span class="selected-class-instructor">{{ item.ride_detail.instructor.name|default:"Unknown" }}</span> • <span class="selected-class-duration">{{ item.ride_detail.duration_minutes }}min</span>{% endif %}
+          </p>
+        </div>
+        <button type="button" class="clear-selection-btn px-2 py-1 text-xs text-green-700 dark:text-green-300 hover:text-red-700 dark:hover:text-red-300 transition-colors" title="Clear selection">
+          ✕
+        </button>
+      </div>
+    </div>
+    
+    <!-- Fallback: Manual URL entry -->
+    <div class="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+      <label class="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
+        Or enter URL manually
+      </label>
+      <div class="flex gap-2">
+        <input
+          type="url"
+          name="{{ url_key }}"
+          value="{% if item %}{{ item.peloton_url }}{% endif %}"
+          placeholder="https://members.onepeloton.com/... (optional if class is selected above)"
+          class="flex-1 px-3 py-2 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent workout-url-input"
+        />
+      </div>
+    </div>
+  </div>
+  {% endwith %}
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Initialize search inputs
+  const searchInputs = document.querySelectorAll('.class-search-input');
+  
+  searchInputs.forEach(input => {
+    // Search functionality
+    let searchTimeout;
+    input.addEventListener('input', function() {
+      clearTimeout(searchTimeout);
+      const query = this.value.trim();
+      const activity = this.dataset.activity;
+      
+      if (query.length < 2) {
+        this.parentElement.querySelector('.class-search-results').classList.add('hidden');
+        return;
+      }
+      
+      searchTimeout = setTimeout(() => {
+        fetch(`/challenges/api/search-classes/?q=${encodeURIComponent(query)}&activity=${encodeURIComponent(activity)}`)
+          .then(response => response.json())
+          .then(data => {
+            const resultsDiv = this.parentElement.querySelector('.class-search-results');
+            resultsDiv.innerHTML = '';
+            
+            if (data.results.length === 0) {
+              resultsDiv.innerHTML = '<div class="p-4 text-sm text-gray-600 dark:text-gray-400">No classes found</div>';
+            } else {
+              data.results.forEach(ride => {
+                const resultItem = document.createElement('div');
+                resultItem.className = 'px-4 py-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 border-b border-gray-200 dark:border-gray-700 last:border-b-0 transition-colors';
+                resultItem.innerHTML = `
+                  <div class="text-sm font-medium text-gray-900 dark:text-white">${ride.title}</div>
+                  <div class="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                    ${ride.discipline} • ${ride.instructor} • ${ride.duration}min • ${ride.difficulty}
+                  </div>
+                `;
+                
+                resultItem.addEventListener('click', function() {
+                  selectClass(input, ride);
+                });
+                
+                resultsDiv.appendChild(resultItem);
+              });
+            }
+            
+            resultsDiv.classList.remove('hidden');
+          })
+          .catch(error => {
+            console.error('Search error:', error);
+          });
+      }, 300); // Debounce 300ms
+    });
+    
+    // Hide results when clicking outside
+    document.addEventListener('click', function(e) {
+      if (!input.parentElement.contains(e.target)) {
+        input.parentElement.querySelector('.class-search-results').classList.add('hidden');
+      }
+    });
+  });
+  
+  // Clear selection buttons
+  document.querySelectorAll('.clear-selection-btn').forEach(btn => {
+    btn.addEventListener('click', function(e) {
+      e.preventDefault();
+      const container = this.closest('.relative');
+      container.querySelector('.selected-ride-id').value = '';
+      container.querySelector('.selected-class-info').classList.add('hidden');
+      container.querySelector('.class-search-input').value = '';
+      container.querySelector('.class-search-results').classList.add('hidden');
+    });
+  });
+});
+
+function selectClass(input, ride) {
+  const container = input.parentElement.closest('.relative');
+  
+  // Update hidden field with ride ID
+  container.querySelector('.selected-ride-id').value = ride.id;
+  
+  // Update display
+  container.querySelector('.selected-class-title').textContent = ride.title;
+  container.querySelector('.selected-class-discipline').textContent = ride.discipline;
+  container.querySelector('.selected-class-instructor').textContent = ride.instructor;
+  container.querySelector('.selected-class-duration').textContent = ride.duration + 'min';
+  container.querySelector('.selected-class-info').classList.remove('hidden');
+  
+  // Clear search input and results
+  input.value = '';
+  container.querySelector('.class-search-results').classList.add('hidden');
+}
+</script>
