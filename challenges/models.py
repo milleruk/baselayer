@@ -30,6 +30,7 @@ class Challenge(models.Model):
     is_visible = models.BooleanField(default=True, help_text="Whether this challenge is visible for signup")
     team_leaders_can_see_users = models.BooleanField(default=False, help_text="Whether team leaders can see the user list (only after challenge starts)")
     team_leaders_see_users_date = models.DateField(null=True, blank=True, help_text="Date when team leaders can see the user list (optional, defaults to challenge start date)")
+    plans_go_live_date = models.DateField(null=True, blank=True, help_text="Date when challenge plans become visible to participants (can be before start_date). If not set, plans are visible immediately upon signup.")
     challenge_type = models.CharField(max_length=20, choices=CHALLENGE_TYPE_CHOICES, default="mini")
     categories = models.CharField(max_length=200, blank=True, default="", help_text="Comma-separated categories (cycling,running,strength,yoga)")
     image = models.ImageField(upload_to="challenges/", blank=True, null=True, help_text="Challenge logo/image")
@@ -216,7 +217,7 @@ class ChallengeInstance(models.Model):
     challenge = models.ForeignKey(Challenge, on_delete=models.CASCADE, related_name="instances")
     selected_template = models.ForeignKey(PlanTemplate, on_delete=models.SET_NULL, null=True, blank=True,
                                          help_text="User's chosen plan template for this challenge")
-    include_kegels = models.BooleanField(default=True, help_text="Whether user wants to include Kegel exercises in their plan")
+    include_recovery_sessions = models.BooleanField(default=True, help_text="Whether user wants to include recovery sessions on rest days")
     started_at = models.DateTimeField(auto_now_add=True)
     completed_at = models.DateTimeField(null=True, blank=True)
     is_active = models.BooleanField(default=True)
@@ -245,10 +246,28 @@ class ChallengeInstance(models.Model):
     @property
     def all_weeks_completed(self):
         """Check if all weeks in this challenge are completed"""
-        plans = self.weekly_plans.all()
+        plans = list(self.weekly_plans.all().order_by("week_start"))
         if not plans:
             return False
-        return all(plan.is_completed for plan in plans)
+
+        if self.challenge.has_ended:
+            required_plans = plans
+        else:
+            required_plans = []
+            for idx, plan in enumerate(plans, start=1):
+                if self.challenge.is_week_unlocked(idx):
+                    required_plans.append(plan)
+
+        if not required_plans:
+            return False
+
+        return all(plan.meets_bronze for plan in required_plans)
+
+    @property
+    def completed_during_live(self):
+        if not self.completed_at:
+            return False
+        return self.completed_at.date() <= self.challenge.end_date
     
     def can_leave_challenge(self):
         """
@@ -481,9 +500,12 @@ class ChallengeBonusWorkout(models.Model):
         ],
         help_text="Type of activity"
     )
-    peloton_url = models.URLField(blank=True, help_text="Peloton workout URL (leave empty for 'Any 30 min+ Peloton Workout')")
+    peloton_url = models.URLField(blank=True, help_text="Peloton workout URL (leave empty for 'Any 30 min+ Peloton Workout' or generic recovery session)")
     workout_title = models.CharField(max_length=200, blank=True, help_text="Optional: Workout title/description")
     points = models.IntegerField(default=10, help_text="Points awarded for completing this bonus workout")
+    duration_minutes = models.IntegerField(null=True, blank=True, help_text="Duration in minutes for generic recovery sessions")
+    is_recovery = models.BooleanField(default=False, help_text="Whether this is a recovery session (yoga/pilates/breathwork)")
+    category_restriction = models.CharField(max_length=100, blank=True, help_text="Comma-separated categories for recovery sessions (e.g., 'yoga,breathwork')")
     
     class Meta:
         db_table = "tracker_challengebonusworkout"

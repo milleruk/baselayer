@@ -21,19 +21,18 @@ def generate_weekly_plan(*, user, week_start, template, start_from_today=False, 
     # Clear existing items if regenerating
     weekly.items.all().delete()
 
-    # Pull exercises (you can tune these later)
+    # Pull exercises (recovery and mobility)
     def ex(name):
-        return Exercise.objects.get(name=name)
+        try:
+            return Exercise.objects.get(name=name)
+        except Exercise.DoesNotExist:
+            # Fallback to first mobility exercise if specific exercise not found
+            return Exercise.objects.filter(category="mobility").first()
 
-    # Core set (based on what you've been using)
-    basic = ex("Basic Kegel")
-    pulse = ex("Pulse Kegels")
-    elevator = ex("Elevator Kegels")
-    longhold = ex("Long-Hold Kegel")
-    reverse = ex("Reverse Kegels")
+    # Core set - mobility exercises only (Kegels removed)
     tilts = ex("Pelvic Tilts")
-    happy = ex("Happy Baby Release")
     clocks = ex("Pelvic Clocks")
+    happy = ex("Happy Baby Release")
 
     day_map = {d.day_of_week: d for d in template.days.all()}
     
@@ -52,19 +51,13 @@ def generate_weekly_plan(*, user, week_start, template, start_from_today=False, 
 
         focus = td.peloton_focus
 
-        # Assign exercise blocks by focus keyword (simple + effective starter)
+        # Assign mobility exercise by focus keyword (recovery-focused)
         focus_lower = focus.lower()
 
-        if "pze" in focus_lower:
-            picks = [elevator, reverse, tilts]
-        elif "power zone" in focus_lower or "pz" in focus_lower or "threshold" in focus_lower:
-            picks = [longhold, reverse]
-        elif "run" in focus_lower:
-            picks = [pulse, longhold]
-        elif "yoga" in focus_lower or "recovery" in focus_lower:
-            picks = [reverse, clocks, happy]
+        if "yoga" in focus_lower or "recovery" in focus_lower:
+            picks = [clocks, happy]
         else:
-            picks = [basic, reverse]
+            picks = [tilts]
 
         # Get Peloton workout assignments if this is part of a challenge
         # Group assignments by activity type, handling alternatives
@@ -98,21 +91,16 @@ def generate_weekly_plan(*, user, week_start, template, start_from_today=False, 
                 elif activity_type == "strength":
                     peloton_urls["strength"] = first_assignment.peloton_url
         
-        # Check if user wants Kegels (only for challenge instances)
-        include_kegels = True  # Default to True for standalone plans
+        # Check if user wants recovery sessions (only for challenge instances)
+        include_recovery_sessions = True  # Default to True for standalone plans
         if challenge_instance:
-            include_kegels = challenge_instance.include_kegels
+            include_recovery_sessions = challenge_instance.include_recovery_sessions
         
         # Create items for Peloton workouts (including alternatives)
         # When there are alternatives, create one item per alternative
         if peloton_assignments:
-            # Always provide an exercise (required by model)
-            # When Kegels are disabled, use a non-kegel exercise (tilts) as placeholder
-            if include_kegels and picks:
-                exercise_to_use = picks[0]
-            else:
-                # Use a non-kegel mobility exercise when kegels are disabled
-                exercise_to_use = tilts
+            # Always provide an exercise (required by model) - use mobility exercise
+            exercise_to_use = tilts
             
             # Create items for each activity type and its alternatives
             for activity_type, assignment_list in peloton_assignments.items():
@@ -145,10 +133,7 @@ def generate_weekly_plan(*, user, week_start, template, start_from_today=False, 
                     )
         elif peloton_urls:
             # Fallback for backward compatibility (single workout per activity)
-            if include_kegels and picks:
-                exercise_to_use = picks[0]
-            else:
-                exercise_to_use = tilts
+            exercise_to_use = tilts
             
             DailyPlanItem.objects.create(
                 weekly_plan=weekly,
@@ -164,37 +149,23 @@ def generate_weekly_plan(*, user, week_start, template, start_from_today=False, 
                 peloton_yoga_url=peloton_urls.get("yoga"),
                 peloton_strength_url=peloton_urls.get("strength"),
             )
-        
-        # If Kegels are enabled, also create Kegel exercise items
-        if include_kegels:
-            for e in picks:
-                # Skip if we already created an item for this day (when Peloton workout exists)
-                if not peloton_urls:
-                    DailyPlanItem.objects.create(
-                        weekly_plan=weekly,
-                        day_of_week=dow,
-                        peloton_focus=focus,
-                        exercise=e,
-                        ride_done=False,
-                        run_done=False,
-                        yoga_done=False,
-                        strength_done=False,
-                    )
     
     # Add bonus workouts for this week (same for all templates)
     if challenge_instance and week_number:
         challenge = challenge_instance.challenge
+        
+        # Regular bonus workouts (for extra credit points)
         bonus_workouts = ChallengeBonusWorkout.objects.filter(
             challenge=challenge,
-            week_number=week_number
+            week_number=week_number,
+            is_recovery=False  # Regular bonus workouts only
         )
         
         for bonus in bonus_workouts:
-            # Use tilts as placeholder exercise (non-kegel)
+            # Use tilts as placeholder exercise
             exercise_to_use = tilts
             
-            # Create bonus workout item - use Saturday (day 6) as the day, or we could add a special day
-            # For now, add it as a separate item that can be displayed separately
+            # Create bonus workout item - use Saturday (day 6) as the day
             DailyPlanItem.objects.create(
                 weekly_plan=weekly,
                 day_of_week=6,  # Saturday - bonus workouts
@@ -210,6 +181,39 @@ def generate_weekly_plan(*, user, week_start, template, start_from_today=False, 
                 peloton_strength_url=bonus.peloton_url if bonus.activity_type == "strength" else None,
                 points_earned=bonus.points,  # Use bonus workout points
             )
+        
+        # Recovery sessions (yoga/pilates/breathwork on rest days)
+        if include_recovery_sessions:
+            recovery_sessions = ChallengeBonusWorkout.objects.filter(
+                challenge=challenge,
+                week_number=week_number,
+                is_recovery=True
+            )
+            
+            for recovery in recovery_sessions:
+                # Use tilts as placeholder exercise
+                exercise_to_use = tilts
+                
+                # Determine activity type based on category restriction
+                # Default to yoga if not specified
+                activity_type = recovery.activity_type if recovery.activity_type else "yoga"
+                
+                # Create recovery session item
+                DailyPlanItem.objects.create(
+                    weekly_plan=weekly,
+                    day_of_week=6,  # For now, add to Saturday - could be distributed to rest days
+                    peloton_focus=f"Recovery: {recovery.workout_title or recovery.get_activity_type_display().title()}",
+                    exercise=exercise_to_use,
+                    ride_done=False,
+                    run_done=False,
+                    yoga_done=False,
+                    strength_done=False,
+                    peloton_ride_url=recovery.peloton_url if recovery.peloton_url and activity_type == "ride" else None,
+                    peloton_run_url=recovery.peloton_url if recovery.peloton_url and activity_type == "run" else None,
+                    peloton_yoga_url=recovery.peloton_url if recovery.peloton_url and activity_type == "yoga" else None,
+                    peloton_strength_url=recovery.peloton_url if recovery.peloton_url and activity_type == "strength" else None,
+                    points_earned=recovery.points,  # Default 0 for recovery, but can be set for bonus weeks
+                )
 
     return weekly
 

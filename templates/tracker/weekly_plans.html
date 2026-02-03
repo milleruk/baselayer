@@ -29,6 +29,25 @@
   </div>
 </div>
 
+{% if locked_challenges %}
+{% for locked_challenge in locked_challenges %}
+<div class="mb-6 rounded-lg border border-purple-200 dark:border-purple-800 bg-purple-50 dark:bg-purple-900/20 p-4">
+  <div class="flex items-start gap-4">
+    <div class="text-2xl">🔒</div>
+    <div class="flex-1">
+      <h3 class="font-semibold text-purple-900 dark:text-purple-200 mb-1">{{ locked_challenge.name }} - Plans Coming Soon</h3>
+      <p class="text-sm text-purple-800 dark:text-purple-300 mb-2">
+        Your spot is secured! Training plans unlock on {{ locked_challenge.plans_go_live_date|date:"F j, Y" }}.
+      </p>
+      <a href="{% url 'challenges:challenge_detail' locked_challenge.id %}" class="inline-flex items-center text-sm font-medium text-purple-700 dark:text-purple-300 hover:text-purple-900 dark:hover:text-purple-100">
+        View details <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+      </a>
+    </div>
+  </div>
+</div>
+{% endfor %}
+{% endif %}
+
 {% if active_challenge_instance %}
 <div class="mb-6 rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 p-4">
   <div class="flex items-start gap-4">

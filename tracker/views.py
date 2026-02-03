@@ -22,25 +22,54 @@ def sunday_of_current_week(d: date) -> date:
 
 @login_required
 def weekly_plans(request):
-    # Use ChallengeService to get organized challenge data
-    challenge_data = ChallengeService.get_user_challenge_with_week_info(request.user)
-    
-    # Get active challenge using service
-    active_challenge_instance = ChallengeService.get_active_challenge(request.user)
-    
-    # Check if user has a plan for the current week
+    """Show current week's plan directly"""
     current_week_start = DateRangeService.sunday_of_current_week(date.today())
-    existing_current_week_plan = ChallengeService.has_current_week_plan(request.user, current_week_start)
-        # For past challenges that are completed, still show them but mark as completed
     
+    # Try to find a plan for the current week (from any source - challenge or standalone)
+    current_plan = WeeklyPlan.objects.filter(
+        user=request.user,
+        week_start=current_week_start
+    ).first()
+    
+    if current_plan:
+        # Load and show the plan detail directly
+        return plan_detail(request, pk=current_plan.id)
+    
+    # No current week plan - check for active challenge plans
+    active_challenge_instance = ChallengeService.get_active_challenge(request.user)
+
+    if active_challenge_instance:
+        challenge_plans = list(active_challenge_instance.weekly_plans.all().order_by("week_start"))
+        if challenge_plans:
+            if active_challenge_instance.challenge.has_ended:
+                return redirect(
+                    "challenges:challenge_detail_week",
+                    challenge_id=active_challenge_instance.challenge.id,
+                    week_number=1,
+                )
+
+            current_index = None
+            for idx, plan in enumerate(challenge_plans, start=1):
+                if plan.week_start == current_week_start:
+                    current_index = idx
+                    break
+
+            if current_index is None:
+                current_index = 1
+
+            return redirect(
+                "challenges:challenge_detail_week",
+                challenge_id=active_challenge_instance.challenge.id,
+                week_number=current_index,
+            )
+
+    # No active challenge plans - show page with options to generate or join challenge
     # Get standalone plans (not part of a challenge)
-    standalone_plans = WeeklyPlan.objects.filter(user=request.user, challenge_instance__isnull=True).order_by("-week_start")
-    
-    return render(request, "tracker/weekly_plans.html", {
-        "plans_by_challenge": challenge_data,
-        "standalone_plans": standalone_plans,
+    standalone_plans = WeeklyPlan.objects.filter(user=request.user, challenge_instance__isnull=True).order_by("-week_start")[:5]
+
+    return render(request, "tracker/no_current_plan.html", {
         "active_challenge_instance": active_challenge_instance,
-        "existing_current_week_plan": existing_current_week_plan,
+        "standalone_plans": standalone_plans,
     })
 
 @login_required
@@ -210,8 +239,8 @@ def plan_detail(request, pk):
         first_bonus = bonus_workouts[0]
         bonus_completed = first_bonus.ride_done or first_bonus.run_done or first_bonus.yoga_done or first_bonus.strength_done
     
-    # Filter out Kegel exercises if user disabled them in challenge (only for regular items)
-    if plan.challenge_instance and not plan.challenge_instance.include_kegels:
+    # Filter out Kegel exercises if user disabled recovery sessions in challenge (only for regular items)
+    if plan.challenge_instance and not plan.challenge_instance.include_recovery_sessions:
         # Only show items that have Peloton workouts AND are not kegel exercises
         items = items.filter(
             (Q(peloton_ride_url__isnull=False) |
@@ -345,8 +374,8 @@ def plan_detail(request, pk):
     current_focus = ""
     current_items = []
     
-    # When include_kegels=False, only show items with Peloton URLs (no exercise-only items)
-    show_only_peloton_items = plan.challenge_instance and not plan.challenge_instance.include_kegels
+    # When include_recovery_sessions=False, only show items with Peloton URLs (no exercise-only items)
+    show_only_peloton_items = plan.challenge_instance and not plan.challenge_instance.include_recovery_sessions
 
     for item in items:
         if current_day is None:
@@ -369,7 +398,7 @@ def plan_detail(request, pk):
             has_yoga = "yoga" in focus_lower
             has_strength = "strength" in focus_lower
             
-            # Calculate day points (only count exercise points if include_kegels=True)
+            # Calculate day points (only count exercise points if include_recovery_sessions=True)
             if show_only_peloton_items:
                 day_exercise_points = 0  # No exercise points when kegels are disabled
             else:
@@ -615,18 +644,6 @@ def plan_detail(request, pk):
     if plan.challenge_instance:
         can_leave, leave_error = plan.challenge_instance.can_leave_challenge()
     
-    # Debug: Print workout_days structure
-    print(f"DEBUG: workout_days count: {len(workout_days)}")
-    print(f"DEBUG: workout_days type: {type(workout_days)}")
-    for i, wd in enumerate(workout_days):
-        if isinstance(wd, dict):
-            print(f"DEBUG: Day {wd.get('day_number', 'N/A')}: {len(wd.get('alternatives', []))} alternatives")
-            if wd.get('alternatives'):
-                for alt in wd['alternatives']:
-                    print(f"  - {alt.get('activity_type')}: {alt.get('peloton_url', 'NO URL')[:50]}")
-        else:
-            print(f"DEBUG: Item {i} is not a dict, it's {type(wd)}: {wd}")
-    
     # Get user profile for FTP and pace target level
     from accounts.models import Profile
     try:
@@ -653,7 +670,7 @@ def plan_detail(request, pk):
         "challenge_structure": challenge_structure,
         "can_leave": can_leave,
         "leave_error": leave_error,
-        "include_kegels": plan.challenge_instance.include_kegels if plan.challenge_instance else True,
+        "include_recovery_sessions": plan.challenge_instance.include_recovery_sessions if plan.challenge_instance else True,
         "bonus_workouts": bonus_workouts,
         "bonus_completed": bonus_completed,
         "user_ftp": user_ftp,
@@ -726,11 +743,19 @@ def toggle_done(request, pk):
     # Check if week is now completed
     week_completed = False
     next_week_unlocked = False
-    if plan.completion_rate >= 80 and not plan.completed_at:
+    challenge_completed = False
+    if plan.meets_bronze and not plan.completed_at:
         plan.completed_at = timezone.now()
         plan.save(update_fields=["completed_at"])
         week_completed = True
         week_completed_msg = f"🎉 Week completed! Total points: {plan.total_points}"
+
+        if plan.challenge_instance and plan.challenge_instance.all_weeks_completed and not plan.challenge_instance.completed_at:
+            plan.challenge_instance.is_active = False
+            plan.challenge_instance.completed_at = timezone.now()
+            plan.challenge_instance.save(update_fields=["is_active", "completed_at"])
+            challenge_completed = True
+            challenge_completed_msg = f"🏆 Challenge '{plan.challenge_instance.challenge.name}' completed!"
         
         # For active challenges, auto-generate next week if it doesn't exist
         if plan.challenge_instance and plan.challenge_instance.challenge.is_currently_running:
@@ -783,6 +808,9 @@ def toggle_done(request, pk):
         }
         if week_completed:
             response_data["week_completed_msg"] = week_completed_msg
+        if challenge_completed:
+            response_data["challenge_completed"] = True
+            response_data["challenge_completed_msg"] = challenge_completed_msg
         if next_week_unlocked:
             response_data["next_week_unlocked"] = True
             response_data["next_week_msg"] = next_week_msg
@@ -792,6 +820,8 @@ def toggle_done(request, pk):
     messages.success(request, success_msg)
     if week_completed:
         messages.success(request, week_completed_msg)
+    if challenge_completed:
+        messages.success(request, challenge_completed_msg)
     if next_week_unlocked:
         messages.info(request, next_week_msg)
     
@@ -948,11 +978,19 @@ def toggle_activity(request, pk, activity):
     # Check if week is now completed
     week_completed = False
     next_week_unlocked = False
-    if plan.completion_rate >= 80 and not plan.completed_at:
+    challenge_completed = False
+    if plan.meets_bronze and not plan.completed_at:
         plan.completed_at = timezone.now()
         plan.save(update_fields=["completed_at"])
         week_completed = True
         week_completed_msg = f"🎉 Week completed! Total points: {plan.total_points}"
+
+        if plan.challenge_instance and plan.challenge_instance.all_weeks_completed and not plan.challenge_instance.completed_at:
+            plan.challenge_instance.is_active = False
+            plan.challenge_instance.completed_at = timezone.now()
+            plan.challenge_instance.save(update_fields=["is_active", "completed_at"])
+            challenge_completed = True
+            challenge_completed_msg = f"🏆 Challenge '{plan.challenge_instance.challenge.name}' completed!"
         
         # For active challenges, auto-generate next week if it doesn't exist
         if plan.challenge_instance and plan.challenge_instance.challenge.is_currently_running:
@@ -1056,6 +1094,9 @@ def toggle_activity(request, pk, activity):
         }
         if week_completed:
             response_data["week_completed_msg"] = week_completed_msg
+        if challenge_completed:
+            response_data["challenge_completed"] = True
+            response_data["challenge_completed_msg"] = challenge_completed_msg
         if next_week_unlocked:
             response_data["next_week_unlocked"] = True
             response_data["next_week_msg"] = next_week_msg
@@ -1065,6 +1106,8 @@ def toggle_activity(request, pk, activity):
     messages.success(request, success_msg)
     if week_completed:
         messages.success(request, week_completed_msg)
+    if challenge_completed:
+        messages.success(request, challenge_completed_msg)
     if next_week_unlocked:
         messages.info(request, next_week_msg)
     

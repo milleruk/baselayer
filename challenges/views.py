@@ -20,7 +20,10 @@ def sunday_of_current_week(d: date) -> date:
     DEPRECATED: Use DateRangeService.sunday_of_current_week() instead.
     This wrapper is kept for backward compatibility.
     """
-    return DateRangeService.sunday_of_current_week(d)@login_required
+    return DateRangeService.sunday_of_current_week(d)
+
+
+@login_required
 def challenges_list(request):
     """List all available challenges"""
     today = date.today()
@@ -180,14 +183,15 @@ def select_challenge_template(request, challenge_id):
         
         # Store template selection in session
         request.session[f'challenge_{challenge_id}_template_id'] = template_id
-        request.session[f'challenge_{challenge_id}_include_kegels'] = request.POST.get("include_kegels") == "on"
+        request.session[f'challenge_{challenge_id}_include_recovery_sessions'] = request.POST.get("include_recovery_sessions") == "on"
         request.session[f'challenge_{challenge_id}_delete_existing_plan'] = request.POST.get("delete_existing_plan") == "true"
         
-        # For team challenges, redirect to team selection; otherwise go directly to join
-        if challenge.challenge_type == "team":
+        # For team challenges (that haven't ended), redirect to team selection; otherwise go directly to join
+        # Past challenges should skip team selection even if they were originally team challenges
+        if challenge.challenge_type == "team" and not challenge.has_ended:
             return redirect("challenges:select_team", challenge_id=challenge_id)
         else:
-            # For non-team challenges, skip team selection and go directly to join
+            # For non-team challenges or past challenges, skip team selection and go directly to join
             request.session[f'challenge_{challenge_id}_team_option'] = None
             return redirect("challenges:join_challenge", challenge_id=challenge_id)
     
@@ -272,7 +276,7 @@ def join_challenge(request, challenge_id):
     
     # Get template and team info from session
     template_id = request.session.get(f'challenge_{challenge_id}_template_id')
-    include_kegels = request.session.get(f'challenge_{challenge_id}_include_kegels', True)
+    include_recovery_sessions = request.session.get(f'challenge_{challenge_id}_include_recovery_sessions', True)
     delete_existing_plan = request.session.get(f'challenge_{challenge_id}_delete_existing_plan', False)
     team_option = request.session.get(f'challenge_{challenge_id}_team_option')
     team_id = request.session.get(f'challenge_{challenge_id}_team_id')
@@ -280,8 +284,9 @@ def join_challenge(request, challenge_id):
     volunteer_team_lead = request.session.get(f'challenge_{challenge_id}_volunteer_team_lead', False)
     
     # If POST or if we have session data, create challenge instance with selected template and team
-    # For team challenges, require team_option; for others, only require template_id
-    has_required_data = template_id and (challenge.challenge_type != "team" or team_option)
+    # For team challenges, require team_option unless it's a past challenge
+    requires_team_option = challenge.challenge_type == "team" and not challenge.has_ended
+    has_required_data = template_id and (not requires_team_option or team_option)
     if request.method == "POST" or has_required_data:
         # Double-check constraints based on challenge start date
         today = date.today()
@@ -318,8 +323,8 @@ def join_challenge(request, challenge_id):
                     del request.session[key]
             return redirect("challenges:select_challenge_template", challenge_id=challenge_id)
         
-        # Only require team selection for team challenges
-        if challenge.challenge_type == "team" and not team_option:
+        # Only require team selection for team challenges that haven't ended
+        if challenge.challenge_type == "team" and not challenge.has_ended and not team_option:
             messages.error(request, "Please select a team option.")
             # Clear session
             for key in list(request.session.keys()):
@@ -397,9 +402,9 @@ def join_challenge(request, challenge_id):
             challenge_instance.selected_template = template
             challenge_instance.is_active = True  # Ensure it stays active
             challenge_instance.completed_at = None
-            challenge_instance.include_kegels = include_kegels
+            challenge_instance.include_recovery_sessions = include_recovery_sessions
             challenge_instance.started_at = timezone.now()  # Update start time for new attempt
-            challenge_instance.save(update_fields=["selected_template", "is_active", "completed_at", "include_kegels", "started_at"])
+            challenge_instance.save(update_fields=["selected_template", "is_active", "completed_at", "include_recovery_sessions", "started_at"])
         else:
             # Create new instance (fresh attempt)
             challenge_instance = ChallengeInstance.objects.create(
@@ -407,7 +412,7 @@ def join_challenge(request, challenge_id):
                 challenge=challenge,
                 is_active=True,
                 selected_template=template,
-                include_kegels=include_kegels
+                include_recovery_sessions=include_recovery_sessions
             )
         
         # Auto-generate weekly plans for the challenge duration
@@ -504,11 +509,13 @@ def complete_challenge(request, challenge_instance_id):
         messages.error(request, "You don't have permission to complete this challenge.")
         return redirect("tracker:weekly_plans")
     
-    # For past challenges, require all weeks to be completed
-    if challenge_instance.challenge.has_ended:
-        if not challenge_instance.all_weeks_completed:
-            messages.warning(request, f"Please complete all weeks of '{challenge_instance.challenge.name}' before marking it as completed.")
-            return redirect("tracker:weekly_plans")
+    # Require all required weeks to be completed (all weeks if past, unlocked weeks if active)
+    if not challenge_instance.all_weeks_completed:
+        messages.warning(
+            request,
+            f"Please complete all available weeks of '{challenge_instance.challenge.name}' before marking it as completed."
+        )
+        return redirect("tracker:weekly_plans")
     
     if request.method == "POST":
         challenge_instance.is_active = False
@@ -561,14 +568,14 @@ def retake_challenge(request, challenge_id):
     # If user has a previous instance, use their last template choice
     # Otherwise, redirect to template selection
     template = None
-    include_kegels = True
+    include_recovery_sessions = True
     
     if last_completed and last_completed.selected_template:
         template = last_completed.selected_template
-        include_kegels = last_completed.include_kegels
+        include_recovery_sessions = last_completed.include_recovery_sessions
     elif last_any and last_any.selected_template:
         template = last_any.selected_template
-        include_kegels = last_any.include_kegels
+        include_recovery_sessions = last_any.include_recovery_sessions
     elif challenge.default_template:
         template = challenge.default_template
     elif challenge.available_templates.exists():
@@ -580,7 +587,7 @@ def retake_challenge(request, challenge_id):
             user=request.user,
             challenge=challenge,
             selected_template=template,
-            include_kegels=include_kegels,
+            include_recovery_sessions=include_recovery_sessions,
             is_active=True
         )
         
@@ -679,6 +686,8 @@ def leave_challenge(request, challenge_instance_id):
     
     if request.method == "POST":
         challenge_name = challenge_instance.challenge.name
+        # Delete all weekly plans for this challenge instance
+        challenge_instance.weekly_plans.all().delete()
         # Set as inactive but don't mark as completed (they're leaving, not completing)
         challenge_instance.is_active = False
         challenge_instance.completed_at = None
@@ -696,10 +705,7 @@ def leave_challenge(request, challenge_instance_id):
 
 @login_required
 def challenge_detail(request, challenge_id, week_number=None):
-    """View challenge plan by challenge ID and optional week number - renders plan_detail template directly"""
-    from tracker.models import WeeklyPlan
-    from tracker.views import plan_detail as tracker_plan_detail
-    
+    """View challenge plan by challenge ID and optional week number"""
     # Get the challenge
     challenge = get_object_or_404(Challenge, pk=challenge_id)
     
@@ -712,6 +718,29 @@ def challenge_detail(request, challenge_id, week_number=None):
     if not challenge_instance:
         messages.error(request, "You are not participating in this challenge.")
         return redirect("challenges:challenges_list")
+    
+    # Check if plans are locked (go-live date not yet reached AND no plans generated yet)
+    if challenge.plans_go_live_date and date.today() < challenge.plans_go_live_date:
+        # Only show locked page if they have no plans yet
+        all_plans_check = challenge_instance.weekly_plans.all()
+        if all_plans_check.count() == 0:
+            # No plans generated yet - show locked challenge page
+            user_team = challenge_instance.team
+            team_message = None
+            show_team_info = False
+            
+            if user_team:
+                team_message = f"You chose to join {user_team.name}."
+                show_team_info = True
+            else:
+                team_message = "You'll be assigned to a team when the challenge starts."
+            
+            return render(request, "challenges/challenge_locked.html", {
+                "challenge": challenge,
+                "challenge_instance": challenge_instance,
+                "team_message": team_message,
+                "show_team_info": show_team_info,
+            })
     
     # Get all weekly plans for this challenge instance, ordered by week_start
     all_plans = challenge_instance.weekly_plans.all().order_by("week_start")
@@ -734,14 +763,192 @@ def challenge_detail(request, challenge_id, week_number=None):
         current_plan = all_plans.filter(week_start=current_week_start).first()
         if current_plan:
             plan = current_plan
+            # Find the week number for current plan
+            for idx, p in enumerate(all_plans, start=1):
+                if p.id == plan.id:
+                    week_number = idx
+                    break
         else:
             # Show the first week
             plan = all_plans.first()
+            week_number = 1
     
-    # Instead of redirecting, call the plan_detail view directly with the plan ID
-    # This keeps the URL as /challenges/55/week/1/ instead of redirecting to /tracker/17/
-    # The plan_detail view accepts pk as a parameter, so we can call it directly
-    return tracker_plan_detail(request, pk=plan.id)
+    # Build the response by rendering plan_detail.html with full context
+    # Get plan details
+    all_items = plan.items.select_related("exercise").all()
+    
+    # Separate bonus workouts (items with "Bonus" in peloton_focus)
+    bonus_workouts = list(all_items.filter(peloton_focus__icontains="Bonus"))
+    items = all_items.exclude(peloton_focus__icontains="Bonus")
+    
+    # Calculate if bonus is completed
+    bonus_completed = False
+    if bonus_workouts:
+        first_bonus = bonus_workouts[0]
+        bonus_completed = first_bonus.ride_done or first_bonus.run_done or first_bonus.yoga_done or first_bonus.strength_done
+    
+    # Filter out recovery sessions if user disabled them in challenge
+    if challenge_instance and not challenge_instance.include_recovery_sessions:
+        items = items.filter(
+            (Q(peloton_ride_url__isnull=False) |
+             Q(peloton_run_url__isnull=False) |
+             Q(peloton_yoga_url__isnull=False) |
+             Q(peloton_strength_url__isnull=False)) &
+            ~Q(exercise__category="yoga")
+        )
+    
+    # Organize workouts by day
+    workout_items = items.filter(
+        (Q(peloton_ride_url__isnull=False) & ~Q(peloton_ride_url='')) |
+        (Q(peloton_run_url__isnull=False) & ~Q(peloton_run_url='')) |
+        (Q(peloton_yoga_url__isnull=False) & ~Q(peloton_yoga_url='')) |
+        (Q(peloton_strength_url__isnull=False) & ~Q(peloton_strength_url=''))
+    ).order_by('day_of_week', 'id')
+    
+    # Group workouts by day
+    workout_days_dict = {}
+    for item in workout_items:
+        dow = item.day_of_week
+        if dow not in workout_days_dict:
+            workout_days_dict[dow] = {}
+        
+        activity_type = None
+        if item.peloton_ride_url and item.peloton_ride_url.strip():
+            activity_type = 'ride'
+        elif item.peloton_run_url and item.peloton_run_url.strip():
+            activity_type = 'run'
+        elif item.peloton_yoga_url and item.peloton_yoga_url.strip():
+            activity_type = 'yoga'
+        elif item.peloton_strength_url and item.peloton_strength_url.strip():
+            activity_type = 'strength'
+        
+        if activity_type:
+            if activity_type not in workout_days_dict[dow]:
+                workout_days_dict[dow][activity_type] = []
+            workout_days_dict[dow][activity_type].append(item)
+    
+    # Convert to ordered list
+    workout_days_list = sorted(workout_days_dict.items())
+    
+    # Get plan type
+    core_count = plan.core_workout_count
+    
+    # Build workout days structure
+    workout_days = []
+    for workout_day_num, (dow, activities_dict) in enumerate(workout_days_list, start=1):
+        if core_count == 3:
+            day_points = 50
+        elif core_count == 4:
+            if workout_day_num == 1 or workout_day_num == core_count:
+                day_points = 50
+            else:
+                day_points = 25
+        else:
+            day_points = 50
+        
+        all_alternatives = []
+        day_focus = ""
+        
+        for activity_type in ['ride', 'run', 'yoga', 'strength']:
+            if activity_type in activities_dict:
+                activity_items = activities_dict[activity_type]
+                if activity_items:
+                    if not day_focus:
+                        day_focus = activity_items[0].peloton_focus
+                    
+                    for item in activity_items:
+                        item_done = False
+                        if activity_type == 'ride':
+                            item_done = item.ride_done
+                        elif activity_type == 'run':
+                            item_done = item.run_done
+                        elif activity_type == 'yoga':
+                            item_done = item.yoga_done
+                        elif activity_type == 'strength':
+                            item_done = item.strength_done
+                        
+                        peloton_url = None
+                        if activity_type == 'ride' and item.peloton_ride_url and item.peloton_ride_url.strip():
+                            peloton_url = item.peloton_ride_url
+                        elif activity_type == 'run' and item.peloton_run_url and item.peloton_run_url.strip():
+                            peloton_url = item.peloton_run_url
+                        elif activity_type == 'yoga' and item.peloton_yoga_url and item.peloton_yoga_url.strip():
+                            peloton_url = item.peloton_yoga_url
+                        elif activity_type == 'strength' and item.peloton_strength_url and item.peloton_strength_url.strip():
+                            peloton_url = item.peloton_strength_url
+                        
+                        if peloton_url:
+                            all_alternatives.append({
+                                'item': item,
+                                'peloton_url': peloton_url,
+                                'activity_type': activity_type,
+                                'done': item_done,
+                            })
+        
+        if all_alternatives:
+            day_completed = any(alt['done'] for alt in all_alternatives)
+            
+            workout_days.append({
+                'day_number': workout_day_num,
+                'points': day_points,
+                'completed': day_completed,
+                'alternatives': all_alternatives,
+                'focus': day_focus or "Workout",
+            })
+    
+    # Get previous/next week plans
+    previous_week_plan = None
+    next_week_plan = None
+    
+    if week_number and week_number > 1:
+        previous_week_start = plan.week_start - timedelta(days=7)
+        previous_week_plan = all_plans.filter(week_start=previous_week_start).first()
+    
+    if week_number and week_number < total_weeks:
+        next_week_start = plan.week_start + timedelta(days=7)
+        next_week_plan = all_plans.filter(week_start=next_week_start).first()
+    
+    # Can leave challenge
+    can_leave = None
+    leave_error = None
+    if plan.challenge_instance:
+        can_leave, leave_error = plan.challenge_instance.can_leave_challenge()
+    
+    # Get user profile
+    from accounts.models import Profile
+    try:
+        user_profile = Profile.objects.get(user=request.user)
+        user_ftp = user_profile.ftp_score
+        user_pace_target = user_profile.pace_target_level
+    except Profile.DoesNotExist:
+        user_ftp = None
+        user_pace_target = None
+    
+    # Build context
+    context = {
+        "plan": plan,
+        "workout_days": workout_days,
+        "core_count": core_count,
+        "week_number": week_number,
+        "can_access_week": True,
+        "previous_week_completed": True,
+        "next_week_plan": next_week_plan,
+        "previous_week_plan": previous_week_plan,
+        "total_weeks": total_weeks,
+        "challenge": challenge,
+        "challenge_id": challenge_id,
+        "is_challenge_view": True,
+        "challenge_structure": f"{core_count}-week {challenge.challenge_type.title()} Challenge",
+        "can_leave": can_leave,
+        "leave_error": leave_error,
+        "include_recovery_sessions": challenge_instance.include_recovery_sessions if challenge_instance else True,
+        "bonus_workouts": bonus_workouts,
+        "bonus_completed": bonus_completed,
+        "user_ftp": user_ftp,
+        "user_pace_target": user_pace_target,
+    }
+    
+    return render(request, "tracker/plan_detail.html", context)
 
 
 @login_required

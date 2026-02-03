@@ -535,6 +535,13 @@
                   🏅 Badge: {{ instance.first_completion_date|date:"M d, Y" }}
                 </span>
               {% endif %}
+              {% if instance.completed_at %}
+                {% if instance.completed_during_live %}
+                  <span class="px-2 py-0.5 text-xs font-medium text-green-700 dark:text-green-300 bg-green-100 dark:bg-green-900/30 rounded">Live Challenge</span>
+                {% else %}
+                  <span class="px-2 py-0.5 text-xs font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-900/30 rounded">Past Challenge</span>
+                {% endif %}
+              {% endif %}
             </div>
             <div class="text-sm text-gray-600 dark:text-gray-400">
               <span>Completed {{ instance.attempt_count }} time{{ instance.attempt_count|pluralize }}</span>

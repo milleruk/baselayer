@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}My Plans{% endblock %}
+{% block page_title %}My Weekly Plans{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+  <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">My Weekly Plans</h1>
+  <p class="text-gray-600 dark:text-gray-400">No plan for the current week</p>
+</div>
+
+{% if active_challenge_instance %}
+<div class="mb-6 rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 p-4">
+  <div class="flex items-start gap-4">
+    <div class="text-2xl">🎯</div>
+    <div class="flex-1">
+      <h3 class="font-semibold text-blue-900 dark:text-blue-200 mb-1">Active Challenge: {{ active_challenge_instance.challenge.name }}</h3>
+      <p class="text-sm text-blue-800 dark:text-blue-300 mb-3">You're currently in a challenge but no plan exists for the current week.</p>
+      <a href="{% url 'tracker:generate' %}" class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors">
+        Generate Week {{ active_challenge_instance.weekly_plans.count|add:"1" }}
+      </a>
+    </div>
+  </div>
+</div>
+{% else %}
+<div class="mb-6 rounded-lg border border-yellow-200 dark:border-yellow-800 bg-yellow-50 dark:bg-yellow-900/20 p-4">
+  <div class="flex items-start gap-4">
+    <div class="text-2xl">📅</div>
+    <div class="flex-1">
+      <h3 class="font-semibold text-yellow-900 dark:text-yellow-200 mb-1">No Plan for This Week</h3>
+      <p class="text-sm text-yellow-800 dark:text-yellow-300 mb-3">Generate a new standalone plan or join a challenge to get started.</p>
+      <div class="flex gap-3">
+        <a href="{% url 'tracker:generate' %}" class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors">
+          Generate Plan
+        </a>
+        <a href="{% url 'challenges:challenges_list' %}" class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+          Join Challenge
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% if standalone_plans %}
+<div class="mb-6">
+  <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Recent Plans</h2>
+  <div class="space-y-3">
+    {% for plan in standalone_plans %}
+    <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 hover:shadow-md transition-shadow">
+      <div class="flex items-center justify-between">
+        <div>
+          <h3 class="font-semibold text-gray-900 dark:text-white">{{ plan.template_name }}</h3>
+          <p class="text-sm text-gray-600 dark:text-gray-400">Week of {{ plan.week_start|date:"F j, Y" }}</p>
+        </div>
+        <a href="{% url 'tracker:plan_detail' plan.id %}" class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors">
+          View
+        </a>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+{% endblock %}

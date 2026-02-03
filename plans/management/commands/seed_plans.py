@@ -3,95 +3,129 @@ from plans.models import Exercise, PlanTemplate, PlanTemplateDay
 from tracker.models import DailyPlanItem, WeeklyPlan
 
 EXERCISES = [
+    # Yoga Recovery Sessions
     {
-        "name": "Basic Kegel",
-        "category": "kegel",
-        "position": "Lying / Seated",
-        "key_cue": "Lift pelvic floor up and in (no abs/glutes). Breathe normally.",
-        "reps_hold": "5–10 × 3–5s",
-        "primary_use": "Foundation",
-        "video_url": "https://www.youtube.com/watch?v=MJ7EfGu03-0",
+        "name": "Gentle Flow Yoga",
+        "category": "yoga",
+        "position": "Mat-based",
+        "key_cue": "Movement supports breath rhythm. Core responds naturally to transitions.",
+        "reps_hold": "20-30 min",
+        "primary_use": "Recovery / mobility",
+        "video_url": "",
     },
     {
-        "name": "Long-Hold Kegel",
-        "category": "kegel",
-        "position": "Seated / Standing",
-        "key_cue": "Lift and hold with steady breathing. Relax fully after.",
-        "reps_hold": "5 × 8–20s",
-        "primary_use": "Endurance / Sex",
-        "video_url": "https://www.youtube.com/watch?v=NTaTPmyLxUY",
+        "name": "Restorative Yoga",
+        "category": "yoga",
+        "position": "Supported poses",
+        "key_cue": "Passive holds release tension. Breathe deeply into tight areas.",
+        "reps_hold": "20-30 min",
+        "primary_use": "Deep recovery",
+        "video_url": "",
     },
     {
-        "name": "Pulse Kegels",
-        "category": "kegel",
-        "position": "Standing",
-        "key_cue": "Quick 1s lift → full relax. Keep glutes/thighs quiet.",
-        "reps_hold": "10–20 reps",
-        "primary_use": "Running reflex / control",
-        "video_url": "https://www.youtube.com/watch?v=c0aDJrSiR1A",
+        "name": "Hip Mobility Flow",
+        "category": "yoga",
+        "position": "Mat-based",
+        "key_cue": "Hips open gradually. Core stability responds to movement challenges.",
+        "reps_hold": "15-20 min",
+        "primary_use": "Hip recovery / cycling",
+        "video_url": "",
     },
     {
-        "name": "Elevator Kegels",
-        "category": "kegel",
+        "name": "Core Flow Yoga",
+        "category": "yoga",
+        "position": "Mat-based",
+        "key_cue": "Core engages with breath. System responds to effort, relaxes between poses.",
+        "reps_hold": "20-30 min",
+        "primary_use": "Active recovery / core",
+        "video_url": "",
+    },
+    
+    # Pilates Core Sessions
+    {
+        "name": "Foundation Pilates",
+        "category": "pilates",
+        "position": "Mat-based",
+        "key_cue": "Core supports movement from center. Breath coordinates with effort.",
+        "reps_hold": "20-30 min",
+        "primary_use": "Core integration",
+        "video_url": "",
+    },
+    {
+        "name": "Low-Impact Pilates Flow",
+        "category": "pilates",
+        "position": "Mat-based",
+        "key_cue": "Controlled movement patterns. Deep core responds to precision work.",
+        "reps_hold": "20-30 min",
+        "primary_use": "Recovery / control",
+        "video_url": "",
+    },
+    {
+        "name": "Pilates Core Strength",
+        "category": "pilates",
+        "position": "Mat-based",
+        "key_cue": "Systematic core loading. System stabilizes under controlled stress.",
+        "reps_hold": "20-30 min",
+        "primary_use": "Core development",
+        "video_url": "",
+    },
+    
+    # Breathwork Sessions
+    {
+        "name": "Box Breathing Practice",
+        "category": "breathwork",
+        "position": "Seated or lying",
+        "key_cue": "4-count breath cycle. Core naturally responds to diaphragm movement.",
+        "reps_hold": "10-15 min",
+        "primary_use": "Recovery / nervous system",
+        "video_url": "",
+    },
+    {
+        "name": "Diaphragmatic Breathing",
+        "category": "breathwork",
+        "position": "Seated or lying",
+        "key_cue": "Belly expands on inhale. Pelvic floor releases with breath.",
+        "reps_hold": "10-15 min",
+        "primary_use": "Recovery / relaxation",
+        "video_url": "",
+    },
+    {
+        "name": "Breath-Core Connection",
+        "category": "breathwork",
         "position": "Seated",
-        "key_cue": "Lift in 3–4 stages (‘floors’), pause, then slow release.",
-        "reps_hold": "5–8 reps",
-        "primary_use": "Control / coordination",
-        "video_url": "https://www.youtube.com/watch?v=n6z88aU1dMw",
+        "key_cue": "Core engages with exhale. System responds naturally to breathing patterns.",
+        "reps_hold": "10-20 min",
+        "primary_use": "Core-breath integration",
+        "video_url": "",
     },
     {
-        "name": "Reverse Kegels",
-        "category": "kegel",
-        "position": "Any (best lying)",
-        "key_cue": "Relax and 'open' pelvic floor. Gentle—no straining.",
-        "reps_hold": "10–15 reps",
-        "primary_use": "Cycling recovery / reduce tightness",
-        "video_url": "https://www.youtube.com/watch?v=JFJtUtKQCuM",
+        "name": "Wim Hof Style Breathing",
+        "category": "breathwork",
+        "position": "Seated or lying",
+        "key_cue": "Controlled breath cycles. Core activates with rhythmic breathing.",
+        "reps_hold": "15-20 min",
+        "primary_use": "Energy / recovery",
+        "video_url": "",
+    },
+    
+    # Mobility & Recovery Flows
+    {
+        "name": "Lower Body Mobility Flow",
+        "category": "mobility",
+        "position": "Standing/mat-based",
+        "key_cue": "Dynamic stretching through full range. Core supports movement throughout.",
+        "reps_hold": "15-20 min",
+        "primary_use": "Running/cycling recovery",
+        "video_url": "",
     },
     {
-        "name": "The Knack",
-        "category": "kegel",
-        "position": "Any",
-        "key_cue": "Strong contraction immediately before sneezing, coughing, or lifting. Timing is key.",
-        "reps_hold": "As needed",
-        "primary_use": "Stress incontinence prevention",
-        "video_url": "https://www.youtube.com/watch?v=JFJtUtKQCuM",
-    },
-    {
-        "name": "Wave Kegels",
-        "category": "kegel",
-        "position": "Seated / Lying",
-        "key_cue": "Contract front to back (or back to front) in a wave motion. Focus on coordination.",
-        "reps_hold": "8–10 reps each direction",
-        "primary_use": "Coordination / awareness",
-        "video_url": "https://www.youtube.com/watch?v=JFJtUtKQCuM",
-    },
-    {
-        "name": "Side-to-Side Kegels",
-        "category": "kegel",
-        "position": "Seated",
-        "key_cue": "Contract left side, then right side. Keep center relaxed. Alternate smoothly.",
-        "reps_hold": "10 reps each side",
-        "primary_use": "Lateral coordination / balance",
-        "video_url": "https://www.youtube.com/watch?v=JFJtUtKQCuM",
-    },
-    {
-        "name": "Progressive Kegels",
-        "category": "kegel",
-        "position": "Lying / Seated",
-        "key_cue": "Start at 30% strength, build to 50%, then 70%, then 100%. Hold each level 3s, then release slowly.",
-        "reps_hold": "5–8 reps",
-        "primary_use": "Strength building / control",
-        "video_url": "https://www.youtube.com/watch?v=JFJtUtKQCuM",
-    },
-    {
-        "name": "Quick Flicks",
-        "category": "kegel",
-        "position": "Standing",
-        "key_cue": "Very rapid contractions (0.5s) with full release. Train fast-twitch fibers.",
-        "reps_hold": "20–30 reps",
-        "primary_use": "Fast-twitch / reaction speed",
-        "video_url": "https://www.youtube.com/watch?v=JFJtUtKQCuM",
+        "name": "Foam Rolling & Stretching",
+        "category": "mobility",
+        "position": "Mat with roller",
+        "key_cue": "Release tight tissue. Breathe into restricted areas.",
+        "reps_hold": "15-20 min",
+        "primary_use": "Tissue recovery",
+        "video_url": "",
     },
     {
         "name": "Pelvic Tilts",
@@ -106,7 +140,7 @@ EXERCISES = [
         "name": "Pelvic Clocks",
         "category": "mobility",
         "position": "Supine",
-        "key_cue": "Slowly rotate pelvis through ‘clock’ directions.",
+        "key_cue": "Slowly rotate pelvis through 'clock' directions.",
         "reps_hold": "1–2 mins",
         "primary_use": "Awareness / release",
         "video_url": "https://www.youtube.com/watch?v=JFJtUtKQCuM",
@@ -115,7 +149,7 @@ EXERCISES = [
         "name": "Happy Baby Release",
         "category": "yoga",
         "position": "Supine yoga pose",
-        "key_cue": "Relax pelvic floor fully; breathe into hips/pelvis.",
+        "key_cue": "Relax fully; breathe into hips/pelvis.",
         "reps_hold": "60–90s",
         "primary_use": "Recovery / relaxation",
         "video_url": "https://www.youtube.com/watch?v=JFJtUtKQCuM",
@@ -125,99 +159,99 @@ EXERCISES = [
 TEMPLATES = [
     {
         "name": "3 Rides a Week",
-        "description": "Three cycling sessions per week with pelvic floor exercises",
+        "description": "Three cycling sessions per week with optional recovery sessions",
         "days": [
-            (0, "Rest", "Optional: reverse + pelvic clocks"),  # Sunday
-            (1, "PZE (Z2)", "Post-ride: reverse kegels + tilts"),  # Monday
-            (2, "Rest", "Optional: basic kegels"),  # Tuesday
-            (3, "Power Zone (Z3–Z4)", "Post-ride: long-holds + reverse"),  # Wednesday
-            (4, "Rest", "Optional: mobility work"),  # Thursday
-            (5, "PZE (Z2)", "Post-ride: elevator + reverse"),  # Friday
-            (6, "Rest", "Recovery: reverse + pelvic clocks"),  # Saturday
+            (0, "Rest", "Optional: 20 min yoga or breathwork"),  # Sunday
+            (1, "PZE (Z2)", ""),  # Monday
+            (2, "Rest", "Optional: mobility or stretching"),  # Tuesday
+            (3, "Power Zone (Z3–Z4)", ""),  # Wednesday
+            (4, "Rest", "Optional: gentle yoga flow"),  # Thursday
+            (5, "PZE (Z2)", ""),  # Friday
+            (6, "Rest", "Recovery: restorative yoga or breathwork"),  # Saturday
         ],
     },
     {
         "name": "4 Rides a Week",
-        "description": "Four cycling sessions per week with pelvic floor exercises",
+        "description": "Four cycling sessions per week with optional recovery sessions",
         "days": [
-            (0, "PZE (Z2)", "Post-ride: reverse kegels + tilts"),  # Sunday
-            (1, "PZE (Z2)", "Post-ride: reverse kegels + tilts"),  # Monday
-            (2, "Rest", "Optional: basic kegels"),  # Tuesday
-            (3, "Power Zone (Z3–Z4)", "Post-ride: long-holds + reverse"),  # Wednesday
-            (4, "Rest", "Optional: mobility work"),  # Thursday
-            (5, "Power Zone (Z3–Z4)", "Post-ride: pulses + long-holds"),  # Friday
-            (6, "Rest", "Recovery: reverse + pelvic clocks"),  # Saturday
+            (0, "PZE (Z2)", ""),  # Sunday
+            (1, "PZE (Z2)", ""),  # Monday
+            (2, "Rest", "Optional: 20 min breathwork or mobility"),  # Tuesday
+            (3, "Power Zone (Z3–Z4)", ""),  # Wednesday
+            (4, "Rest", "Optional: gentle yoga or Pilates"),  # Thursday
+            (5, "Power Zone (Z3–Z4)", ""),  # Friday
+            (6, "Rest", "Recovery: foam rolling & stretching"),  # Saturday
         ],
     },
     {
         "name": "3 Runs a Week",
-        "description": "Three running sessions per week with pelvic floor exercises",
+        "description": "Three running sessions per week with optional recovery sessions",
         "days": [
-            (0, "Rest", "Optional: reverse + pelvic clocks"),  # Sunday
-            (1, "Run Tempo", "Post-run: pulses + short long-holds"),  # Monday
-            (2, "Rest", "Optional: basic kegels"),  # Tuesday
-            (3, "Run Endurance", "Post-run: pulses + elevator"),  # Wednesday
-            (4, "Rest", "Optional: mobility work"),  # Thursday
-            (5, "Run Intervals", "Post-run: quick flicks + long-holds"),  # Friday
-            (6, "Rest", "Recovery: reverse + pelvic clocks"),  # Saturday
+            (0, "Rest", "Optional: 20 min yoga or breathwork"),  # Sunday
+            (1, "Run Tempo", ""),  # Monday
+            (2, "Rest", "Optional: hip mobility flow"),  # Tuesday
+            (3, "Run Endurance", ""),  # Wednesday
+            (4, "Rest", "Optional: foam rolling & stretching"),  # Thursday
+            (5, "Run Intervals", ""),  # Friday
+            (6, "Rest", "Recovery: restorative yoga"),  # Saturday
         ],
     },
     {
-        "name": "Just Kegels",
-        "description": "Focus on pelvic floor exercises only",
+        "name": "Recovery & Mobility",
+        "description": "Focus on recovery, yoga, Pilates, and breathwork",
         "days": [
-            (0, "Rest", "Optional: reverse + pelvic clocks"),  # Sunday
-            (1, "Kegel Focus", "Basic + long-hold kegels"),  # Monday
-            (2, "Kegel Focus", "Pulse + elevator kegels"),  # Tuesday
-            (3, "Kegel Focus", "Progressive + wave kegels"),  # Wednesday
-            (4, "Kegel Focus", "Side-to-side + quick flicks"),  # Thursday
-            (5, "Kegel Focus", "The Knack + long-hold"),  # Friday
-            (6, "Recovery", "Reverse kegels + pelvic clocks"),  # Saturday
+            (0, "Rest", "Optional: breathwork"),  # Sunday
+            (1, "Yoga Flow", "Gentle flow or hip mobility"),  # Monday
+            (2, "Breathwork", "Box breathing or diaphragmatic"),  # Tuesday
+            (3, "Pilates", "Foundation or low-impact flow"),  # Wednesday
+            (4, "Mobility", "Lower body mobility flow"),  # Thursday
+            (5, "Yoga", "Core flow or restorative"),  # Friday
+            (6, "Recovery", "Foam rolling & stretching"),  # Saturday
         ],
     },
     {
-        "name": "Kegels and Yoga",
-        "description": "Pelvic floor exercises combined with yoga sessions",
+        "name": "Yoga & Core",
+        "description": "Yoga and Pilates sessions with optional breathwork",
         "days": [
-            (0, "Rest", "Optional: reverse + pelvic clocks"),  # Sunday
-            (1, "Yoga Flow", "Post-yoga: reverse + basic kegels"),  # Monday
-            (2, "Kegel Focus", "Pulse + elevator kegels"),  # Tuesday
-            (3, "Yoga Mobility", "Post-yoga: reverse + pelvic clocks"),  # Wednesday
-            (4, "Kegel Focus", "Long-hold + progressive kegels"),  # Thursday
-            (5, "Yoga Recovery", "Post-yoga: reverse + happy baby"),  # Friday
-            (6, "Rest", "Recovery: reverse + pelvic clocks"),  # Saturday
+            (0, "Rest", "Optional: breathwork or meditation"),  # Sunday
+            (1, "Yoga Flow", "Active flow with core focus"),  # Monday
+            (2, "Pilates", "Foundation Pilates"),  # Tuesday
+            (3, "Yoga", "Hip mobility flow"),  # Wednesday
+            (4, "Pilates", "Core strength focus"),  # Thursday
+            (5, "Yoga", "Gentle flow or restorative"),  # Friday
+            (6, "Rest", "Recovery: breathwork or stretching"),  # Saturday
         ],
     },
     {
-        "name": "Kegels and Strength",
-        "description": "Pelvic floor exercises combined with strength training",
+        "name": "Strength & Recovery",
+        "description": "Strength training combined with recovery sessions",
         "days": [
-            (0, "Rest", "Optional: reverse + pelvic clocks"),  # Sunday
-            (1, "Strength Upper", "Post-workout: reverse + basic kegels"),  # Monday
-            (2, "Kegel Focus", "Pulse + elevator kegels"),  # Tuesday
-            (3, "Strength Lower", "Post-workout: reverse + long-holds"),  # Wednesday
-            (4, "Kegel Focus", "Progressive + wave kegels"),  # Thursday
-            (5, "Strength Full Body", "Post-workout: reverse + the knack"),  # Friday
-            (6, "Rest", "Recovery: reverse + pelvic clocks"),  # Saturday
+            (0, "Rest", "Optional: gentle yoga"),  # Sunday
+            (1, "Strength Upper", ""),  # Monday
+            (2, "Recovery", "Yoga or breathwork"),  # Tuesday
+            (3, "Strength Lower", ""),  # Wednesday
+            (4, "Recovery", "Pilates or mobility"),  # Thursday
+            (5, "Strength Full Body", ""),  # Friday
+            (6, "Rest", "Recovery: foam rolling & stretching"),  # Saturday
         ],
     },
     {
         "name": "2 Runs 2 Rides",
-        "description": "Two running and two cycling sessions per week with pelvic floor exercises",
+        "description": "Two running and two cycling sessions per week with optional recovery",
         "days": [
-            (0, "PZE (Z2)", "Post-ride: reverse kegels + tilts"),  # Sunday - Ride
-            (1, "Run Tempo", "Post-run: pulses + short long-holds"),  # Monday - Run
-            (2, "Rest", "Optional: basic kegels"),  # Tuesday
-            (3, "Run Endurance", "Post-run: pulses + elevator"),  # Wednesday - Run
-            (4, "Rest", "Optional: mobility work"),  # Thursday
-            (5, "Power Zone (Z3–Z4)", "Post-ride: long-holds + reverse"),  # Friday - Ride
-            (6, "Rest", "Recovery: reverse + pelvic clocks"),  # Saturday
+            (0, "PZE (Z2)", ""),  # Sunday - Ride
+            (1, "Run Tempo", ""),  # Monday - Run
+            (2, "Rest", "Optional: yoga or breathwork"),  # Tuesday
+            (3, "Run Endurance", ""),  # Wednesday - Run
+            (4, "Rest", "Optional: mobility or Pilates"),  # Thursday
+            (5, "Power Zone (Z3–Z4)", ""),  # Friday - Ride
+            (6, "Rest", "Recovery: restorative yoga or stretching"),  # Saturday
         ],
     },
 ]
 
 class Command(BaseCommand):
-    help = "Seeds exercises and a default plan template."
+    help = "Seeds exercises and plan templates with recovery-focused content."
 
     def add_arguments(self, parser):
         parser.add_argument("--reset", action="store_true", help="Delete existing seeded objects first.")

@@ -11,9 +11,10 @@ def exercise_image_path(instance, filename):
 
 class Exercise(models.Model):
     CATEGORY_CHOICES = [
-        ("kegel", "Kegel"),
-        ("mobility", "Mobility"),
         ("yoga", "Yoga"),
+        ("pilates", "Pilates"),
+        ("breathwork", "Breathwork"),
+        ("mobility", "Mobility"),
     ]
     name = models.CharField(max_length=120, unique=True)
     category = models.CharField(max_length=20, choices=CATEGORY_CHOICES)

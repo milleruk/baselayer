@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ challenge.name }} - Coming Soon{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <!-- Challenge Header -->
+            <div class="text-center mb-5">
+                {% if challenge.image %}
+                <img src="{{ challenge.image.url }}" alt="{{ challenge.name }}" class="img-fluid mb-4" style="max-height: 200px; border-radius: 12px;">
+                {% endif %}
+                <h1 class="display-4 mb-3">{{ challenge.name }}</h1>
+                <p class="lead text-muted">Your spot is secured! Plans unlock soon.</p>
+            </div>
+
+            <!-- Countdown Card -->
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-body p-5 text-center">
+                    <div class="mb-4">
+                        <i class="fas fa-lock fa-3x text-primary mb-3"></i>
+                        <h3>Plans Unlock</h3>
+                        <h2 class="text-primary mb-0">{{ challenge.plans_go_live_date|date:"F j, Y" }}</h2>
+                    </div>
+                    
+                    {% if challenge.start_date > challenge.plans_go_live_date %}
+                    <p class="text-muted mb-0">
+                        <i class="fas fa-info-circle me-2"></i>
+                        You'll be able to view and customize your training plans before the challenge starts on {{ challenge.start_date|date:"F j" }}.
+                    </p>
+                    {% elif challenge.start_date == challenge.plans_go_live_date %}
+                    <p class="text-muted mb-0">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Plans unlock on challenge start day!
+                    </p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Team Information -->
+            {% if show_team_info %}
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-body p-4">
+                    <h5 class="card-title mb-3">
+                        <i class="fas fa-users text-success me-2"></i>Your Team
+                    </h5>
+                    <p class="card-text mb-0">{{ team_message }}</p>
+                </div>
+            </div>
+            {% else %}
+            <div class="card shadow-sm border-0 mb-4 bg-light">
+                <div class="card-body p-4">
+                    <h5 class="card-title mb-3">
+                        <i class="fas fa-users text-muted me-2"></i>Team Assignment
+                    </h5>
+                    <p class="card-text text-muted mb-0">{{ team_message }}</p>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Challenge Details -->
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-body p-4">
+                    <h5 class="card-title mb-4">
+                        <i class="fas fa-calendar-alt text-info me-2"></i>Challenge Details
+                    </h5>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-play-circle text-success me-3"></i>
+                                <div>
+                                    <small class="text-muted d-block">Start Date</small>
+                                    <strong>{{ challenge.start_date|date:"F j, Y" }}</strong>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-flag-checkered text-danger me-3"></i>
+                                <div>
+                                    <small class="text-muted d-block">End Date</small>
+                                    <strong>{{ challenge.end_date|date:"F j, Y" }}</strong>
+                                </div>
+                            </div>
+                        </div>
+                        {% if challenge.description %}
+                        <div class="col-12 mt-4">
+                            <p class="mb-0">{{ challenge.description }}</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="text-center">
+                <a href="{% url 'challenges:challenges_list' %}" class="btn btn-outline-primary btn-lg px-5">
+                    <i class="fas fa-arrow-left me-2"></i>Back to Challenges
+                </a>
+            </div>
+
+            <!-- What Happens Next -->
+            <div class="alert alert-info mt-5" role="alert">
+                <h5 class="alert-heading">
+                    <i class="fas fa-lightbulb me-2"></i>What happens next?
+                </h5>
+                <ul class="mb-0 mt-3">
+                    <li>On {{ challenge.plans_go_live_date|date:"F j" }}, your personalized training plans will unlock</li>
+                    <li>You'll be able to customize your weekly workouts before the challenge starts</li>
+                    <li>We'll send you an email notification when plans are ready</li>
+                    <li>Keep an eye on your dashboard for updates</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

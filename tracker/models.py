@@ -7,6 +7,7 @@ from django.utils import timezone
 from plans.models import Exercise
 
 class WeeklyPlan(models.Model):
+    BRONZE_COMPLETION_THRESHOLD = 80.0
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     challenge_instance = models.ForeignKey("challenges.ChallengeInstance", on_delete=models.CASCADE, related_name="weekly_plans", null=True, blank=True)
     week_start = models.DateField()
@@ -81,6 +82,10 @@ class WeeklyPlan(models.Model):
         # Use max_core (150) as denominator, not max_total_points (160)
         # This allows 160/150 = 106.67% for Platinum medal
         return (self.total_points / max_core) * 100
+
+    @property
+    def meets_bronze(self):
+        return self.completion_rate >= self.BRONZE_COMPLETION_THRESHOLD
     
     @property
     def exercise_points(self):
@@ -212,7 +217,7 @@ class WeeklyPlan(models.Model):
     
     @property
     def is_completed(self):
-        return self.completed_at is not None or (self.is_past and self.completion_rate >= 80)
+        return self.completed_at is not None or (self.is_past and self.meets_bronze)
     
     def can_toggle_exercise(self, day_of_week):
         """Check if exercise can be toggled based on date"""
