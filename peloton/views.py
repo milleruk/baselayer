@@ -316,7 +316,11 @@ def start_oauth_flow(request):
         # Generate authorization URL with PKCE
         client = PelotonClient()
         state = secrets.token_urlsafe(32)
+        # Use your app's callback URL to capture the authorization code
         redirect_uri = request.build_absolute_uri(reverse('peloton:oauth_callback'))
+        
+        # Ensure redirect_uri uses HTTPS (Peloton OAuth requires HTTPS)
+        redirect_uri = redirect_uri.replace('http://', 'https://')
         
         auth_url, code_verifier = client.get_authorization_url(redirect_uri, state)
         
@@ -342,6 +346,10 @@ def oauth_callback(request):
         code_verifier = request.session.get('peloton_code_verifier')
         expected_state = request.session.get('peloton_oauth_state')
         redirect_uri = request.session.get('peloton_redirect_uri')
+        
+        # Ensure redirect_uri uses HTTPS (Peloton OAuth requires HTTPS)
+        if redirect_uri:
+            redirect_uri = redirect_uri.replace('http://', 'https://')
         
         if not code_verifier or not redirect_uri:
             messages.error(request, 'OAuth flow session expired. Please try again.')
@@ -457,8 +465,48 @@ def oauth_callback(request):
 
 
 @login_required
+def grab_followers(request):
+    """Manual trigger to fetch and store following IDs"""
+    try:
+        connection = PelotonConnection.objects.get(user=request.user)
+        
+        if not connection or not connection.is_active:
+            messages.error(request, 'No active Peloton connection found.')
+            return redirect('peloton:status')
+        
+        # Check cooldown
+        if connection.following_cooldown_until and timezone.now() < connection.following_cooldown_until:
+            remaining = connection.following_cooldown_until - timezone.now()
+            minutes = int(remaining.total_seconds() / 60)
+            messages.warning(request, f'Following list can be refreshed in {minutes} minutes.')
+            return redirect('peloton:status')
+        
+        # Fetch following IDs
+        client = connection.get_client()
+        following_ids = client.get_user_following_ids(connection.peloton_user_id)
+        
+        # Store IDs and set cooldown
+        from datetime import timedelta
+        connection.following_ids = following_ids
+        connection.following_last_sync_at = timezone.now()
+        connection.following_cooldown_until = timezone.now() + timedelta(minutes=60)
+        connection.save()
+        
+        messages.success(request, f'Successfully fetched {len(following_ids)} following IDs.')
+        return redirect('peloton:status')
+        
+    except PelotonConnection.DoesNotExist:
+        messages.error(request, 'No Peloton connection found.')
+        return redirect('peloton:status')
+    except Exception as e:
+        logger.error(f"Error grabbing followers: {e}")
+        messages.error(request, f'Failed to fetch followers: {str(e)}')
+        return redirect('peloton:status')
+
+
+@login_required
 def peloton_status(request):
-    """View Peloton connection status"""
+    """Display Peloton connection status and statistics"""
     try:
         connection = PelotonConnection.objects.get(user=request.user)
         profile = request.user.profile
@@ -466,10 +514,31 @@ def peloton_status(request):
         connection = None
         profile = request.user.profile
     
-    return render(request, 'peloton/status.html', {
+    # Calculate matched followers (users on our platform with IDs in following_ids)
+    matched_followers = []
+    following_cooldown_minutes = 0
+    
+    if connection and connection.is_active and connection.following_ids:
+        # Get all users with Peloton connections whose IDs are in following list
+        matched_followers = PelotonConnection.objects.filter(
+            peloton_user_id__in=connection.following_ids,
+            is_active=True
+        ).select_related('user', 'user__profile').order_by('user__email')
+        
+        # Calculate cooldown remaining
+        if connection.following_cooldown_until and timezone.now() < connection.following_cooldown_until:
+            remaining = connection.following_cooldown_until - timezone.now()
+            following_cooldown_minutes = max(0, int(remaining.total_seconds() / 60))
+    
+    context = {
         'connection': connection,
         'profile': profile,
-    })
+        'matched_followers': matched_followers,
+        'following_cooldown_minutes': following_cooldown_minutes,
+        'now': timezone.now(),
+    }
+    
+    return render(request, 'peloton/status.html', context)
 
 
 @login_required

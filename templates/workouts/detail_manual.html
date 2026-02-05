@@ -1,0 +1,527 @@
+{% extends "base.html" %}
+{% block title %}{{ workout.title }}{% endblock %}
+{% block page_title %}{{ workout.title }}{% endblock %}
+
+{% block content %}
+<!-- Back Button -->
+<a href="{% url 'workouts:history' %}" class="inline-flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white mb-6 transition-colors">
+  <span>←</span> Back to Workout History
+</a>
+
+<!-- Workout Header -->
+<div class="mb-6">
+  <div class="flex flex-col sm:flex-row justify-between items-start gap-4 mb-4">
+    <div class="flex-1">
+      <div class="flex items-center gap-3 mb-3">
+        <span class="px-3 py-1 text-sm font-semibold text-orange-600 dark:text-orange-400 bg-orange-100 dark:bg-orange-900/30 rounded-lg inline-flex items-center gap-2">
+          🏷️ Manual
+        </span>
+        {% if workout.actual_duration_minutes > 0 %}
+        <span class="px-3 py-1 text-sm font-semibold text-gray-900 dark:text-white bg-primary/20 dark:bg-primary/30 rounded-lg">
+          {{ workout.actual_duration_minutes }}min
+        </span>
+        {% endif %}
+        {% if workout.ride_detail and workout.ride_detail.workout_type %}
+        <span class="px-3 py-1 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg">
+          {{ workout.ride_detail.workout_type.name }}
+        </span>
+        {% elif workout.workout_type %}
+        <span class="px-3 py-1 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg">
+          {{ workout.workout_type.name }}
+        </span>
+        {% endif %}
+      </div>
+      <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">{{ workout.title }}</h1>
+      <p class="text-gray-600 dark:text-gray-400">Manual</p>
+    </div>
+    <div class="flex flex-wrap gap-2">
+      {% if workout.peloton_url %}
+        <a href="{{ workout.peloton_url }}" target="_blank" rel="noopener noreferrer" class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors">
+          View Workout ↗
+        </a>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Dates -->
+  <div class="flex flex-wrap gap-4 text-sm text-gray-600 dark:text-gray-400">
+    <div>
+      <strong class="font-semibold">Recorded:</strong> {{ workout.recorded_date|date:"F d, Y" }}
+    </div>
+    <div>
+      <strong class="font-semibold">Completed:</strong> {{ workout.completed_date|date:"F d, Y" }}
+    </div>
+  </div>
+</div>
+
+{% if workout_summary %}
+<div id="workoutSummaryCard" class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 sm:p-6 shadow-sm mb-6">
+  <div id="shareHeader" class="mb-4">
+    <div class="flex items-start justify-between gap-4">
+      <div>
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white leading-tight">{{ workout.title }}</h2>
+        <div class="text-sm text-gray-600 dark:text-gray-400 mt-1">
+          Manual Workout
+          {% if user_profile and user_profile.peloton_leaderboard_name %}
+            <span class="mx-2">•</span>
+            Name: <span class="font-medium text-gray-700 dark:text-gray-300">{{ user_profile.peloton_leaderboard_name }}</span>
+          {% endif %}
+        </div>
+      </div>
+      <div class="text-xs text-gray-500 dark:text-gray-500 text-right whitespace-nowrap">
+        {% if workout.completed_date %}{{ workout.completed_date|date:"d/m/Y" }}{% endif %}
+      </div>
+    </div>
+  </div>
+  <div id="workoutSummaryMetrics" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+    {% if workout_summary.avg_output_w %}
+      <div>
+        <div class="text-xl font-bold text-gray-900 dark:text-white">{{ workout_summary.avg_output_w|floatformat:0 }} W</div>
+        <div class="text-xs text-gray-600 dark:text-gray-400">Avg Output</div>
+      </div>
+    {% endif %}
+    {% if workout_summary.total_output_kj %}
+      <div>
+        <div class="text-xl font-bold text-gray-900 dark:text-white">{{ workout_summary.total_output_kj|floatformat:0 }} kJ</div>
+        <div class="text-xs text-gray-600 dark:text-gray-400">Total Output</div>
+      </div>
+    {% endif %}
+    {% if workout.details and workout.details.max_output %}
+      <div>
+        <div class="text-xl font-bold text-gray-900 dark:text-white">{{ workout.details.max_output|floatformat:0 }} W</div>
+        <div class="text-xs text-gray-600 dark:text-gray-400">Max Output</div>
+      </div>
+    {% endif %}
+    {% if workout_summary.distance_mi %}
+      <div>
+        <div class="text-xl font-bold text-gray-900 dark:text-white">{{ workout_summary.distance_mi|floatformat:2 }}</div>
+        <div class="text-xs text-gray-600 dark:text-gray-400">Distance (mi)</div>
+      </div>
+    {% endif %}
+    {% if workout.details and workout.details.avg_speed %}
+      <div>
+        <div class="text-xl font-bold text-gray-900 dark:text-white">{{ workout.details.avg_speed|floatformat:1 }}</div>
+        <div class="text-xs text-gray-600 dark:text-gray-400">Avg Speed (mph)</div>
+      </div>
+    {% endif %}
+    {% if workout.details and workout.details.avg_cadence %}
+      <div>
+        <div class="text-xl font-bold text-gray-900 dark:text-white">{{ workout.details.avg_cadence }}</div>
+        <div class="text-xs text-gray-600 dark:text-gray-400">Avg Cadence (rpm)</div>
+      </div>
+    {% endif %}
+    {% if workout.details and workout.details.avg_resistance %}
+      <div>
+        <div class="text-xl font-bold text-gray-900 dark:text-white">{{ workout.details.avg_resistance|floatformat:0 }}</div>
+        <div class="text-xs text-gray-600 dark:text-gray-400">Avg Resistance</div>
+      </div>
+    {% endif %}
+    {% if workout_summary.total_calories %}
+      <div>
+        <div class="text-xl font-bold text-gray-900 dark:text-white">{{ workout_summary.total_calories }}</div>
+        <div class="text-xs text-gray-600 dark:text-gray-400">Calories</div>
+      </div>
+    {% endif %}
+    {% if workout_summary.tss %}
+      <div>
+        <div class="text-xl font-bold text-gray-900 dark:text-white">{{ workout_summary.tss|floatformat:0 }}</div>
+        <div class="text-xs text-gray-600 dark:text-gray-400">TSS</div>
+      </div>
+    {% endif %}
+    {% if workout.details and workout.details.avg_heart_rate %}
+      <div>
+        <div class="text-xl font-bold text-gray-900 dark:text-white">{{ workout.details.avg_heart_rate }}</div>
+        <div class="text-xs text-gray-600 dark:text-gray-400">Avg Heart Rate</div>
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+{% if performance_data and performance_data|length > 0 %}
+  <!-- Performance charts for disciplines with time-series data -->
+  {% if workout.ride_detail.fitness_discipline in 'cycling,ride' %}
+    <!-- Cycling: Output/Cadence/Resistance Timeline -->
+    <div class="bg-white dark:bg-gray-800 shadow-sm p-6 sm:p-8 rounded-lg border border-gray-200 dark:border-gray-700 mb-6">
+      <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-6">
+        <div>
+          <h2 class="text-xl sm:text-xl md:text-2xl font-semibold text-gray-900 dark:text-white leading-tight mb-1">Performance Timeline</h2>
+          <p class="text-sm text-gray-600 dark:text-gray-400">Your performance metrics over time.</p>
+        </div>
+      </div>
+
+      <!-- Metrics Cards -->
+      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
+        {% if workout_summary.avg_output_w %}
+          <div class="bg-gray-50 dark:bg-gray-900/50 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
+            <div class="text-lg font-bold text-gray-900 dark:text-white">{{ workout_summary.avg_output_w|floatformat:0 }} W</div>
+            <div class="text-xs text-gray-600 dark:text-gray-400">Avg Output</div>
+          </div>
+        {% endif %}
+        {% if workout.details and workout.details.max_output %}
+          <div class="bg-gray-50 dark:bg-gray-900/50 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
+            <div class="text-lg font-bold text-gray-900 dark:text-white">{{ workout.details.max_output|floatformat:0 }} W</div>
+            <div class="text-xs text-gray-600 dark:text-gray-400">Max Output</div>
+          </div>
+        {% endif %}
+        {% if workout.details and workout.details.avg_cadence %}
+          <div class="bg-gray-50 dark:bg-gray-900/50 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
+            <div class="text-lg font-bold text-gray-900 dark:text-white">{{ workout.details.avg_cadence|floatformat:0 }}</div>
+            <div class="text-xs text-gray-600 dark:text-gray-400">Avg Cadence</div>
+          </div>
+        {% endif %}
+        {% if workout.details and workout.details.avg_resistance %}
+          <div class="bg-gray-50 dark:bg-gray-900/50 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
+            <div class="text-lg font-bold text-gray-900 dark:text-white">{{ workout.details.avg_resistance|floatformat:0 }}%</div>
+            <div class="text-xs text-gray-600 dark:text-gray-400">Avg Resistance</div>
+          </div>
+        {% endif %}
+        {% if workout_summary.total_calories %}
+          <div class="bg-gray-50 dark:bg-gray-900/50 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
+            <div class="text-lg font-bold text-gray-900 dark:text-white">{{ workout_summary.total_calories }}</div>
+            <div class="text-xs text-gray-600 dark:text-gray-400">Calories</div>
+          </div>
+        {% endif %}
+      </div>
+
+      <div class="general-output-chart relative">
+        <div class="relative bg-gray-900 rounded-lg min-h-[320px] w-full">
+          <canvas id="generalChart"></canvas>
+        </div>
+      </div>
+
+      <div class="flex flex-wrap items-center justify-end gap-2 mt-4">
+        <div class="flex items-center gap-2 mr-auto">
+          <button type="button" data-metric="output" class="metric-toggle px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors border border-gray-300 dark:border-gray-600">
+            Output
+          </button>
+          <button type="button" data-metric="cadence" class="metric-toggle px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors border border-gray-300 dark:border-gray-600">
+            Cadence
+          </button>
+          <button type="button" data-metric="resistance" class="metric-toggle px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors border border-gray-300 dark:border-gray-600">
+            Resistance
+          </button>
+        </div>
+        <button id="saveChart" class="px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors border border-gray-300 dark:border-gray-600 inline-flex items-center gap-2">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"></path>
+          </svg>
+          Share
+        </button>
+        {% if user_ftp %}
+        <label class="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors border border-gray-300 dark:border-gray-600 cursor-pointer">
+          <input type="checkbox" id="toggleZoneColors" checked class="rounded border-gray-400 text-primary focus:ring-primary">
+          <span>Zone Colors</span>
+        </label>
+        {% endif %}
+      </div>
+    </div>
+  {% elif workout.ride_detail.fitness_discipline in 'running,walking' %}
+    <!-- Running/Walking: Pace/Speed Timeline -->
+    <div class="bg-white dark:bg-gray-800 shadow-sm p-6 sm:p-8 rounded-lg border border-gray-200 dark:border-gray-700 mb-6">
+      <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-6">
+        <div>
+          <h2 class="text-xl sm:text-xl md:text-2xl font-semibold text-gray-900 dark:text-white leading-tight mb-1">Performance Timeline</h2>
+          <p class="text-sm text-gray-600 dark:text-gray-400">Your pace and speed over time.</p>
+        </div>
+      </div>
+
+      <!-- Metrics Cards -->
+      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
+        {% if workout_summary.distance_mi %}
+          <div class="bg-gray-50 dark:bg-gray-900/50 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
+            <div class="text-lg font-bold text-gray-900 dark:text-white">{{ workout_summary.distance_mi|floatformat:2 }} mi</div>
+            <div class="text-xs text-gray-600 dark:text-gray-400">Distance</div>
+          </div>
+        {% endif %}
+        {% if workout.details and workout.details.avg_speed %}
+          <div class="bg-gray-50 dark:bg-gray-900/50 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
+            <div class="text-lg font-bold text-gray-900 dark:text-white">{{ workout.details.avg_speed|floatformat:2 }} mph</div>
+            <div class="text-xs text-gray-600 dark:text-gray-400">Avg Speed</div>
+          </div>
+        {% endif %}
+        {% if workout.details and workout.details.max_speed %}
+          <div class="bg-gray-50 dark:bg-gray-900/50 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
+            <div class="text-lg font-bold text-gray-900 dark:text-white">{{ workout.details.max_speed|floatformat:2 }} mph</div>
+            <div class="text-xs text-gray-600 dark:text-gray-400">Max Speed</div>
+          </div>
+        {% endif %}
+        {% if workout.details and workout.details.avg_heart_rate %}
+          <div class="bg-gray-50 dark:bg-gray-900/50 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
+            <div class="text-lg font-bold text-gray-900 dark:text-white">{{ workout.details.avg_heart_rate|floatformat:0 }} bpm</div>
+            <div class="text-xs text-gray-600 dark:text-gray-400">Avg HR</div>
+          </div>
+        {% endif %}
+        {% if workout_summary.total_calories %}
+          <div class="bg-gray-50 dark:bg-gray-900/50 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
+            <div class="text-lg font-bold text-gray-900 dark:text-white">{{ workout_summary.total_calories }}</div>
+            <div class="text-xs text-gray-600 dark:text-gray-400">Calories</div>
+          </div>
+        {% endif %}
+      </div>
+
+      <div class="relative bg-gray-900 rounded-lg min-h-[320px] w-full">
+        <canvas id="paceChart"></canvas>
+      </div>
+
+      <div class="flex flex-wrap items-center justify-end gap-2 mt-4">
+        <div class="flex items-center gap-2 mr-auto">
+          <button type="button" data-metric="pace" class="metric-toggle px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors border border-gray-300 dark:border-gray-600">
+            Pace
+          </button>
+          <button type="button" data-metric="speed" class="metric-toggle px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors border border-gray-300 dark:border-gray-600">
+            Speed
+          </button>
+        </div>
+        <button id="saveChart" class="px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors border border-gray-300 dark:border-gray-600 inline-flex items-center gap-2">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"></path>
+          </svg>
+          Share
+        </button>
+      </div>
+    </div>
+  {% elif workout.ride_detail.fitness_discipline == 'rowing' %}
+    <!-- Rowing: Stroke Rate/Watts Timeline -->
+    <div class="bg-white dark:bg-gray-800 shadow-sm p-6 sm:p-8 rounded-lg border border-gray-200 dark:border-gray-700 mb-6">
+      <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-6">
+        <div>
+          <h2 class="text-xl sm:text-xl md:text-2xl font-semibold text-gray-900 dark:text-white leading-tight mb-1">Performance Timeline</h2>
+          <p class="text-sm text-gray-600 dark:text-gray-400">Your rowing metrics over time.</p>
+        </div>
+      </div>
+
+      <!-- Metrics Cards -->
+      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
+        {% if workout_summary.avg_output_w %}
+          <div class="bg-gray-50 dark:bg-gray-900/50 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
+            <div class="text-lg font-bold text-gray-900 dark:text-white">{{ workout_summary.avg_output_w|floatformat:0 }} W</div>
+            <div class="text-xs text-gray-600 dark:text-gray-400">Avg Watts</div>
+          </div>
+        {% endif %}
+        {% if workout.details and workout.details.max_output %}
+          <div class="bg-gray-50 dark:bg-gray-900/50 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
+            <div class="text-lg font-bold text-gray-900 dark:text-white">{{ workout.details.max_output|floatformat:0 }} W</div>
+            <div class="text-xs text-gray-600 dark:text-gray-400">Max Watts</div>
+          </div>
+        {% endif %}
+        {% if workout_summary.distance_mi %}
+          <div class="bg-gray-50 dark:bg-gray-900/50 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
+            <div class="text-lg font-bold text-gray-900 dark:text-white">{{ workout_summary.distance_mi|floatformat:2 }} mi</div>
+            <div class="text-xs text-gray-600 dark:text-gray-400">Distance</div>
+          </div>
+        {% endif %}
+        {% if workout.details and workout.details.avg_heart_rate %}
+          <div class="bg-gray-50 dark:bg-gray-900/50 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
+            <div class="text-lg font-bold text-gray-900 dark:text-white">{{ workout.details.avg_heart_rate|floatformat:0 }} bpm</div>
+            <div class="text-xs text-gray-600 dark:text-gray-400">Avg HR</div>
+          </div>
+        {% endif %}
+        {% if workout_summary.total_calories %}
+          <div class="bg-gray-50 dark:bg-gray-900/50 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
+            <div class="text-lg font-bold text-gray-900 dark:text-white">{{ workout_summary.total_calories }}</div>
+            <div class="text-xs text-gray-600 dark:text-gray-400">Calories</div>
+          </div>
+        {% endif %}
+      </div>
+
+      <div class="relative bg-gray-900 rounded-lg min-h-[320px] w-full">
+        <canvas id="rowingChart"></canvas>
+      </div>
+
+      <div class="flex flex-wrap items-center justify-end gap-2 mt-4">
+        <button id="saveChart" class="px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors border border-gray-300 dark:border-gray-600 inline-flex items-center gap-2">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"></path>
+          </svg>
+          Share
+        </button>
+      </div>
+    </div>
+  {% endif %}
+{% else %}
+  <!-- No performance data -->
+  <div class="bg-white dark:bg-gray-800 shadow-sm p-6 sm:p-8 rounded-lg border border-gray-200 dark:border-gray-700 mb-6">
+    <div class="text-center py-8">
+      <svg class="w-16 h-16 mx-auto text-gray-400 dark:text-gray-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+      </svg>
+      <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">No performance data recorded</h3>
+      <p class="text-gray-600 dark:text-gray-400">This manual workout doesn't have performance metrics data available.</p>
+    </div>
+  </div>
+{% endif %}
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const performanceData = {{ performance_data_json|safe }};
+  const userFtp = {{ user_ftp|default:"null" }};
+  const discipline = "{{ workout.ride_detail.fitness_discipline|default:'' }}";
+  
+  // Calculate workout duration from performance data
+  let workoutDuration = 0;
+  if (Array.isArray(performanceData) && performanceData.length > 0) {
+    let maxTs = 0;
+    for (const p of performanceData) {
+      const ts = (p && typeof p.timestamp === 'number') ? p.timestamp : null;
+      if (ts !== null && ts > maxTs) maxTs = ts;
+    }
+    if (maxTs > 0) workoutDuration = maxTs;
+  }
+  if (!workoutDuration || workoutDuration <= 0) workoutDuration = 1800; // 30-min fallback
+
+  // Cycling chart
+  if (discipline === 'cycling' || discipline === 'ride') {
+    const canvas = document.getElementById('generalChart');
+    if (canvas && performanceData && performanceData.length > 0) {
+      initCyclingChart(canvas, performanceData, workoutDuration, userFtp);
+    }
+  }
+  
+  // Running/Walking chart
+  if (discipline === 'running' || discipline === 'walking') {
+    const canvas = document.getElementById('paceChart');
+    if (canvas && performanceData && performanceData.length > 0) {
+      initPaceChart(canvas, performanceData, workoutDuration);
+    }
+  }
+  
+  // Rowing chart
+  if (discipline === 'rowing') {
+    const canvas = document.getElementById('rowingChart');
+    if (canvas && performanceData && performanceData.length > 0) {
+      initRowingChart(canvas, performanceData, workoutDuration);
+    }
+  }
+});
+
+function initCyclingChart(canvas, performanceData, workoutDuration, userFtp) {
+  // Implementation similar to detail_cycling.html but without target lines
+  // This is a simplified version - you may want to copy the full implementation
+  const ctx = canvas.getContext('2d');
+  const chart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      datasets: [{
+        label: 'Output',
+        data: performanceData.map(p => ({x: p.timestamp, y: p.output})).filter(d => d.y != null),
+        borderColor: 'rgb(59, 130, 246)',
+        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+        tension: 0.4,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        x: {
+          type: 'linear',
+          min: 0,
+          max: workoutDuration,
+          title: {display: true, text: 'Time (seconds)'}
+        },
+        y: {
+          beginAtZero: true,
+          title: {display: true, text: 'Output (W)'}
+        }
+      }
+    }
+  });
+}
+
+function initPaceChart(canvas, performanceData, workoutDuration) {
+  const ctx = canvas.getContext('2d');
+  const chart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      datasets: [{
+        label: 'Speed',
+        data: performanceData.map(p => ({x: p.timestamp, y: p.speed})).filter(d => d.y != null),
+        borderColor: 'rgb(34, 197, 94)',
+        backgroundColor: 'rgba(34, 197, 94, 0.1)',
+        tension: 0.4,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        x: {
+          type: 'linear',
+          min: 0,
+          max: workoutDuration,
+          title: {display: true, text: 'Time (seconds)'}
+        },
+        y: {
+          beginAtZero: true,
+          title: {display: true, text: 'Speed (mph)'}
+        }
+      }
+    }
+  });
+}
+
+function initRowingChart(canvas, performanceData, workoutDuration) {
+  const ctx = canvas.getContext('2d');
+  const chart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      datasets: [{
+        label: 'Output',
+        data: performanceData.map(p => ({x: p.timestamp, y: p.output})).filter(d => d.y != null),
+        borderColor: 'rgb(168, 85, 247)',
+        backgroundColor: 'rgba(168, 85, 247, 0.1)',
+        tension: 0.4,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        x: {
+          type: 'linear',
+          min: 0,
+          max: workoutDuration,
+          title: {display: true, text: 'Time (seconds)'}
+        },
+        y: {
+          beginAtZero: true,
+          title: {display: true, text: 'Output (W)'}
+        }
+      }
+    }
+  });
+}
+
+// Share button functionality
+const saveChartBtn = document.getElementById('saveChart');
+if (saveChartBtn) {
+  saveChartBtn.addEventListener('click', async function() {
+    const card = document.getElementById('workoutSummaryCard');
+    if (!card) return;
+    
+    try {
+      const canvas = await html2canvas(card, {
+        backgroundColor: getComputedStyle(document.documentElement).getPropertyValue('--tw-bg-opacity') ? '#1f2937' : '#ffffff',
+        scale: 2
+      });
+      
+      canvas.toBlob(function(blob) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'workout-summary.png';
+        a.click();
+        URL.revokeObjectURL(url);
+      });
+    } catch (err) {
+      console.error('Error generating image:', err);
+    }
+  });
+}
+</script>
+{% endblock %}

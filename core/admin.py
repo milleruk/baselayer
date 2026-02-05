@@ -19,6 +19,10 @@ class SiteSettingsAdmin(admin.ModelAdmin):
             'fields': ('require_user_activation',),
             'description': 'Configure how new user registrations are handled.'
         }),
+        ('Annual Challenge Settings', {
+            'fields': ('annual_challenge_id', 'annual_challenge_name'),
+            'description': 'Peloton challenge ID used to track annual challenge progress.'
+        }),
     )
 
 

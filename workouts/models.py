@@ -663,6 +663,38 @@ class Workout(models.Model):
         return 0
     
     @property
+    def actual_duration_minutes(self):
+        """
+        Get actual workout duration in minutes.
+        Priority order:
+        1. WorkoutDetails.duration_seconds (from performance graph)
+        2. ride_detail.duration_seconds (if > 0)
+        3. Max timestamp from performance_data (calculated)
+        Returns 0 if no duration available.
+        """
+        # First check if we have stored duration from performance graph
+        try:
+            if hasattr(self, 'details') and self.details and self.details.duration_seconds:
+                return int(self.details.duration_seconds / 60)
+        except Exception:
+            pass
+        
+        # If ride_detail has a duration > 0, use it
+        if self.ride_detail and self.ride_detail.duration_seconds > 0:
+            return self.ride_detail.duration_minutes
+        
+        # Otherwise, calculate from performance data (for manual workouts)
+        try:
+            timestamps = self.performance_data.values_list('timestamp', flat=True)
+            if timestamps:
+                max_timestamp = max(timestamps)
+                return int(max_timestamp / 60)
+        except Exception:
+            pass
+        
+        return 0
+    
+    @property
     def workout_type(self):
         """Get workout_type from ride_detail via join"""
         if self.ride_detail:
@@ -725,6 +757,9 @@ class WorkoutDetails(models.Model):
     # Resistance (for cycling)
     avg_resistance = models.FloatField(null=True, blank=True, help_text="Average resistance")
     max_resistance = models.FloatField(null=True, blank=True, help_text="Maximum resistance")
+    
+    # Duration (for manual workouts where ride_detail duration is 0)
+    duration_seconds = models.IntegerField(null=True, blank=True, help_text="Actual workout duration in seconds (from performance data)")
     
     # Calories
     total_calories = models.IntegerField(null=True, blank=True, help_text="Total calories burned")

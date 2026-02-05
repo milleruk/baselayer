@@ -4,6 +4,13 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Iterable
 
+from django.utils import timezone
+
+from core.models import SiteSettings
+from peloton.models import PelotonConnection
+
+from .models import AnnualChallengeProgress
+
 
 @dataclass(frozen=True)
 class AnnualTier:
@@ -54,7 +61,7 @@ def compute_tier_progress(*, minutes_ytd: int, today: date, tiers: Iterable[Annu
     year = today.year
     total_days = days_in_year(year)
     elapsed = min(total_days, max(1, days_elapsed_in_year(today)))
-    remaining = max(0, total_days - elapsed)
+    remaining = max(0, total_days - elapsed + 1)
 
     out: list[TierProgress] = []
     for tier in tiers:
@@ -87,4 +94,90 @@ def compute_tier_progress(*, minutes_ytd: int, today: date, tiers: Iterable[Annu
             )
         )
     return out
+
+
+def update_annual_challenge_progress_from_peloton(*, user) -> AnnualChallengeProgress | None:
+    settings = SiteSettings.get_settings()
+    challenge_id = settings.annual_challenge_id
+    if not challenge_id:
+        return None
+
+    try:
+        connection = PelotonConnection.objects.get(user=user, is_active=True)
+    except PelotonConnection.DoesNotExist:
+        return None
+
+    try:
+        client = connection.get_client()
+    except Exception:
+        return None
+
+    if not connection.peloton_user_id:
+        try:
+            user_data = client.fetch_current_user()
+            peloton_user_id = user_data.get("id")
+            if peloton_user_id:
+                connection.peloton_user_id = str(peloton_user_id)
+                connection.save(update_fields=["peloton_user_id"])
+        except Exception:
+            return None
+
+    if not connection.peloton_user_id:
+        return None
+
+    try:
+        payload = client._get(
+            f"/api/user/{connection.peloton_user_id}/challenges/current",
+            params={"has_joined": "true"},
+        )
+    except Exception:
+        return None
+
+    challenges = payload.get("challenges", []) if isinstance(payload, dict) else []
+    match = None
+    for challenge in challenges:
+        summary = challenge.get("challenge_summary", {}) if isinstance(challenge, dict) else {}
+        if summary.get("id") == challenge_id:
+            match = challenge
+            break
+
+    now = timezone.now()
+
+    if not match:
+        progress, _ = AnnualChallengeProgress.objects.update_or_create(
+            user=user,
+            challenge_id=challenge_id,
+            defaults={
+                "minutes_ytd": None,
+                "metric_display_value": "",
+                "metric_display_unit": "",
+                "has_joined": False,
+                "challenge_status": "",
+                "last_synced_at": now,
+            },
+        )
+        return progress
+
+    progress_data = match.get("progress", {}) if isinstance(match, dict) else {}
+    summary = match.get("challenge_summary", {}) if isinstance(match, dict) else {}
+    has_joined = bool(progress_data.get("has_joined"))
+    minutes_value = progress_data.get("metric_value")
+    minutes_ytd = int(minutes_value) if minutes_value is not None and has_joined else None
+    metric_display_value = progress_data.get("metric_display_value") or ""
+    metric_display_unit = progress_data.get("metric_display_unit") or ""
+
+    progress, _ = AnnualChallengeProgress.objects.update_or_create(
+        user=user,
+        challenge_id=challenge_id,
+        defaults={
+            "minutes_ytd": minutes_ytd,
+            "metric_display_value": metric_display_value if has_joined else "",
+            "metric_display_unit": metric_display_unit if has_joined else "",
+            "has_joined": has_joined,
+            "challenge_status": summary.get("status") or "",
+            "last_synced_at": now,
+        },
+    )
+
+    return progress
 

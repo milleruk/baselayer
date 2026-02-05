@@ -1418,7 +1418,7 @@ def class_detail(request, pk):
                     user=request.user,
                     activity_type=activity_type,
                     level=user_pace_level
-                ).prefetch_related('bands').order_by('-recorded_date').first()
+                ).order_by('-recorded_date').first()
                 
                 # If no PaceLevel found, use defaults
                 if not user_pace_level_obj:
@@ -4520,8 +4520,12 @@ def workout_detail(request, pk):
     if workout.ride_detail:
         ride_detail = workout.ride_detail
         
+        # Manual workouts (check peloton_ride_id starts with "manual_")
+        if ride_detail.peloton_ride_id and ride_detail.peloton_ride_id.startswith('manual_'):
+            template_name = 'workouts/detail_manual.html'
+        
         # Power Zone classes
-        if ride_detail.is_power_zone_class or ride_detail.class_type == 'power_zone':
+        elif ride_detail.is_power_zone_class or ride_detail.class_type == 'power_zone':
             template_name = 'workouts/detail_power_zone.html'
         
         # Pace Target classes (Running/Walking)
@@ -5226,7 +5230,12 @@ def sync_workouts(request):
                 ride_id = None
                 if 'ride' in workout_data and workout_data.get('ride'):
                     ride_id = workout_data.get('ride', {}).get('id')
-                    logger.debug(f"Workout {total_processed} ({peloton_workout_id}): Found ride_id in workout_data: {ride_id}")
+                    # Check if ride_id is a placeholder (all zeros - indicates manual workout)
+                    if ride_id and ride_id == '00000000000000000000000000000000':
+                        logger.debug(f"Workout {total_processed} ({peloton_workout_id}): Ride ID is placeholder (all zeros) - treating as manual workout")
+                        ride_id = None
+                    else:
+                        logger.debug(f"Workout {total_processed} ({peloton_workout_id}): Found ride_id in workout_data: {ride_id}")
                 
                 # Step 2: Check if RideDetail already exists, if not fetch it FIRST
                 ride_detail = None
@@ -5305,6 +5314,42 @@ def sync_workouts(request):
                         logger.warning(f"Workout {total_processed} ({peloton_workout_id}): Could not fetch detailed workout: {e}")
                         detailed_workout = None
                         ride_details = None
+                
+                # Step 3a: Handle manual workouts (no ride_id) - map to generic RideDetail
+                if not ride_id and not ride_detail:
+                    # This is a manual workout (Just Run, Just Walk, Just Ride, etc.)
+                    # Map to a generic RideDetail placeholder based on fitness_discipline
+                    logger.info(f"Workout {total_processed} ({peloton_workout_id}): No ride_id found - this is a MANUAL workout")
+                    
+                    # Define discipline to generic ID mapping
+                    MANUAL_RIDE_DETAIL_MAP = {
+                        'running': 9999999,
+                        'cycling': 9999998,
+                        'walking': 9999997,
+                        'rowing': 9999996,
+                        'strength': 9999995,
+                        'yoga': 9999994,
+                        'meditation': 9999993,
+                        'stretching': 9999992,
+                        'cardio': 9999991,
+                        'other': 9999990,
+                    }
+                    
+                    # Get the generic ride_detail ID based on discipline
+                    discipline = workout_type_slug  # Already extracted and normalized earlier
+                    generic_ride_id = MANUAL_RIDE_DETAIL_MAP.get(discipline, 9999990)
+                    generic_peloton_ride_id = f"manual_{discipline}_{generic_ride_id}"
+                    
+                    logger.info(f"Workout {total_processed} ({peloton_workout_id}): Looking up generic RideDetail: {generic_peloton_ride_id}")
+                    
+                    # Try to get the generic RideDetail
+                    try:
+                        ride_detail = RideDetail.objects.get(peloton_ride_id=generic_peloton_ride_id)
+                        logger.info(f"Workout {total_processed} ({peloton_workout_id}): ✓ Mapped to generic {discipline} RideDetail - '{ride_detail.title}'")
+                    except RideDetail.DoesNotExist:
+                        logger.error(f"Workout {total_processed} ({peloton_workout_id}): Generic RideDetail '{generic_peloton_ride_id}' not found! Run 'python manage.py create_generic_ride_details' first.")
+                        workouts_skipped += 1
+                        continue
                 
                 # Step 3: Create or update RideDetail if we have ride_details and it doesn't exist yet
                 if ride_id and not ride_detail and 'ride_details' in locals() and ride_details:
@@ -5504,6 +5549,11 @@ def sync_workouts(request):
                     logger.debug(f"Workout {total_processed} ({peloton_workout_id}): Fetching performance graph for metrics (every_n=5)...")
                     performance_graph = client.fetch_performance_graph(peloton_workout_id, every_n=5)
                     
+                    # Extract duration from performance graph (especially important for manual workouts)
+                    duration_seconds = performance_graph.get('duration')
+                    if duration_seconds:
+                        logger.debug(f"Workout {total_processed} ({peloton_workout_id}): Found duration in performance graph: {duration_seconds} seconds ({int(duration_seconds/60)} minutes)")
+                    
                     # Extract metrics from performance graph
                     # The performance graph has a 'summaries' array with summary metrics (total_output, etc.)
                     # and a 'metrics' array with time-series data (for avg/max calculations)
@@ -5586,9 +5636,18 @@ def sync_workouts(request):
                                 logger.debug(f"Workout {total_processed} ({peloton_workout_id}): Found metric in detailed_workout {key} = {detailed_workout[key]}")
                     
                     # Update workout details with extracted metrics
-                    if metrics_dict:
+                    if metrics_dict or duration_seconds:
                         details, details_created = WorkoutDetails.objects.get_or_create(workout=workout)
                         details_updated = False
+                        
+                        # Save duration from performance graph (especially important for manual workouts)
+                        if duration_seconds:
+                            try:
+                                details.duration_seconds = int(duration_seconds)
+                                details_updated = True
+                                logger.debug(f"Workout {total_processed} ({peloton_workout_id}): Saved duration_seconds = {duration_seconds}")
+                            except (ValueError, TypeError):
+                                pass
                         
                         # TSS (might be in detailed_workout, not performance graph)
                         if 'tss' in metrics_dict:
@@ -5791,6 +5850,13 @@ def sync_workouts(request):
         if hasattr(request.user, 'profile'):
             request.user.profile.peloton_last_synced_at = sync_completed_at
             request.user.profile.save()
+
+        try:
+            from annual_challenge.services import update_annual_challenge_progress_from_peloton
+
+            update_annual_challenge_progress_from_peloton(user=request.user)
+        except Exception as e:
+            logger.warning(f"Could not update annual challenge progress after sync: {e}")
         
         # Build success message
         sync_type_str = "full" if is_full_sync else "incremental"

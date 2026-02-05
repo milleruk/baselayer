@@ -130,15 +130,21 @@ class PelotonClient:
         if state is None:
             state = secrets.token_urlsafe(32)
         
+        # Generate nonce for additional security
+        nonce = secrets.token_urlsafe(32)
+        
         params = {
-            "response_type": "code",
             "client_id": AUTH_CLIENT_ID,
-            "redirect_uri": redirect_uri,
-            "scope": AUTH_SCOPE,
             "audience": AUTH_AUDIENCE,
+            "scope": AUTH_SCOPE,
+            "response_type": "code",
+            "response_mode": "query",
+            "redirect_uri": redirect_uri,
+            "state": state,
+            "nonce": nonce,
             "code_challenge": code_challenge,
             "code_challenge_method": "S256",
-            "state": state,
+            "auth0Client": AUTH0_CLIENT_PAYLOAD,
         }
         
         auth_url = f"https://{AUTH_DOMAIN}{AUTH_AUTHORIZE_PATH}?{urlencode(params)}"
@@ -184,6 +190,59 @@ class PelotonClient:
         
         logger.debug("Exchanged authorization code for token")
         return token
+    
+    def get_user_following_ids(self, user_id: str) -> list[str]:
+        """
+        Fetch all Peloton user IDs that a user is following.
+        Uses pagination to fetch all pages.
+        Returns list of user IDs only.
+        """
+        following_ids = []
+        limit = 100  # Increased from 20 to reduce API calls
+        page = 0
+        
+        while True:
+            params = {
+                "limit": limit,
+                "page": page
+            }
+            
+            try:
+                url = f"{self.base_url}/api/user/{user_id}/following"
+                response = self.session.get(url, params=params, timeout=self.timeout)
+                response.raise_for_status()
+                
+                data = response.json()
+                
+                # Extract user IDs from results
+                users_in_page = data.get("data", [])
+                if not users_in_page:
+                    # No more data, we're done
+                    break
+                
+                for user in users_in_page:
+                    if "id" in user:
+                        following_ids.append(user["id"])
+                
+                logger.info(f"Fetched page {page} with {len(users_in_page)} users. Total so far: {len(following_ids)}")
+                
+                # Check if there are more pages
+                total = data.get("total", 0)
+                page_count = data.get("page_count", 0)
+                
+                # If we have fetched all users or no more pages, stop
+                if len(following_ids) >= total or len(users_in_page) < limit:
+                    break
+                
+                # Move to next page
+                page += 1
+                
+            except requests.exceptions.RequestException as e:
+                logger.error(f"Error fetching following for user {user_id}: {e}")
+                raise PelotonAPIError(f"Failed to fetch following: {str(e)}")
+        
+        logger.info(f"Finished fetching following. Total users: {len(following_ids)}")
+        return following_ids
     
     def authenticate(self, username: str, password: str) -> Token:
         """

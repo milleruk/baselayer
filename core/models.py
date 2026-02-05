@@ -12,6 +12,20 @@ class SiteSettings(models.Model):
         help_text="If enabled, new user accounts require admin activation before they can log in. "
                   "Disable this when out of development mode to allow automatic registration."
     )
+
+    annual_challenge_id = models.CharField(
+        max_length=64,
+        blank=True,
+        default="",
+        help_text="Peloton Annual Challenge ID to track for the current year (e.g., 67bfab351b6f4e239ed17aadf28c006e)."
+    )
+
+    annual_challenge_name = models.CharField(
+        max_length=120,
+        blank=True,
+        default="",
+        help_text="Display name for the current annual challenge (e.g., Annual Challenge 2026)."
+    )
     
     class Meta:
         verbose_name = "Site Settings"

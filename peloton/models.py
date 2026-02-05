@@ -59,6 +59,11 @@ class PelotonConnection(models.Model):
     sync_started_at = models.DateTimeField(blank=True, null=True, help_text="When the current sync started")
     sync_cooldown_until = models.DateTimeField(blank=True, null=True, help_text="When sync can be run again (60 min cooldown)")
     
+    # Following data and cooldown (separate from workout sync)
+    following_ids = models.JSONField(default=list, blank=True, help_text="List of Peloton user IDs that this user follows")
+    following_last_sync_at = models.DateTimeField(blank=True, null=True, help_text="When following IDs were last fetched")
+    following_cooldown_until = models.DateTimeField(blank=True, null=True, help_text="When following can be fetched again (60 min cooldown)")
+    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     

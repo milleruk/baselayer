@@ -143,8 +143,8 @@ def profile(request):
     current_walking_pace = profile.get_current_pace('walking')
     
     # Get Pace Levels (both running and walking)
-    running_pace_levels = PaceLevel.objects.filter(user=request.user, activity_type='running').prefetch_related('bands').order_by('-recorded_date', '-level')
-    walking_pace_levels = PaceLevel.objects.filter(user=request.user, activity_type='walking').prefetch_related('bands').order_by('-recorded_date', '-level')
+    running_pace_levels = PaceLevel.objects.filter(user=request.user, activity_type='running').order_by('-recorded_date', '-level')
+    walking_pace_levels = PaceLevel.objects.filter(user=request.user, activity_type='walking').order_by('-recorded_date', '-level')
     
     # Get current active pace level objects for metrics display
     current_running_pace_level = None
@@ -155,7 +155,7 @@ def profile(request):
             user=request.user, 
             activity_type='running', 
             level=current_running_pace
-        ).prefetch_related('bands').order_by('-recorded_date').first()
+        ).order_by('-recorded_date').first()
         
         # If no custom pace level exists but we have default data, create a display object
         if not current_running_pace_level and current_running_pace in DEFAULT_RUNNING_PACE_LEVELS:
@@ -207,7 +207,7 @@ def profile(request):
             user=request.user, 
             activity_type='walking', 
             level=current_walking_pace
-        ).prefetch_related('bands').order_by('-recorded_date').first()
+        ).order_by('-recorded_date').first()
         
         # If no custom pace level exists but we have default data, create a display object
         if not current_walking_pace_level and current_walking_pace in DEFAULT_WALKING_PACE_LEVELS:

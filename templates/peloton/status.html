@@ -30,6 +30,7 @@
     
     {% if connection and connection.is_active %}
       <div class="space-y-4">
+        <!-- Account Details -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <p class="text-sm text-gray-600 dark:text-gray-400 mb-1">Peloton Username</p>
@@ -63,93 +64,8 @@
           </div>
         {% endif %}
         
-        <!-- Peloton Statistics -->
-        <div class="pt-4 border-t border-gray-200 dark:border-gray-700">
-          <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-3">Peloton Statistics</h3>
-          {% if profile.peloton_total_workouts %}
-            <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
-              <div>
-                <p class="text-xs text-gray-600 dark:text-gray-400 mb-1">Total Workouts</p>
-                <p class="text-lg font-semibold text-gray-900 dark:text-white">{{ profile.peloton_total_workouts|floatformat:0 }}</p>
-              </div>
-              {% if profile.peloton_total_pedaling_metric_workouts %}
-                <div>
-                  <p class="text-xs text-gray-600 dark:text-gray-400 mb-1">Pedaling Workouts</p>
-                  <p class="text-lg font-semibold text-gray-900 dark:text-white">{{ profile.peloton_total_pedaling_metric_workouts|floatformat:0 }}</p>
-                </div>
-              {% endif %}
-              {% if profile.peloton_total_non_pedaling_metric_workouts %}
-                <div>
-                  <p class="text-xs text-gray-600 dark:text-gray-400 mb-1">Non-Pedaling Workouts</p>
-                  <p class="text-lg font-semibold text-gray-900 dark:text-white">{{ profile.peloton_total_non_pedaling_metric_workouts|floatformat:0 }}</p>
-                </div>
-              {% endif %}
-              {% if profile.peloton_current_weekly_streak %}
-                <div>
-                  <p class="text-xs text-gray-600 dark:text-gray-400 mb-1">Weekly Streak</p>
-                  <p class="text-lg font-semibold text-gray-900 dark:text-white">{{ profile.peloton_current_weekly_streak|floatformat:0 }} weeks</p>
-                </div>
-              {% endif %}
-              {% if profile.peloton_best_weekly_streak %}
-                <div>
-                  <p class="text-xs text-gray-600 dark:text-gray-400 mb-1">Best Weekly Streak</p>
-                  <p class="text-lg font-semibold text-gray-900 dark:text-white">{{ profile.peloton_best_weekly_streak|floatformat:0 }} weeks</p>
-                </div>
-              {% endif %}
-              {% if profile.peloton_current_daily_streak %}
-                <div>
-                  <p class="text-xs text-gray-600 dark:text-gray-400 mb-1">Daily Streak</p>
-                  <p class="text-lg font-semibold text-gray-900 dark:text-white">{{ profile.peloton_current_daily_streak|floatformat:0 }} days</p>
-                </div>
-              {% endif %}
-              {% if profile.peloton_total_achievements %}
-                <div>
-                  <p class="text-xs text-gray-600 dark:text-gray-400 mb-1">Total Achievements</p>
-                  <p class="text-lg font-semibold text-gray-900 dark:text-white">{{ profile.peloton_total_achievements|floatformat:0 }}</p>
-                </div>
-              {% endif %}
-              {% if profile.peloton_total_output %}
-                <div>
-                  <p class="text-xs text-gray-600 dark:text-gray-400 mb-1">Total Output</p>
-                  <p class="text-lg font-semibold text-gray-900 dark:text-white">{{ profile.peloton_total_output|floatformat:0 }} kJ</p>
-                </div>
-              {% endif %}
-              {% if profile.peloton_total_distance %}
-                <div>
-                  <p class="text-xs text-gray-600 dark:text-gray-400 mb-1">Total Distance</p>
-                  <p class="text-lg font-semibold text-gray-900 dark:text-white">{{ profile.peloton_total_distance|floatformat:1 }} mi</p>
-                </div>
-              {% endif %}
-              {% if profile.peloton_total_calories %}
-                <div>
-                  <p class="text-xs text-gray-600 dark:text-gray-400 mb-1">Total Calories</p>
-                  <p class="text-lg font-semibold text-gray-900 dark:text-white">{{ profile.peloton_total_calories|floatformat:0 }}</p>
-                </div>
-              {% endif %}
-              {% if profile.peloton_total_pedaling_duration %}
-                <div>
-                  <p class="text-xs text-gray-600 dark:text-gray-400 mb-1">Total Time</p>
-                  <p class="text-lg font-semibold text-gray-900 dark:text-white">
-                    {{ profile.peloton_total_pedaling_duration|format_duration_seconds }}
-                  </p>
-                </div>
-              {% endif %}
-            </div>
-            {% if not profile.peloton_total_output and not profile.peloton_total_distance and not profile.peloton_total_calories and not profile.peloton_total_pedaling_duration %}
-              <p class="text-xs text-gray-500 dark:text-gray-500 mt-3 italic">
-                Note: Aggregate statistics (output, distance, calories, duration) are not available via the Peloton API overview endpoint. 
-                These would need to be calculated by fetching individual workouts.
-              </p>
-            {% endif %}
-          {% else %}
-            <div class="text-center py-4">
-              <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">No statistics available yet.</p>
-              <p class="text-xs text-gray-500 dark:text-gray-500">Click "Test Connection" to fetch your Peloton statistics.</p>
-            </div>
-          {% endif %}
-        </div>
-        
-        <div class="flex gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+        <!-- Action Buttons -->
+        <div class="flex flex-wrap gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
           <a 
             href="{% url 'peloton:connect' %}" 
             class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
@@ -183,13 +99,196 @@
       </div>
     {% endif %}
   </div>
-  
+
+  <!-- Peloton Statistics Card -->
+  {% if connection and connection.is_active %}
+    <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
+      <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Peloton Statistics</h3>
+      {% if profile.peloton_total_workouts %}
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+            <p class="text-xs text-gray-600 dark:text-gray-400 mb-1">Total Workouts</p>
+            <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ profile.peloton_total_workouts|floatformat:0 }}</p>
+          </div>
+          {% if profile.peloton_total_pedaling_metric_workouts %}
+            <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+              <p class="text-xs text-gray-600 dark:text-gray-400 mb-1">Pedaling</p>
+              <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ profile.peloton_total_pedaling_metric_workouts|floatformat:0 }}</p>
+            </div>
+          {% endif %}
+          {% if profile.peloton_total_non_pedaling_metric_workouts %}
+            <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+              <p class="text-xs text-gray-600 dark:text-gray-400 mb-1">Non-Pedaling</p>
+              <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ profile.peloton_total_non_pedaling_metric_workouts|floatformat:0 }}</p>
+            </div>
+          {% endif %}
+          {% if profile.peloton_current_weekly_streak %}
+            <div class="bg-blue-50 dark:bg-blue-900/30 rounded-lg p-4">
+              <p class="text-xs text-blue-600 dark:text-blue-400 mb-1">Weekly Streak</p>
+              <p class="text-2xl font-bold text-blue-700 dark:text-blue-200">{{ profile.peloton_current_weekly_streak|floatformat:0 }}w</p>
+            </div>
+          {% endif %}
+          {% if profile.peloton_best_weekly_streak %}
+            <div class="bg-blue-50 dark:bg-blue-900/30 rounded-lg p-4">
+              <p class="text-xs text-blue-600 dark:text-blue-400 mb-1">Best Streak</p>
+              <p class="text-2xl font-bold text-blue-700 dark:text-blue-200">{{ profile.peloton_best_weekly_streak|floatformat:0 }}w</p>
+            </div>
+          {% endif %}
+          {% if profile.peloton_current_daily_streak %}
+            <div class="bg-green-50 dark:bg-green-900/30 rounded-lg p-4">
+              <p class="text-xs text-green-600 dark:text-green-400 mb-1">Daily Streak</p>
+              <p class="text-2xl font-bold text-green-700 dark:text-green-200">{{ profile.peloton_current_daily_streak|floatformat:0 }}d</p>
+            </div>
+          {% endif %}
+          {% if profile.peloton_total_achievements %}
+            <div class="bg-purple-50 dark:bg-purple-900/30 rounded-lg p-4">
+              <p class="text-xs text-purple-600 dark:text-purple-400 mb-1">Achievements</p>
+              <p class="text-2xl font-bold text-purple-700 dark:text-purple-200">{{ profile.peloton_total_achievements|floatformat:0 }}</p>
+            </div>
+          {% endif %}
+          {% if profile.peloton_total_output %}
+            <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+              <p class="text-xs text-gray-600 dark:text-gray-400 mb-1">Total Output</p>
+              <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ profile.peloton_total_output|floatformat:0 }}<span class="text-xs font-normal">kJ</span></p>
+            </div>
+          {% endif %}
+          {% if profile.peloton_total_distance %}
+            <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+              <p class="text-xs text-gray-600 dark:text-gray-400 mb-1">Total Distance</p>
+              <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ profile.peloton_total_distance|floatformat:1 }}<span class="text-xs font-normal">mi</span></p>
+            </div>
+          {% endif %}
+          {% if profile.peloton_total_calories %}
+            <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+              <p class="text-xs text-gray-600 dark:text-gray-400 mb-1">Total Calories</p>
+              <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ profile.peloton_total_calories|floatformat:0 }}</p>
+            </div>
+          {% endif %}
+          {% if profile.peloton_total_pedaling_duration %}
+            <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+              <p class="text-xs text-gray-600 dark:text-gray-400 mb-1">Total Time</p>
+              <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ profile.peloton_total_pedaling_duration|format_duration_seconds }}</p>
+            </div>
+          {% endif %}
+        </div>
+        {% if not profile.peloton_total_output and not profile.peloton_total_distance and not profile.peloton_total_calories and not profile.peloton_total_pedaling_duration %}
+          <p class="text-xs text-gray-500 dark:text-gray-500 mt-4 italic">
+            Note: Aggregate statistics (output, distance, calories, duration) are not available via the Peloton API overview endpoint. 
+            These would need to be calculated by fetching individual workouts.
+          </p>
+        {% endif %}
+      {% else %}
+        <div class="text-center py-8">
+          <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">No statistics available yet.</p>
+          <p class="text-xs text-gray-500 dark:text-gray-500">Click "Test Connection" to fetch your Peloton statistics.</p>
+        </div>
+      {% endif %}
+    </div>
+
+    <!-- Following Section -->
+    <div class="space-y-6">
+      <!-- Following Metrics -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Total Following Card -->
+        <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
+          <div class="flex items-start justify-between">
+            <div>
+              <p class="text-sm text-gray-600 dark:text-gray-400 mb-1">Total Following</p>
+              <p class="text-4xl font-bold text-gray-900 dark:text-white">{{ connection.following_ids|length }}</p>
+              {% if connection.following_last_sync_at %}
+                <p class="text-xs text-gray-500 dark:text-gray-500 mt-2">
+                  Last fetched: {{ connection.following_last_sync_at|date:"M d, Y H:i" }}
+                </p>
+              {% endif %}
+            </div>
+            <div class="text-4xl">👥</div>
+          </div>
+        </div>
+
+        <!-- Matched Users Card -->
+        <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
+          <div class="flex items-start justify-between mb-4">
+            <div>
+              <p class="text-sm text-gray-600 dark:text-gray-400 mb-1">Matched on Platform</p>
+              <p class="text-4xl font-bold text-blue-600 dark:text-blue-400">{{ matched_followers|length }}</p>
+              {% if connection.following_cooldown_until and now < connection.following_cooldown_until %}
+                <p class="text-xs text-orange-600 dark:text-orange-400 mt-2">
+                  Can refresh in {{ following_cooldown_minutes }} min
+                </p>
+              {% else %}
+                <p class="text-xs text-gray-500 dark:text-gray-500 mt-2">
+                  Ready to refresh
+                </p>
+              {% endif %}
+            </div>
+            <div class="text-4xl">✓</div>
+          </div>
+          
+          <!-- Grab Followers Button -->
+          <form method="post" action="{% url 'peloton:grab_followers' %}">
+            {% csrf_token %}
+            {% if connection.following_cooldown_until and now < connection.following_cooldown_until %}
+              <button 
+                type="submit" 
+                disabled
+                class="w-full px-4 py-2 bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 font-medium rounded-lg transition-colors cursor-not-allowed"
+              >
+                Refresh in {{ following_cooldown_minutes }} min
+              </button>
+            {% else %}
+              <button 
+                type="submit" 
+                class="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
+              >
+                Grab Followers
+              </button>
+            {% endif %}
+          </form>
+        </div>
+      </div>
+
+      <!-- Matched Followers List -->
+      {% if matched_followers %}
+        <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
+          <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Followers on Platform</h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {% for follower in matched_followers %}
+              <div class="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600">
+                <p class="text-sm font-medium text-gray-900 dark:text-white">{{ follower.user.profile.peloton_leaderboard_name }}</p>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+      {% elif connection.following_ids %}
+        <div class="rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 p-6">
+          <p class="text-sm text-blue-800 dark:text-blue-200">
+            You're following {{ connection.following_ids|length }} people, but none of them have accounts on this platform yet.
+          </p>
+        </div>
+      {% else %}
+        <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm text-center">
+          <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">No followers fetched yet</p>
+          <form method="post" action="{% url 'peloton:grab_followers' %}" style="display: inline;">
+            {% csrf_token %}
+            <button 
+              type="submit" 
+              class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
+            >
+              Fetch Your Followers
+            </button>
+          </form>
+        </div>
+      {% endif %}
+    </div>
+  {% endif %}
+
   <!-- Information Card -->
   <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
-    <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">About Peloton Integration</h3>
+    <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">About Peloton Integration</h3>
     <ul class="space-y-2 text-sm text-gray-600 dark:text-gray-400">
       <li>• Your Peloton credentials are encrypted and stored securely</li>
       <li>• Your leaderboard name is synced to your profile</li>
+      <li>• Fetch your followers to discover who else is on this platform</li>
       <li>• You can disconnect your account at any time</li>
       <li>• Use "Test Connection" to refresh your profile data</li>
     </ul>

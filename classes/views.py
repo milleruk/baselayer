@@ -909,7 +909,7 @@ def class_detail(request, pk):
                     user=request.user,
                     activity_type=activity_type,
                     level=user_pace_level
-                ).prefetch_related('bands').order_by('-recorded_date').first()
+                ).order_by('-recorded_date').first()
                 
                 # If no PaceLevel found, use defaults
                 if not user_pace_level_obj:
