@@ -28,15 +28,12 @@
         Unleash the power of your training data
       </h1>
       <p class="text-xl md:text-2xl text-gray-300 dark:text-gray-400 max-w-3xl mx-auto mb-8">
-        Say goodbye to basic workout tracking. Every athlete, regardless of background, can now optimise their training with pelvic floor exercises integrated into their Power Zone and running programmes. Simple. Intuitive. And never boring.
+        Say goodbye to basic workout tracking. Every athlete, regardless of background, can now optimise their training with yoga and strength options integrated into their Power Zone and running programmes. Simple. Intuitive. And never boring.
       </p>
       <div class="flex flex-col sm:flex-row gap-4 justify-center">
         {% if user.is_authenticated %}
           <a href="{% url 'tracker:generate' %}" class="inline-flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-lg text-white bg-primary hover:bg-primary-dark transition-colors shadow-lg">
             Generate This Week
-          </a>
-          <a href="{% url 'plans:exercise_list' %}" class="inline-flex items-center justify-center px-8 py-3 border border-gray-300 dark:border-gray-600 text-base font-medium rounded-lg text-white bg-transparent hover:bg-white/10 transition-colors">
-            Browse Exercises
           </a>
         {% else %}
           <a href="{% url 'register' %}" class="inline-flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-lg text-white bg-primary hover:bg-primary-dark transition-colors shadow-lg">
@@ -59,7 +56,7 @@
         Everything you need.<br>Nothing you don't.
       </h2>
       <p class="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-        Training plans and pelvic floor exercises in one place. Experience a powerful toolkit that makes every workout feel meaningful.
+        Training plans and yoga/strength sessions in one place. Experience a powerful toolkit that makes every workout feel meaningful.
       </p>
     </div>
     
@@ -83,9 +80,8 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
           </svg>
         </div>
-        <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-3">Kegel Exercise Library</h3>
-        <p class="text-gray-600 dark:text-gray-400 mb-4">Browse and analyse pelvic floor exercises with detailed descriptions, video demonstrations, and proper form cues.</p>
-        <a href="{% url 'plans:exercise_list' %}" class="text-primary hover:text-primary-dark font-medium text-sm">Browse Exercises →</a>
+        <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-3">Yoga & Strength Library</h3>
+        <p class="text-gray-600 dark:text-gray-400 mb-4">Browse yoga and strength sessions. For guidance, you'll be linked to recommended yoga classes and resources.</p>
       </div>
       
       <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm hover:shadow-md transition-shadow">
@@ -95,7 +91,7 @@
           </svg>
         </div>
         <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-3">Automated Weekly Plans</h3>
-        <p class="text-gray-600 dark:text-gray-400 mb-4">Generate Power Zone-aligned weekly plans with pelvic floor exercises seamlessly integrated into your training schedule.</p>
+        <p class="text-gray-600 dark:text-gray-400 mb-4">Generate Power Zone-aligned weekly plans with yoga and strength sessions seamlessly integrated into your training schedule.</p>
         {% if user.is_authenticated %}
           <a href="{% url 'tracker:generate' %}" class="text-primary hover:text-primary-dark font-medium text-sm">Generate Plan →</a>
         {% endif %}
@@ -108,7 +104,7 @@
           </svg>
         </div>
         <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-3">Custom Challenges</h3>
-        <p class="text-gray-600 dark:text-gray-400 mb-4">Join structured challenges that guide you through multi-week programmes designed to progressively strengthen your pelvic floor muscles.</p>
+        <p class="text-gray-600 dark:text-gray-400 mb-4">Join structured challenges that guide you through multi-week programmes designed to progressively improve your yoga and strength abilities.</p>
         {% if user.is_authenticated %}
           <a href="{% url 'challenges:challenges_list' %}" class="text-primary hover:text-primary-dark font-medium text-sm">Join Challenge →</a>
         {% endif %}
@@ -127,10 +123,10 @@
       </h2>
       <div class="mt-6 space-y-4 text-lg text-gray-600 dark:text-gray-400">
         <p>
-          Chase The Zones helps you strengthen your pelvic floor muscles through structured exercise programmes that complement your Power Zone training. Whether you're recovering from prostate surgery, managing urinary control, or looking to improve your overall fitness, this platform provides the tools you need.
+          Chase The Zones helps you improve your flexibility and strength through structured yoga and strength programmes that complement your Power Zone training. Whether you're looking to enhance recovery, boost performance, or improve your overall fitness, this platform provides the tools you need.
         </p>
         <p>
-          What makes us different? We're the only platform that seamlessly integrates kegel exercises and pelvic floor training into your existing Power Zone and running programmes. No separate apps, no complicated scheduling—just intelligent plans that work with your training, not against it.
+          What makes us different? We're the only platform that seamlessly integrates yoga and strength training into your existing Power Zone and running programmes. No separate apps, no complicated scheduling—just intelligent plans that work with your training, not against it.
         </p>
       </div>
       {% if not user.is_authenticated %}
@@ -170,7 +166,7 @@
           </svg>
         </div>
         <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-3">Weekly Plan Generation</h3>
-        <p class="text-gray-600 dark:text-gray-400 mb-4">Automatically create Power Zone-aligned weekly exercise blocks with pelvic floor exercises tailored to your training schedule.</p>
+        <p class="text-gray-600 dark:text-gray-400 mb-4">Automatically create Power Zone-aligned weekly exercise blocks with yoga and strength sessions tailored to your training schedule.</p>
       </div>
       
       <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm hover:shadow-md transition-shadow">
@@ -190,7 +186,7 @@
           </svg>
         </div>
         <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-3">Structured Challenges</h3>
-        <p class="text-gray-600 dark:text-gray-400 mb-4">Participate in structured challenges that guide you through multi-week programmes designed to progressively strengthen your pelvic floor muscles.</p>
+        <p class="text-gray-600 dark:text-gray-400 mb-4">Participate in structured challenges that guide you through multi-week programmes designed to progressively improve your yoga and strength abilities.</p>
       </div>
     </div>
   </div>
@@ -202,32 +198,32 @@
     <div class="text-center mb-12">
       <span class="text-sm font-semibold text-primary uppercase tracking-wider">Benefits</span>
       <h2 class="mt-4 text-3xl md:text-4xl font-extrabold text-gray-900 dark:text-white">
-        Why Pelvic Floor Exercises Matter
+        Why Yoga & Strength Matter
       </h2>
       <p class="mt-4 text-lg text-gray-600 dark:text-gray-400">
-        Understanding the importance of pelvic floor strength
+        Understanding the importance of flexibility and strength
       </p>
     </div>
     
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
       <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
-        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">Bladder Control</h3>
-        <p class="text-gray-600 dark:text-gray-400">Improve urinary control and reduce leakage, especially after prostate surgery or as you age.</p>
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">Flexibility</h3>
+        <p class="text-gray-600 dark:text-gray-400">Improve flexibility and mobility, helping you recover faster and prevent injuries.</p>
       </div>
       
       <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
-        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">Bowel Control</h3>
-        <p class="text-gray-600 dark:text-gray-400">Strengthen muscles that support bowel function and help manage wind and leakage issues.</p>
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">Strength</h3>
+        <p class="text-gray-600 dark:text-gray-400">Build strength to support your Power Zone training and running, enhancing performance and endurance.</p>
       </div>
       
       <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
-        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">Post-Surgery Recovery</h3>
-        <p class="text-gray-600 dark:text-gray-400">Essential rehabilitation exercises following prostate surgery to restore muscle function.</p>
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">Recovery</h3>
+        <p class="text-gray-600 dark:text-gray-400">Yoga and strength sessions aid in recovery, reducing soreness and improving overall well-being.</p>
       </div>
       
       <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
         <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">Overall Fitness</h3>
-        <p class="text-gray-600 dark:text-gray-400">Support your Power Zone training with a strong foundation. Strong pelvic floor muscles contribute to better core stability and athletic performance.</p>
+        <p class="text-gray-600 dark:text-gray-400">Support your Power Zone training with a strong foundation. Yoga and strength training contribute to better core stability and athletic performance.</p>
       </div>
     </div>
   </div>
@@ -241,7 +237,7 @@
         See where integrated training can take your fitness.
       </h2>
       <p class="text-xl text-white/90 max-w-2xl mx-auto mb-8">
-        The first training platform that seamlessly integrates pelvic floor exercises into your Power Zone and running programmes. And the last one you'll ever need.
+        The first training platform that seamlessly integrates yoga and strength training into your Power Zone and running programmes. And the last one you'll ever need.
       </p>
       <div class="flex flex-col sm:flex-row gap-4 justify-center">
         {% if user.is_authenticated %}

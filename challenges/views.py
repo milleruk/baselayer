@@ -66,14 +66,19 @@ def challenges_list(request):
         if ci.is_active:
             ci.can_leave, ci.leave_error = ci.can_leave_challenge()
     
+    # Combine lists so the template can render a single grid if desired (running first)
+    all_challenges = list(running_challenges) + list(upcoming_challenges) + list(past_challenges)
+
     return render(request, "challenges/challenges.html", {
         "upcoming_challenges": upcoming_challenges,
         "running_challenges": running_challenges,
         "past_challenges": past_challenges,
+        "all_challenges": all_challenges,
         "user_challenge_ids": user_challenge_ids,
         "active_challenge_id": active_challenge_id,
         "user_challenge_instances": user_challenge_instances,
     })
+
 
 
 @login_required

@@ -6,8 +6,9 @@ from django.views import defaults as default_views
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    path("accounts/", include("allauth.urls")),  # django-allauth
+    # Our local accounts URLs should override allauth where necessary
     path("accounts/", include("accounts.urls")),
+    path("accounts/", include("allauth.urls")),  # django-allauth
     path("", include("core.urls")),  # Dashboard and core views
     path("plans/", include("plans.urls")),
     path("instructor-recommender/", include("recommender.urls")),

@@ -59,6 +59,40 @@ class CustomLoginView(LoginView):
         
         return super().form_invalid(form)
 
+    def form_valid(self, form):
+        """Handle remember-me: set session expiry based on form field."""
+        response = super().form_valid(form)
+        remember = form.cleaned_data.get('remember_me')
+        if remember:
+            expiry = getattr(settings, 'REMEMBER_ME_DAYS', 30) * 24 * 60 * 60
+            self.request.session.set_expiry(expiry)
+        else:
+            # Browser-length session
+            self.request.session.set_expiry(0)
+        return response
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        social_providers = []
+        try:
+            # Import registry only if socialaccount is installed
+            from allauth.socialaccount import providers as providers_module
+            from allauth.socialaccount.providers import registry
+            from django.urls import reverse
+
+            for prov in registry.get_list():
+                try:
+                    login_url = reverse('socialaccount_login', args=[prov.id])
+                except Exception:
+                    login_url = '#'
+                social_providers.append({'id': prov.id, 'name': getattr(prov, 'name', prov.id), 'login_url': login_url})
+        except Exception:
+            # allauth socialaccount not installed or error occurred — leave empty
+            social_providers = []
+
+        context['social_providers'] = social_providers
+        return context
+
     def get_success_url(self):
         """Redirect users with incomplete onboarding to the wizard."""
         user = self.request.user

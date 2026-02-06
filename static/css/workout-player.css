@@ -244,6 +244,34 @@
   background: rgb(31 41 55); /* dark:bg-gray-800 */
 }
 
+/* Mobile-friendly layout for status items (non-fullscreen) */
+@media (max-width: 639px) {
+  .workout-status {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+    gap: 0.5rem;
+    padding: 0.5rem;
+  }
+
+  .status-item {
+    text-align: left;
+    padding: 0.5rem;
+  }
+
+  .status-label {
+    font-size: 0.7rem;
+    margin-bottom: 0.25rem;
+  }
+
+  .status-value {
+    font-size: 1rem;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
 .status-item {
   text-align: center;
 }

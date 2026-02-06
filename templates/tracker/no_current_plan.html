@@ -15,9 +15,14 @@
     <div class="flex-1">
       <h3 class="font-semibold text-blue-900 dark:text-blue-200 mb-1">Active Challenge: {{ active_challenge_instance.challenge.name }}</h3>
       <p class="text-sm text-blue-800 dark:text-blue-300 mb-3">You're currently in a challenge but no plan exists for the current week.</p>
-      <a href="{% url 'tracker:generate' %}" class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors">
-        Generate Week {{ active_challenge_instance.weekly_plans.count|add:"1" }}
-      </a>
+      <div class="flex gap-3">
+        <a href="{% url 'tracker:generate' %}" class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors">
+          Generate Week {{ active_challenge_instance.weekly_plans.count|add:"1" }}
+        </a>
+        <a href="{% url 'challenges:challenges_list' %}" class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+          Join Challenge
+        </a>
+      </div>
     </div>
   </div>
 </div>

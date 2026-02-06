@@ -611,42 +611,61 @@
       <h3 class="text-base font-semibold text-gray-900 dark:text-white mb-3">Current Plan</h3>
       <div class="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div class="flex items-center gap-3">
-          <span class="text-green-600 dark:text-green-400 text-2xl">✓</span>
+          <span class="text-yellow-400 text-2xl">★</span>
           <div>
-            <div class="text-lg font-bold text-gray-900 dark:text-white">Free Plan</div>
-            <div class="text-sm text-gray-600 dark:text-gray-400">Full access to all features</div>
+            <div class="text-lg font-bold text-gray-900 dark:text-white">Premium </div>
+            <div class="text-sm text-gray-600 dark:text-gray-400">Paid subscription  — Activated</div>
           </div>
         </div>
-        <span class="px-3 py-1 text-xs font-bold text-gray-900 bg-primary rounded">Active</span>
+        <span class="px-3 py-1 text-xs font-bold text-white bg-green-600 rounded">Activated</span>
       </div>
     </div>
     
     <div class="mb-6">
-      <h3 class="text-base font-semibold text-gray-900 dark:text-white mb-3">Features Included</h3>
+      <h3 class="text-base font-semibold text-gray-900 dark:text-white mb-3">Paid Apps Included</h3>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
         <div class="flex items-center gap-2">
           <span class="text-green-600 dark:text-green-400">✓</span>
-          <span class="text-gray-900 dark:text-white">Unlimited workout tracking</span>
+          <span class="text-gray-900 dark:text-white">Class Library</span>
         </div>
         <div class="flex items-center gap-2">
           <span class="text-green-600 dark:text-green-400">✓</span>
-          <span class="text-gray-900 dark:text-white">Challenge participation</span>
+          <span class="text-gray-900 dark:text-white">Yearly Recap</span>
         </div>
         <div class="flex items-center gap-2">
           <span class="text-green-600 dark:text-green-400">✓</span>
-          <span class="text-gray-900 dark:text-white">Exercise library access</span>
+          <span class="text-gray-900 dark:text-white">Workouts Sync</span>
         </div>
         <div class="flex items-center gap-2">
           <span class="text-green-600 dark:text-green-400">✓</span>
-          <span class="text-gray-900 dark:text-white">Progress analytics</span>
+          <span class="text-gray-900 dark:text-white">Metrics</span>
         </div>
         <div class="flex items-center gap-2">
           <span class="text-green-600 dark:text-green-400">✓</span>
-          <span class="text-gray-900 dark:text-white">Weekly plan generation</span>
+          <span class="text-gray-900 dark:text-white">Eddington</span>
         </div>
-        <div class="flex items-center gap-2">
-          <span class="text-green-600 dark:text-green-400">✓</span>
-          <span class="text-gray-900 dark:text-white">Video demonstrations</span>
+      </div>
+    </div>
+
+    <div class="mb-6">
+      <h3 class="text-base font-semibold text-gray-900 dark:text-white mb-3">Other Plans</h3>
+      <div class="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div class="flex items-center gap-3">
+          <span class="text-gray-500 text-2xl">⚪</span>
+          <div>
+            <div class="text-lg font-bold text-gray-900 dark:text-white">Free Plan</div>
+            <div class="text-sm text-gray-600 dark:text-gray-400">Limited features — basic access</div>
+            <ul class="mt-2 text-sm text-gray-600 dark:text-gray-400 list-inside space-y-1">
+              <li>• Challenge — follow challenges (no workout sync)</li>
+              <li>• Weekly Plans</li>
+              <li class="text-xs italic mt-1">Note: Workouts Sync requires Premium; free users must sync workouts manually.</li>
+            </ul>
+          </div>
+        </div>
+        <div class="flex items-center gap-3">
+          <button type="button" class="px-4 py-2 text-sm font-medium text-gray-900 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors" onclick="return confirm('Are you sure you want to downgrade to the Free plan?');">
+            Switch to Free (Downgrade)
+          </button>
         </div>
       </div>
     </div>

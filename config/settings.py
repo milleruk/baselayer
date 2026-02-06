@@ -271,3 +271,10 @@ CELERY_TASK_TIME_LIMIT = 30 * 60  # 30 minutes max per task
 CELERY_TASK_SOFT_TIME_LIMIT = 25 * 60  # 25 minutes soft limit
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1  # Process one task at a time for better memory usage
 CELERY_TASK_ACKS_LATE = True  # Acknowledge tasks after completion
+
+# Remember-me and secure session cookie settings
+REMEMBER_ME_DAYS = int(os.environ.get('REMEMBER_ME_DAYS', '30'))
+# Default session cookie age remains, but we enforce secure cookie flags for safety
+SESSION_COOKIE_SECURE = os.environ.get('SESSION_COOKIE_SECURE', 'True') == 'True'
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = os.environ.get('SESSION_COOKIE_SAMESITE', 'Lax')

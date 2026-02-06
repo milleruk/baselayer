@@ -1,0 +1,188 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SESSION="ctz-dev"
+PROJECT_DIR="/opt/projects/ChaseTheZones"
+VENV_ACTIVATE="source ${PROJECT_DIR}/.venv/bin/activate"
+
+# Commands
+CMD_DJANGO="python manage.py runserver 10.0.0.152:6993"
+CMD_FLOWER="python -m celery -A config.celery flower --port=5555"
+CMD_WORKER="python -m celery -A config.celery worker -l debug -P solo -E"
+
+# Pane indices (tmux window 0)
+PANE_DJANGO="0.0"
+PANE_FLOWER="0.1"
+PANE_WORKER="0.2"
+
+usage() {
+  cat <<EOF
+Usage:
+  ./dev up                Start tmux dev environment (django + worker + flower)
+  ./dev attach            Attach to existing session
+  ./dev down              Stop dev session (kills processes)
+  ./dev status            Show tmux session + panes
+  ./dev restart <svc>     Restart one service: django | worker | flower
+  ./dev logs <svc>        Jump to pane for: django | worker | flower
+
+EOF
+}
+
+session_exists() {
+  tmux has-session -t "${SESSION}" 2>/dev/null
+}
+
+ensure_tmux() {
+  command -v tmux >/dev/null 2>&1 || {
+    echo "tmux not found. Install with: sudo apt install tmux"
+    exit 1
+  }
+}
+
+send_cmd() {
+  local target="$1"
+  local cmd="$2"
+  tmux send-keys -t "${SESSION}:${target}" "cd ${PROJECT_DIR} && ${VENV_ACTIVATE} && ${cmd}" C-m
+}
+
+stop_pane_process() {
+  local target="$1"
+  # Send Ctrl-C to stop current foreground process in that pane
+  tmux send-keys -t "${SESSION}:${target}" C-c
+}
+
+pane_for_service() {
+  local svc="${1:-}"
+  case "$svc" in
+    django) echo "${PANE_DJANGO}" ;;
+    flower) echo "${PANE_FLOWER}" ;;
+    worker) echo "${PANE_WORKER}" ;;
+    *) echo "" ;;
+  esac
+}
+
+up() {
+  ensure_tmux
+
+  if session_exists; then
+    echo "Session '${SESSION}' already running."
+    tmux attach -t "${SESSION}"
+    exit 0
+  fi
+
+  # Create session in project dir
+  tmux new-session -d -s "${SESSION}" -c "${PROJECT_DIR}"
+
+  # Pane 0: Django
+  send_cmd "${PANE_DJANGO}" "${CMD_DJANGO}"
+
+  # Split right: Flower (pane 1)
+  tmux split-window -h -t "${SESSION}:0" -c "${PROJECT_DIR}"
+  send_cmd "${PANE_FLOWER}" "${CMD_FLOWER}"
+
+  # Split bottom of right: Worker (pane 2)
+  tmux split-window -v -t "${SESSION}:0.1" -c "${PROJECT_DIR}"
+  send_cmd "${PANE_WORKER}" "${CMD_WORKER}"
+
+  # Tidy layout + focus Django
+  tmux select-layout -t "${SESSION}:0" tiled >/dev/null
+  tmux select-pane -t "${SESSION}:${PANE_DJANGO}"
+
+  tmux attach -t "${SESSION}"
+}
+
+attach() {
+  ensure_tmux
+  if ! session_exists; then
+    echo "No session '${SESSION}' found. Run: ./dev up"
+    exit 1
+  fi
+  tmux attach -t "${SESSION}"
+}
+
+down() {
+  ensure_tmux
+  if session_exists; then
+    tmux kill-session -t "${SESSION}"
+    echo "Stopped '${SESSION}'."
+  else
+    echo "No session '${SESSION}' running."
+  fi
+}
+
+status() {
+  ensure_tmux
+  if ! session_exists; then
+    echo "No session '${SESSION}' running."
+    exit 0
+  fi
+  echo "Session: ${SESSION}"
+  tmux list-windows -t "${SESSION}"
+  echo
+  tmux list-panes -t "${SESSION}:0" -F "pane=#{pane_index} active=#{pane_active} title=#{pane_title} cmd=#{pane_current_command}"
+}
+
+restart() {
+  ensure_tmux
+  local svc="${1:-}"
+  local pane
+  pane="$(pane_for_service "${svc}")"
+
+  if [[ -z "${svc}" || -z "${pane}" ]]; then
+    echo "Choose a service to restart: django | worker | flower"
+    exit 1
+  fi
+
+  if ! session_exists; then
+    echo "No session '${SESSION}' running. Run: ./dev up"
+    exit 1
+  fi
+
+  # Stop current process and rerun command
+  stop_pane_process "${pane}"
+  sleep 0.2
+
+  case "${svc}" in
+    django) send_cmd "${pane}" "${CMD_DJANGO}" ;;
+    flower) send_cmd "${pane}" "${CMD_FLOWER}" ;;
+    worker) send_cmd "${pane}" "${CMD_WORKER}" ;;
+  esac
+
+  tmux select-pane -t "${SESSION}:${pane}"
+  tmux display-message "Restarted ${svc}"
+}
+
+logs() {
+  ensure_tmux
+  local svc="${1:-}"
+  local pane
+  pane="$(pane_for_service "${svc}")"
+
+  if [[ -z "${svc}" || -z "${pane}" ]]; then
+    echo "Choose a service: django | worker | flower"
+    exit 1
+  fi
+
+  if ! session_exists; then
+    echo "No session '${SESSION}' running. Run: ./dev up"
+    exit 1
+  fi
+
+  tmux attach -t "${SESSION}" \; select-pane -t "${SESSION}:${pane}"
+}
+
+main() {
+  local cmd="${1:-}"
+  case "${cmd}" in
+    up) up ;;
+    attach) attach ;;
+    down) down ;;
+    status) status ;;
+    restart) restart "${2:-}" ;;
+    logs) logs "${2:-}" ;;
+    ""|-h|--help|help) usage ;;
+    *) usage; exit 1 ;;
+  esac
+}
+
+main "$@"
