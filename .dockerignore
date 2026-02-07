@@ -1,0 +1,15 @@
+# Ignore local virtualenv
+.venv
+.venv.bak
+
+# Ignore node modules and local files
+node_modules
+dist
+.pytest_cache
+.cache
+*.pyc
+__pycache__/
+*.log
+.env
+media/
+staticfiles/

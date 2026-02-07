@@ -10,6 +10,7 @@ from peloton.services.peloton import PelotonClient, PelotonAPIError
 from .models import Workout, RideDetail, WorkoutDetails, WorkoutPerformanceData, Instructor, WorkoutType
 from challenges.utils import generate_peloton_url
 from .views import _store_playlist_from_data, detect_class_type
+from core.utils.redis_lock import RedisLock
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
@@ -136,7 +137,14 @@ def fetch_ride_details_task(self, user_id, ride_id, workout_id=None):
         workout_id: Optional workout ID for logging context
     """
     try:
-        user = User.objects.get(pk=user_id)
+        # Acquire a short redis lock to avoid duplicate concurrent fetches for same ride
+        lock_key = f'fetch:ride:{ride_id}'
+        with RedisLock(lock_key, ttl=120) as acquired:
+            if not acquired:
+                logger.info(f"Fetch already in progress for ride {ride_id}, skipping")
+                return {'status': 'skipped', 'reason': 'in_progress'}
+
+            user = User.objects.get(pk=user_id)
         connection = PelotonConnection.objects.get(user=user, is_active=True)
         client = connection.get_client()
         
