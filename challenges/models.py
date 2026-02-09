@@ -79,28 +79,30 @@ class Challenge(models.Model):
         """Check if users can still sign up - based on signup_opens_date, signup_deadline, and challenge status"""
         if not self.is_visible:
             return False
-        
+
         today = date.today()
-        
+
         # Can always retake past challenges (after they've ended)
         if self.has_ended:
             return True
-        
-        # Cannot join once challenge has started (but hasn't ended yet)
-        if today >= self.start_date:
-            return False
-        
-        # Check if signup has opened yet
+
+        # Compute signup open date
         signup_opens = self.signup_opens_date if self.signup_opens_date else self.start_date
         if today < signup_opens:
             return False  # Signup hasn't opened yet
-        
-        # Check signup deadline if set
+
+        # If a signup_deadline is explicitly set, use it as the authoritative cutoff
+        # This allows admins to keep signup open even after the challenge start date.
         if self.signup_deadline:
             return today <= self.signup_deadline
-        
-        # If no deadline, can signup after signup opens and before challenge starts
-        return True
+
+        # No explicit deadline: allow signup while the challenge is running (up to end_date)
+        # This enables late joiners to join as non-scoring participants.
+        if today <= self.end_date:
+            return True
+
+        # Otherwise signup is closed
+        return False
     
     def team_leaders_can_see_user_list(self):
         """Check if team leaders can see the user list for this challenge"""
@@ -343,61 +345,24 @@ class ChallengeInstance(models.Model):
         For active challenges, users must be completing activities to score.
         For past challenges, all participants score.
         """
-        # If challenge has ended, user always scores (for historical purposes)
+        # If challenge has ended, user always scores (historical purposes)
         if self.challenge.has_ended:
             return True
-        
-        # If challenge hasn't started yet, user scores (they're signed up)
-        if date.today() < self.challenge.start_date:
-            return True
-        
-        # For active challenges, check if user is completing activities
-        if self.challenge.is_currently_running:
-            # Get all plans for this challenge instance
-            plans = self.weekly_plans.all().order_by("week_start")
-            if not plans.exists():
-                # No plans yet, but challenge is running - don't score until they start
-                return False
-            
-            # Check if user has completed any activities in the last 2 weeks
-            # This ensures they're actively participating
-            today = date.today()
-            two_weeks_ago = today - timedelta(days=14)
-            
-            # Get plans from the last 2 weeks
-            recent_plans = plans.filter(week_start__gte=two_weeks_ago)
-            
-            if recent_plans.exists():
-                # Check if any recent plan has completed activities
-                for plan in recent_plans:
-                    # Check if plan has any completed exercises or activities
-                    items = plan.items.all()
-                    for item in items:
-                        # Check if any exercise is done (kegel exercises)
-                        if item.is_done:
-                            return True
-                        # Check if any Peloton activity is done
-                        if (item.peloton_ride_url and item.ride_done) or \
-                           (item.peloton_run_url and item.run_done) or \
-                           (item.peloton_yoga_url and item.yoga_done) or \
-                           (item.peloton_strength_url and item.strength_done):
-                            return True
-                
-                # No activities completed in recent weeks - not scoring
-                return False
-            else:
-                # No recent plans, but challenge is running - check if they have any plans at all
-                # If they have plans but none are recent, they might have joined early
-                # Check if they've completed anything ever
-                for plan in plans:
-                    items = plan.items.all()
-                    for item in items:
-                        if item.is_done or item.ride_done or item.run_done or item.yoga_done or item.strength_done:
-                            return True
-                return False
-        
-        # For upcoming challenges, user scores (they're signed up)
-        return True
+
+        # Determine cutoff: use signup_deadline if set, otherwise challenge start_date
+        cutoff = self.challenge.signup_deadline if self.challenge.signup_deadline else self.challenge.start_date
+
+        # If we don't have a started_at timestamp for this instance yet, it's not scoring
+        if not self.started_at:
+            return False
+
+        # Compare dates (inclusive): if the user joined on-or-before the cutoff, they count as scoring
+        try:
+            joined_date = self.started_at.date()
+        except Exception:
+            return False
+
+        return joined_date <= cutoff
     
     @property
     def contributes_to_team_score(self):

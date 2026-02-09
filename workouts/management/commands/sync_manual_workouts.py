@@ -69,18 +69,18 @@ class Command(BaseCommand):
 
         # Determine date range
         if year:
-            start_date = datetime(year, 1, 1, tzinfo=timezone.UTC)
-            end_date = datetime(year, 12, 31, 23, 59, 59, tzinfo=timezone.UTC)
+            start_date = datetime(year, 1, 1, tzinfo=timezone.utc)
+            end_date = datetime(year, 12, 31, 23, 59, 59, tzinfo=timezone.utc)
         elif start_date_str and end_date_str:
-            start_date = datetime.strptime(start_date_str, '%Y-%m-%d').replace(tzinfo=timezone.UTC)
-            end_date = datetime.strptime(end_date_str, '%Y-%m-%d').replace(hour=23, minute=59, second=59, tzinfo=timezone.UTC)
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d').replace(tzinfo=timezone.utc)
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d').replace(hour=23, minute=59, second=59, tzinfo=timezone.utc)
         elif start_date_str:
-            start_date = datetime.strptime(start_date_str, '%Y-%m-%d').replace(tzinfo=timezone.UTC)
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d').replace(tzinfo=timezone.utc)
             end_date = timezone.now()
         else:
             # Default to current year
             current_year = timezone.now().year
-            start_date = datetime(current_year, 1, 1, tzinfo=timezone.UTC)
+            start_date = datetime(current_year, 1, 1, tzinfo=timezone.utc)
             end_date = timezone.now()
 
         self.stdout.write(f"Syncing manual workouts for: {username}")
@@ -122,7 +122,7 @@ class Command(BaseCommand):
                 # Get workout timestamp
                 start_time = workout_data.get('start_time') or workout_data.get('created_at')
                 if isinstance(start_time, (int, float)):
-                    workout_datetime = datetime.fromtimestamp(start_time, tz=timezone.UTC)
+                    workout_datetime = datetime.fromtimestamp(start_time, tz=timezone.utc)
                 else:
                     continue
 
@@ -171,10 +171,8 @@ class Command(BaseCommand):
 
                 # Get dates
                 if isinstance(start_time, (int, float)):
-                    dt_utc = datetime.fromtimestamp(start_time, tz=timezone.UTC)
-                    ET = ZoneInfo("America/New_York")
-                    dt_et = dt_utc.astimezone(ET)
-                    completed_date = dt_et.date()
+                    dt_utc = datetime.fromtimestamp(start_time, tz=timezone.utc)
+                    completed_date = dt_utc.date()
                 else:
                     completed_date = workout_datetime.date()
 

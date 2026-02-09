@@ -1,3 +1,4 @@
+{% load tz %}
 <!-- Workout Count Info -->
 <div id="workout-count-info" class="mb-4 text-sm text-gray-600 dark:text-gray-400">
   {% if workouts %}
@@ -71,7 +72,18 @@
               {{ workout.recorded_date|date:"d/m/Y" }}
             {% endif %}
           </div>
-          <div>Completed: {{ workout.completed_date|date:"d/m/Y" }}</div>
+          <div>
+            Completed: {{ workout.completed_date|date:"d/m/Y" }}
+            {% if workout.peloton_created_at and workout.peloton_timezone %}
+              <span class="ml-1 text-gray-400 text-[11px] uppercase tracking-wide">
+                  {# Timezone/time display intentionally hidden on history cards. #}
+              </span>
+            {% elif workout.completed_at %}
+              <span class="ml-1 text-gray-400 text-[11px] uppercase tracking-wide">
+                {{ workout.completed_at|timezone:"America/New_York"|date:"h:i A" }} ET
+              </span>
+            {% endif %}
+          </div>
         </div>
         
         <!-- Performance Metrics -->

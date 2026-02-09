@@ -1119,17 +1119,18 @@ def recap(request):
     # Get all workouts for the selected year
     year_start = date(selected_year, 1, 1)
     year_end = date(selected_year, 12, 31)
-    
+
+    # Query workouts using completed_at date (not completed_date)
     all_workouts = Workout.objects.filter(
         user=request.user,
-        completed_date__gte=year_start,
-        completed_date__lte=year_end
+        completed_at__date__gte=year_start,
+        completed_at__date__lte=year_end
     ).select_related('ride_detail', 'ride_detail__workout_type', 'ride_detail__instructor', 'details').prefetch_related('performance_data')
-    
+
     # Log workout query results
     total_workouts_query = all_workouts.count()
     logger.info(f"STREAKS DEBUG: Found {total_workouts_query} workouts for user {request.user.username} ({request.user.id}), year {selected_year}")
-    
+
     if not all_workouts.exists():
         context = {
             "has_workouts": False,
@@ -1141,13 +1142,13 @@ def recap(request):
             "hours_until_regenerate": None,
         }
         return render(request, "plans/recap.html", context)
-    
+
     # Calculate basic statistics
     total_workouts = all_workouts.count()
-    
+
     # Get workout details for metrics
     workouts_with_details = all_workouts.filter(details__isnull=False)
-    
+
     # Calculate summary stats
     summary_stats = workouts_with_details.aggregate(
         total_distance=Sum('details__distance'),
@@ -1156,22 +1157,24 @@ def recap(request):
         avg_output=Avg('details__avg_output'),
         avg_calories=Avg('details__total_calories'),
     )
-    
+
     # Calculate active days
-    active_days = all_workouts.values('completed_date').distinct().count()
+    workout_dates_raw = [dt.date() for dt in all_workouts.values_list('completed_at', flat=True) if dt is not None]
+    workout_dates = sorted(set(workout_dates_raw))
+    active_days = len(workout_dates)
     total_days_in_year = 366 if (selected_year % 4 == 0 and selected_year % 100 != 0) or (selected_year % 400 == 0) else 365
     rest_days = total_days_in_year - active_days
-    
+
     # Calculate streaks (enhanced - days, weeks, months)
     # Get all unique workout dates, filtering out None values
-    workout_dates_raw = list(all_workouts.values_list('completed_date', flat=True))
-    workout_dates = sorted(set([d for d in workout_dates_raw if d is not None]))
-    
+    workout_dates_raw = [dt.date() for dt in all_workouts.values_list('completed_at', flat=True) if dt is not None]
+    workout_dates = sorted(set(workout_dates_raw))
+
     # Logging for debugging streaks
     logger.info(f"STREAKS DEBUG for user {request.user.username} ({request.user.id}), year {selected_year}:")
     logger.info(f"  Raw workout dates count: {len(workout_dates_raw)}")
     logger.info(f"  Unique workout dates (after filtering None): {len(workout_dates)}")
-    logger.info(f"  NOTE: completed_date uses timezone conversion (ET for new workouts, UTC for old)")
+    logger.info(f"  NOTE: recap now uses completed_at (UTC, no timezone conversion)")
     logger.info(f"  If streaks don't match Peloton, existing workouts may need re-sync to update dates")
     if workout_dates:
         logger.info(f"  First workout date: {workout_dates[0]}")
@@ -1185,7 +1188,7 @@ def recap(request):
                 gaps.append(f"{workout_dates[i-1]} to {workout_dates[i]} (gap: {gap} days)")
         if gaps:
             logger.info(f"  Found {len(gaps)} gaps in first 100 dates: {gaps[:5]}")  # Show first 5 gaps
-            logger.info(f"  These gaps may be due to timezone conversion issues (late-night workouts)")
+            logger.info(f"  These gaps may be due to missing workouts or import issues")
         else:
             logger.info(f"  No gaps found in first 100 dates")
     
@@ -2520,8 +2523,8 @@ def recap_share(request, token):
     
     all_workouts = Workout.objects.filter(
         user=user,
-        completed_date__gte=year_start,
-        completed_date__lte=year_end
+        completed_at__date__gte=year_start,
+        completed_at__date__lte=year_end
     ).select_related('ride_detail', 'ride_detail__workout_type', 'ride_detail__instructor', 'details')
     
     if not all_workouts.exists():
@@ -2546,9 +2549,9 @@ def recap_share(request, token):
         avg_calories=Avg('details__total_calories'),
     )
     
-    active_days = all_workouts.values('completed_date').distinct().count()
+    active_days = all_workouts.values('completed_at').distinct().count()
     
-    workout_dates = sorted(set(all_workouts.values_list('completed_date', flat=True)))
+    workout_dates = sorted(set(all_workouts.values_list('completed_at', flat=True) if all_workouts.exists() else []))
     longest_streak = 1
     current_streak = 1
     for i in range(1, len(workout_dates)):

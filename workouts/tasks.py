@@ -126,7 +126,7 @@ def store_ride_detail_from_api(client, ride_id, logger_instance=None):
         return {'status': 'error', 'message': f'Error: {str(e)}'}
 
 
-@shared_task(bind=True, max_retries=3)
+@shared_task(bind=True, max_retries=5)
 def fetch_ride_details_task(self, user_id, ride_id, workout_id=None):
     """
     Background task to fetch and store ride details for a specific ride.
@@ -217,12 +217,22 @@ def fetch_ride_details_task(self, user_id, ride_id, workout_id=None):
         logger.error(f"No active Peloton connection found for user {user_id}")
         return {'status': 'error', 'message': 'No active connection'}
     except PelotonAPIError as e:
+        err_str = str(e).lower()
         logger.error(f"Peloton API error fetching ride details for ride_id {ride_id}: {e}")
-        # Retry on API errors
-        raise self.retry(exc=e, countdown=60)
+        # If API returned 404 / Not Found, treat as non-retriable (class removed or inaccessible)
+        if '404' in err_str or 'not found' in err_str:
+            logger.warning(f"Ride {ride_id} not found (404) - marking as not found and not retrying")
+            return {'status': 'not_found', 'message': str(e)}
+        # Otherwise treat as transient and retry with exponential backoff
+        retries = self.request.retries if hasattr(self.request, 'retries') else 0
+        countdown = min(60 * (2 ** retries), 3600)  # cap at 1 hour
+        raise self.retry(exc=e, countdown=countdown)
     except Exception as e:
         logger.error(f"Error fetching ride details for ride_id {ride_id}: {e}", exc_info=True)
-        raise self.retry(exc=e, countdown=60)
+        # Generic exception -> retry with exponential backoff
+        retries = self.request.retries if hasattr(self.request, 'retries') else 0
+        countdown = min(30 * (2 ** retries), 1800)  # cap at 30 minutes
+        raise self.retry(exc=e, countdown=countdown)
 
 
 @shared_task(bind=True, max_retries=3)

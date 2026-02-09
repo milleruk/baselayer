@@ -37,6 +37,11 @@ class Command(BaseCommand):
             default='/tmp/peloton_overview.json',
             help='Output file path (default: /tmp/peloton_overview.json)'
         )
+        parser.add_argument(
+            '--workout-id',
+            type=str,
+            help='Optional Peloton workout id to fetch and include in the output JSON'
+        )
 
     def handle(self, *args, **options):
         # List users if requested
@@ -114,12 +119,27 @@ class Command(BaseCommand):
             self.stdout.write('Fetching user details...')
             user_details = client.fetch_user(str(peloton_user_id))
 
+            # Optionally fetch a particular workout
+            workout_id = options.get('workout_id')
+            workout_data = None
+            if workout_id:
+                try:
+                    self.stdout.write(f'Fetching workout data for workout id: {workout_id}...')
+                    workout_data = client.fetch_workout(str(workout_id))
+                    self.stdout.write(self.style.SUCCESS(f'Fetched workout {workout_id}'))
+                except PelotonAPIError as e:
+                    self.stdout.write(self.style.ERROR(f'Failed to fetch workout {workout_id}: {e}'))
+                except Exception as e:
+                    self.stdout.write(self.style.ERROR(f'Error fetching workout {workout_id}: {e}'))
+
             # Combine data
             combined_data = {
                 'peloton_user_id': peloton_user_id,
                 'overview': overview_data,
                 'user_details': user_details,
             }
+            if workout_data is not None:
+                combined_data['workout'] = workout_data
 
             # Save to file
             self.stdout.write(f'Saving data to {output_path}...')

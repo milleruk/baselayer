@@ -9,12 +9,18 @@
 </div>
 
 <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
-  <form method="post" action="{% url 'challenges:select_team' challenge.id %}" id="team-selection-form">
+  <form method="post" action="{% if is_late_join %}{% url 'challenges:join_challenge' challenge.id %}{% else %}{% url 'challenges:select_team' challenge.id %}{% endif %}" id="team-selection-form">
     {% csrf_token %}
     
+    {% if is_late_join %}
+      <div class="mb-4 p-4 rounded bg-yellow-50 border border-yellow-200">
+        <strong>Late join</strong>: You're joining after the team signup cutoff. You can still join and follow the plan, but you won't be assigned to a team or count towards team scores.
+      </div>
+    {% endif %}
+
     <div class="space-y-4 mb-6">
       <!-- Option 1: Join existing team -->
-      <div class="relative">
+      <div class="relative" {% if is_late_join %}style="display:none;"{% endif %}>
         <input type="radio" name="team_option" value="join_existing" id="team-option-existing" 
                class="sr-only peer" required>
         <label for="team-option-existing" 
@@ -48,7 +54,7 @@
       </div>
       
       <!-- Option 2: Join random team -->
-      <div class="relative">
+      <div class="relative" {% if is_late_join %}style="display:none;"{% endif %}>
         <input type="radio" name="team_option" value="random" id="team-option-random" 
                class="sr-only peer">
         <label for="team-option-random" 
@@ -69,7 +75,7 @@
       
       <!-- Option 3: Ride with previous team -->
       {% if previous_team %}
-      <div class="relative">
+      <div class="relative" {% if is_late_join %}style="display:none;"{% endif %}>
         <input type="radio" name="team_option" value="previous_team" id="team-option-previous" 
                class="sr-only peer">
         <label for="team-option-previous" 
@@ -91,7 +97,7 @@
     </div>
     
     <!-- Volunteer to be team lead checkbox -->
-    <div class="mb-6 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50 p-4">
+    <div class="mb-6 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50 p-4" {% if is_late_join %}style="display:none;"{% endif %}>
       <label class="flex items-start gap-3 cursor-pointer">
         <input type="checkbox" name="volunteer_team_lead" id="volunteer-team-lead" class="mt-1 w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary">
         <div>

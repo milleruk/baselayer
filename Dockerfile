@@ -10,7 +10,7 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends gcc libpq-dev build-essential netcat-openbsd \
     && rm -rf /var/lib/apt/lists/* \
     && python -m pip install --upgrade pip setuptools wheel \
-    && pip install -r requirements.txt
+    && pip install --upgrade --force-reinstall -r requirements.txt
 
 COPY . .
 

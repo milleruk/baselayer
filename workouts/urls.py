@@ -7,6 +7,7 @@ from .views import (
     connect,
     sync_status,
 )
+from .admin_views import admin_library
 
 app_name = "workouts"
 
@@ -17,4 +18,5 @@ urlpatterns = [
     path("sync/", sync_workouts, name="sync"),
     path("sync/status/", sync_status, name="sync_status"),
     path("connect/", connect, name="connect"),
+    path("admin/library/", admin_library, name="admin_library"),
 ]

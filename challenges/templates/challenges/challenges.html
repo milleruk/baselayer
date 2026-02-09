@@ -29,76 +29,70 @@
 <div class="mb-8">
   <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
     {% for challenge in all_challenges %}
-      <div data-name="{{ challenge.name|lower }}"
-           data-status="{% if challenge in running_challenges %}active{% elif challenge in upcoming_challenges %}upcoming{% else %}completed{% endif %}"
-           class="group flex flex-col rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg hover:shadow-2xl transition-all duration-300 relative transform hover:-translate-y-2 min-h-[420px] p-6">
-        {% comment %} Status badge: running -> ACTIVE, upcoming -> COMING SOON, past -> ENDED {% endcomment %}
-        {% if challenge in running_challenges %}
-          <div class="absolute top-3 right-3 px-3 py-1.5 text-xs font-bold text-white bg-green-600 dark:bg-green-500 rounded-full shadow-lg z-10">ACTIVE</div>
-        {% elif challenge in upcoming_challenges %}
-          <div class="absolute top-3 right-3 px-3 py-1.5 text-xs font-bold text-gray-900 bg-yellow-400 dark:bg-yellow-500 rounded-full shadow-lg z-10">COMING SOON</div>
+      {# Compute per-card link_url depending on user's state and signup availability #}
+      {% with None as link_url %}
+        {% if challenge.id in user_challenge_ids %}
+          {% with ci=user_challenge_instances|get_item:challenge.id %}
+            {% if ci.is_active %}
+              {% url 'tracker:weekly_plans' as link_url %}
+            {% elif ci.completed_at %}
+              {% url 'challenges:retake_challenge' challenge.id as link_url %}
+            {% else %}
+              {% url 'challenges:select_challenge_template' challenge.id as link_url %}
+            {% endif %}
+          {% endwith %}
         {% else %}
-          <div class="absolute top-3 right-3 px-3 py-1.5 text-xs font-bold text-gray-700 bg-gray-100 dark:bg-gray-700 rounded-full shadow-lg z-10">ENDED</div>
+          {% if challenge.can_signup and not active_challenge_id %}
+            {% url 'challenges:select_challenge_template' challenge.id as link_url %}
+          {% endif %}
         {% endif %}
 
-        <!-- Challenge Image/Logo Banner -->
-        <div class="flex items-center justify-center w-full h-28 mb-4 bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800 rounded-xl overflow-hidden relative">
-          {% if challenge.image %}
-            <img src="{{ challenge.image.url }}" alt="{{ challenge.name }}" class="w-32 h-32 object-cover mx-auto rounded-lg transition-transform duration-500 group-hover:scale-105">
-          {% else %}
-            <div class="w-32 h-32 flex items-center justify-center bg-gray-200 dark:bg-gray-700 rounded-lg">
-              <span class="text-5xl font-extrabold text-gray-400 dark:text-gray-500 uppercase">{{ challenge.name|slice:":1" }}</span>
-            </div>
-          {% endif %}
-        </div>
+        {% if link_url %}
+          <a href="{{ link_url }}" data-name="{{ challenge.name|lower }}" data-status="{% if challenge in running_challenges %}active{% elif challenge in upcoming_challenges %}upcoming{% else %}completed{% endif %}" class="group flex flex-col rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg hover:shadow-2xl transition-all duration-300 relative transform hover:-translate-y-2 min-h-[420px] p-6 no-underline">
+        {% else %}
+          <div data-name="{{ challenge.name|lower }}" data-status="{% if challenge in running_challenges %}active{% elif challenge in upcoming_challenges %}upcoming{% else %}completed{% endif %}" class="group flex flex-col rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg transition-all duration-300 relative min-h-[420px] p-6">
+        {% endif %}
+        {# Left-aligned media layout: image on left, info on right. Show status badge only for active challenges. #}
+        {% if challenge in running_challenges %}
+          <div class="absolute top-5 right-5 px-3 py-2 text-sm font-bold text-white bg-green-600 dark:bg-green-500 rounded-full shadow-lg z-10">ACTIVE</div>
+        {% endif %}
 
-        <!-- Challenge Content -->
-        <div class="flex flex-col flex-1 overflow-visible">
-          <h3 class="font-bold text-lg text-gray-900 dark:text-white mb-2 text-center group-hover:text-primary transition-colors">{{ challenge.name }}</h3>
-
-          <!-- Categories -->
-          {% if challenge.get_categories_list %}
-            <div class="flex flex-wrap justify-center gap-2 mb-2">
-              {% for cat in challenge.get_categories_list %}
-                <span class="inline-flex items-center justify-center px-4 py-1 text-sm font-bold text-white bg-gradient-to-r from-primary to-primary-dark rounded-full shadow-sm min-h-[28px] leading-none">{{ cat }}</span>
-              {% endfor %}
-            </div>
-          {% endif %}
-
-          <!-- Challenge Type / Duration -->
-          <div class="flex items-center justify-center gap-2 text-base text-gray-600 dark:text-gray-400 mb-2">
-            <div class="inline-flex items-center gap-2 px-3 py-1 text-sm font-semibold text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 rounded-full uppercase tracking-wide">{{ challenge.get_challenge_type_display }}</div>
-            <div class="text-sm text-gray-500">{{ challenge.duration_weeks }} wk</div>
-          </div>
-
-          <!-- Action Button (large, prominent) -->
-          <div class="mt-3">
-            {% if challenge.id in user_challenge_ids %}
-              {% with ci=user_challenge_instances|get_item:challenge.id %}
-                {% if ci.is_active %}
-                  {% if ci.can_leave %}
-                    <a href="{% url 'challenges:leave_challenge' ci.id %}" class="block w-full text-center px-4 py-3 text-base font-semibold text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border-2 border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">Leave</a>
-                  {% else %}
-                    <span class="block w-full text-center px-4 py-3 text-base font-semibold text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 rounded-lg opacity-50">Cannot Leave</span>
-                  {% endif %}
-                {% elif ci.completed_at %}
-                  <a href="{% url 'challenges:retake_challenge' challenge.id %}" class="block w-full text-center px-4 py-3 text-base font-semibold text-white bg-gradient-to-r from-primary to-primary-dark rounded-lg">Retake</a>
-                {% else %}
-                  <a href="{% url 'challenges:select_challenge_template' challenge.id %}" class="block w-full text-center px-4 py-3 text-base font-semibold text-white bg-gradient-to-r from-primary to-primary-dark rounded-lg {% if active_challenge_id %}opacity-50 cursor-not-allowed pointer-events-none{% endif %}">{% if active_challenge_id %}Locked{% else %}Join{% endif %}</a>
-                {% endif %}
-              {% endwith %}
-            {% else %}
-              {% if challenge.can_signup and not active_challenge_id %}
-                <a href="{% url 'challenges:select_challenge_template' challenge.id %}" class="block w-full text-center px-4 py-3 text-base font-semibold text-white bg-gradient-to-r from-primary to-primary-dark rounded-lg">Join</a>
-              {% elif challenge.can_signup and active_challenge_id %}
-                <button class="block w-full text-center px-4 py-3 text-base font-semibold text-white bg-gray-400 rounded-lg opacity-50" disabled>Join</button>
+        <div class="flex items-center gap-6">
+          <div class="flex-shrink-0 w-1/3">
+            <div class="bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800 rounded-lg overflow-hidden w-full" style="height:160px;">
+              {% if challenge.image %}
+                <img src="{{ challenge.image.url }}" alt="{{ challenge.name }}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105">
               {% else %}
-                <button class="block w-full text-center px-4 py-3 text-base font-semibold text-gray-700 bg-gray-100 rounded-lg" disabled>Sign up coming soon</button>
+                <div class="w-full h-full flex items-center justify-center bg-gray-200 dark:bg-gray-700">
+                  <span class="text-5xl font-extrabold text-gray-400 dark:text-gray-500 uppercase">{{ challenge.name|slice:":1" }}</span>
+                </div>
               {% endif %}
+            </div>
+          </div>
+
+          <div class="flex-1">
+            <h3 class="font-bold text-lg text-gray-900 dark:text-white mb-2 group-hover:text-primary transition-colors">{{ challenge.name }}</h3>
+
+            {% if challenge.get_categories_list %}
+              <div class="flex flex-wrap gap-2 mb-3">
+                {% for cat in challenge.get_categories_list %}
+                  <span class="inline-flex items-center justify-center px-3 py-1 text-xs font-semibold text-white bg-gradient-to-r from-primary to-primary-dark rounded-full">{{ cat }}</span>
+                {% endfor %}
+              </div>
             {% endif %}
+
+            <div class="flex items-center gap-4 text-sm text-gray-500">
+              <span class="inline-flex items-center gap-2 px-3 py-1 bg-gray-100 dark:bg-gray-700 rounded-full uppercase tracking-wide">{{ challenge.get_challenge_type_display }}</span>
+              <span class="text-gray-400">{{ challenge.duration_weeks }} wk</span>
+            </div>
           </div>
         </div>
-      </div>
+        {% if link_url %}
+          </a>
+        {% else %}
+          </div>
+        {% endif %}
+      {% endwith %}
     {% endfor %}
   </div>
 </div>

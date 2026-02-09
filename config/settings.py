@@ -1,3 +1,5 @@
+# Toggle for enabling/disabling django-hijack
+ENABLE_HIJACK = False
 """
 Django settings for config project.
 
@@ -34,6 +36,7 @@ CSRF_TRUSTED_ORIGINS = [
     "https://app.chasethehare.com",
     "http://localhost:8000",
     "http://127.0.0.1:8000",
+    "https://app.haresign.dev",
 ]
 
 
@@ -65,6 +68,8 @@ INSTALLED_APPS = [
     "classes",  # Peloton class catalog/library
     "workouts",  # Workout history & tracking
     "peloton",
+    # django-hijack for superuser user hijacking (toggle with ENABLE_HIJACK)
+    # "hijack",  # Uncomment to enable
 ]
 
 # Custom User Model
@@ -174,11 +179,29 @@ WSGI_APPLICATION = "config.wsgi.application"
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
-    }
+    # Default sqlite for local dev unless Postgres environment variables are provided
 }
+
+# If Postgres env vars exist, prefer Postgres for the default DB
+POSTGRES_HOST = os.environ.get('POSTGRES_HOST')
+if POSTGRES_HOST:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql_psycopg2',
+            'NAME': os.environ.get('POSTGRES_DB', 'ctz_test'),
+            'USER': os.environ.get('POSTGRES_USER', 'postgres'),
+            'PASSWORD': os.environ.get('POSTGRES_PASSWORD', ''),
+            'HOST': POSTGRES_HOST,
+            'PORT': os.environ.get('POSTGRES_PORT', '5432'),
+        }
+    }
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 
 
 # Password validation

@@ -73,7 +73,7 @@ class WorkoutAdmin(admin.ModelAdmin):
     list_display = ['display_title', 'user', 'display_workout_type', 'display_instructor', 'display_duration', 'completed_date', 'peloton_workout_id', 'has_peloton_url', 'synced_at']
     list_filter = ['ride_detail__workout_type', 'completed_date', 'synced_at', 'ride_detail__instructor']
     search_fields = ['ride_detail__title', 'user__username', 'user__email', 'ride_detail__instructor__name', 'peloton_workout_id', 'ride_detail__description']
-    readonly_fields = ['synced_at', 'last_synced_at', 'peloton_workout_id', 'peloton_url_link', 'ride_detail_info']
+    readonly_fields = ['synced_at', 'last_synced_at', 'peloton_workout_id', 'peloton_url_link', 'ride_detail_info', 'completed_at', 'peloton_created_at', 'peloton_timezone']
     date_hierarchy = 'completed_date'
     raw_id_fields = ['user', 'ride_detail']
     inlines = [WorkoutDetailsInline]
@@ -96,7 +96,7 @@ class WorkoutAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
         ('Dates', {
-            'fields': ('recorded_date', 'completed_date')
+            'fields': ('recorded_date', 'completed_date', 'completed_at', 'peloton_created_at', 'peloton_timezone')
         }),
         ('Sync Information', {
             'fields': ('synced_at', 'last_synced_at'),

@@ -1,0 +1,233 @@
+{% extends "base.html" %}
+{% block title %}Class Library Admin{% endblock %}
+{% block page_title %}Class Library Admin{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+  <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-1">Class Library Admin</h1>
+      <p class="text-gray-600 dark:text-gray-400">Review RideDetail templates, adjust metadata, and trigger repulls while keeping the same experience as the public library page.</p>
+    </div>
+    <div class="flex flex-wrap gap-3 text-sm text-gray-600 dark:text-gray-400">
+      <span class="inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+        <span class="text-gray-500 dark:text-gray-400">Visible</span>
+        <span class="text-gray-900 dark:text-white font-semibold">{{ ride_count }}</span>
+      </span>
+      <span class="inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+        <span class="text-gray-500 dark:text-gray-400">Total classes</span>
+        <span class="text-gray-900 dark:text-white font-semibold">{{ total_ride_count }}</span>
+      </span>
+    </div>
+  </div>
+</div>
+
+<!-- Filters and Search -->
+<div class="mb-6 space-y-4">
+  <form
+    hx-get="{% url 'classes:admin' %}"
+    hx-target="#admin-class-list"
+    hx-swap="innerHTML"
+    hx-trigger="submit, change from:.filter-select delay:300ms"
+    hx-push-url="true"
+    method="get"
+    class="flex flex-col sm:flex-row gap-3"
+  >
+    <div class="flex-1 relative">
+      <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+        <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+        </svg>
+      </div>
+      <input
+        type="text"
+        name="search"
+        value="{{ search }}"
+        placeholder="Search classes by title or Peloton ride ID"
+        class="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-primary focus:border-transparent"
+      >
+    </div>
+
+    <div class="flex flex-wrap gap-2">
+      <!-- Workout Type -->
+      <div class="relative min-w-[140px]">
+        <select name="type" class="w-full appearance-none bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 pr-8 text-gray-900 dark:text-white text-sm filter-select">
+          <option value="">All Types</option>
+          {% for wt in workout_types %}
+            <option value="{{ wt.slug }}" {% if workout_type_filter == wt.slug %}selected{% endif %}>{{ wt.name }}</option>
+          {% endfor %}
+        </select>
+        <div class="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+          <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+          </svg>
+        </div>
+      </div>
+
+      <!-- Instructor -->
+      <div class="relative min-w-[140px]">
+        <select name="instructor" class="w-full appearance-none bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 pr-8 text-gray-900 dark:text-white text-sm filter-select">
+          <option value="">All Instructors</option>
+          {% for instr in instructors %}
+            <option value="{{ instr.id }}" {% if instructor_filter == instr.id|stringformat:"s" %}selected{% endif %}>{{ instr.name }}</option>
+          {% endfor %}
+        </select>
+        <div class="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+          <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+          </svg>
+        </div>
+      </div>
+
+      <!-- Duration -->
+      <div class="relative min-w-[120px]">
+        <select name="duration" class="w-full appearance-none bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 pr-8 text-gray-900 dark:text-white text-sm filter-select">
+          <option value="">Any Duration</option>
+          {% for d in durations %}
+            <option value="{{ d }}" {% if duration_filter == d|stringformat:"s" %}selected{% endif %}>{{ d }} min</option>
+          {% endfor %}
+        </select>
+        <div class="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+          <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+          </svg>
+        </div>
+      </div>
+
+      <!-- Year -->
+      <div class="relative min-w-[110px]">
+        <select name="year" class="w-full appearance-none bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 pr-8 text-gray-900 dark:text-white text-sm filter-select">
+          <option value="">All Years</option>
+          {% for year_option in available_years %}
+            <option value="{{ year_option }}" {% if year_filter == year_option|stringformat:"s" %}selected{% endif %}>{{ year_option }}</option>
+          {% endfor %}
+        </select>
+        <div class="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+          <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+          </svg>
+        </div>
+      </div>
+
+      <!-- Month (only if year selected) -->
+      <div class="relative min-w-[110px]">
+        <select name="month" class="w-full appearance-none bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 pr-8 text-gray-900 dark:text-white text-sm filter-select" {% if not year_filter %}disabled{% endif %}>
+          <option value="">All Months</option>
+          {% for month_option in available_months %}
+            <option value="{{ month_option }}" {% if month_filter == month_option|stringformat:"s" %}selected{% endif %}>
+              {% if month_option == 1 %}January{% elif month_option == 2 %}February{% elif month_option == 3 %}March{% elif month_option == 4 %}April{% elif month_option == 5 %}May{% elif month_option == 6 %}June{% elif month_option == 7 %}July{% elif month_option == 8 %}August{% elif month_option == 9 %}September{% elif month_option == 10 %}October{% elif month_option == 11 %}November{% elif month_option == 12 %}December{% endif %}
+            </option>
+          {% endfor %}
+        </select>
+        <div class="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+          <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+          </svg>
+        </div>
+      </div>
+
+      <!-- Ordering -->
+      <div class="relative min-w-[150px]">
+        <select name="order_by" class="w-full appearance-none bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 pr-8 text-gray-900 dark:text-white text-sm filter-select">
+          {% for value, label in ordering_choices %}
+            <option value="{{ value }}" {% if order_by == value %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+        <div class="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+          <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+          </svg>
+        </div>
+      </div>
+
+      <!-- Toggles -->
+      <label class="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg">
+        <input type="checkbox" name="power_zone" value="1" class="rounded border-gray-300 text-primary focus:ring-primary" {% if power_zone_filter == '1' %}checked{% endif %}>
+        Power Zone
+      </label>
+      <label class="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg">
+        <input type="checkbox" name="missing_targets" value="1" class="rounded border-gray-300 text-primary focus:ring-primary" {% if missing_targets == '1' %}checked{% endif %}>
+        Missing Targets
+      </label>
+
+      <button type="submit" class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg">Apply</button>
+    </div>
+  </form>
+
+  <!-- Active Filter Chips -->
+  {% if search or workout_type_filter or instructor_filter or duration_filter or year_filter or month_filter or power_zone_filter == '1' or missing_targets == '1' %}
+    <div class="flex flex-wrap gap-2 items-center">
+      <span class="text-sm text-gray-600 dark:text-gray-400">Active filters:</span>
+      {% if search %}
+        <span class="inline-flex items-center gap-1 px-3 py-1 text-sm bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-full">
+          Search: "{{ search }}"
+          <a href="?{% if workout_type_filter %}type={{ workout_type_filter }}&{% endif %}{% if instructor_filter %}instructor={{ instructor_filter }}&{% endif %}{% if duration_filter %}duration={{ duration_filter }}&{% endif %}{% if year_filter %}year={{ year_filter }}&{% endif %}{% if month_filter %}month={{ month_filter }}&{% endif %}{% if power_zone_filter %}power_zone={{ power_zone_filter }}&{% endif %}{% if missing_targets %}missing_targets={{ missing_targets }}&{% endif %}{% if order_by and order_by != '-original_air_time' %}order_by={{ order_by }}&{% endif %}"
+             class="hover:text-gray-900 dark:hover:text-white">×</a>
+        </span>
+      {% endif %}
+      {% if workout_type_filter %}
+        {% for wt in workout_types %}
+          {% if wt.slug == workout_type_filter %}
+            <span class="inline-flex items-center gap-1 px-3 py-1 text-sm bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-full">
+              Type: {{ wt.name }}
+              <a href="?{% if search %}search={{ search }}&{% endif %}{% if instructor_filter %}instructor={{ instructor_filter }}&{% endif %}{% if duration_filter %}duration={{ duration_filter }}&{% endif %}{% if year_filter %}year={{ year_filter }}&{% endif %}{% if month_filter %}month={{ month_filter }}&{% endif %}{% if power_zone_filter %}power_zone={{ power_zone_filter }}&{% endif %}{% if missing_targets %}missing_targets={{ missing_targets }}&{% endif %}{% if order_by %}order_by={{ order_by }}&{% endif %}"
+                 class="hover:text-gray-900 dark:hover:text-white">×</a>
+            </span>
+          {% endif %}
+        {% endfor %}
+      {% endif %}
+      {% if instructor_filter %}
+        {% for instr in instructors %}
+          {% if instr.id|stringformat:"s" == instructor_filter %}
+            <span class="inline-flex items-center gap-1 px-3 py-1 text-sm bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-full">
+              Instructor: {{ instr.name }}
+              <a href="?{% if search %}search={{ search }}&{% endif %}{% if workout_type_filter %}type={{ workout_type_filter }}&{% endif %}{% if duration_filter %}duration={{ duration_filter }}&{% endif %}{% if year_filter %}year={{ year_filter }}&{% endif %}{% if month_filter %}month={{ month_filter }}&{% endif %}{% if power_zone_filter %}power_zone={{ power_zone_filter }}&{% endif %}{% if missing_targets %}missing_targets={{ missing_targets }}&{% endif %}{% if order_by %}order_by={{ order_by }}&{% endif %}"
+                 class="hover:text-gray-900 dark:hover:text-white">×</a>
+            </span>
+          {% endif %}
+        {% endfor %}
+      {% endif %}
+      {% if duration_filter %}
+        <span class="inline-flex items-center gap-1 px-3 py-1 text-sm bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-full">
+          Duration: {{ duration_filter }} min
+          <a href="?{% if search %}search={{ search }}&{% endif %}{% if workout_type_filter %}type={{ workout_type_filter }}&{% endif %}{% if instructor_filter %}instructor={{ instructor_filter }}&{% endif %}{% if year_filter %}year={{ year_filter }}&{% endif %}{% if month_filter %}month={{ month_filter }}&{% endif %}{% if power_zone_filter %}power_zone={{ power_zone_filter }}&{% endif %}{% if missing_targets %}missing_targets={{ missing_targets }}&{% endif %}{% if order_by %}order_by={{ order_by }}&{% endif %}"
+             class="hover:text-gray-900 dark:hover:text-white">×</a>
+        </span>
+      {% endif %}
+      {% if year_filter %}
+        <span class="inline-flex items-center gap-1 px-3 py-1 text-sm bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-full">
+          Year: {{ year_filter }}{% if month_filter %} {% if month_filter == '1' %}January{% elif month_filter == '2' %}February{% elif month_filter == '3' %}March{% elif month_filter == '4' %}April{% elif month_filter == '5' %}May{% elif month_filter == '6' %}June{% elif month_filter == '7' %}July{% elif month_filter == '8' %}August{% elif month_filter == '9' %}September{% elif month_filter == '10' %}October{% elif month_filter == '11' %}November{% elif month_filter == '12' %}December{% endif %}{% endif %}
+          <a href="?{% if search %}search={{ search }}&{% endif %}{% if workout_type_filter %}type={{ workout_type_filter }}&{% endif %}{% if instructor_filter %}instructor={{ instructor_filter }}&{% endif %}{% if duration_filter %}duration={{ duration_filter }}&{% endif %}{% if power_zone_filter %}power_zone={{ power_zone_filter }}&{% endif %}{% if missing_targets %}missing_targets={{ missing_targets }}&{% endif %}{% if order_by %}order_by={{ order_by }}&{% endif %}"
+             class="hover:text-gray-900 dark:hover:text-white">×</a>
+        </span>
+      {% endif %}
+      {% if month_filter %}
+        <span class="inline-flex items-center gap-1 px-3 py-1 text-sm bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-full">
+          Month: {% if month_filter == '1' %}January{% elif month_filter == '2' %}February{% elif month_filter == '3' %}March{% elif month_filter == '4' %}April{% elif month_filter == '5' %}May{% elif month_filter == '6' %}June{% elif month_filter == '7' %}July{% elif month_filter == '8' %}August{% elif month_filter == '9' %}September{% elif month_filter == '10' %}October{% elif month_filter == '11' %}November{% elif month_filter == '12' %}December{% endif %}
+          <a href="?{% if search %}search={{ search }}&{% endif %}{% if workout_type_filter %}type={{ workout_type_filter }}&{% endif %}{% if instructor_filter %}instructor={{ instructor_filter }}&{% endif %}{% if duration_filter %}duration={{ duration_filter }}&{% endif %}{% if year_filter %}year={{ year_filter }}&{% endif %}{% if power_zone_filter %}power_zone={{ power_zone_filter }}&{% endif %}{% if missing_targets %}missing_targets={{ missing_targets }}&{% endif %}{% if order_by %}order_by={{ order_by }}&{% endif %}"
+             class="hover:text-gray-900 dark:hover:text-white">×</a>
+        </span>
+      {% endif %}
+      {% if power_zone_filter == '1' %}
+        <span class="inline-flex items-center gap-1 px-3 py-1 text-sm bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-full">
+          Power Zone only
+          <a href="?{% if search %}search={{ search }}&{% endif %}{% if workout_type_filter %}type={{ workout_type_filter }}&{% endif %}{% if instructor_filter %}instructor={{ instructor_filter }}&{% endif %}{% if duration_filter %}duration={{ duration_filter }}&{% endif %}{% if year_filter %}year={{ year_filter }}&{% endif %}{% if month_filter %}month={{ month_filter }}&{% endif %}{% if missing_targets %}missing_targets={{ missing_targets }}&{% endif %}{% if order_by %}order_by={{ order_by }}&{% endif %}"
+             class="hover:text-gray-900 dark:hover:text-white">×</a>
+        </span>
+      {% endif %}
+      {% if missing_targets == '1' %}
+        <span class="inline-flex items-center gap-1 px-3 py-1 text-sm bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-full">
+          Missing targets only
+          <a href="?{% if search %}search={{ search }}&{% endif %}{% if workout_type_filter %}type={{ workout_type_filter }}&{% endif %}{% if instructor_filter %}instructor={{ instructor_filter }}&{% endif %}{% if duration_filter %}duration={{ duration_filter }}&{% endif %}{% if year_filter %}year={{ year_filter }}&{% endif %}{% if month_filter %}month={{ month_filter }}&{% endif %}{% if power_zone_filter %}power_zone={{ power_zone_filter }}&{% endif %}{% if order_by %}order_by={{ order_by }}&{% endif %}"
+             class="hover:text-gray-900 dark:hover:text-white">×</a>
+        </span>
+      {% endif %}
+    </div>
+  {% endif %}
+</div>
+
+<!-- Class List Container -->
+<div id="admin-class-list">
+  {% include 'workouts/partials/admin_class_list.html' %}
+</div>
+{% endblock %}

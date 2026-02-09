@@ -32,7 +32,7 @@ def challenges_list(request):
         is_active=True,
         is_visible=True,
         start_date__gt=today  # Only show challenges that haven't started
-    ).order_by("start_date")  # Earliest first
+    ).order_by("-start_date")  # Latest start date first
     
     # Currently running challenges (for users already participating)
     running_challenges = Challenge.objects.filter(
@@ -40,14 +40,14 @@ def challenges_list(request):
         is_visible=True,
         start_date__lte=today,
         end_date__gte=today
-    ).order_by("start_date")  # Earliest first
+    ).order_by("-start_date")  # Latest start date first
     
     # Past challenges (ended) - can be retaken
     past_challenges = Challenge.objects.filter(
         is_active=True,
         is_visible=True,
         end_date__lt=today
-    ).order_by("start_date")  # Earliest first
+    ).order_by("-start_date")  # Latest start date first
     
     user_challenges = ChallengeInstance.objects.filter(user=request.user).select_related("challenge")
     user_challenge_ids = set(user_challenges.values_list("challenge_id", flat=True))
@@ -66,8 +66,9 @@ def challenges_list(request):
         if ci.is_active:
             ci.can_leave, ci.leave_error = ci.can_leave_challenge()
     
-    # Combine lists so the template can render a single grid if desired (running first)
+    # Combine lists and sort by start date (latest first) so the UI shows newest challenges first
     all_challenges = list(running_challenges) + list(upcoming_challenges) + list(past_challenges)
+    all_challenges = sorted(all_challenges, key=lambda c: c.start_date, reverse=True)
 
     return render(request, "challenges/challenges.html", {
         "upcoming_challenges": upcoming_challenges,
@@ -218,6 +219,34 @@ def select_team(request, challenge_id):
     if not challenge.can_signup:
         messages.error(request, f"Signup for '{challenge.name}' is no longer available.")
         return redirect("challenges:challenges_list")
+
+    # If signup cutoff has passed (signup_deadline or start_date), render page in late-join state
+    from datetime import date
+    today = date.today()
+    cutoff = challenge.signup_deadline if challenge.signup_deadline else challenge.start_date
+    is_late_join = today > cutoff
+    if is_late_join:
+        # Late joiners: they can still join but will not be assigned to a team or count towards team scores
+        messages.info(request, "You're joining after the team signup cutoff. You can still join and follow the plan, but you won't be assigned to a team or count towards team scores.")
+        # Render select_team template in a late-join state (template will hide team controls)
+        teams = Team.objects.annotate(
+            member_count=Count('members', filter=Q(members__challenge_instance__challenge=challenge, members__challenge_instance__is_active=True))
+        ).order_by('name')
+        previous_team = None
+        previous_team_membership = TeamMember.objects.filter(
+            challenge_instance__user=request.user
+        ).exclude(
+            challenge_instance__challenge=challenge
+        ).select_related('team', 'challenge_instance__challenge').order_by('-joined_at').first()
+        if previous_team_membership:
+            previous_team = previous_team_membership.team
+
+        return render(request, "challenges/select_team.html", {
+            "challenge": challenge,
+            "teams": teams,
+            "previous_team": previous_team,
+            "is_late_join": True,
+        })
     
     # Check if template was selected (should be in session)
     template_id = request.session.get(f'challenge_{challenge_id}_template_id')
@@ -291,8 +320,12 @@ def join_challenge(request, challenge_id):
     volunteer_team_lead = request.session.get(f'challenge_{challenge_id}_volunteer_team_lead', False)
     
     # If POST or if we have session data, create challenge instance with selected template and team
-    # For team challenges, require team_option unless it's a past challenge
-    requires_team_option = challenge.challenge_type == "team" and not challenge.has_ended
+    # For team challenges, require team_option unless it's a past challenge or the signup cutoff has passed
+    from datetime import date
+    today = date.today()
+    cutoff = challenge.signup_deadline if challenge.signup_deadline else challenge.start_date
+    is_late_join = today > cutoff
+    requires_team_option = challenge.challenge_type == "team" and not challenge.has_ended and not is_late_join
     has_required_data = template_id and (not requires_team_option or team_option)
     if request.method == "POST" or has_required_data:
         # Double-check constraints based on challenge start date
@@ -331,7 +364,7 @@ def join_challenge(request, challenge_id):
             return redirect("challenges:select_challenge_template", challenge_id=challenge_id)
         
         # Only require team selection for team challenges that haven't ended
-        if challenge.challenge_type == "team" and not challenge.has_ended and not team_option:
+        if challenge.challenge_type == "team" and not challenge.has_ended and not is_late_join and not team_option:
             messages.error(request, "Please select a team option.")
             # Clear session
             for key in list(request.session.keys()):
@@ -467,7 +500,8 @@ def join_challenge(request, challenge_id):
             current_week_start += timedelta(days=7)
         
         # Assign user to team (if team was selected)
-        if team:
+        # Only assign to team if this is a scoring signup (joined on-or-before cutoff)
+        if team and (not is_late_join):
             TeamMember.objects.get_or_create(
                 team=team,
                 challenge_instance=challenge_instance

@@ -18,6 +18,8 @@ urlpatterns = [
     path("classes/", include("classes.urls")),  # Class library/catalog
     path("workouts/", include("workouts.urls")),  # Workout history & tracking
     path("peloton/", include("peloton.urls")),
+    # django-hijack URLs for superuser user hijacking
+    path("hijack/", include("hijack.urls")),
 ]
 
 # Serve media files in development

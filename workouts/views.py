@@ -38,6 +38,11 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# Known Peloton class_type IDs that should be treated as power zone classes
+CLASS_TYPE_POWER_ZONE_IDS = {
+    '4228e9e57bf64c518d58a1d0181760c4',
+}
+
 # Initialize service instances (stateless services)
 metrics_calculator = MetricsCalculator()
 chart_builder = ChartBuilder()
@@ -58,6 +63,35 @@ def detect_class_type(ride_data, ride_details=None):
     # Priority 1: Check explicit flags
     if ride_data.get('is_power_zone_class') or ride_data.get('is_power_zone'):
         return 'power_zone'
+    # Priority 1b: Check known Peloton class_type IDs that indicate Power Zone (e.g., "Pro Cyclist")
+    try:
+        class_type_ids = set()
+        if isinstance(ride_data.get('class_type_ids'), (list, tuple)):
+            class_type_ids.update([str(x) for x in ride_data.get('class_type_ids') if x])
+        # Some API payloads include a list of class type objects under 'class_types'
+        for ct in (ride_data.get('class_types') or []):
+            if isinstance(ct, dict):
+                cid = ct.get('id') or ct.get('peloton_id') or ct.get('pelotonId')
+                if cid:
+                    class_type_ids.add(str(cid))
+            elif isinstance(ct, str):
+                class_type_ids.add(ct)
+        # Single class_type object or id
+        ct_obj = ride_data.get('class_type')
+        if isinstance(ct_obj, dict):
+            cid = ct_obj.get('id') or ct_obj.get('peloton_id') or ct_obj.get('pelotonId')
+            if cid:
+                class_type_ids.add(str(cid))
+        elif ct_obj:
+            class_type_ids.add(str(ct_obj))
+        if ride_data.get('class_type_id'):
+            class_type_ids.add(str(ride_data.get('class_type_id')))
+
+        if class_type_ids & CLASS_TYPE_POWER_ZONE_IDS:
+            return 'power_zone'
+    except Exception:
+        # Non-fatal — fall through to other detection heuristics
+        pass
     
     # Priority 2: Check pace_target_type for running/walking
 def _pace_zone_to_level(zone):
@@ -2338,16 +2372,19 @@ def workout_history(request):
     if order_by in ['completed_date', '-completed_date', 'recorded_date', '-recorded_date']:
         # Stable tie-breakers for same-day workouts.
         #
-        # Workout IDs reflect sync insert order. Since the Peloton API list is typically newest-first,
-        # the *smaller* ID can represent the more recent activity within the same completed_date.
-        # Tie-break accordingly so "most recent activity on the day" comes first.
-        tie_breaker = 'id' if order_by.startswith('-') else '-id'
-        workouts = workouts.order_by(order_by, tie_breaker)
+        # Use the actual sync timestamps so multiple workouts on the same date follow the order
+        # they were completed (Peloton sends workouts chronologically by start_time). For legacy
+        # rows that may share identical sync times, fall back to ID for deterministic ordering.
+        if order_by.startswith('-'):
+            tie_breakers = ['-completed_at', '-synced_at', '-last_synced_at', '-id']
+        else:
+            tie_breakers = ['completed_at', 'synced_at', 'last_synced_at', 'id']
+        workouts = workouts.order_by(order_by, *tie_breakers)
     elif order_by in ['title', '-title']:
         # Order by ride_detail title via SQL join
         workouts = workouts.order_by('ride_detail__title' if order_by == 'title' else '-ride_detail__title', '-id')
     else:
-        workouts = workouts.order_by('-completed_date', 'id')
+        workouts = workouts.order_by('-completed_date', '-completed_at', '-synced_at', '-last_synced_at', '-id')
     
     # Pagination
     paginator = Paginator(workouts, 12)  # 12 workouts per page
@@ -5119,6 +5156,28 @@ def sync_workouts(request):
                         except Exception as e:
                             logger.debug(f"Could not parse created_at '{created_at}': {e}")
                             pass
+
+                    # Also parse Peloton's created_at into an aware UTC datetime for storage
+                    peloton_created_at_dt = None
+                    try:
+                        if created_at:
+                            if isinstance(created_at, (int, float)):
+                                ts = created_at
+                                if ts >= 1e12:
+                                    ts = ts / 1000.0
+                                peloton_created_at_dt = datetime.fromtimestamp(ts, tz=UTC)
+                            else:
+                                dt_str = str(created_at).replace('Z', '+00:00')
+                                dt = datetime.fromisoformat(dt_str)
+                                if dt.tzinfo is None:
+                                    peloton_created_at_dt = timezone.make_aware(dt, UTC)
+                                else:
+                                    peloton_created_at_dt = dt.astimezone(UTC)
+                    except Exception:
+                        peloton_created_at_dt = None
+
+                    # Peloton can include a timezone string in the workout payload (IANA). Store if present.
+                    peloton_tz = workout_data.get('timezone') or workout_data.get('tz') or None
                 
                 # Fallback to start_time if created_at not available
                 if not workout_timestamp and start_time:
@@ -5141,10 +5200,7 @@ def sync_workouts(request):
                             pass
                 
                 # Parse completed_date from start_time
-                # IMPORTANT: Convert to US Eastern Time (Peloton's timezone) before extracting date
-                # This ensures streaks match Peloton's calculation (they use local date, not UTC date)
-                # Example: Workout at 11 PM PST = 2 AM ET next day, but Peloton counts it as same day in PST
-                # So we use ET to match Peloton's behavior
+                # Use raw UTC date (no timezone conversion) to match the raw created_at time
                 try:
                     if ZoneInfo:
                         ET = ZoneInfo("America/New_York")  # US Eastern Time (handles DST automatically)
@@ -5153,21 +5209,29 @@ def sync_workouts(request):
                     else:
                         # No timezone library available, fallback to UTC
                         ET = UTC
-                        logger.warning("No timezone library available, using UTC for completed_date (streaks may not match Peloton)")
+                        logger.warning("No timezone library available, using UTC for completed_date")
                 except Exception as e:
                     # Fallback to UTC if timezone conversion fails
                     ET = UTC
                     logger.warning(f"Failed to set ET timezone: {e}, using UTC for completed_date")
                 
+                # We'll store Peloton's API timestamp (UTC) in `completed_at` so the
+                # DB reflects the exact time Peloton reported. `completed_date` now
+                # uses raw UTC date.
+                completed_datetime_utc = None
+
                 if start_time:
                     if isinstance(start_time, (int, float)):
-                        # Unix timestamp - convert to UTC datetime, then to ET, then extract date
-                        dt_utc = datetime.fromtimestamp(start_time, tz=UTC)
+                        # Handle seconds vs milliseconds and build a UTC datetime
+                        ts = start_time
+                        if ts >= 1e12:
+                            ts = ts / 1000.0
+                        dt_utc = datetime.fromtimestamp(ts, tz=UTC)
                         dt_et = dt_utc.astimezone(ET) if ET != UTC else dt_utc
-                        completed_date = dt_et.date()
-                        # Log timezone conversion for debugging
-                        if dt_utc.date() != completed_date:
-                            logger.debug(f"Timezone conversion: UTC date {dt_utc.date()} -> ET date {completed_date} (offset: {dt_et.utcoffset()})")
+                        completed_datetime_utc = dt_utc
+                        completed_date = dt_utc.date()  # Use raw UTC date
+                        if dt_utc.date() != dt_et.date():
+                            logger.debug(f"Raw UTC date: {dt_utc.date()} (ET would be: {dt_et.date()})")
                     else:
                         try:
                             dt_str = str(start_time).replace('Z', '+00:00')
@@ -5176,28 +5240,34 @@ def sync_workouts(request):
                                 dt = timezone.make_aware(dt, UTC)
                             else:
                                 dt = dt.astimezone(UTC)
-                            # Convert to ET before extracting date
-                            dt_et = dt.astimezone(ET) if ET != UTC else dt
-                            completed_date = dt_et.date()
-                            # Log timezone conversion for debugging
+                            dt_utc = dt.astimezone(UTC) if dt.tzinfo else timezone.make_aware(dt, UTC)
+                            dt_et = dt_utc.astimezone(ET) if ET != UTC else dt_utc
+                            completed_datetime_utc = dt_utc
+                            completed_date = dt_utc.date()  # Use raw UTC date
                             if dt.date() != completed_date:
                                 logger.debug(f"Timezone conversion: UTC date {dt.date()} -> ET date {completed_date} (offset: {dt_et.utcoffset()})")
                         except Exception as e:
                             logger.debug(f"Error parsing start_time for completed_date: {e}")
-                            # Fallback: use UTC date if conversion fails
                             try:
                                 dt_utc = datetime.fromtimestamp(start_time, tz=UTC) if isinstance(start_time, (int, float)) else timezone.now()
                                 dt_et = dt_utc.astimezone(ET) if ET != UTC else dt_utc
-                                completed_date = dt_et.date()
+                                completed_datetime_utc = dt_utc
+                                completed_date = dt_utc.date()  # Use raw UTC date
                             except Exception:
-                                completed_date = timezone.now().date()
+                                fallback_dt = timezone.now()
+                                completed_datetime_utc = fallback_dt.astimezone(UTC) if fallback_dt.tzinfo else timezone.make_aware(fallback_dt, UTC)
+                                completed_date = completed_datetime_utc.date()  # Use raw UTC date
                 else:
-                    # No start_time, use current date in ET
+                    # No start_time, use current time
                     try:
-                        dt_et = timezone.now().astimezone(ET) if ET != UTC else timezone.now()
-                        completed_date = dt_et.date()
+                        dt_now = timezone.now()
+                        dt_et = dt_now.astimezone(ET) if ET != UTC else dt_now
+                        completed_datetime_utc = dt_now.astimezone(UTC) if dt_now.tzinfo else timezone.make_aware(dt_now, UTC)
+                        completed_date = completed_datetime_utc.date()  # Use raw UTC date
                     except Exception:
-                        completed_date = timezone.now().date()
+                        fallback_dt = timezone.now()
+                        completed_datetime_utc = fallback_dt.astimezone(UTC) if fallback_dt.tzinfo else timezone.make_aware(fallback_dt, UTC)
+                        completed_date = completed_datetime_utc.astimezone(ET).date() if ET != UTC else completed_datetime_utc.date()
                 
                 # If we still don't have a timestamp, use current time in UTC (shouldn't happen, but be safe)
                 if not workout_timestamp:
@@ -5532,6 +5602,9 @@ def sync_workouts(request):
                         'peloton_url': peloton_url,
                         'recorded_date': completed_date,
                         'completed_date': completed_date,
+                        'completed_at': completed_datetime_utc,
+                        'peloton_created_at': peloton_created_at_dt,
+                        'peloton_timezone': peloton_tz,
                         # No duplicate storage - title, duration, instructor, etc. come from ride_detail via joins
                     }
                 )

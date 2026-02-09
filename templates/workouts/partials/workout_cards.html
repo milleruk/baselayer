@@ -1,3 +1,4 @@
+{% load tz %}
 {% for workout in workouts %}
   <div class="rounded-lg bg-gray-800 dark:bg-gray-800 p-5 shadow-2xl hover:shadow-[0_0_20px_rgba(59,130,246,0.3)] transition-all border-2 border-gray-600 dark:border-gray-600 hover:border-primary/50 dark:hover:border-primary/50 backdrop-blur-sm">
     <!-- Top Section: Duration Badge, Manual Badge, and Icon -->
@@ -61,7 +62,10 @@
         {{ workout.recorded_date|date:"d/m/Y" }}
       {% endif %}
     </div>
-    <div>Completed: {{ workout.completed_date|date:"d/m/Y" }}</div>
+    <div>
+      Completed: {{ workout.completed_date|date:"d/m/Y" }}
+        {# Timezone/time display intentionally hidden on history cards. #}
+    </div>
     </div>
     
     <!-- Performance Metrics -->

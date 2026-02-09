@@ -1,11 +1,14 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
+from django.conf import settings
 from django.utils.safestring import mark_safe
 from .models import User, Profile, WeightEntry, FTPEntry, PaceEntry, PaceLevel, OnboardingWizard
 
 
 @admin.register(User)
 class UserAdmin(BaseUserAdmin):
+    # To re-enable hijack, use:
+    # class UserAdmin(HijackUserAdminMixin, BaseUserAdmin):
     """Custom admin for User model"""
     list_display = ['email', 'first_name', 'last_name', 'is_staff', 'is_active', 'date_joined', 'inactive_status']
     list_filter = ['is_staff', 'is_active', 'date_joined']

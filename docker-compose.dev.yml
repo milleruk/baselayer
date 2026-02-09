@@ -1,5 +1,3 @@
-version: '3.8'
-
 x-common-django-build: &common-django-build
   build:
     context: .
@@ -28,6 +26,16 @@ services:
       - redis-data:/data
     ports:
       - "6380:6379"
+  postgres:
+    image: postgres:15
+    environment:
+      - POSTGRES_DB=ctz_test
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    expose:
+      - "5432"
 
   web:
     <<: [*common-django-build, *common-health-checks]
@@ -36,36 +44,76 @@ services:
       - "6993:6993"
     depends_on:
       - redis
+      - postgres
     volumes:
       - ./:/app:cached
       - venv-data:/app/.venv
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=ctz_test
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
 
   worker_ride_details:
     <<: [*common-django-build, *common-health-checks]
     command: bash -lc "celery -A config.celery worker -Q ride_details -c 6 --prefetch-multiplier=1 -n ride_%h -l info"
     depends_on:
       - redis
+      - postgres
     volumes:
       - ./:/app:cached
       - venv-data:/app/.venv
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=ctz_test
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
 
   worker_workouts:
     <<: [*common-django-build, *common-health-checks]
     command: bash -lc "celery -A config.celery worker -Q workouts -c 4 --prefetch-multiplier=1 -n workouts_%h -l info"
     depends_on:
       - redis
+      - postgres
     volumes:
       - ./:/app:cached
       - venv-data:/app/.venv
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=ctz_test
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
 
   worker_performance:
     <<: [*common-django-build, *common-health-checks]
     command: bash -lc "celery -A config.celery worker -Q performance_graphs -c 2 --pool=prefork -n perf_%h -l info"
     depends_on:
       - redis
+      - postgres
     volumes:
       - ./:/app:cached
       - venv-data:/app/.venv
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=ctz_test
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
 
   # flower service disabled temporarily — executable not found in image on this host
   # To re-enable, restore the block below and ensure the image contains the `flower` binary:
@@ -80,3 +128,4 @@ services:
 volumes:
   redis-data: {}
   venv-data: {}
+  pgdata: {}

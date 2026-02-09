@@ -2,6 +2,13 @@ from django.conf import settings
 from django.db import models
 from django.utils import timezone
 import json
+try:
+    from zoneinfo import ZoneInfo
+except Exception:
+    try:
+        from backports.zoneinfo import ZoneInfo
+    except Exception:
+        ZoneInfo = None
 
 # Use Django's built-in JSONField (works with all databases)
 try:
@@ -625,6 +632,23 @@ class Workout(models.Model):
     # Dates (user-specific)
     recorded_date = models.DateField(help_text="Date when workout was originally recorded/created on Peloton")
     completed_date = models.DateField(help_text="Date when user completed this workout")
+    completed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Exact completion timestamp reported by Peloton (stored in UTC). Use `peloton_timezone`/`peloton_created_at` for Peloton local info.",
+    )
+    # Peloton-provided creation timestamp and timezone (stored for authoritative calculations)
+    peloton_created_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Peloton 'created_at' timestamp converted to UTC",
+    )
+    peloton_timezone = models.CharField(
+        max_length=64,
+        null=True,
+        blank=True,
+        help_text="Timezone string returned by Peloton for this workout (IANA timezone)",
+    )
     
     # Peloton URL (workout-instance-specific)
     peloton_url = models.URLField(blank=True, null=True, help_text="Link to workout on Peloton")
@@ -634,9 +658,9 @@ class Workout(models.Model):
     last_synced_at = models.DateTimeField(auto_now=True, help_text="Last time this workout was synced")
     
     class Meta:
-        ordering = ["-completed_date", "-recorded_date"]
+        ordering = ["-completed_date", "-completed_at", "-recorded_date"]
         indexes = [
-            models.Index(fields=["user", "-completed_date"]),
+            models.Index(fields=["user", "-completed_date", "-completed_at"]),
             models.Index(fields=["ride_detail"]),
             models.Index(fields=["peloton_workout_id"]),
         ]
@@ -645,6 +669,23 @@ class Workout(models.Model):
         if self.ride_detail:
             return f"{self.ride_detail.title} - {self.user.username} ({self.completed_date})"
         return f"Workout - {self.user.username} ({self.completed_date})"
+
+    @property
+    def peloton_local_time(self):
+        """Return `peloton_created_at` converted to Peloton's reported timezone (if available).
+
+        Returns an aware datetime in the Peloton local timezone or None.
+        """
+        if not self.peloton_created_at:
+            return None
+        if not self.peloton_timezone:
+            return self.peloton_created_at
+        if ZoneInfo is None:
+            return self.peloton_created_at
+        try:
+            return self.peloton_created_at.astimezone(ZoneInfo(self.peloton_timezone))
+        except Exception:
+            return self.peloton_created_at
     
     # Properties to access RideDetail fields via SQL joins (no duplicate storage)
     # These use SQL joins - data is stored once in RideDetail, accessed via foreign key

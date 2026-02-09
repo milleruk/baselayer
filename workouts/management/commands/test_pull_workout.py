@@ -188,7 +188,7 @@ class Command(BaseCommand):
         if isinstance(start_time, (int, float)):
             from datetime import datetime
             from zoneinfo import ZoneInfo
-            dt_utc = datetime.fromtimestamp(start_time, tz=timezone.UTC)
+            dt_utc = datetime.fromtimestamp(start_time, tz=timezone.utc)
             ET = ZoneInfo("America/New_York")
             dt_et = dt_utc.astimezone(ET)
             completed_date = dt_et.date()
