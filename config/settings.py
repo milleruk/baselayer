@@ -1,5 +1,3 @@
-# Toggle for enabling/disabling django-hijack
-ENABLE_HIJACK = False
 """
 Django settings for config project.
 
@@ -68,8 +66,8 @@ INSTALLED_APPS = [
     "classes",  # Peloton class catalog/library
     "workouts",  # Workout history & tracking
     "peloton",
-    # django-hijack for superuser user hijacking (toggle with ENABLE_HIJACK)
-    # "hijack",  # Uncomment to enable
+    # Celery beat scheduler (database-backed periodic tasks)
+    "django_celery_beat",
 ]
 
 # Custom User Model

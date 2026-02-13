@@ -652,6 +652,8 @@ class Workout(models.Model):
     
     # Peloton URL (workout-instance-specific)
     peloton_url = models.URLField(blank=True, null=True, help_text="Link to workout on Peloton")
+    # Optional per-workout title override for manual or uploaded workouts
+    title_override = models.CharField(max_length=500, blank=True, null=True, help_text="Optional per-workout title to override ride_detail.title (used for manual workouts)")
     
     # Sync information
     synced_at = models.DateTimeField(auto_now_add=True, help_text="When this workout was synced from Peloton")
@@ -667,7 +669,7 @@ class Workout(models.Model):
     
     def __str__(self):
         if self.ride_detail:
-            return f"{self.ride_detail.title} - {self.user.username} ({self.completed_date})"
+            return f"{self.title} - {self.user.username} ({self.completed_date})"
         return f"Workout - {self.user.username} ({self.completed_date})"
 
     @property
@@ -691,7 +693,9 @@ class Workout(models.Model):
     # These use SQL joins - data is stored once in RideDetail, accessed via foreign key
     @property
     def title(self):
-        """Get title from ride_detail via join"""
+        """Return per-workout title override if present, otherwise ride_detail.title"""
+        if self.title_override:
+            return self.title_override
         if self.ride_detail:
             return self.ride_detail.title
         return 'Workout'

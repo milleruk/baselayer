@@ -60,7 +60,7 @@ services:
 
   worker_ride_details:
     <<: [*common-django-build, *common-health-checks]
-    command: bash -lc "celery -A config.celery worker -Q ride_details -c 6 --prefetch-multiplier=1 -n ride_%h -l info"
+    command: bash -lc "celery -A config.celery worker -Q ride_details -c 12 --prefetch-multiplier=1 -n ride_%h -l info"
     depends_on:
       - redis
       - postgres
@@ -79,7 +79,7 @@ services:
 
   worker_workouts:
     <<: [*common-django-build, *common-health-checks]
-    command: bash -lc "celery -A config.celery worker -Q workouts -c 4 --prefetch-multiplier=1 -n workouts_%h -l info"
+    command: bash -lc "celery -A config.celery worker -Q workouts -c 8 --prefetch-multiplier=1 -n workouts_%h -l info"
     depends_on:
       - redis
       - postgres
@@ -98,7 +98,26 @@ services:
 
   worker_performance:
     <<: [*common-django-build, *common-health-checks]
-    command: bash -lc "celery -A config.celery worker -Q performance_graphs -c 2 --pool=prefork -n perf_%h -l info"
+    command: bash -lc "celery -A config.celery worker -Q performance_graphs -c 4 --pool=prefork -n perf_%h -l info"
+    depends_on:
+      - redis
+      - postgres
+    volumes:
+      - ./:/app:cached
+      - venv-data:/app/.venv
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=ctz_test
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+
+  celery_beat:
+    <<: [*common-django-build, *common-health-checks]
+    command: bash -lc "celery -A config.celery beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler"
     depends_on:
       - redis
       - postgres

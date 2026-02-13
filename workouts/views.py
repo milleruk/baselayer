@@ -5327,20 +5327,16 @@ def sync_workouts(request):
                             except Exception as e:
                                 logger.debug(f"Workout {total_processed} ({peloton_workout_id}): Could not fetch ride details for playlist: {e}")
                     except RideDetail.DoesNotExist:
-                        # RideDetail doesn't exist, fetch it now BEFORE creating workout
-                        logger.info(f"Workout {total_processed} ({peloton_workout_id}): RideDetail not found for ride_id {ride_id}, fetching ride details first...")
+                        # RideDetail doesn't exist. Enqueue a background task to fetch it
+                        logger.info(f"Workout {total_processed} ({peloton_workout_id}): RideDetail not found for ride_id {ride_id}, enqueuing background fetch...")
                         try:
-                            ride_details = client.fetch_ride_details(ride_id)
-                            ride_data = ride_details.get('ride', {})
-                            if ride_data:
-                                # We'll create RideDetail below after we have all the data
-                                logger.info(f"Workout {total_processed} ({peloton_workout_id}): Successfully fetched ride details for ride_id {ride_id}")
-                            else:
-                                logger.warning(f"Workout {total_processed} ({peloton_workout_id}): Ride details response missing 'ride' data for ride_id {ride_id}")
-                                ride_details = None
-                        except Exception as e:
-                            logger.warning(f"Workout {total_processed} ({peloton_workout_id}): Could not fetch ride details for ride_id {ride_id}: {e}")
-                            ride_details = None
+                            from config.celery import app as celery_app
+                            celery_app.send_task('workouts.tasks.fetch_ride_details_task', args=[request.user.id, str(ride_id)], queue='ride_details')
+                            logger.info(f"Workout {total_processed} ({peloton_workout_id}): Enqueued fetch_ride_details_task for ride_id {ride_id}")
+                        except Exception:
+                            logger.exception(f"Workout {total_processed} ({peloton_workout_id}): failed to enqueue fetch_ride_details_task for ride_id {ride_id}")
+                        # Leave ride_details as None; create placeholder later so workout can be stored
+                        ride_details = None
                 else:
                     # No ride_id yet, try to get it from detailed workout
                     logger.debug(f"Workout {total_processed} ({peloton_workout_id}): No ride_id in workout_data, fetching detailed workout to get ride_id...")
@@ -5366,16 +5362,15 @@ def sync_workouts(request):
                                     except Exception as e:
                                         logger.debug(f"Workout {total_processed} ({peloton_workout_id}): Could not fetch ride details for playlist: {e}")
                             except RideDetail.DoesNotExist:
-                                # Fetch ride details
-                                logger.info(f"Workout {total_processed} ({peloton_workout_id}): Fetching ride details for ride_id {ride_id}...")
+                                # RideDetail doesn't exist for this ride_id from detailed_workout — enqueue background fetch
+                                logger.info(f"Workout {total_processed} ({peloton_workout_id}): RideDetail not found for ride_id {ride_id} (from detailed_workout), enqueuing background fetch...")
                                 try:
-                                    ride_details = client.fetch_ride_details(ride_id)
-                                    ride_data = ride_details.get('ride', {})
-                                    if not ride_data:
-                                        ride_details = None
-                                except Exception as e:
-                                    logger.warning(f"Workout {total_processed} ({peloton_workout_id}): Could not fetch ride details: {e}")
-                                    ride_details = None
+                                    from config.celery import app as celery_app
+                                    celery_app.send_task('workouts.tasks.fetch_ride_details_task', args=[request.user.id, str(ride_id)], queue='ride_details')
+                                    logger.info(f"Workout {total_processed} ({peloton_workout_id}): Enqueued fetch_ride_details_task for ride_id {ride_id}")
+                                except Exception:
+                                    logger.exception(f"Workout {total_processed} ({peloton_workout_id}): failed to enqueue fetch_ride_details_task for ride_id {ride_id}")
+                                ride_details = None
                         else:
                             logger.warning(f"Workout {total_processed} ({peloton_workout_id}): No ride_id found in detailed workout")
                             detailed_workout = None
@@ -5587,12 +5582,107 @@ def sync_workouts(request):
                     peloton_url = f"https://members.onepeloton.com/profile/workouts/{peloton_workout_id}"
                 
                 # Create or update workout
-                # NOTE: ride_detail is REQUIRED for new workouts - all class data comes from there via SQL joins
-                # We don't store duplicate data (title, duration, instructor, etc.) in Workout model
+                # NOTE: ride_detail is REQUIRED for new workouts - all class data comes from here via SQL joins
+                # If we don't have ride_detail yet, enqueue a background fetch and create a lightweight
+                # placeholder RideDetail so the Workout can be created and later enriched by workers.
                 if not ride_detail:
-                    logger.warning(f"Workout {total_processed} ({peloton_workout_id}): Cannot create workout without ride_detail. Skipping.")
-                    workouts_skipped += 1
-                    continue
+                    logger.info(f"Workout {total_processed} ({peloton_workout_id}): ride_detail missing — enqueueing background fetch and creating placeholder")
+                    # Enqueue background task by name to avoid circular imports
+                    try:
+                        from config.celery import app as celery_app
+                        if ride_id:
+                            celery_app.send_task('workouts.tasks.fetch_ride_details_task', args=[request.user.id, str(ride_id)], queue='ride_details')
+                        else:
+                            # No ride_id available, nothing to fetch
+                            logger.debug(f"Workout {total_processed} ({peloton_workout_id}): no ride_id available to enqueue ride_detail fetch")
+                    except Exception:
+                        logger.exception(f"Workout {total_processed} ({peloton_workout_id}): failed to enqueue ride_detail fetch")
+
+                    # Create a minimal placeholder RideDetail so the Workout can be stored.
+                    try:
+                        # Ensure a generic WorkoutType exists
+                        wt, _ = WorkoutType.objects.get_or_create(slug='other', defaults={'name': 'Other'})
+
+                        # Detect manual-workout placeholder ride ids (all-zero id). If this is a manual
+                        # workout, try to map to a generic manual RideDetail template (so the app uses
+                        # a shared manual template). If no generic exists, create a RideDetail using the
+                        # workout's title so the user sees the correct name immediately.
+                        raw_ride_id = (workout_data.get('ride') or {}).get('id')
+                        # If the ride id is the all-zero placeholder (or missing), attempt a
+                        # quick fetch of the detailed workout to see if Peloton provides a
+                        # real `ride.id`. This avoids misclassifying actual classes as manual.
+                        is_manual_workout = False
+                        if not raw_ride_id or raw_ride_id == '00000000000000000000000000000000':
+                            try:
+                                detailed_workout_retry = client.fetch_workout(peloton_workout_id)
+                                resolved_ride_id = (detailed_workout_retry.get('ride') or {}).get('id') or detailed_workout_retry.get('ride_id')
+                                if resolved_ride_id and resolved_ride_id != '00000000000000000000000000000000':
+                                    # We found a real ride id in the detailed workout — treat as non-manual
+                                    ride_id = resolved_ride_id
+                                    logger.info(f"Workout {total_processed} ({peloton_workout_id}): resolved ride_id from detailed_workout: {ride_id}")
+                                else:
+                                    is_manual_workout = True
+                            except Exception as e:
+                                logger.debug(f"Workout {total_processed} ({peloton_workout_id}): detailed_workout retry failed: {e}")
+                                is_manual_workout = True
+
+                        if is_manual_workout:
+                            fitness_discipline = (workout_data.get('fitness_discipline') or 'other')
+                            MANUAL_RIDE_DETAIL_MAP = {
+                                'running': 9999999,
+                                'walking': 9999997,
+                                'cycling': 9999998,
+                                'bike': 9999998,
+                                'ride': 9999998,
+                                'rowing': 9999996,
+                                'strength': 9999995,
+                                'yoga': 9999994,
+                                'meditation': 9999993,
+                                'stretching': 9999992,
+                                'cardio': 9999991,
+                            }
+                            generic_ride_id = MANUAL_RIDE_DETAIL_MAP.get(fitness_discipline.lower(), 9999990)
+                            generic_peloton_ride_id = f"manual_{fitness_discipline.lower()}_{generic_ride_id}"
+                            try:
+                                ride_detail = RideDetail.objects.get(peloton_ride_id=generic_peloton_ride_id)
+                                logger.info(f"Workout {total_processed} ({peloton_workout_id}): Using generic manual RideDetail {generic_peloton_ride_id}")
+                            except RideDetail.DoesNotExist:
+                                # Create a manual RideDetail entry using the workout title so it renders nicely
+                                placeholder_peloton_id = generic_peloton_ride_id
+                                ride_detail, rd_created = RideDetail.objects.get_or_create(
+                                    peloton_ride_id=placeholder_peloton_id,
+                                    defaults={
+                                        'title': title,
+                                        'description': 'Manual workout created from user upload',
+                                        'duration_seconds': duration_seconds or 0,
+                                        'workout_type': workout_type or wt,
+                                        'fitness_discipline': fitness_discipline,
+                                    }
+                                )
+                                if rd_created:
+                                    logger.info(f"Workout {total_processed} ({peloton_workout_id}): Created manual RideDetail {placeholder_peloton_id}")
+                                else:
+                                    logger.debug(f"Workout {total_processed} ({peloton_workout_id}): Using existing RideDetail {ride_detail.peloton_ride_id}")
+                        else:
+                            # Non-manual: use pending placeholder pattern and let background workers fill details
+                            placeholder_peloton_id = str(ride_id) if ride_id else f"pending_{peloton_workout_id}"
+                            ride_detail, rd_created = RideDetail.objects.get_or_create(
+                                peloton_ride_id=placeholder_peloton_id,
+                                defaults={
+                                    'title': f'Pending details for {placeholder_peloton_id}',
+                                    'description': 'Placeholder created during sync; details will be filled by background task',
+                                    'duration_seconds': 0,
+                                    'workout_type': wt,
+                                }
+                            )
+                            if rd_created:
+                                logger.info(f"Workout {total_processed} ({peloton_workout_id}): Created placeholder RideDetail {placeholder_peloton_id}")
+                            else:
+                                logger.debug(f"Workout {total_processed} ({peloton_workout_id}): Using existing RideDetail {ride_detail.peloton_ride_id}")
+                    except Exception:
+                        logger.exception(f"Workout {total_processed} ({peloton_workout_id}): failed to create placeholder RideDetail; skipping workout")
+                        workouts_skipped += 1
+                        continue
                 
                 workout, created = Workout.objects.update_or_create(
                     peloton_workout_id=peloton_workout_id,
@@ -5605,6 +5695,9 @@ def sync_workouts(request):
                         'completed_at': completed_datetime_utc,
                         'peloton_created_at': peloton_created_at_dt,
                         'peloton_timezone': peloton_tz,
+                        # For manual workouts (all-zero ride id) store the workout title on the Workout
+                        # so templates show the user-provided name while reusing generic RideDetail templates.
+                        'title_override': title if ((workout_data.get('ride') or {}).get('id') == '00000000000000000000000000000000') else None,
                         # No duplicate storage - title, duration, instructor, etc. come from ride_detail via joins
                     }
                 )

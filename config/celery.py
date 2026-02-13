@@ -4,6 +4,7 @@ Celery configuration for background task processing.
 import os
 from celery import Celery
 from kombu import Queue
+from celery.schedules import crontab
 
 # Set the default Django settings module for the 'celery' program.
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
@@ -42,3 +43,12 @@ app.conf.task_queues = (
 # Tuning defaults for workers
 app.conf.worker_prefetch_multiplier = 1
 app.conf.task_acks_late = True
+
+# Periodic tasks (beat)
+app.conf.beat_schedule = {
+    'clear-stale-sync-flags-every-hour': {
+        'task': 'peloton.tasks.clear_stale_sync_flags',
+        'schedule': crontab(minute=0),
+        'args': (120,),
+    },
+}

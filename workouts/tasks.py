@@ -57,8 +57,8 @@ def store_ride_detail_from_api(client, ride_id, logger_instance=None):
         # Generate standardized Peloton URL in UK format
         peloton_class_url = generate_peloton_url(ride_id) if ride_id else ''
         
-        # Check if RideDetail already exists
-        ride_detail, created = RideDetail.objects.get_or_create(
+        # Create or update RideDetail so placeholders are replaced with real data
+        ride_detail, created = RideDetail.objects.update_or_create(
             peloton_ride_id=ride_id,
             defaults={
                 'title': ride_data.get('title', ''),
@@ -156,8 +156,8 @@ def fetch_ride_details_task(self, user_id, ride_id, workout_id=None):
             logger.warning(f"No ride data found for ride_id {ride_id}")
             return {'status': 'error', 'message': 'No ride data found'}
         
-        # Check if RideDetail already exists
-        ride_detail, created = RideDetail.objects.get_or_create(
+        # Create or update RideDetail so placeholders are replaced with real data
+        ride_detail, created = RideDetail.objects.update_or_create(
             peloton_ride_id=ride_id,
             defaults={
                 'title': ride_data.get('title', ''),
@@ -461,6 +461,153 @@ def batch_fetch_ride_details(user_id, ride_ids):
         result = fetch_ride_details_task.delay(user_id, ride_id)
         results.append(result)
     return results
+
+
+@shared_task(bind=True)
+def batch_fetch_ride_details_async(self, user_id, ride_ids, concurrency=10):
+    """
+    Batch task that fetches multiple ride details concurrently using AsyncPelotonClient.
+    This uses aiohttp under the hood; make sure `aiohttp` is installed in the worker image.
+
+    Args:
+        user_id: Django user ID
+        ride_ids: list of peloton ride IDs (strings)
+        concurrency: max concurrent requests
+    """
+    try:
+        import asyncio
+        from peloton.async_client import AsyncPelotonClient
+        user = User.objects.get(pk=user_id)
+        connection = PelotonConnection.objects.get(user=user, is_active=True)
+        # Use existing PelotonClient to obtain headers/cookies for auth
+        sync_client = connection.get_client()
+        headers = dict(sync_client.session.headers) if getattr(sync_client, 'session', None) else None
+        # Convert requests cookies to simple dict if present
+        cookies = None
+        try:
+            if getattr(sync_client.session, 'cookies', None):
+                cookies = sync_client.session.cookies.get_dict()
+        except Exception:
+            cookies = None
+
+        async def _fetch_all():
+            results = []
+            sem = asyncio.Semaphore(concurrency)
+            async with AsyncPelotonClient(base_url=sync_client.base_url, timeout=sync_client.timeout, headers=headers, cookies=cookies) as client:
+                async def _fetch_one(rid):
+                    async with sem:
+                        try:
+                            data = await client.fetch_ride_details(rid)
+                            return (rid, data, None)
+                        except Exception as e:
+                            return (rid, None, e)
+
+                tasks = [asyncio.create_task(_fetch_one(rid)) for rid in ride_ids]
+                for coro in asyncio.as_completed(tasks):
+                    res = await coro
+                    results.append(res)
+            return results
+
+        loop = asyncio.new_event_loop()
+        try:
+            asyncio.set_event_loop(loop)
+            fetched = loop.run_until_complete(_fetch_all())
+        finally:
+            try:
+                loop.run_until_complete(loop.shutdown_asyncgens())
+            except Exception:
+                pass
+            asyncio.set_event_loop(None)
+
+        processed = []
+        for ride_id, ride_details, error in fetched:
+            if error or not ride_details:
+                logger.warning(f"Batch fetch: failed to fetch ride {ride_id}: {error}")
+                processed.append({'ride_id': ride_id, 'status': 'error', 'error': str(error)})
+                continue
+
+            # Similar logic to store_ride_detail_from_api but using the already-fetched ride_details
+            ride_data = ride_details.get('ride', {})
+            if not ride_data:
+                processed.append({'ride_id': ride_id, 'status': 'error', 'error': 'no ride data'})
+                continue
+
+            class_type_ids = ride_data.get('class_type_ids', []) if isinstance(ride_data.get('class_type_ids', []), list) else []
+            equipment_ids = ride_data.get('equipment_ids', []) if isinstance(ride_data.get('equipment_ids', []), list) else []
+            equipment_tags = ride_data.get('equipment_tags', []) if isinstance(ride_data.get('equipment_tags', []), list) else []
+
+            peloton_class_url = generate_peloton_url(ride_id) if ride_id else ''
+
+            try:
+                workout_type_obj = WorkoutType.objects.get_or_create(
+                    slug=ride_data.get('fitness_discipline', 'other').lower(),
+                    defaults={'name': ride_data.get('fitness_discipline', 'Other').title()}
+                )[0]
+
+                ride_detail, created = RideDetail.objects.update_or_create(
+                    peloton_ride_id=ride_id,
+                    defaults={
+                        'title': ride_data.get('title', ''),
+                        'description': ride_data.get('description', ''),
+                        'duration_seconds': ride_data.get('duration', 0),
+                        'workout_type': workout_type_obj,
+                        'fitness_discipline': ride_data.get('fitness_discipline', ''),
+                        'fitness_discipline_display_name': ride_data.get('fitness_discipline_display_name', ''),
+                        'difficulty_rating_avg': ride_data.get('difficulty_rating_avg'),
+                        'difficulty_rating_count': ride_data.get('difficulty_rating_count', 0),
+                        'difficulty_level': ride_data.get('difficulty_level') or None,
+                        'overall_estimate': ride_data.get('overall_estimate'),
+                        'difficulty_estimate': ride_data.get('difficulty_estimate'),
+                        'image_url': ride_data.get('image_url', ''),
+                        'home_peloton_id': ride_data.get('home_peloton_id') or '',
+                        'peloton_class_url': peloton_class_url,
+                        'original_air_time': ride_data.get('original_air_time'),
+                        'scheduled_start_time': ride_data.get('scheduled_start_time'),
+                        'created_at_timestamp': ride_data.get('created_at'),
+                        'class_type': detect_class_type(ride_data, ride_details),
+                        'class_type_ids': class_type_ids,
+                        'equipment_ids': equipment_ids,
+                        'equipment_tags': equipment_tags,
+                        'target_metrics_data': ride_details.get('target_metrics_data', {}),
+                        'target_class_metrics': ride_details.get('target_class_metrics', {}),
+                        'pace_target_type': ride_details.get('pace_target_type'),
+                        'segments_data': ride_details.get('segments', {}),
+                        'is_archived': ride_data.get('is_archived', False),
+                        'is_power_zone_class': ride_data.get('is_power_zone_class', False),
+                    }
+                )
+
+                # Instructor handling
+                instructor_id = ride_data.get('instructor_id')
+                if instructor_id:
+                    instructor_obj = ride_data.get('instructor', {})
+                    instructor_name = instructor_obj.get('name') or instructor_obj.get('full_name') or 'Unknown Instructor'
+                    instructor, _ = Instructor.objects.get_or_create(
+                        peloton_id=instructor_id,
+                        defaults={'name': instructor_name, 'image_url': instructor_obj.get('image_url', '')}
+                    )
+                    if ride_detail.instructor != instructor:
+                        ride_detail.instructor = instructor
+                        ride_detail.save()
+
+                # Playlist
+                playlist_data = ride_details.get('playlist')
+                if playlist_data:
+                    try:
+                        _store_playlist_from_data(playlist_data, ride_detail, logger)
+                    except Exception:
+                        logger.exception(f"Failed to store playlist for ride {ride_id}")
+
+                processed.append({'ride_id': ride_id, 'status': 'success', 'created': created})
+            except Exception as e:
+                logger.exception(f"Error storing ride_detail for {ride_id}: {e}")
+                processed.append({'ride_id': ride_id, 'status': 'error', 'error': str(e)})
+
+        return {'status': 'completed', 'results': processed}
+
+    except Exception as e:
+        logger.exception(f"batch_fetch_ride_details_async failed: {e}")
+        return {'status': 'error', 'message': str(e)}
 
 
 @shared_task

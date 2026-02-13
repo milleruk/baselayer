@@ -91,6 +91,16 @@ class Command(BaseCommand):
         # Get Peloton client
         client = peloton_conn.get_client()
 
+        # Mark this PelotonConnection as syncing so the UI reflects progress if relevant.
+        try:
+            from django.utils import timezone
+            peloton_conn.sync_in_progress = True
+            peloton_conn.sync_started_at = timezone.now()
+            peloton_conn.save(update_fields=['sync_in_progress', 'sync_started_at'])
+        except Exception:
+            # Non-fatal - continue without setting flag
+            pass
+
         # Generic RideDetail mapping
         MANUAL_RIDE_DETAIL_MAP = {
             'running': 9999999,
@@ -226,6 +236,16 @@ class Command(BaseCommand):
         except Exception as e:
             self.stdout.write(self.style.ERROR(f"\n✗ Error: {e}"))
             raise
+        finally:
+            # Ensure we clear the sync flag even if the command is interrupted or errors.
+            try:
+                from django.utils import timezone
+                peloton_conn.sync_in_progress = False
+                peloton_conn.sync_started_at = None
+                peloton_conn.last_sync_at = timezone.now()
+                peloton_conn.save(update_fields=['sync_in_progress', 'sync_started_at', 'last_sync_at'])
+            except Exception:
+                pass
 
         # Summary
         self.stdout.write("")
