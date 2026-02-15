@@ -1,3 +1,7 @@
+# DRF spectacular: set schema class
+REST_FRAMEWORK = {
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+}
 """
 Django settings for config project.
 
@@ -69,7 +73,16 @@ INSTALLED_APPS = [
     "api",  # Shared API app
     # Celery beat scheduler (database-backed periodic tasks)
     "django_celery_beat",
+    # API schema/docs
+    "drf_spectacular",
 ]
+# drf-spectacular settings
+SPECTACULAR_SETTINGS = {
+    "TITLE": "ChaseTheZones API",
+    "DESCRIPTION": "API documentation for ChaseTheZones.",
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+}
 
 # Custom User Model
 AUTH_USER_MODEL = 'accounts.User'

@@ -20,6 +20,7 @@ urlpatterns = [
     path("peloton/", include("peloton.urls")),
     # django-hijack URLs for superuser user hijacking
     path("hijack/", include("hijack.urls")),
+    path("api/", include("api.urls")),  # API endpoints
 ]
 
 # Serve media files in development
