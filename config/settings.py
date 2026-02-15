@@ -66,6 +66,7 @@ INSTALLED_APPS = [
     "classes",  # Peloton class catalog/library
     "workouts",  # Workout history & tracking
     "peloton",
+    "api",  # Shared API app
     # Celery beat scheduler (database-backed periodic tasks)
     "django_celery_beat",
 ]

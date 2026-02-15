@@ -4,85 +4,260 @@
 {% block page_title %}Annual Challenge{% endblock %}
 
 {% block content %}
-<div class="mb-6">
-  <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-    Annual Challenge Progress
-    {% if challenge_name %}
-      <span class="ml-2 text-base font-semibold text-gray-600 dark:text-gray-300">({{ challenge_name }})</span>
-    {% endif %}
-  </h1>
-  {% if join_message %}
-    <div class="mt-3 rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 p-4 text-sm text-blue-800 dark:text-blue-200">
-      <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          {{ join_message }}
-          {% if last_synced_at %}
-            <span class="block mt-1 text-xs text-blue-700/80 dark:text-blue-200/70">Last sync: {{ last_synced_at|date:"M d, Y H:i" }}</span>
+<style>
+  /* Page-only polish */
+  .ctz-wide-wrap{ width:100%; max-width:100%; margin:0 auto; }
+  @media (min-width:1280px){ .ctz-wide-wrap{ max-width:1400px; } }
+  @media (min-width:1536px){ .ctz-wide-wrap{ max-width:1650px; } }
+
+  .ctz-surface{
+    border-radius: 1rem;
+    border: 1px solid rgb(229 231 235);
+    background: linear-gradient(180deg, rgba(255,255,255,.92), rgba(255,255,255,.78));
+    box-shadow: 0 1px 2px rgba(0,0,0,.05);
+    backdrop-filter: blur(8px);
+  }
+  .dark .ctz-surface{
+    border-color: rgb(55 65 81);
+    background: linear-gradient(180deg, rgba(31,41,55,.70), rgba(17,24,39,.55));
+    box-shadow: 0 1px 2px rgba(0,0,0,.35);
+  }
+  .ctz-surface:hover{
+    box-shadow: 0 10px 25px rgba(0,0,0,.08);
+    transform: translateY(-1px);
+    transition: box-shadow .2s ease, transform .2s ease;
+  }
+
+  .ctz-hero{
+    border-radius: 1.25rem;
+    border: 1px solid rgb(229 231 235);
+    background: linear-gradient(135deg, rgba(59,130,246,.10), rgba(34,197,94,.10), rgba(168,85,247,.10));
+    position: relative;
+    overflow: hidden;
+  }
+  .dark .ctz-hero{
+    border-color: rgb(55 65 81);
+    background: linear-gradient(135deg, rgba(59,130,246,.16), rgba(34,197,94,.14), rgba(168,85,247,.14));
+  }
+  .ctz-hero::after{
+    content:"";
+    position:absolute;
+    inset:-35%;
+    background:
+      radial-gradient(circle at 20% 20%, rgba(255,255,255,.55), transparent 55%),
+      radial-gradient(circle at 70% 10%, rgba(255,255,255,.25), transparent 55%),
+      radial-gradient(circle at 60% 80%, rgba(255,255,255,.20), transparent 55%);
+    transform: rotate(12deg);
+    opacity:.55;
+    pointer-events:none;
+  }
+  .dark .ctz-hero::after{ opacity:.22; }
+
+  .ctz-chip{
+    display:inline-flex;
+    align-items:center;
+    gap:.5rem;
+    padding:.25rem .65rem;
+    border-radius: 999px;
+    border: 1px solid rgb(229 231 235);
+    background: rgb(249 250 251);
+    font-size: .75rem;
+    font-weight: 700;
+    color: rgb(55 65 81);
+    white-space: nowrap;
+  }
+  .dark .ctz-chip{
+    border-color: rgb(55 65 81);
+    background: rgba(255,255,255,.04);
+    color: rgba(255,255,255,.85);
+  }
+
+  .ctz-btn{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:.5rem;
+    padding:.55rem 1rem;
+    border-radius: .9rem;
+    font-weight: 700;
+    transition: transform .15s ease, box-shadow .15s ease, background-color .15s ease;
+  }
+  .ctz-btn:hover{ transform: translateY(-1px); }
+  .ctz-btn:active{ transform: translateY(0px); }
+
+  .ctz-tier{
+    border-radius: 1rem;
+    border: 1px solid rgb(229 231 235);
+    background: rgba(255,255,255,.85);
+    box-shadow: 0 1px 2px rgba(0,0,0,.05);
+  }
+  .dark .ctz-tier{
+    border-color: rgb(55 65 81);
+    background: rgba(31,41,55,.65);
+    box-shadow: 0 1px 2px rgba(0,0,0,.35);
+  }
+
+  .ctz-bar{
+    border-radius: .9rem;
+    background: rgba(0,0,0,.06);
+    overflow: hidden;
+    position: relative;
+  }
+  .dark .ctz-bar{ background: rgba(255,255,255,.08); }
+
+  /* glossy progress */
+  .ctz-bar > .js-annual-progress-bar{
+    position: relative;
+    overflow: hidden;
+  }
+  .ctz-bar > .js-annual-progress-bar::after{
+    content:"";
+    position:absolute;
+    inset:-40%;
+    background: radial-gradient(circle at 30% 30%, rgba(255,255,255,.55), transparent 55%);
+    transform: rotate(12deg);
+    opacity:.6;
+    pointer-events:none;
+  }
+</style>
+
+<div class="ctz-wide-wrap px-4 sm:px-6 lg:px-8">
+
+  <!-- Header / Summary -->
+  <div class="mb-6">
+    <div class="ctz-hero p-5 sm:p-6">
+      <div class="relative z-10 flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+        <div class="min-w-0">
+          <div class="flex flex-wrap items-center gap-2 mb-2">
+            <span class="ctz-chip"><span aria-hidden="true">🏁</span> Year-long grind</span>
+            <span class="ctz-chip"><span aria-hidden="true">⏱️</span> Minutes-based</span>
+          </div>
+
+          <h1 class="text-2xl sm:text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">
+            Annual Challenge Progress
+            {% if challenge_name %}
+              <span class="ml-2 text-base font-semibold text-gray-700 dark:text-gray-200">({{ challenge_name }})</span>
+            {% endif %}
+          </h1>
+
+          {% if join_message %}
+            <div class="mt-4 rounded-xl border border-blue-200/70 dark:border-blue-800/60 bg-blue-50/70 dark:bg-blue-900/20 p-4 text-sm text-blue-900 dark:text-blue-100">
+              <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div class="min-w-0">
+                  <div class="font-semibold">{{ join_message }}</div>
+                  {% if last_synced_at %}
+                    <span class="block mt-1 text-xs text-blue-800/80 dark:text-blue-200/70">Last sync: {{ last_synced_at|date:"M d, Y H:i" }}</span>
+                  {% endif %}
+                </div>
+
+                {% if challenge_id %}
+                  <a
+                    href="https://members.onepeloton.co.uk/challenges/active/{{ challenge_id }}"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="ctz-btn bg-blue-600 hover:bg-blue-700 text-white shadow-sm w-full sm:w-auto"
+                  >
+                    Join on Peloton
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                    </svg>
+                  </a>
+                {% endif %}
+              </div>
+            </div>
+          {% else %}
+            <p class="text-gray-700 dark:text-gray-200 mt-3">
+              So far you have averaged <b>{{ avg_per_day|floatformat:2 }}</b> min/day and <b>{{ avg_per_week|floatformat:2 }}</b> min/week
+              ({{ minutes_ytd }} minutes in {{ year }}).
+            </p>
           {% endif %}
         </div>
-        {% if challenge_id %}
-          <a
-            href="https://members.onepeloton.co.uk/challenges/active/{{ challenge_id }}"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
-          >
-            Join on Peloton
-          </a>
+
+        {% if not join_message %}
+          <!-- Quick KPI callout -->
+          <div class="ctz-surface p-4 w-full lg:w-auto">
+            <div class="text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">Year to date</div>
+            <div class="flex items-end gap-3">
+              <div class="text-4xl font-extrabold text-gray-900 dark:text-white leading-none">{{ minutes_ytd }}</div>
+              <div class="text-sm text-gray-600 dark:text-gray-400 pb-1">minutes</div>
+            </div>
+            <div class="mt-2 text-xs text-gray-600 dark:text-gray-400">
+              Avg: {{ avg_per_day|floatformat:2 }}/day • {{ avg_per_week|floatformat:2 }}/week
+            </div>
+          </div>
         {% endif %}
       </div>
     </div>
-  {% else %}
-    <p class="text-gray-600 dark:text-gray-400">
-      So far you have averaged <b>{{ avg_per_day|floatformat:2 }}</b> min/day and <b>{{ avg_per_week|floatformat:2 }}</b> min/week ({{ minutes_ytd }} minutes in {{ year }}).
-    </p>
-  {% endif %}
-</div>
+  </div>
 
-{% if has_joined %}
-  <div class="space-y-4">
-    {% for row in tier_rows %}
-      <div class="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm">
-        <div class="p-4 sm:p-5">
-          <div class="flex items-center gap-4">
-            <img src="{{ row.tier.icon_url }}" width="50" height="50" class="h-[50px] w-[50px] rounded-full" alt="Tier {{ row.tier.minutes }} badge">
-
-            <div class="flex-1">
-              <div class="h-12 rounded-lg bg-gray-200 dark:bg-gray-700 overflow-hidden relative">
-                <div
-                  class="js-annual-progress-bar h-full bg-green-600 transition-all duration-300"
-                  data-progress-pct="{{ row.progress_pct|floatformat:1 }}"
-                  role="progressbar"
-                  aria-valuenow="{{ row.progress_pct|floatformat:1 }}"
-                  aria-valuemin="0"
-                  aria-valuemax="100"
-                ></div>
-                <div class="absolute inset-0 flex items-center justify-center text-sm font-semibold text-white drop-shadow">
-                  {{ row.label }}
+  {% if has_joined %}
+    <div class="space-y-4">
+      {% for row in tier_rows %}
+        <div class="ctz-tier">
+          <div class="p-4 sm:p-5">
+            <div class="flex flex-col sm:flex-row sm:items-center gap-4">
+              <div class="flex items-center gap-3">
+                <img src="{{ row.tier.icon_url }}" width="56" height="56" class="h-14 w-14 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white/70 dark:bg-gray-800/40" alt="Tier {{ row.tier.minutes }} badge">
+                <div class="sm:hidden">
+                  <div class="text-sm font-bold text-gray-900 dark:text-white">{{ row.label }}</div>
+                  {% if row.is_complete %}
+                    <div class="text-xs font-semibold text-green-700 dark:text-green-300">Completed</div>
+                  {% endif %}
                 </div>
               </div>
 
-              {% if not row.is_complete %}
-                <ul class="mt-2 text-sm text-gray-700 dark:text-gray-300 space-y-1">
-                  <li>
-                    Badge requires averaging <b>{{ row.required_min_per_day|floatformat:2 }}</b> min/day or <b>{{ row.required_min_per_week|floatformat:2 }}</b> min/week.
-                  </li>
-                  <li>
-                    You need
-                    <b>{% if row.needed_min_per_day is not None %}{{ row.needed_min_per_day|floatformat:2 }}{% else %}—{% endif %}</b>
-                    min/day or
-                    <b>{% if row.needed_min_per_week is not None %}{{ row.needed_min_per_week|floatformat:2 }}{% else %}—{% endif %}</b>
-                    min/week in order to finish in time.
-                  </li>
-                </ul>
-              {% endif %}
+              <div class="flex-1 min-w-0">
+                <div class="h-12 ctz-bar">
+                  <div
+                    class="js-annual-progress-bar h-full bg-green-600 transition-all duration-500"
+                    data-progress-pct="{{ row.progress_pct|floatformat:1 }}"
+                    role="progressbar"
+                    aria-valuenow="{{ row.progress_pct|floatformat:1 }}"
+                    aria-valuemin="0"
+                    aria-valuemax="100"
+                  ></div>
+
+                  <div class="absolute inset-0 flex items-center justify-center text-sm font-bold text-white drop-shadow">
+                    {{ row.label }}
+                  </div>
+                </div>
+
+                {% if not row.is_complete %}
+                  <ul class="mt-3 text-sm text-gray-700 dark:text-gray-200 space-y-1">
+                    <li>
+                      Badge requires averaging <b>{{ row.required_min_per_day|floatformat:2 }}</b> min/day or <b>{{ row.required_min_per_week|floatformat:2 }}</b> min/week.
+                    </li>
+                    <li>
+                      You need
+                      <b>{% if row.needed_min_per_day is not None %}{{ row.needed_min_per_day|floatformat:2 }}{% else %}—{% endif %}</b>
+                      min/day or
+                      <b>{% if row.needed_min_per_week is not None %}{{ row.needed_min_per_week|floatformat:2 }}{% else %}—{% endif %}</b>
+                      min/week in order to finish in time.
+                    </li>
+                  </ul>
+                {% else %}
+                  <div class="mt-3 inline-flex items-center gap-2 text-sm font-semibold text-green-700 dark:text-green-300">
+                    <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-green-100 dark:bg-green-900/30">✓</span>
+                    Badge earned — keep stacking minutes.
+                  </div>
+                {% endif %}
+              </div>
+
+              <!-- Right-side badge (desktop) -->
+              <div class="hidden sm:flex items-center justify-end w-36">
+                {% if row.is_complete %}
+                  <span class="ctz-chip"><span aria-hidden="true">✅</span> Completed</span>
+                {% else %}
+                  <span class="ctz-chip"><span aria-hidden="true">⏳</span> In progress</span>
+                {% endif %}
+              </div>
             </div>
           </div>
         </div>
-      </div>
-    {% endfor %}
-  </div>
-{% endif %}
+      {% endfor %}
+    </div>
+  {% endif %}
+</div>
 
 <script>
   document.addEventListener('DOMContentLoaded', () => {
@@ -94,4 +269,3 @@
   });
 </script>
 {% endblock %}
-

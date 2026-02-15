@@ -52,8 +52,14 @@ def dashboard(request):
     from django.db.models import Sum, Avg, Count, Q
     from django.core.exceptions import ObjectDoesNotExist
     
+    hide_manual = request.GET.get('hide_manual') == '1'
+    manual_filter = {}
+    if hide_manual:
+        manual_filter = {"ride_detail__peloton_ride_id__regex": r"^(?!manual_).*"}
+
     recent_workouts = Workout.objects.filter(
-        user=request.user
+        user=request.user,
+        **manual_filter
     ).select_related('ride_detail', 'ride_detail__workout_type', 'ride_detail__instructor', 'details').order_by('-completed_date')[:5]
     
     # Get Peloton statistics from user's profile
@@ -71,7 +77,7 @@ def dashboard(request):
     }
     
     # Calculate workout statistics from database (more accurate than profile)
-    all_workouts = Workout.objects.filter(user=request.user).select_related('ride_detail', 'details')
+    all_workouts = Workout.objects.filter(user=request.user, **manual_filter).select_related('ride_detail', 'details')
     
     # Total workouts count
     total_workouts_count = all_workouts.count()

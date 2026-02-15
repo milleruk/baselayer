@@ -1,42 +1,111 @@
+<!-- ========================= -->
+<!-- DASHBOARD CHARTS (OOMPH)  -->
+<!-- ========================= -->
+
+<style>
+  .ctz-chart-card{
+    border-radius: 1rem;
+    border: 1px solid rgb(229 231 235);
+    background: linear-gradient(180deg, rgba(255,255,255,.92), rgba(255,255,255,.78));
+    box-shadow: 0 1px 2px rgba(0,0,0,.05);
+    backdrop-filter: blur(8px);
+  }
+  .dark .ctz-chart-card{
+    border-color: rgb(55 65 81);
+    background: linear-gradient(180deg, rgba(31,41,55,.70), rgba(17,24,39,.55));
+    box-shadow: 0 1px 2px rgba(0,0,0,.35);
+  }
+  .ctz-chart-card:hover{
+    box-shadow: 0 10px 25px rgba(0,0,0,.08);
+    transform: translateY(-1px);
+    transition: box-shadow .2s ease, transform .2s ease;
+  }
+  .ctz-chart-head{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:1rem;
+  }
+  .ctz-chart-sub{
+    color: rgb(75 85 99);
+  }
+  .dark .ctz-chart-sub{
+    color: rgba(255,255,255,.65);
+  }
+  .ctz-pill{
+    display:inline-flex;
+    align-items:center;
+    gap:.4rem;
+    padding:.25rem .6rem;
+    border-radius: 999px;
+    border: 1px solid rgb(229 231 235);
+    background: rgb(249 250 251);
+    font-size:.72rem;
+    font-weight: 700;
+    color: rgb(55 65 81);
+    white-space: nowrap;
+  }
+  .dark .ctz-pill{
+    border-color: rgb(55 65 81);
+    background: rgba(255,255,255,.04);
+    color: rgba(255,255,255,.85);
+  }
+  .ctz-canvas-wrap{
+    border-radius: 1rem;
+    border: 1px solid rgba(0,0,0,.06);
+    background: rgba(255,255,255,.55);
+    padding: .75rem;
+  }
+  .dark .ctz-canvas-wrap{
+    border-color: rgba(255,255,255,.08);
+    background: rgba(17,24,39,.25);
+  }
+</style>
+
 <!-- Charts Section -->
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-6 mb-6">
+
   <!-- Workout Frequency Chart -->
-  <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 sm:p-6 shadow-sm">
-    <div class="flex items-center justify-between mb-4">
-      <div>
-        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Workout Frequency</h3>
-        <p class="text-sm text-gray-600 dark:text-gray-400">Workouts per week ({{ period_description }})</p>
+  <div class="ctz-chart-card p-4 sm:p-6">
+    <div class="ctz-chart-head mb-4">
+      <div class="min-w-0">
+        <h3 class="text-lg font-bold text-gray-900 dark:text-white">Workout Frequency</h3>
+        <p class="text-sm ctz-chart-sub">Workouts per week ({{ period_description }})</p>
       </div>
+      <span class="ctz-pill"><span aria-hidden="true">📆</span> Weekly</span>
     </div>
-    <div class="h-56 sm:h-64">
+    <div class="ctz-canvas-wrap h-56 sm:h-64">
       <canvas id="workoutFrequencyChart"></canvas>
     </div>
   </div>
 
   <!-- Workout Type Breakdown Chart -->
-  <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 sm:p-6 shadow-sm">
-    <div class="flex items-center justify-between mb-4">
-      <div>
-        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Workout Types</h3>
-        <p class="text-sm text-gray-600 dark:text-gray-400">Breakdown by activity type</p>
+  <div class="ctz-chart-card p-4 sm:p-6">
+    <div class="ctz-chart-head mb-4">
+      <div class="min-w-0">
+        <h3 class="text-lg font-bold text-gray-900 dark:text-white">Workout Types</h3>
+        <p class="text-sm ctz-chart-sub">Breakdown by activity type</p>
       </div>
+      <span class="ctz-pill"><span aria-hidden="true">🧩</span> Split</span>
     </div>
-    <div class="h-56 sm:h-64">
+    <div class="ctz-canvas-wrap h-56 sm:h-64">
       <canvas id="workoutTypeChart"></canvas>
     </div>
   </div>
+
 </div>
 
 <!-- Output Trends Chart -->
 {% if workouts_by_week|length > 0 %}
-<div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 sm:p-6 shadow-sm mb-6">
-  <div class="flex items-center justify-between mb-4">
-    <div>
-      <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Output Trends</h3>
-      <p class="text-sm text-gray-600 dark:text-gray-400">Weekly output and calories ({{ period_description }})</p>
+<div class="ctz-chart-card p-4 sm:p-6 mb-6">
+  <div class="ctz-chart-head mb-4">
+    <div class="min-w-0">
+      <h3 class="text-lg font-bold text-gray-900 dark:text-white">Output Trends</h3>
+      <p class="text-sm ctz-chart-sub">Weekly output and calories ({{ period_description }})</p>
     </div>
+    <span class="ctz-pill"><span aria-hidden="true">📈</span> Trends</span>
   </div>
-  <div class="h-72 sm:h-80">
+  <div class="ctz-canvas-wrap h-72 sm:h-80">
     <canvas id="outputTrendsChart"></canvas>
   </div>
 </div>

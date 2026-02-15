@@ -3,56 +3,137 @@
 {% block page_title %}Workout History{% endblock %}
 
 {% block content %}
-<div class="mb-6">
-  <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">Workout History</h1>
-  <p class="text-gray-600 dark:text-gray-400">Your complete training log synchronized with Peloton.</p>
-</div>
+<style>
+  /* Subtle page bg + nicer scrollbars */
+  .no-scrollbar::-webkit-scrollbar{display:none}
+  .no-scrollbar{ -ms-overflow-style:none; scrollbar-width:none; }
+</style>
 
-<!-- Peloton Connection Status -->
-<div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 sm:p-6 shadow-sm mb-6">
-  <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-    {% include 'workouts/partials/sync_status.html' %}
-    
-    {% if peloton_connection %}
-      <form method="post" action="{% url 'workouts:sync' %}" class="inline" id="sync-form">
-        {% csrf_token %}
-        <button
-          type="submit"
-          {% if not can_sync %}disabled{% endif %}
-          class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap flex items-center gap-2">
-          <span id="sync-btn-text">Sync Workouts</span>
-          <svg id="sync-spinner" class="hidden animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-          </svg>
-        </button>
-      </form>
-      <script>
-        document.getElementById('sync-form')?.addEventListener('submit', function(e) {
-          const btn = this.querySelector('button[type="submit"]');
-          const text = document.getElementById('sync-btn-text');
-          const spinner = document.getElementById('sync-spinner');
-          
-          btn.disabled = true;
-          text.textContent = 'Syncing...';
-          spinner.classList.remove('hidden');
-        });
-      </script>
-    {% else %}
-      <a href="{% url 'workouts:connect' %}" class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors whitespace-nowrap">
-        Connect Peloton
+<!-- Header -->
+<div class="mb-6">
+  <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
+    <div>
+      <h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900 dark:text-white">Workout History</h1>
+      <p class="text-gray-600 dark:text-gray-400 mt-1">Your complete training log synchronized with Peloton.</p>
+    </div>
+
+    <!-- Quick actions (optional future: export) -->
+    <div class="flex items-center gap-2">
+      <a href="#workout-list-container"
+         class="hidden sm:inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white/70 dark:bg-gray-800/70 text-sm font-semibold text-gray-800 dark:text-gray-200 hover:bg-white dark:hover:bg-gray-800 transition-colors">
+        <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+          <path d="M10 3a1 1 0 011 1v10.586l2.293-2.293a1 1 0 111.414 1.414l-4.004 4.004a1 1 0 01-1.414 0L5.286 13.707A1 1 0 116.7 12.293L9 14.586V4a1 1 0 011-1z"/>
+        </svg>
+        Jump to list
       </a>
-    {% endif %}
+    </div>
   </div>
 </div>
 
-<!-- Filters and Search -->
+<!-- Top bar: Sync + Type tabs -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-6">
+
+  <!-- Peloton / Sync card -->
+  <div class="lg:col-span-5 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white/80 dark:bg-gray-800/80 backdrop-blur shadow-sm">
+    <div class="p-4 sm:p-5">
+      <div class="flex items-start justify-between gap-4">
+        <div class="min-w-0">
+          {% include 'workouts/partials/sync_status.html' %}
+          <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">
+            Tip: sync after you’ve cooled down (and stopped refreshing the page like a maniac 😄)
+          </p>
+        </div>
+
+        <div class="shrink-0">
+          {% if peloton_connection %}
+            <form method="post" action="{% url 'workouts:sync' %}" class="inline" id="sync-form">
+              {% csrf_token %}
+              <button
+                type="submit"
+                {% if not can_sync %}disabled{% endif %}
+                class="group inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-primary hover:bg-primary-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+              >
+                <svg class="h-4 w-4 opacity-90" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                  <path d="M4 4a8 8 0 0113.657 4.047 1 1 0 01-1.96.4A6 6 0 005.14 6.1l-.644.643H7a1 1 0 110 2H2a1 1 0 01-1-1V3a1 1 0 112 0v1.586l.293-.293A7.98 7.98 0 014 4z"/>
+                  <path d="M16 16a8 8 0 01-13.657-4.047 1 1 0 011.96-.4 6 6 0 0010.517 2.453l.644-.643H13a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-1.586l-.293.293A7.98 7.98 0 0116 16z"/>
+                </svg>
+                <span id="sync-btn-text">Sync</span>
+                <svg id="sync-spinner" class="hidden animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+              </button>
+            </form>
+            <script>
+              document.getElementById('sync-form')?.addEventListener('submit', function() {
+                const btn = this.querySelector('button[type="submit"]');
+                const text = document.getElementById('sync-btn-text');
+                const spinner = document.getElementById('sync-spinner');
+                btn.disabled = true;
+                text.textContent = 'Syncing…';
+                spinner.classList.remove('hidden');
+              });
+            </script>
+          {% else %}
+            <a href="{% url 'workouts:connect' %}"
+               class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-primary hover:bg-primary-dark transition-colors shadow-sm">
+              <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <path d="M10 2a6 6 0 016 6v1a2 2 0 012 2v1a2 2 0 01-2 2h-1.5a.5.5 0 01-.5-.5V9a.5.5 0 01.5-.5H16V8a6 6 0 10-12 0v.5h1.5A.5.5 0 016 9v4.5a.5.5 0 01-.5.5H4a2 2 0 01-2-2v-1a2 2 0 012-2V8a6 6 0 016-6z"/>
+              </svg>
+              Connect Peloton
+            </a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Workout Type Tabs -->
+  <div class="lg:col-span-7 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white/80 dark:bg-gray-800/80 backdrop-blur shadow-sm">
+    <div class="p-3 sm:p-4">
+      <div class="flex items-center justify-between gap-3 mb-2">
+        <div class="text-sm font-semibold text-gray-900 dark:text-white">Types</div>
+        <div class="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
+          {% if workout_type_filter %}Filtered{% else %}All workouts{% endif %}
+        </div>
+      </div>
+
+      <div class="flex gap-2 overflow-x-auto no-scrollbar py-1">
+        <a
+          href="{% url 'workouts:history' %}{% if qs_without_type_and_page %}?{{ qs_without_type_and_page }}{% endif %}"
+          class="px-4 py-2 rounded-full text-sm font-semibold border transition-colors whitespace-nowrap
+            {% if not workout_type_filter %}
+              bg-primary/10 text-primary border-primary/30
+            {% else %}
+              bg-transparent text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/40
+            {% endif %}"
+        >All</a>
+
+        {% for workout_type in workout_types %}
+          <a
+            href="{% url 'workouts:history' %}?type={{ workout_type.slug }}{% if qs_without_type_and_page %}&{{ qs_without_type_and_page }}{% endif %}"
+            class="px-4 py-2 rounded-full text-sm font-semibold border transition-colors whitespace-nowrap
+              {% if workout_type_filter == workout_type.slug %}
+                bg-primary/10 text-primary border-primary/30
+              {% else %}
+                bg-transparent text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/40
+              {% endif %}"
+          >{{ workout_type.name }}</a>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Filters: compact, card-y, clearer hierarchy -->
 <div class="mb-6 space-y-4">
+
+  <!-- Mobile toggle -->
   <div class="md:hidden">
     <button
       type="button"
       id="historyFiltersToggle"
-      class="w-full flex items-center justify-between gap-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-3 text-sm font-semibold text-gray-900 dark:text-white shadow-sm"
+      class="w-full flex items-center justify-between gap-3 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white/80 dark:bg-gray-800/80 backdrop-blur px-4 py-3 text-sm font-semibold text-gray-900 dark:text-white shadow-sm"
       aria-expanded="false"
       data-open-label="Hide filters"
       data-closed-label="Show filters"
@@ -75,34 +156,39 @@
       </span>
     </button>
   </div>
-  <div id="historyFiltersPanel" class="relative z-40 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm hidden md:block">
+
+  <div id="historyFiltersPanel" class="relative z-40 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white/80 dark:bg-gray-800/80 backdrop-blur shadow-sm hidden md:block">
     <div class="p-4 sm:p-5">
-      <form id="historyFiltersForm" method="get" class="space-y-3">
+      <form id="historyFiltersForm" method="get" class="space-y-4">
         {% if workout_type_filter %}
           <input type="hidden" name="type" value="{{ workout_type_filter }}">
         {% endif %}
 
-        <div class="flex flex-col lg:flex-row gap-3 lg:items-center">
-          <div class="flex-1 relative">
-            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-              </svg>
+        <!-- Search row -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-3">
+          <div class="lg:col-span-7 relative">
+            <label class="block text-xs font-semibold text-gray-600 dark:text-gray-300 mb-1">Search</label>
+            <div class="relative">
+              <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                </svg>
+              </div>
+              <input
+                type="text"
+                id="historySearchInput"
+                name="search"
+                value="{{ search_query }}"
+                placeholder="Title or instructor…"
+                autocomplete="off"
+                class="block w-full pl-10 pr-3 py-2.5 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900/40 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-primary focus:border-transparent"
+              >
             </div>
-            <input
-              type="text"
-              id="historySearchInput"
-              name="search"
-              value="{{ search_query }}"
-              placeholder="Search title or instructor…"
-              autocomplete="off"
-              class="block w-full pl-10 pr-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900/40 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-primary focus:border-transparent"
-            >
 
-            <!-- JSON suggestions dropdown -->
+            <!-- Suggestions dropdown -->
             <div
               id="historySearchSuggestions"
-              class="hidden absolute left-0 right-0 mt-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-xl overflow-hidden z-50"
+              class="hidden absolute left-0 right-0 mt-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-xl overflow-hidden z-50"
             >
               <div class="px-3 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/60">
                 Suggestions
@@ -111,66 +197,119 @@
             </div>
           </div>
 
-          <div class="flex flex-wrap items-center gap-2">
-            <!-- Charts-only Toggle (auto-filters) -->
-            {% if has_charts_filter %}
-              <input type="hidden" name="has_charts" value="1" id="has-charts-input">
-            {% endif %}
-            <button
-              type="button"
-              id="has-charts-toggle"
-              aria-pressed="{% if has_charts_filter %}true{% else %}false{% endif %}"
-              class="inline-flex items-center gap-2 px-3 py-2.5 rounded-lg border text-sm font-semibold transition-colors
-                {% if has_charts_filter %}
-                  bg-primary text-white border-primary shadow-[0_0_0_3px_rgba(59,130,246,0.15)]
-                {% else %}
-                  bg-white dark:bg-gray-900/40 text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700/40
-                {% endif %}"
-            >
-              <span class="inline-block h-2 w-2 rounded-full {% if has_charts_filter %}bg-white{% else %}bg-primary{% endif %}"></span>
-              Charts
-            </button>
-
-            <!-- Min TSS -->
-            <div class="relative w-full sm:w-auto">
-              <input
-                type="number"
-                name="tss"
-                value="{{ tss_filter }}"
-                placeholder="Min TSS"
-                min="0"
-                step="0.1"
-                class="w-full sm:w-28 px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900/40 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
+          <!-- Quick toggles / clear -->
+          <div class="lg:col-span-5 flex flex-col sm:flex-row gap-2 sm:items-end sm:justify-end">
+            <div class="flex flex-wrap gap-2">
+              <!-- Hide/Show Manual -->
+              <input type="hidden" name="hide_manual" value="{% if request.GET.hide_manual == '0' %}0{% else %}1{% endif %}" id="hide-manual-input">
+              <button
+                type="button"
+                id="hide-manual-toggle"
+                aria-pressed="{% if request.GET.hide_manual == '0' %}true{% else %}false{% endif %}"
+                class="inline-flex items-center gap-2 px-3 py-2.5 rounded-xl border text-sm font-semibold transition-colors
+                  {% if request.GET.hide_manual == '0' %}
+                    bg-primary text-white border-primary shadow-[0_0_0_3px_rgba(59,130,246,0.15)]
+                  {% else %}
+                    bg-white dark:bg-gray-900/40 text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700/40
+                  {% endif %}"
               >
-            </div>
+                <span class="inline-block h-2 w-2 rounded-full {% if request.GET.hide_manual == '0' %}bg-white{% else %}bg-gray-300 dark:bg-gray-600{% endif %}"></span>
+                <span id="hide-manual-label">{% if request.GET.hide_manual == '0' %}Hide Manual{% else %}Show Manual{% endif %}</span>
+              </button>
 
-            <!-- Instructor -->
-            <div class="relative w-full sm:w-auto sm:min-w-[160px]">
+              <script>
+                (function() {
+                  const btn = document.getElementById('hide-manual-toggle');
+                  const input = document.getElementById('hide-manual-input');
+                  const label = document.getElementById('hide-manual-label');
+                  if (!btn || !input || !label) return;
+                  btn.addEventListener('click', function () {
+                    const pressed = btn.getAttribute('aria-pressed') === 'true';
+                    btn.setAttribute('aria-pressed', pressed ? 'false' : 'true');
+                    if (pressed) { input.value = '1'; label.textContent = 'Show Manual'; }
+                    else { input.value = '0'; label.textContent = 'Hide Manual'; }
+                    btn.form && btn.form.submit();
+                  });
+                })();
+              </script>
+
+              <!-- Charts-only -->
+              {% if has_charts_filter %}
+                <input type="hidden" name="has_charts" value="1" id="has-charts-input">
+              {% endif %}
+              <button
+                type="button"
+                id="has-charts-toggle"
+                aria-pressed="{% if has_charts_filter %}true{% else %}false{% endif %}"
+                class="inline-flex items-center gap-2 px-3 py-2.5 rounded-xl border text-sm font-semibold transition-colors
+                  {% if has_charts_filter %}
+                    bg-primary text-white border-primary shadow-[0_0_0_3px_rgba(59,130,246,0.15)]
+                  {% else %}
+                    bg-white dark:bg-gray-900/40 text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700/40
+                  {% endif %}"
+              >
+                <span class="inline-block h-2 w-2 rounded-full {% if has_charts_filter %}bg-white{% else %}bg-gray-300 dark:bg-gray-600{% endif %}"></span>
+                <span id="charts-label">{% if has_charts_filter %}All{% else %}Only Charts{% endif %}</span>
+              </button>
+
+              {% if search_query or instructor_filter or duration_filter or tss_filter or has_charts_filter or class_type_filter or class_type_name_filter or order_by != '-completed_date' %}
+                <a
+                  href="{% url 'workouts:history' %}{% if workout_type_filter %}?type={{ workout_type_filter }}{% endif %}"
+                  class="inline-flex items-center px-3 py-2.5 rounded-xl text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/40 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900/20"
+                >
+                  Clear
+                </a>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        <!-- Controls row -->
+        <div class="grid grid-cols-2 lg:grid-cols-12 gap-3">
+          <!-- Min TSS -->
+          <div class="col-span-2 lg:col-span-2">
+            <label class="block text-xs font-semibold text-gray-600 dark:text-gray-300 mb-1">Min TSS</label>
+            <input
+              type="number"
+              name="tss"
+              value="{{ tss_filter }}"
+              placeholder="0"
+              min="0"
+              step="0.1"
+              class="w-full px-3 py-2.5 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900/40 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
+            >
+          </div>
+
+          <!-- Instructor -->
+          <div class="col-span-2 lg:col-span-3">
+            <label class="block text-xs font-semibold text-gray-600 dark:text-gray-300 mb-1">Instructor</label>
+            <div class="relative">
               <select
                 name="instructor"
-                class="w-full appearance-none bg-white dark:bg-gray-900/40 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2.5 pr-9 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent cursor-pointer text-sm"
+                class="w-full appearance-none rounded-xl bg-white dark:bg-gray-900/40 border border-gray-300 dark:border-gray-600 px-4 py-2.5 pr-9 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent cursor-pointer text-sm"
               >
-                <option value="">Instructor</option>
+                <option value="">Any</option>
                 {% for instructor in instructors %}
-                  <option value="{{ instructor.id }}" {% if instructor_filter == instructor.id|stringformat:"s" %}selected{% endif %}>
-                    {{ instructor.name }}
-                  </option>
+                  <option value="{{ instructor.id }}" {% if instructor_filter == instructor.id|stringformat:"s" %}selected{% endif %}>{{ instructor.name }}</option>
                 {% endfor %}
               </select>
               <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                 </svg>
               </div>
             </div>
+          </div>
 
-            <!-- Class Type -->
-            <div class="relative w-full sm:w-auto sm:min-w-[160px]">
+          <!-- Class Type -->
+          <div class="col-span-2 lg:col-span-3">
+            <label class="block text-xs font-semibold text-gray-600 dark:text-gray-300 mb-1">Class type</label>
+            <div class="relative">
               <select
                 name="class_type_name"
-                class="w-full appearance-none bg-white dark:bg-gray-900/40 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2.5 pr-9 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent cursor-pointer text-sm"
+                class="w-full appearance-none rounded-xl bg-white dark:bg-gray-900/40 border border-gray-300 dark:border-gray-600 px-4 py-2.5 pr-9 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent cursor-pointer text-sm"
               >
-                <option value="">Class type</option>
+                <option value="">Any</option>
                 {% for discipline, types in class_types_by_discipline.items %}
                   {% if discipline != 'other' %}
                     <optgroup label="{{ discipline|title }}">
@@ -189,37 +328,41 @@
                 {% endif %}
               </select>
               <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                 </svg>
               </div>
             </div>
+          </div>
 
-            <!-- Duration -->
-            <div class="relative w-full sm:w-auto sm:min-w-[132px]">
+          <!-- Duration -->
+          <div class="col-span-1 lg:col-span-2">
+            <label class="block text-xs font-semibold text-gray-600 dark:text-gray-300 mb-1">Duration</label>
+            <div class="relative">
               <select
                 name="duration"
-                class="w-full appearance-none bg-white dark:bg-gray-900/40 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2.5 pr-9 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent cursor-pointer text-sm"
+                class="w-full appearance-none rounded-xl bg-white dark:bg-gray-900/40 border border-gray-300 dark:border-gray-600 px-4 py-2.5 pr-9 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent cursor-pointer text-sm"
               >
-                <option value="">Duration</option>
+                <option value="">Any</option>
                 {% for duration in durations %}
-                  <option value="{{ duration }}" {% if duration_filter == duration|stringformat:"s" %}selected{% endif %}>
-                    {{ duration }} min
-                  </option>
+                  <option value="{{ duration }}" {% if duration_filter == duration|stringformat:"s" %}selected{% endif %}>{{ duration }} min</option>
                 {% endfor %}
               </select>
               <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                 </svg>
               </div>
             </div>
+          </div>
 
-            <!-- Sort -->
-            <div class="relative w-full sm:w-auto sm:min-w-[190px]">
+          <!-- Sort -->
+          <div class="col-span-1 lg:col-span-2">
+            <label class="block text-xs font-semibold text-gray-600 dark:text-gray-300 mb-1">Sort</label>
+            <div class="relative">
               <select
                 name="order_by"
-                class="w-full appearance-none bg-white dark:bg-gray-900/40 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2.5 pr-9 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent cursor-pointer text-sm"
+                class="w-full appearance-none rounded-xl bg-white dark:bg-gray-900/40 border border-gray-300 dark:border-gray-600 px-4 py-2.5 pr-9 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent cursor-pointer text-sm"
               >
                 <option value="-completed_date" {% if order_by == '-completed_date' %}selected{% endif %}>Completed (newest)</option>
                 <option value="completed_date" {% if order_by == 'completed_date' %}selected{% endif %}>Completed (oldest)</option>
@@ -229,288 +372,74 @@
                 <option value="-title" {% if order_by == '-title' %}selected{% endif %}>Title (Z–A)</option>
               </select>
               <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                 </svg>
               </div>
             </div>
-
-            {% if search_query or instructor_filter or duration_filter or tss_filter or has_charts_filter or class_type_filter or class_type_name_filter or order_by != '-completed_date' %}
-              <a
-                href="{% url 'workouts:history' %}{% if workout_type_filter %}?type={{ workout_type_filter }}{% endif %}"
-                class="inline-flex items-center px-3 py-2.5 rounded-lg text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/40 border border-transparent w-full sm:w-auto justify-center"
-              >
-                Clear
-              </a>
-            {% endif %}
-
-            <noscript>
-              <button type="submit" class="px-4 py-2.5 text-sm font-semibold text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors whitespace-nowrap">
-                Apply
-              </button>
-            </noscript>
           </div>
         </div>
+
+        <noscript>
+          <button type="submit" class="px-4 py-2.5 text-sm font-semibold text-white bg-primary hover:bg-primary-dark rounded-xl transition-colors whitespace-nowrap">
+            Apply
+          </button>
+        </noscript>
       </form>
     </div>
   </div>
 
-  <script>
-    (function () {
-      const form = document.getElementById('historyFiltersForm');
-      const btn = document.getElementById('has-charts-toggle');
-      const filtersToggle = document.getElementById('historyFiltersToggle');
-      const filtersPanel = document.getElementById('historyFiltersPanel');
-      const filtersToggleLabel = document.getElementById('historyFiltersToggleLabel');
-      const filtersToggleIcon = document.getElementById('historyFiltersToggleIcon');
-      const mediaQuery = window.matchMedia('(min-width: 768px)');
-      const initialMobileOpen = filtersToggle?.dataset.initialOpen === 'true';
-
-      const updateFiltersPanelState = () => {
-        if (!filtersPanel) return;
-        const isDesktop = mediaQuery.matches;
-        const openLabel = filtersToggle?.dataset.openLabel || 'Hide filters';
-        const closedLabel = filtersToggle?.dataset.closedLabel || 'Show filters';
-
-        if (isDesktop) {
-          filtersPanel.classList.remove('hidden');
-          filtersPanel.dataset.mobileOpen = 'true';
-          filtersToggle?.setAttribute('aria-expanded', 'true');
-          filtersToggleLabel && (filtersToggleLabel.textContent = openLabel);
-          filtersToggleIcon?.classList.add('rotate-180');
-        } else {
-          const isOpen = filtersPanel.dataset.mobileOpen === 'true';
-          filtersPanel.classList.toggle('hidden', !isOpen);
-          filtersToggle?.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
-          filtersToggleLabel && (filtersToggleLabel.textContent = isOpen ? openLabel : closedLabel);
-          filtersToggleIcon?.classList.toggle('rotate-180', isOpen);
-        }
-      };
-
-      if (filtersPanel) {
-        if (!filtersPanel.dataset.mobileOpen) {
-          filtersPanel.dataset.mobileOpen = initialMobileOpen ? 'true' : 'false';
-        }
-        updateFiltersPanelState();
-        if (typeof mediaQuery.addEventListener === 'function') {
-          mediaQuery.addEventListener('change', updateFiltersPanelState);
-        } else if (typeof mediaQuery.addListener === 'function') {
-          mediaQuery.addListener(updateFiltersPanelState);
-        }
-      }
-
-      if (filtersToggle && filtersPanel) {
-        filtersToggle.addEventListener('click', () => {
-          if (mediaQuery.matches) return;
-          const isOpen = filtersPanel.dataset.mobileOpen === 'true';
-          filtersPanel.dataset.mobileOpen = isOpen ? 'false' : 'true';
-          updateFiltersPanelState();
-        });
-      }
-
-      if (!form) return;
-
-      const submitNow = () => form.submit();
-
-      // Charts toggle
-      if (btn) {
-        btn.addEventListener('click', function () {
-          const existing = document.getElementById('has-charts-input');
-          if (existing) {
-            existing.remove();
-          } else {
-            const input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = 'has_charts';
-            input.value = '1';
-            input.id = 'has-charts-input';
-            form.appendChild(input);
-          }
-          submitNow();
-        });
-      }
-
-      // Auto-submit on selects
-      form.querySelectorAll('select').forEach((el) => {
-        el.addEventListener('change', submitNow);
-      });
-
-      // Debounced auto-submit on text/number inputs
-      let timer = null;
-      const debounceSubmit = () => {
-        if (timer) window.clearTimeout(timer);
-        timer = window.setTimeout(submitNow, 450);
-      };
-      // Only auto-submit numeric inputs; search uses suggestions + Enter
-      form.querySelectorAll('input[type="number"]').forEach((el) => {
-        el.addEventListener('input', debounceSubmit);
-      });
-
-      // JSON-backed suggestions for search input
-      const searchInput = document.getElementById('historySearchInput');
-      const suggWrap = document.getElementById('historySearchSuggestions');
-      const suggList = document.getElementById('historySearchSuggestionsList');
-      if (!searchInput || !suggWrap || !suggList) return;
-
-      let suggestTimer = null;
-      let lastQ = '';
-
-      const hideSuggestions = () => {
-        suggWrap.classList.add('hidden');
-        suggList.innerHTML = '';
-      };
-
-      const escapeHtml = (s) =>
-        String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-
-      const renderSuggestions = (items) => {
-        if (!Array.isArray(items) || items.length === 0) {
-          hideSuggestions();
-          return;
-        }
-
-        suggList.innerHTML = items
-          .map((item) => {
-            const label = escapeHtml(item.label || item.value || '');
-            const value = escapeHtml(item.value || '');
-            const kind = String(item.kind || '');
-            const badge = kind === 'instructor' ? 'Instructor' : 'Title';
-            return `
-              <button type="button" data-value="${value}" class="w-full text-left px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-800/70 transition-colors flex items-center justify-between gap-3">
-                <span class="text-sm text-gray-900 dark:text-white line-clamp-1">${label}</span>
-                <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-800/60">${badge}</span>
-              </button>
-            `;
-          })
-          .join('');
-
-        suggWrap.classList.remove('hidden');
-
-        suggList.querySelectorAll('button[data-value]').forEach((btn) => {
-          btn.addEventListener('mousedown', (e) => {
-            // mousedown prevents blur hiding before click
-            e.preventDefault();
-            const val = btn.getAttribute('data-value') || '';
-            searchInput.value = val;
-            hideSuggestions();
-            submitNow();
-          });
-        });
-      };
-
-      const fetchSuggestions = async (q) => {
-        try {
-          const url = new URL("{% url 'workouts:history_suggest' %}", window.location.origin);
-          url.searchParams.set('q', q);
-          const resp = await fetch(url.toString(), { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
-          if (!resp.ok) return [];
-          const data = await resp.json();
-          return data && Array.isArray(data.results) ? data.results : [];
-        } catch (e) {
-          return [];
-        }
-      };
-
-      searchInput.addEventListener('input', () => {
-        const q = (searchInput.value || '').trim();
-        lastQ = q;
-        if (suggestTimer) window.clearTimeout(suggestTimer);
-        if (q.length < 2) {
-          hideSuggestions();
-          return;
-        }
-        suggestTimer = window.setTimeout(async () => {
-          const items = await fetchSuggestions(q);
-          if (lastQ !== q) return;
-          renderSuggestions(items);
-        }, 160);
-      });
-
-      searchInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') hideSuggestions();
-      });
-
-      document.addEventListener('click', (e) => {
-        if (!suggWrap.contains(e.target) && e.target !== searchInput) hideSuggestions();
-      });
-    })();
-  </script>
-  
-  <!-- Workout Type Tabs -->
-  <div class="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm p-2 overflow-hidden">
-    <div class="flex gap-2 overflow-x-auto no-scrollbar py-1 px-1">
-      <a
-        href="{% url 'workouts:history' %}{% if qs_without_type_and_page %}?{{ qs_without_type_and_page }}{% endif %}"
-        class="px-4 py-2 rounded-full text-sm font-semibold border transition-colors whitespace-nowrap
-          {% if not workout_type_filter %}
-            bg-primary/10 text-primary border-primary/30
-          {% else %}
-            bg-transparent text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/40
-          {% endif %}"
-      >
-        All
-      </a>
-      {% for workout_type in workout_types %}
-        <a
-          href="{% url 'workouts:history' %}?type={{ workout_type.slug }}{% if qs_without_type_and_page %}&{{ qs_without_type_and_page }}{% endif %}"
-          class="px-4 py-2 rounded-full text-sm font-semibold border transition-colors whitespace-nowrap
-            {% if workout_type_filter == workout_type.slug %}
-              bg-primary/10 text-primary border-primary/30
-            {% else %}
-              bg-transparent text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/40
-            {% endif %}"
-        >
-          {{ workout_type.name }}
-        </a>
-      {% endfor %}
-    </div>
-  </div>
-  
-  <!-- Active Filters Display -->
+  <!-- Active filters chips (unchanged, just spaced + softer) -->
   {% if search_query or instructor_filter or duration_filter or tss_filter or has_charts_filter or class_type_filter or class_type_name_filter or order_by != '-completed_date' %}
     <div class="flex flex-wrap gap-2 items-center">
       {% if search_query %}
-        <span class="inline-flex items-center gap-1 px-3 py-1 text-sm bg-gray-100 dark:bg-gray-700/60 text-gray-800 dark:text-gray-200 rounded-full border border-gray-200 dark:border-gray-700">
-          “{{ search_query }}”
+        <span class="inline-flex items-center gap-2 px-3 py-1.5 text-sm bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 rounded-full border border-gray-200 dark:border-gray-700 shadow-sm">
+          <span class="opacity-80">“{{ search_query }}”</span>
           <a href="{% if qs_remove.search %}?{{ qs_remove.search }}{% else %}{% url 'workouts:history' %}{% endif %}" class="hover:text-gray-900 dark:hover:text-white">×</a>
         </span>
       {% endif %}
+
       {% if instructor_filter %}
         {% for instructor in instructors %}
           {% if instructor.id|stringformat:"s" == instructor_filter %}
-            <span class="inline-flex items-center gap-1 px-3 py-1 text-sm bg-gray-100 dark:bg-gray-700/60 text-gray-800 dark:text-gray-200 rounded-full border border-gray-200 dark:border-gray-700">
+            <span class="inline-flex items-center gap-2 px-3 py-1.5 text-sm bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 rounded-full border border-gray-200 dark:border-gray-700 shadow-sm">
               {{ instructor.name }}
               <a href="{% if qs_remove.instructor %}?{{ qs_remove.instructor }}{% else %}{% url 'workouts:history' %}{% endif %}" class="hover:text-gray-900 dark:hover:text-white">×</a>
             </span>
           {% endif %}
         {% endfor %}
       {% endif %}
+
       {% if duration_filter %}
-        <span class="inline-flex items-center gap-1 px-3 py-1 text-sm bg-gray-100 dark:bg-gray-700/60 text-gray-800 dark:text-gray-200 rounded-full border border-gray-200 dark:border-gray-700">
+        <span class="inline-flex items-center gap-2 px-3 py-1.5 text-sm bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 rounded-full border border-gray-200 dark:border-gray-700 shadow-sm">
           {{ duration_filter }} min
           <a href="{% if qs_remove.duration %}?{{ qs_remove.duration }}{% else %}{% url 'workouts:history' %}{% endif %}" class="hover:text-gray-900 dark:hover:text-white">×</a>
         </span>
       {% endif %}
+
       {% if tss_filter %}
-        <span class="inline-flex items-center gap-1 px-3 py-1 text-sm bg-gray-100 dark:bg-gray-700/60 text-gray-800 dark:text-gray-200 rounded-full border border-gray-200 dark:border-gray-700">
+        <span class="inline-flex items-center gap-2 px-3 py-1.5 text-sm bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 rounded-full border border-gray-200 dark:border-gray-700 shadow-sm">
           Min TSS {{ tss_filter }}
           <a href="{% if qs_remove.tss %}?{{ qs_remove.tss }}{% else %}{% url 'workouts:history' %}{% endif %}" class="hover:text-gray-900 dark:hover:text-white">×</a>
         </span>
       {% endif %}
+
       {% if has_charts_filter %}
-        <span class="inline-flex items-center gap-1 px-3 py-1 text-sm bg-gray-100 dark:bg-gray-700/60 text-gray-800 dark:text-gray-200 rounded-full border border-gray-200 dark:border-gray-700">
+        <span class="inline-flex items-center gap-2 px-3 py-1.5 text-sm bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 rounded-full border border-gray-200 dark:border-gray-700 shadow-sm">
           Charts
           <a href="{% if qs_remove.has_charts %}?{{ qs_remove.has_charts }}{% else %}{% url 'workouts:history' %}{% endif %}" class="hover:text-gray-900 dark:hover:text-white">×</a>
         </span>
       {% endif %}
+
       {% if class_type_filter or class_type_name_filter %}
-        <span class="inline-flex items-center gap-1 px-3 py-1 text-sm bg-gray-100 dark:bg-gray-700/60 text-gray-800 dark:text-gray-200 rounded-full border border-gray-200 dark:border-gray-700">
+        <span class="inline-flex items-center gap-2 px-3 py-1.5 text-sm bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 rounded-full border border-gray-200 dark:border-gray-700 shadow-sm">
           {{ class_type_label|default:"Type" }}
           <a href="{% if qs_remove.class_type_name %}?{{ qs_remove.class_type_name }}{% else %}{% if qs_remove.class_type %}?{{ qs_remove.class_type }}{% else %}{% url 'workouts:history' %}{% endif %}{% endif %}" class="hover:text-gray-900 dark:hover:text-white">×</a>
         </span>
       {% endif %}
+
       {% if order_by != '-completed_date' %}
-        <span class="inline-flex items-center gap-1 px-3 py-1 text-sm bg-gray-100 dark:bg-gray-700/60 text-gray-800 dark:text-gray-200 rounded-full border border-gray-200 dark:border-gray-700">
+        <span class="inline-flex items-center gap-2 px-3 py-1.5 text-sm bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 rounded-full border border-gray-200 dark:border-gray-700 shadow-sm">
           Sorted
           <a href="{% if qs_remove.order_by %}?{{ qs_remove.order_by }}{% else %}{% url 'workouts:history' %}{% endif %}" class="hover:text-gray-900 dark:hover:text-white">×</a>
         </span>
@@ -519,10 +448,173 @@
   {% endif %}
 </div>
 
-<!-- Workout List Container -->
+<!-- Workout List -->
 <div id="workout-list-container">
   {% include 'workouts/partials/workout_list.html' %}
 </div>
+
+<!-- Existing behaviour scripts (filters + suggestions + mini chart hover) -->
+<script>
+  (function () {
+    const form = document.getElementById('historyFiltersForm');
+    const btn = document.getElementById('has-charts-toggle');
+    const filtersToggle = document.getElementById('historyFiltersToggle');
+    const filtersPanel = document.getElementById('historyFiltersPanel');
+    const filtersToggleLabel = document.getElementById('historyFiltersToggleLabel');
+    const filtersToggleIcon = document.getElementById('historyFiltersToggleIcon');
+    const mediaQuery = window.matchMedia('(min-width: 768px)');
+    const initialMobileOpen = filtersToggle?.dataset.initialOpen === 'true';
+
+    const updateFiltersPanelState = () => {
+      if (!filtersPanel) return;
+      const isDesktop = mediaQuery.matches;
+      const openLabel = filtersToggle?.dataset.openLabel || 'Hide filters';
+      const closedLabel = filtersToggle?.dataset.closedLabel || 'Show filters';
+
+      if (isDesktop) {
+        filtersPanel.classList.remove('hidden');
+        filtersPanel.dataset.mobileOpen = 'true';
+        filtersToggle?.setAttribute('aria-expanded', 'true');
+        filtersToggleLabel && (filtersToggleLabel.textContent = openLabel);
+        filtersToggleIcon?.classList.add('rotate-180');
+      } else {
+        const isOpen = filtersPanel.dataset.mobileOpen === 'true';
+        filtersPanel.classList.toggle('hidden', !isOpen);
+        filtersToggle?.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+        filtersToggleLabel && (filtersToggleLabel.textContent = isOpen ? openLabel : closedLabel);
+        filtersToggleIcon?.classList.toggle('rotate-180', isOpen);
+      }
+    };
+
+    if (filtersPanel) {
+      if (!filtersPanel.dataset.mobileOpen) {
+        filtersPanel.dataset.mobileOpen = initialMobileOpen ? 'true' : 'false';
+      }
+      updateFiltersPanelState();
+      if (typeof mediaQuery.addEventListener === 'function') {
+        mediaQuery.addEventListener('change', updateFiltersPanelState);
+      } else if (typeof mediaQuery.addListener === 'function') {
+        mediaQuery.addListener(updateFiltersPanelState);
+      }
+    }
+
+    if (filtersToggle && filtersPanel) {
+      filtersToggle.addEventListener('click', () => {
+        if (mediaQuery.matches) return;
+        const isOpen = filtersPanel.dataset.mobileOpen === 'true';
+        filtersPanel.dataset.mobileOpen = isOpen ? 'false' : 'true';
+        updateFiltersPanelState();
+      });
+    }
+
+    if (!form) return;
+    const submitNow = () => form.submit();
+
+    if (btn) {
+      btn.addEventListener('click', function () {
+        const existing = document.getElementById('has-charts-input');
+        const label = document.getElementById('charts-label');
+        if (existing) {
+          existing.remove();
+          if (label) label.textContent = 'Only Charts';
+        } else {
+          const input = document.createElement('input');
+          input.type = 'hidden';
+          input.name = 'has_charts';
+          input.value = '1';
+          input.id = 'has-charts-input';
+          form.appendChild(input);
+          if (label) label.textContent = 'All';
+        }
+        submitNow();
+      });
+    }
+
+    form.querySelectorAll('select').forEach((el) => el.addEventListener('change', submitNow));
+
+    let timer = null;
+    const debounceSubmit = () => {
+      if (timer) window.clearTimeout(timer);
+      timer = window.setTimeout(submitNow, 450);
+    };
+    form.querySelectorAll('input[type="number"]').forEach((el) => el.addEventListener('input', debounceSubmit));
+
+    // Suggestions
+    const searchInput = document.getElementById('historySearchInput');
+    const suggWrap = document.getElementById('historySearchSuggestions');
+    const suggList = document.getElementById('historySearchSuggestionsList');
+    if (!searchInput || !suggWrap || !suggList) return;
+
+    let suggestTimer = null;
+    let lastQ = '';
+
+    const hideSuggestions = () => {
+      suggWrap.classList.add('hidden');
+      suggList.innerHTML = '';
+    };
+
+    const escapeHtml = (s) =>
+      String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+    const renderSuggestions = (items) => {
+      if (!Array.isArray(items) || items.length === 0) {
+        hideSuggestions();
+        return;
+      }
+
+      suggList.innerHTML = items.map((item) => {
+        const label = escapeHtml(item.label || item.value || '');
+        const value = escapeHtml(item.value || '');
+        const kind = String(item.kind || '');
+        const badge = kind === 'instructor' ? 'Instructor' : 'Title';
+        return `
+          <button type="button" data-value="${value}" class="w-full text-left px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-800/70 transition-colors flex items-center justify-between gap-3">
+            <span class="text-sm text-gray-900 dark:text-white line-clamp-1">${label}</span>
+            <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-800/60">${badge}</span>
+          </button>
+        `;
+      }).join('');
+
+      suggWrap.classList.remove('hidden');
+
+      suggList.querySelectorAll('button[data-value]').forEach((b) => {
+        b.addEventListener('mousedown', (e) => {
+          e.preventDefault();
+          const val = b.getAttribute('data-value') || '';
+          searchInput.value = val;
+          hideSuggestions();
+          submitNow();
+        });
+      });
+    };
+
+    const fetchSuggestions = async (q) => {
+      try {
+        const url = new URL("{% url 'workouts:history_suggest' %}", window.location.origin);
+        url.searchParams.set('q', q);
+        const resp = await fetch(url.toString(), { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+        if (!resp.ok) return [];
+        const data = await resp.json();
+        return data && Array.isArray(data.results) ? data.results : [];
+      } catch (e) { return []; }
+    };
+
+    searchInput.addEventListener('input', () => {
+      const q = (searchInput.value || '').trim();
+      lastQ = q;
+      if (suggestTimer) window.clearTimeout(suggestTimer);
+      if (q.length < 2) { hideSuggestions(); return; }
+      suggestTimer = window.setTimeout(async () => {
+        const items = await fetchSuggestions(q);
+        if (lastQ !== q) return;
+        renderSuggestions(items);
+      }, 160);
+    });
+
+    searchInput.addEventListener('keydown', (e) => { if (e.key === 'Escape') hideSuggestions(); });
+    document.addEventListener('click', (e) => { if (!suggWrap.contains(e.target) && e.target !== searchInput) hideSuggestions(); });
+  })();
+</script>
 
 <script>
   (function () {
@@ -532,7 +624,6 @@
       const ss = Math.floor(s % 60);
       return `${mm}:${String(ss).padStart(2, '0')}`;
     }
-
     function mphToPace(mph) {
       const v = Number(mph);
       if (!isFinite(v) || v <= 0) return null;
@@ -541,10 +632,7 @@
       const ss = Math.round(totalSecondsPerMile % 60);
       return `${mm}:${String(ss).padStart(2, '0')} /mi`;
     }
-
-    function clamp(n, a, b) {
-      return Math.min(b, Math.max(a, n));
-    }
+    function clamp(n, a, b) { return Math.min(b, Math.max(a, n)); }
 
     function initMiniChart(container) {
       const seriesEl = container.querySelector('.js-mini-chart-series');
@@ -556,15 +644,10 @@
       const valueEl = container.querySelector('.js-mini-chart-value');
       const targetEl = container.querySelector('.js-mini-chart-target');
       const zoneEl = container.querySelector('.js-mini-chart-zone');
-
       if (!seriesEl || !svg || !crosshair || !dot || !tooltip || !timeEl || !valueEl || !targetEl || !zoneEl) return;
 
       let series = [];
-      try {
-        series = JSON.parse(seriesEl.textContent || '[]');
-      } catch (e) {
-        return;
-      }
+      try { series = JSON.parse(seriesEl.textContent || '[]'); } catch (e) { return; }
       if (!Array.isArray(series) || series.length < 2) return;
 
       const kind = (container.dataset.kind || '').toLowerCase();
@@ -592,8 +675,7 @@
         const xClamped = clamp(xView, plotX0, plotX1);
         const idx = clamp(
           Math.round(((xClamped - plotX0) / (plotX1 - plotX0)) * (series.length - 1)),
-          0,
-          series.length - 1
+          0, series.length - 1
         );
 
         const p = series[idx];
@@ -606,7 +688,6 @@
         dot.setAttribute('cx', String(p.x));
         dot.setAttribute('cy', String(p.y));
 
-        // Tooltip text
         const t = typeof p.t === 'number' ? p.t : 0;
         timeEl.textContent = formatTime(t);
 
@@ -618,7 +699,6 @@
           valueEl.textContent = watts !== null ? `Actual: ${watts} W` : 'Actual: —';
         }
 
-        // Target (optional)
         let targetText = null;
         if (typeof p.tv === 'number' && isFinite(p.tv)) {
           if (kind === 'pace') {
@@ -628,28 +708,18 @@
             targetText = `Target: ${Math.round(p.tv)} W`;
           }
         }
-        if (targetText) {
-          targetEl.textContent = targetText;
-          targetEl.classList.remove('hidden');
-        } else {
-          targetEl.classList.add('hidden');
-        }
+        if (targetText) { targetEl.textContent = targetText; targetEl.classList.remove('hidden'); }
+        else { targetEl.classList.add('hidden'); }
 
-        // Zone label (optional)
         let zoneText = null;
         if ((kind === 'power_zone' || kind === 'cycling_output_zones') && typeof p.z === 'number') {
           zoneText = `Zone ${p.z}`;
         } else if (kind === 'pace' && typeof p.z === 'string' && p.z) {
           zoneText = String(p.z).replace(/_/g, ' ').toUpperCase();
         }
-        if (zoneText) {
-          zoneEl.textContent = zoneText;
-          zoneEl.classList.remove('hidden');
-        } else {
-          zoneEl.classList.add('hidden');
-        }
+        if (zoneText) { zoneEl.textContent = zoneText; zoneEl.classList.remove('hidden'); }
+        else { zoneEl.classList.add('hidden'); }
 
-        // Tooltip position (avoid overflow)
         const containerRect = container.getBoundingClientRect();
         const relX = clientX - containerRect.left;
         const relY = clientY - containerRect.top;
@@ -662,30 +732,15 @@
         tooltip.style.top = `${top}px`;
       }
 
-      container.addEventListener('mouseenter', (e) => {
-        setHidden(false);
-        updateFromClientX(e.clientX, e.clientY);
-      });
-      container.addEventListener('mousemove', (e) => {
-        updateFromClientX(e.clientX, e.clientY);
-      });
-      container.addEventListener('mouseleave', () => {
-        setHidden(true);
-      });
-
-      // Start hidden
+      container.addEventListener('mouseenter', (e) => { setHidden(false); updateFromClientX(e.clientX, e.clientY); });
+      container.addEventListener('mousemove', (e) => updateFromClientX(e.clientX, e.clientY));
+      container.addEventListener('mouseleave', () => setHidden(true));
       setHidden(true);
     }
 
-    function initAll() {
-      document.querySelectorAll('.js-mini-chart').forEach(initMiniChart);
-    }
-
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', initAll);
-    } else {
-      initAll();
-    }
+    function initAll() { document.querySelectorAll('.js-mini-chart').forEach(initMiniChart); }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initAll);
+    else initAll();
   })();
 </script>
 

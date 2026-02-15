@@ -9,6 +9,7 @@ Usage:
 
 import logging
 from django.core.management.base import BaseCommand, CommandError
+
 from django.db import transaction
 from django.utils import timezone
 from peloton.models import PelotonConnection
@@ -76,7 +77,14 @@ class Command(BaseCommand):
         if existing_workout:
             self.stdout.write(self.style.WARNING(f"⚠ Workout already exists in database (ID: {existing_workout.id})"))
             self.stdout.write(f"   Title: {existing_workout.title}")
-            self.stdout.write(f"   Type: {existing_workout.workout_type.name if existing_workout.workout_type else 'Unknown'}")
+            # Safely handle missing ride_detail or workout_type
+            type_name = 'Unknown'
+            if getattr(existing_workout, 'ride_detail', None) and getattr(existing_workout.ride_detail, 'workout_type', None):
+                try:
+                    type_name = existing_workout.ride_detail.workout_type.name
+                except Exception:
+                    type_name = 'Unknown'
+            self.stdout.write(f"   Type: {type_name}")
             self.stdout.write(f"   Date: {existing_workout.completed_date}")
             if existing_workout.ride_detail and 'manual_' in existing_workout.ride_detail.peloton_ride_id:
                 self.stdout.write(self.style.SUCCESS(f"   ✓ This is a MANUAL workout"))
@@ -96,8 +104,23 @@ class Command(BaseCommand):
         
         if not workout_data:
             raise CommandError(f'Workout {workout_id} not found or no data returned')
-        
+
         self.stdout.write(self.style.SUCCESS("✓ Workout data fetched"))
+
+        # --- Save API JSON to file for debugging ---
+        import os, json
+        json_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'jsons')
+        os.makedirs(json_dir, exist_ok=True)
+        json_path = os.path.join(json_dir, f"peloton_api_workout_{workout_id}.json")
+        try:
+            with open(json_path, "w") as f:
+                json.dump(workout_data, f, indent=2)
+            self.stdout.write(self.style.SUCCESS(f"[DEBUG] Saved API JSON to {json_path}"))
+            logger.warning(f"[DEBUG] Saved API JSON to {json_path}")
+        except Exception as e:
+            self.stdout.write(self.style.ERROR(f"[DEBUG] Failed to save API JSON: {e}"))
+            logger.error(f"[DEBUG] Failed to save API JSON: {e}")
+
         self.stdout.write("")
         
         # Display workout info
@@ -154,31 +177,24 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.WARNING(f"  ⚠ RideDetail not found, would need to fetch from API"))
                 self.stdout.write(f"  (Skipping ride detail creation for this test)")
         else:
-            # Manual workout - map to generic RideDetail
-            self.stdout.write(self.style.WARNING(f"  No ride_id - mapping to generic MANUAL RideDetail..."))
-            
-            MANUAL_RIDE_DETAIL_MAP = {
-                'running': 9999999,
-                'cycling': 9999998,
-                'walking': 9999997,
-                'rowing': 9999996,
-                'strength': 9999995,
-                'yoga': 9999994,
-                'meditation': 9999993,
-                'stretching': 9999992,
-                'cardio': 9999991,
-                'other': 9999990,
-            }
-            
-            discipline = workout_type_slug
-            generic_ride_id = MANUAL_RIDE_DETAIL_MAP.get(discipline, 9999990)
-            generic_peloton_ride_id = f"manual_{discipline}_{generic_ride_id}"
-            
-            try:
-                ride_detail = RideDetail.objects.get(peloton_ride_id=generic_peloton_ride_id)
-                self.stdout.write(self.style.SUCCESS(f"  ✓ Mapped to generic {discipline} RideDetail: {ride_detail.title}"))
-            except RideDetail.DoesNotExist:
-                raise CommandError(f'Generic RideDetail "{generic_peloton_ride_id}" not found! Run "python manage.py create_generic_ride_details" first.')
+            # Manual workout (Garmin Tacx Training, etc.)
+            self.stdout.write(self.style.WARNING(f"  No ride_id - using workout_data['ride'] fields for manual RideDetail..."))
+            ride_data = workout_data.get('ride', {})
+            manual_title = ride_data.get('title', 'Manual Workout')
+            manual_discipline = workout_type_slug
+            manual_peloton_ride_id = f"manual_{manual_discipline}_{workout_id}"
+            ride_detail, created = RideDetail.objects.get_or_create(
+                peloton_ride_id=manual_peloton_ride_id,
+                defaults={
+                    'title': manual_title,
+                    'fitness_discipline': manual_discipline,
+                    'workout_type': workout_type,
+                }
+            )
+            if created:
+                self.stdout.write(self.style.SUCCESS(f"  ✓ Created manual RideDetail: {manual_title}"))
+            else:
+                self.stdout.write(self.style.SUCCESS(f"  ✓ Found existing manual RideDetail: {ride_detail.title}"))
         
         if not ride_detail:
             raise CommandError('Could not determine ride_detail for this workout')
@@ -199,15 +215,22 @@ class Command(BaseCommand):
         peloton_url = f"https://members.onepeloton.com/profile/workouts/{workout_id}"
         
         with transaction.atomic():
+            # Only set title_override for manual workouts if it is currently blank/null
+            new_title = ride_detail.title if ride_detail and ride_detail.title else workout_data.get('title', 'Manual Workout')
+            existing_workout = Workout.objects.filter(peloton_workout_id=workout_id, user=user).first()
+            defaults = {
+                'ride_detail': ride_detail,
+                'peloton_url': peloton_url,
+                'recorded_date': completed_date,
+                'completed_date': completed_date,
+            }
+            if ride_detail and str(ride_detail.peloton_ride_id).startswith('manual_'):
+                if not existing_workout or not existing_workout.title_override:
+                    defaults['title_override'] = new_title
             workout, created = Workout.objects.update_or_create(
                 peloton_workout_id=workout_id,
                 user=user,
-                defaults={
-                    'ride_detail': ride_detail,
-                    'peloton_url': peloton_url,
-                    'recorded_date': completed_date,
-                    'completed_date': completed_date,
-                }
+                defaults=defaults
             )
         
         self.stdout.write("")

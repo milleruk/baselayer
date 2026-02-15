@@ -4,83 +4,297 @@
 {% block title %}Eddington • Chase The Zones{% endblock %}
 
 {% block content %}
-<div class="container mx-auto px-4 py-8">
+<style>
+  /* Wider layout without touching base.html */
+  .ctz-wide-wrap{
+    width: 100%;
+    max-width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  @media (min-width: 1280px){
+    .ctz-wide-wrap{ max-width: 1400px; }
+  }
+  @media (min-width: 1536px){
+    .ctz-wide-wrap{ max-width: 1650px; }
+  }
+
+  /* (keeps previous styling) */
+  @keyframes ctzGlowPulse {
+    0%,100% { opacity: .85; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.02); }
+  }
+
+  .ctz-surface{
+    border-radius: 1rem;
+    border: 1px solid rgb(229 231 235);
+    background: linear-gradient(180deg, rgba(255,255,255,.92), rgba(255,255,255,.78));
+    box-shadow: 0 1px 2px rgba(0,0,0,.05);
+    backdrop-filter: blur(8px);
+  }
+  .dark .ctz-surface{
+    border-color: rgb(55 65 81);
+    background: linear-gradient(180deg, rgba(31,41,55,.70), rgba(17,24,39,.55));
+    box-shadow: 0 1px 2px rgba(0,0,0,.35);
+  }
+  .ctz-surface:hover{
+    box-shadow: 0 10px 25px rgba(0,0,0,.08);
+    transform: translateY(-1px);
+    transition: box-shadow .2s ease, transform .2s ease;
+  }
+
+  .ctz-hero{
+    border-radius: 1.25rem;
+    border: 1px solid rgb(229 231 235);
+    background: linear-gradient(135deg, rgba(59,130,246,.10), rgba(249,115,22,.10), rgba(168,85,247,.10));
+    position: relative;
+    overflow: hidden;
+  }
+  .dark .ctz-hero{
+    border-color: rgb(55 65 81);
+    background: linear-gradient(135deg, rgba(59,130,246,.16), rgba(249,115,22,.14), rgba(168,85,247,.14));
+  }
+  .ctz-hero::after{
+    content:"";
+    position:absolute;
+    inset:-35%;
+    background:
+      radial-gradient(circle at 20% 20%, rgba(255,255,255,.55), transparent 55%),
+      radial-gradient(circle at 70% 10%, rgba(255,255,255,.25), transparent 55%),
+      radial-gradient(circle at 60% 80%, rgba(255,255,255,.20), transparent 55%);
+    transform: rotate(12deg);
+    opacity:.55;
+    pointer-events:none;
+  }
+  .dark .ctz-hero::after{ opacity:.22; }
+
+  .ctz-chip{
+    display:inline-flex;
+    align-items:center;
+    gap:.5rem;
+    padding:.25rem .65rem;
+    border-radius: 999px;
+    border: 1px solid rgb(229 231 235);
+    background: rgb(249 250 251);
+    font-size: .75rem;
+    font-weight: 700;
+    color: rgb(55 65 81);
+    white-space: nowrap;
+  }
+  .dark .ctz-chip{
+    border-color: rgb(55 65 81);
+    background: rgba(255,255,255,.04);
+    color: rgba(255,255,255,.85);
+  }
+
+  .ctz-tabs{
+    border-radius: 1rem;
+    border: 1px solid rgb(229 231 235);
+    background: rgba(255,255,255,.75);
+    backdrop-filter: blur(8px);
+    padding: .5rem;
+  }
+  .dark .ctz-tabs{
+    border-color: rgb(55 65 81);
+    background: rgba(31,41,55,.55);
+  }
+
+  .ctz-tab{
+    transition: transform .15s ease, box-shadow .15s ease;
+  }
+  .ctz-tab:hover{ transform: translateY(-1px); }
+  .ctz-tab:active{ transform: translateY(0px); }
+
+  .ctz-callout{
+    border-radius: 1rem;
+    border: 1px solid rgba(249,115,22,.25);
+    background: linear-gradient(135deg, rgba(249,115,22,.10), rgba(255,255,255,.45));
+    position: relative;
+    overflow: hidden;
+  }
+  .dark .ctz-callout{
+    border-color: rgba(249,115,22,.25);
+    background: linear-gradient(135deg, rgba(249,115,22,.14), rgba(17,24,39,.25));
+  }
+  .ctz-callout::before{
+    content:"";
+    position:absolute;
+    top:-40px;
+    right:-40px;
+    width: 180px;
+    height: 180px;
+    border-radius: 999px;
+    background: rgba(249,115,22,.18);
+    filter: blur(22px);
+    animation: ctzGlowPulse 3.2s ease-in-out infinite;
+    pointer-events:none;
+  }
+
+  .ctz-canvas-wrap{
+    border-radius: 1rem;
+    border: 1px solid rgba(0,0,0,.06);
+    background: rgba(255,255,255,.55);
+    padding: .75rem;
+  }
+  .dark .ctz-canvas-wrap{
+    border-color: rgba(255,255,255,.08);
+    background: rgba(17,24,39,.25);
+  }
+</style>
+
+<!-- Wider wrap: replace container max width with a responsive wide container -->
+<div class="ctz-wide-wrap px-4 sm:px-6 lg:px-8 py-8">
+
+  <!-- Header / Hero -->
   <div class="mb-6">
-    <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-4">Eddington</h1>
-    <div class="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg p-4 mb-6">
-      <p class="text-gray-700 dark:text-gray-300 text-sm leading-relaxed">
-        The <strong class="text-gray-900 dark:text-white font-semibold">Eddington number</strong> is the maximum number <strong class="text-gray-900 dark:text-white font-semibold">E</strong> such that the athlete has covered at least <strong class="text-gray-900 dark:text-white font-semibold">E km</strong> on at least <strong class="text-gray-900 dark:text-white font-semibold">E days</strong>.
-        <br><br>
-        For example, an Eddington number of <strong class="text-gray-900 dark:text-white font-semibold">70</strong> would imply that a cyclist has cycled at least 70 km in a day on at least 70 occasions.
-        <br><br>
-        Moving from, say, 70 to 75 will (probably) require more than five new long-distance workouts, since any workout shorter than 75 km will no longer be included in the reckoning.
-      </p>
+    <div class="ctz-hero p-5 sm:p-6">
+      <div class="relative z-10 flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
+        <div class="min-w-0">
+          <div class="flex flex-wrap items-center gap-2 mb-2">
+            <span class="ctz-chip"><span aria-hidden="true">📏</span> Distance consistency</span>
+            <span class="ctz-chip"><span aria-hidden="true">🧠</span> Simple rule, savage results</span>
+          </div>
+          <h1 class="text-3xl sm:text-4xl font-extrabold text-gray-900 dark:text-white tracking-tight">Eddington</h1>
+          <p class="text-sm text-gray-700 dark:text-gray-300 mt-2">
+            Your “how often can you go long?” score — the kind of metric that laughs at one-off hero days.
+          </p>
+        </div>
+
+        {% if eddington_data %}
+          <div class="ctz-callout px-5 py-4 w-full xl:w-auto">
+            <div class="text-xs font-bold uppercase tracking-wide text-gray-700 dark:text-gray-300 mb-1">Current Eddington</div>
+            <div class="flex items-end gap-2">
+              <div class="text-5xl font-extrabold text-orange-600 dark:text-orange-400 leading-none">{{ eddington_data.current_eddington }}</div>
+              <div class="text-sm text-gray-600 dark:text-gray-400 pb-1">E</div>
+            </div>
+            <div class="text-xs text-gray-600 dark:text-gray-400 mt-2">
+              ≥ {{ eddington_data.current_eddington }} km on ≥ {{ eddington_data.current_eddington }} days
+            </div>
+          </div>
+        {% endif %}
+      </div>
+
+      <div class="relative z-10 mt-4 ctz-surface p-4">
+        <p class="text-gray-700 dark:text-gray-300 text-sm leading-relaxed">
+          The <strong class="text-gray-900 dark:text-white font-semibold">Eddington number</strong> is the maximum number
+          <strong class="text-gray-900 dark:text-white font-semibold">E</strong> such that the athlete has covered at least
+          <strong class="text-gray-900 dark:text-white font-semibold">E km</strong> on at least
+          <strong class="text-gray-900 dark:text-white font-semibold">E days</strong>.
+          <br><br>
+          For example, an Eddington number of <strong class="text-gray-900 dark:text-white font-semibold">70</strong> would imply that a cyclist has cycled at least 70 km in a day on at least 70 occasions.
+          <br><br>
+          Moving from, say, 70 to 75 will (probably) require more than five new long-distance workouts, since any workout shorter than 75 km will no longer be included in the reckoning.
+        </p>
+      </div>
     </div>
   </div>
 
   {% if has_workouts %}
+
     <!-- Discipline Selector -->
-    <div class="flex flex-wrap gap-2 mb-6 pb-4 border-b border-gray-200 dark:border-gray-700">
-      <a href="?discipline=all" class="px-4 py-2 rounded-lg text-sm font-medium transition-colors {% if discipline_filter == 'all' %}bg-primary text-white{% else %}bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600{% endif %}">
-        All
-      </a>
-      {% for key, data in discipline_breakdown.items %}
-        <a href="?discipline={{ key }}" class="px-4 py-2 rounded-lg text-sm font-medium transition-colors {% if discipline_filter == key %}bg-primary text-white{% else %}bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600{% endif %}">
-          {{ data.name }} (E={{ data.current_eddington }})
+    <div class="mb-6">
+      <div class="flex items-center justify-between mb-3">
+        <div class="flex items-center gap-2">
+          <h2 class="text-base font-bold text-gray-900 dark:text-white">Discipline</h2>
+          <span class="text-xs text-gray-500 dark:text-gray-400">Filter the score</span>
+        </div>
+      </div>
+
+      <div class="ctz-tabs flex flex-wrap gap-2">
+        <a href="?discipline=all"
+           class="ctz-tab px-4 py-2 rounded-xl text-sm font-semibold transition-colors {% if discipline_filter == 'all' %}bg-primary text-white shadow-sm{% else %}bg-gray-50 dark:bg-gray-700/60 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700{% endif %}">
+          All
         </a>
-      {% endfor %}
+        {% for key, data in discipline_breakdown.items %}
+          <a href="?discipline={{ key }}"
+             class="ctz-tab px-4 py-2 rounded-xl text-sm font-semibold transition-colors {% if discipline_filter == key %}bg-primary text-white shadow-sm{% else %}bg-gray-50 dark:bg-gray-700/60 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700{% endif %}">
+            {{ data.name }}
+            <span class="ml-1 text-xs font-bold {% if discipline_filter == key %}text-white/90{% else %}text-gray-500 dark:text-gray-300{% endif %}">
+              (E={{ data.current_eddington }})
+            </span>
+          </a>
+        {% endfor %}
+      </div>
     </div>
 
     {% if eddington_data %}
+
       <!-- Current Eddington Number Cards -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-        <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm p-6">
-          <div class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Current Eddington Number</div>
-          <div class="text-5xl font-bold text-orange-500 dark:text-orange-400 mb-2">{{ eddington_data.current_eddington }}</div>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-6 mb-6">
+        <div class="ctz-surface p-6 relative overflow-hidden">
+          <div class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Current Eddington Number</div>
+          <div class="text-5xl font-extrabold text-orange-600 dark:text-orange-400 mb-2">{{ eddington_data.current_eddington }}</div>
           <div class="text-sm text-gray-600 dark:text-gray-400">You have completed at least {{ eddington_data.current_eddington }} km on {{ eddington_data.current_eddington }} days</div>
         </div>
-        <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm p-6">
-          <div class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Total Active Days</div>
-          <div class="text-4xl font-bold text-gray-900 dark:text-white mb-2">{{ eddington_data.total_days }}</div>
+        <div class="ctz-surface p-6">
+          <div class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Total Active Days</div>
+          <div class="text-4xl font-extrabold text-gray-900 dark:text-white mb-2">{{ eddington_data.total_days }}</div>
           <div class="text-sm text-gray-600 dark:text-gray-400">Days with recorded distance data</div>
         </div>
-        <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm p-6">
-          <div class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Maximum Distance</div>
-          <div class="text-4xl font-bold text-gray-900 dark:text-white mb-2">{{ eddington_data.max_distance }}</div>
+        <div class="ctz-surface p-6">
+          <div class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Maximum Distance</div>
+          <div class="text-4xl font-extrabold text-gray-900 dark:text-white mb-2">{{ eddington_data.max_distance }}</div>
           <div class="text-sm text-gray-600 dark:text-gray-400">Longest single-day distance (km)</div>
         </div>
       </div>
 
-      <!-- Times Completed vs Distance Chart -->
-      <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm p-6 mb-6">
-        <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Times Completed vs. Distance</h2>
-        <div class="relative" style="height: 400px;">
-          <canvas id="times-completed-chart"></canvas>
+      <!-- Charts row: side-by-side on xl for better use of wide screen -->
+      <div class="grid grid-cols-1 xl:grid-cols-2 gap-3 sm:gap-6 mb-6">
+        <!-- Times Completed vs Distance Chart -->
+        <div class="ctz-surface p-6">
+          <div class="flex items-start justify-between gap-4 mb-4">
+            <div>
+              <h2 class="text-xl font-bold text-gray-900 dark:text-white">Times Completed vs. Distance</h2>
+              <p class="text-sm text-gray-600 dark:text-gray-400">How often you’ve hit each distance</p>
+            </div>
+            <span class="ctz-chip"><span aria-hidden="true">📊</span> Distribution</span>
+          </div>
+          <div class="ctz-canvas-wrap" style="height: 420px;">
+            <canvas id="times-completed-chart"></canvas>
+          </div>
         </div>
-      </div>
 
-      <!-- History Chart -->
-      <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm p-6 mb-6">
-        <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">History</h2>
-        <div class="relative" style="height: 400px;">
-          <canvas id="eddington-history-chart"></canvas>
+        <!-- History Chart -->
+        <div class="ctz-surface p-6">
+          <div class="flex items-start justify-between gap-4 mb-4">
+            <div>
+              <h2 class="text-xl font-bold text-gray-900 dark:text-white">History</h2>
+              <p class="text-sm text-gray-600 dark:text-gray-400">Eddington progression over time</p>
+            </div>
+            <span class="ctz-chip"><span aria-hidden="true">📈</span> Progress</span>
+          </div>
+          <div class="ctz-canvas-wrap" style="height: 420px;">
+            <canvas id="eddington-history-chart"></canvas>
+          </div>
         </div>
       </div>
 
       <!-- Days Needed -->
-      <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm p-6">
-        <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Days Needed</h2>
-        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+      <div class="ctz-surface p-6">
+        <div class="flex items-start justify-between gap-4 mb-4">
+          <div>
+            <h2 class="text-xl font-bold text-gray-900 dark:text-white">Days Needed</h2>
+            <p class="text-sm text-gray-600 dark:text-gray-400">What it’ll take to push E upward</p>
+          </div>
+          <span class="ctz-chip"><span aria-hidden="true">🎯</span> Next targets</span>
+        </div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-3">
           {% for item in eddington_data.days_needed_list %}
             {% if item.distance <= eddington_data.current_eddington|add:25 %}
-              <div class="bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg p-4 text-center">
-                <div class="text-xs font-semibold text-gray-600 dark:text-gray-400 mb-2">{{ item.distance }}KM</div>
-                <div class="text-xl font-bold {% if item.days_needed == 0 %}text-green-600 dark:text-green-400{% else %}text-orange-500 dark:text-orange-400{% endif %}">
+              <div class="rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50/80 dark:bg-gray-700/40 p-4 text-center">
+                <div class="text-xs font-bold text-gray-600 dark:text-gray-300 mb-2">{{ item.distance }}KM</div>
+
+                <div class="text-2xl font-extrabold {% if item.days_needed == 0 %}text-green-700 dark:text-green-300{% else %}text-orange-600 dark:text-orange-400{% endif %}">
                   {% if item.days_needed == 0 %}
                     ✓
                   {% else %}
                     {{ item.days_needed }}
                   {% endif %}
+                </div>
+
+                <div class="mt-2 text-[11px] text-gray-500 dark:text-gray-400">
+                  {% if item.days_needed == 0 %}Banked{% else %}days to go{% endif %}
                 </div>
               </div>
             {% endif %}
@@ -90,13 +304,15 @@
 
       {{ eddington_data.times_completed|json_script:"times-completed-data" }}
       {{ eddington_data.history|json_script:"eddington-history-data" }}
+
     {% else %}
-      <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm p-6">
+      <div class="ctz-surface p-6">
         <p class="text-gray-600 dark:text-gray-400">No data available for the selected discipline.</p>
       </div>
     {% endif %}
+
   {% else %}
-    <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm p-6">
+    <div class="ctz-surface p-6">
       <p class="text-gray-600 dark:text-gray-400">No workouts found. Connect your Peloton account to start tracking Eddington scores!</p>
     </div>
   {% endif %}

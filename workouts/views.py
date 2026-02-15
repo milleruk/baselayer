@@ -1,3 +1,6 @@
+import json
+import re
+
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, get_object_or_404, redirect
 from django.core.paginator import Paginator
@@ -10,8 +13,6 @@ from django.views.decorators.http import require_http_methods
 from datetime import date, datetime, timezone as dt_timezone
 # Use datetime.timezone.utc (recommended for Django 4.2+, required for Django 5.0+)
 UTC = dt_timezone.utc
-import json
-import re
 
 # Timezone handling for date conversion (for converting workout dates to match Peloton's timezone)
 try:
@@ -2249,7 +2250,15 @@ def class_detail(request, pk):
 def workout_history(request):
     """Display user's workout history with filtering and pagination"""
     # Get user's workouts - all class data comes from ride_detail via SQL joins
-    workouts = Workout.objects.filter(user=request.user).select_related(
+    # Default: manual workouts hidden unless explicitly shown
+    hide_manual = request.GET.get('hide_manual', '1') == '1'
+    # Default: charts hidden unless explicitly shown
+    has_charts_filter = request.GET.get('has_charts', '0') == '1'
+    manual_filter = {}
+    if hide_manual:
+        manual_filter = {"ride_detail__peloton_ride_id__regex": r"^(?!manual_).*"}
+
+    workouts = Workout.objects.filter(user=request.user, **manual_filter).select_related(
         'ride_detail', 'ride_detail__workout_type', 'ride_detail__instructor', 'details'
     )
     
@@ -5091,10 +5100,57 @@ def sync_workouts(request):
                         logger.debug(f"Workout {total_processed} ({peloton_workout_id}): Found duration in initial workout_data: {initial_duration_seconds}s")
                 
                 # Get or create workout type
-                workout_type_slug = workout_data.get('fitness_discipline', '').lower()
-                if not workout_type_slug:
-                    workout_type_slug = 'other'
-                
+                workout_type_slug = (workout_data.get('fitness_discipline') or '').lower()
+                if not workout_type_slug or workout_type_slug == 'other':
+                    # Try to infer from device_type_display_name if present
+                    device_type = (workout_data.get('device_type_display_name') or '').lower()
+                    inferred = None
+                    if device_type:
+                        if device_type == 'garmin connect':
+                            inferred = 'other'  # Always treat as manual workout
+                            logger.info(f"Discipline fallback: Detected 'Garmin Connect' device, treating as manual workout for workout_data: {workout_data}")
+                        elif 'bike' in device_type:
+                            inferred = 'cycling'
+                        elif 'tread' in device_type:
+                            inferred = 'running'
+                        elif 'app' == device_type:
+                            # App could be anything, so fallback to title heuristics below
+                            inferred = None
+                        elif 'tread +' in device_type:
+                            inferred = 'running'
+                        elif 'bike +' in device_type:
+                            inferred = 'cycling'
+                        if inferred:
+                            logger.info(f"Discipline fallback: Inferred '{inferred}' from device_type_display_name '{device_type}' for workout_data: {workout_data}")
+                            workout_type_slug = inferred
+                    if not inferred:
+                        # Fallback to title heuristics
+                        title = (workout_data.get('title') or '').lower()
+                        if 'cycle' in title or 'bike' in title:
+                            inferred = 'cycling'
+                        elif 'yoga' in title:
+                            inferred = 'yoga'
+                        elif 'row' in title:
+                            inferred = 'rowing'
+                        elif 'run' in title:
+                            inferred = 'running'
+                        elif 'walk' in title:
+                            inferred = 'walking'
+                        elif 'strength' in title:
+                            inferred = 'strength'
+                        elif 'stretch' in title:
+                            inferred = 'stretching'
+                        elif 'meditat' in title:
+                            inferred = 'meditation'
+                        elif 'cardio' in title:
+                            inferred = 'cardio'
+                        if inferred:
+                            logger.info(f"Discipline fallback: Inferred '{inferred}' from title '{title}' for workout_data: {workout_data}")
+                            workout_type_slug = inferred
+                        else:
+                            logger.warning(f"Discipline fallback: Could not infer discipline for workout: {workout_data}. Defaulting to 'other'.")
+                            workout_type_slug = 'other'
+
                 # Map Peloton workout types to our workout types
                 type_mapping = {
                     'cycling': 'cycling',
@@ -5105,12 +5161,14 @@ def sync_workouts(request):
                     'stretching': 'stretching',
                     'meditation': 'meditation',
                     'cardio': 'cardio',
+                    'rowing': 'rowing',
                 }
-                workout_type_slug = type_mapping.get(workout_type_slug, 'other')
-                
+                mapped_type = type_mapping.get(workout_type_slug, 'other')
+                if mapped_type == 'other':
+                    logger.warning(f"Type mapping fallback: '{workout_type_slug}' not in type_mapping for workout_data: {workout_data}. Using 'other'.")
                 workout_type, _ = WorkoutType.objects.get_or_create(
-                    slug=workout_type_slug,
-                    defaults={'name': workout_type_slug.title()}
+                    slug=mapped_type,
+                    defaults={'name': mapped_type.title()}
                 )
                 
                 # Get or create instructor
@@ -5382,39 +5440,26 @@ def sync_workouts(request):
                 
                 # Step 3a: Handle manual workouts (no ride_id) - map to generic RideDetail
                 if not ride_id and not ride_detail:
-                    # This is a manual workout (Just Run, Just Walk, Just Ride, etc.)
-                    # Map to a generic RideDetail placeholder based on fitness_discipline
-                    logger.info(f"Workout {total_processed} ({peloton_workout_id}): No ride_id found - this is a MANUAL workout")
-                    
-                    # Define discipline to generic ID mapping
-                    MANUAL_RIDE_DETAIL_MAP = {
-                        'running': 9999999,
-                        'cycling': 9999998,
-                        'walking': 9999997,
-                        'rowing': 9999996,
-                        'strength': 9999995,
-                        'yoga': 9999994,
-                        'meditation': 9999993,
-                        'stretching': 9999992,
-                        'cardio': 9999991,
-                        'other': 9999990,
-                    }
-                    
-                    # Get the generic ride_detail ID based on discipline
-                    discipline = workout_type_slug  # Already extracted and normalized earlier
-                    generic_ride_id = MANUAL_RIDE_DETAIL_MAP.get(discipline, 9999990)
-                    generic_peloton_ride_id = f"manual_{discipline}_{generic_ride_id}"
-                    
-                    logger.info(f"Workout {total_processed} ({peloton_workout_id}): Looking up generic RideDetail: {generic_peloton_ride_id}")
-                    
-                    # Try to get the generic RideDetail
-                    try:
-                        ride_detail = RideDetail.objects.get(peloton_ride_id=generic_peloton_ride_id)
-                        logger.info(f"Workout {total_processed} ({peloton_workout_id}): ✓ Mapped to generic {discipline} RideDetail - '{ride_detail.title}'")
-                    except RideDetail.DoesNotExist:
-                        logger.error(f"Workout {total_processed} ({peloton_workout_id}): Generic RideDetail '{generic_peloton_ride_id}' not found! Run 'python manage.py create_generic_ride_details' first.")
-                        workouts_skipped += 1
-                        continue
+                    # This is a manual workout (Garmin Tacx Training, etc.)
+                    logger.info(f"Workout {total_processed} ({peloton_workout_id}): No ride_id found - using workout_data['ride'] fields for manual workout")
+
+                    ride_data = workout_data.get('ride', {})
+                    manual_title = ride_data.get('title', 'Manual Workout')
+                    manual_discipline = workout_type_slug
+                    manual_peloton_ride_id = f"manual_{manual_discipline}_{peloton_workout_id}"
+
+                    ride_detail, created = RideDetail.objects.get_or_create(
+                        peloton_ride_id=manual_peloton_ride_id,
+                        defaults={
+                            'title': manual_title,
+                            'fitness_discipline': manual_discipline,
+                            'workout_type': workout_type,
+                        }
+                    )
+                    if created:
+                        logger.info(f"Workout {total_processed} ({peloton_workout_id}): Created manual RideDetail - '{manual_title}'")
+                    else:
+                        logger.info(f"Workout {total_processed} ({peloton_workout_id}): Found existing manual RideDetail - '{ride_detail.title}'")
                 
                 # Step 3: Create or update RideDetail if we have ride_details and it doesn't exist yet
                 if ride_id and not ride_detail and 'ride_details' in locals() and ride_details:
@@ -5538,8 +5583,16 @@ def sync_workouts(request):
                 
                 # Step 5: Extract title, duration, etc. from ride_detail if available, otherwise from other sources
                 if ride_detail:
-                    # Use data from RideDetail (most reliable)
-                    title = ride_detail.title
+                    # For manual workouts, use the API title directly for the Workout
+                    is_manual = False
+                    if ride_detail.peloton_ride_id and str(ride_detail.peloton_ride_id).startswith('manual_'):
+                        is_manual = True
+                    if is_manual and 'ride_details' in locals() and ride_details:
+                        ride_data = ride_details.get('ride', {})
+                        title = ride_data.get('title') or ride_details.get('title') or ride_detail.title
+                        logger.info(f"Manual workout: Overriding Workout title with API value: '{title}'")
+                    else:
+                        title = ride_detail.title
                     duration_seconds = ride_detail.duration_seconds
                     duration_minutes = ride_detail.duration_minutes
                     description = ride_detail.description
@@ -5684,22 +5737,31 @@ def sync_workouts(request):
                         workouts_skipped += 1
                         continue
                 
+                # For manual workouts, always set title_override to the API title
+                is_manual = False
+                if ride_detail and ride_detail.peloton_ride_id and str(ride_detail.peloton_ride_id).startswith('manual_'):
+                    is_manual = True
+                workout_defaults = {
+                    'ride_detail': ride_detail,  # REQUIRED - all class data comes from here
+                    'peloton_url': peloton_url,
+                    'recorded_date': completed_date,
+                    'completed_date': completed_date,
+                    'completed_at': completed_datetime_utc,
+                    'peloton_created_at': peloton_created_at_dt,
+                    'peloton_timezone': peloton_tz,
+                }
+                if is_manual:
+                    # Only set title_override if it is currently blank/null
+                    existing_workout = Workout.objects.filter(peloton_workout_id=peloton_workout_id, user=request.user).first()
+                    if not existing_workout or not existing_workout.title_override:
+                        workout_defaults['title_override'] = title
+                    # Do not set 'title' directly; let property handle it
+                else:
+                    workout_defaults['title_override'] = None
                 workout, created = Workout.objects.update_or_create(
                     peloton_workout_id=peloton_workout_id,
                     user=request.user,
-                    defaults={
-                        'ride_detail': ride_detail,  # REQUIRED - all class data comes from here
-                        'peloton_url': peloton_url,
-                        'recorded_date': completed_date,
-                        'completed_date': completed_date,
-                        'completed_at': completed_datetime_utc,
-                        'peloton_created_at': peloton_created_at_dt,
-                        'peloton_timezone': peloton_tz,
-                        # For manual workouts (all-zero ride id) store the workout title on the Workout
-                        # so templates show the user-provided name while reusing generic RideDetail templates.
-                        'title_override': title if ((workout_data.get('ride') or {}).get('id') == '00000000000000000000000000000000') else None,
-                        # No duplicate storage - title, duration, instructor, etc. come from ride_detail via joins
-                    }
+                    defaults=workout_defaults
                 )
                 
                 if created:

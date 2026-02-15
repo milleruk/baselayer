@@ -1,14 +1,78 @@
+<!-- ========================= -->
+<!-- DASHBOARD STATS (OOMPH)   -->
+<!-- ========================= -->
+
+<style>
+  /* Local-only polish (safe to paste into this partial). Uses existing Tailwind colours. */
+  @keyframes ctzPulse {
+    0%,100% { transform: scale(1); opacity: .95; }
+    50% { transform: scale(1.04); opacity: 1; }
+  }
+  .ctz-surface{
+    border-radius: 1rem;
+    border: 1px solid rgb(229 231 235);
+    background: linear-gradient(180deg, rgba(255,255,255,.92), rgba(255,255,255,.78));
+    box-shadow: 0 1px 2px rgba(0,0,0,.05);
+    backdrop-filter: blur(8px);
+  }
+  .dark .ctz-surface{
+    border-color: rgb(55 65 81);
+    background: linear-gradient(180deg, rgba(31,41,55,.70), rgba(17,24,39,.55));
+    box-shadow: 0 1px 2px rgba(0,0,0,.35);
+  }
+  .ctz-surface:hover{
+    box-shadow: 0 10px 25px rgba(0,0,0,.08);
+    transform: translateY(-1px);
+    transition: box-shadow .2s ease, transform .2s ease;
+  }
+  .ctz-kpi-icon{
+    position: relative;
+    overflow: hidden;
+  }
+  .ctz-kpi-icon::after{
+    content:"";
+    position:absolute;
+    inset:-60%;
+    background: radial-gradient(circle at 30% 30%, rgba(255,255,255,.55), transparent 55%);
+    transform: rotate(18deg);
+    opacity:.65;
+  }
+  .ctz-badge{
+    display:inline-flex;
+    align-items:center;
+    gap:.4rem;
+    padding:.2rem .55rem;
+    border-radius: .75rem;
+    border: 1px solid rgba(255,255,255,.10);
+    background: rgba(255,255,255,.06);
+    color: rgba(255,255,255,.92);
+    font-size: .72rem;
+    font-weight: 700;
+    letter-spacing: .02em;
+  }
+  .ctz-divider{
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(0,0,0,.08), transparent);
+  }
+  .dark .ctz-divider{
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,.10), transparent);
+  }
+</style>
+
 <!-- Metric Cards - 3 Column Layout: 2 x 2 x 1 -->
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6 mb-6">
+
   <!-- Column 1: Challenges Completed -->
-  <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 sm:p-6 shadow-sm order-2 lg:order-none">
-    <div class="flex items-center justify-between">
-      <div>
-        <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Challenges Completed</p>
-        <p class="text-2xl font-bold text-gray-900 dark:text-white mt-2">{{ completed_challenges_count|default:0 }}</p>
-        <p class="text-xs text-gray-500 dark:text-gray-500 mt-1">Fully completed challenges</p>
+  <div class="ctz-surface p-4 sm:p-6 order-2 lg:order-none">
+    <div class="flex items-start justify-between gap-4">
+      <div class="min-w-0">
+        <p class="text-sm font-semibold text-gray-700 dark:text-gray-300">Challenges Completed</p>
+        <p class="text-2xl font-extrabold text-gray-900 dark:text-white mt-2 tracking-tight">
+          {{ completed_challenges_count|default:0 }}
+        </p>
+        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Fully completed challenges</p>
       </div>
-      <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
+      <div class="ctz-kpi-icon w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center flex-shrink-0 shadow-sm">
         <svg class="w-6 h-6 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"></path>
         </svg>
@@ -17,31 +81,41 @@
   </div>
 
   <!-- Column 2: Time Period Stats -->
-  <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 sm:p-6 shadow-sm order-3 lg:order-none">
-    <div class="flex items-center justify-between">
-      <div>
-        <p class="text-sm font-medium text-gray-600 dark:text-gray-400">{{ period_label }}</p>
-        <p class="text-2xl font-bold text-gray-900 dark:text-white mt-2">{{ period_count }} <span class="text-base font-normal text-gray-500">workouts</span></p>
+  <div class="ctz-surface p-4 sm:p-6 order-3 lg:order-none">
+    <div class="flex items-start justify-between gap-4">
+      <div class="min-w-0">
+        <p class="text-sm font-semibold text-gray-700 dark:text-gray-300">{{ period_label }}</p>
+        <p class="text-2xl font-extrabold text-gray-900 dark:text-white mt-2 tracking-tight">
+          {{ period_count }}
+          <span class="text-base font-normal text-gray-500 dark:text-gray-400">workouts</span>
+        </p>
+
         <div class="flex items-center gap-2 mt-1">
           {% if comparison_count > 0 %}
             {% if period_diff > 0 %}
-              <span class="text-xs text-green-600 dark:text-green-400 font-semibold">↑ +{{ period_diff }}</span>
-              <span class="text-xs text-gray-500">vs {{ comparison_label }}</span>
+              <span class="inline-flex items-center gap-1 text-xs font-bold text-green-700 dark:text-green-300 bg-green-100 dark:bg-green-900/30 px-2 py-1 rounded-lg">
+                <span aria-hidden="true">▲</span> +{{ period_diff }}
+              </span>
+              <span class="text-xs text-gray-500 dark:text-gray-400">vs {{ comparison_label }}</span>
             {% elif period_diff < 0 %}
-              <span class="text-xs text-red-600 dark:text-red-400 font-semibold">↓ {{ period_diff }}</span>
-              <span class="text-xs text-gray-500">vs {{ comparison_label }}</span>
+              <span class="inline-flex items-center gap-1 text-xs font-bold text-red-700 dark:text-red-300 bg-red-100 dark:bg-red-900/30 px-2 py-1 rounded-lg">
+                <span aria-hidden="true">▼</span> {{ period_diff }}
+              </span>
+              <span class="text-xs text-gray-500 dark:text-gray-400">vs {{ comparison_label }}</span>
             {% else %}
-              <span class="text-xs text-gray-500">Same as {{ comparison_label }}</span>
+              <span class="text-xs text-gray-500 dark:text-gray-400">Same as {{ comparison_label }}</span>
             {% endif %}
           {% else %}
-            <span class="text-xs text-gray-500">No previous data</span>
+            <span class="text-xs text-gray-500 dark:text-gray-400">No previous data</span>
           {% endif %}
         </div>
+
         {% if period_output > 0 %}
-          <p class="text-xs text-gray-500 dark:text-gray-500 mt-1">{{ period_output|floatformat:0 }} kJ output</p>
+          <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">{{ period_output|floatformat:0 }} kJ output</p>
         {% endif %}
       </div>
-      <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+
+      <div class="ctz-kpi-icon w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-green-100 dark:bg-green-900/30 flex items-center justify-center flex-shrink-0 shadow-sm">
         <svg class="w-6 h-6 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
         </svg>
@@ -50,75 +124,88 @@
   </div>
 
   <!-- Column 3: Current Week Plan (spans full height) -->
-  <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 sm:p-6 shadow-sm lg:row-span-2 order-1 lg:order-none">
-    <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Current Week Plan</h3>
+  <div class="ctz-surface p-4 sm:p-6 lg:row-span-2 order-1 lg:order-none relative overflow-hidden">
+    <!-- subtle header treatment -->
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="text-lg font-bold text-gray-900 dark:text-white">Current Week Plan</h3>
+      <span class="text-xs font-semibold text-gray-500 dark:text-gray-400">This week</span>
+    </div>
+
     {% if current_week_plan %}
       <div class="space-y-4">
         <div>
           {% if current_week_plan.challenge_instance %}
-            <div class="flex items-center gap-2 mb-2">
-              <span class="px-2 py-1 text-xs font-bold text-primary bg-primary/10 border border-primary/20 rounded">CHALLENGE</span>
+            <div class="flex flex-wrap items-center gap-2 mb-2">
+              <span class="px-2 py-1 text-xs font-bold text-primary bg-primary/10 border border-primary/20 rounded-lg">CHALLENGE</span>
               {% if current_week_plan.week_number %}
-                <span class="px-2 py-1 text-xs font-semibold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded">Week {{ current_week_plan.week_number }}</span>
+                <span class="px-2 py-1 text-xs font-semibold text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 rounded-lg">Week {{ current_week_plan.week_number }}</span>
               {% endif %}
             </div>
-            <p class="text-sm font-medium text-gray-900 dark:text-white">{{ current_week_plan.challenge_instance.challenge.name }}</p>
-            <p class="text-xs text-gray-600 dark:text-gray-400 mt-1">{{ current_week_plan.template_name }} • Week of {{ current_week_plan.week_start|date:"M d, Y" }}</p>
+            <p class="text-sm font-semibold text-gray-900 dark:text-white">
+              {{ current_week_plan.challenge_instance.challenge.name }}
+            </p>
+            <p class="text-xs text-gray-600 dark:text-gray-400 mt-1">
+              {{ current_week_plan.template_name }} • Week of {{ current_week_plan.week_start|date:"M d, Y" }}
+            </p>
           {% else %}
-            <p class="text-sm font-medium text-gray-900 dark:text-white">{{ current_week_plan.template_name }}</p>
+            <p class="text-sm font-semibold text-gray-900 dark:text-white">{{ current_week_plan.template_name }}</p>
             <p class="text-xs text-gray-600 dark:text-gray-400 mt-1">Week of {{ current_week_plan.week_start|date:"M d, Y" }}</p>
           {% endif %}
         </div>
+
         <div>
           <div class="flex items-center justify-between mb-2">
-            <span class="text-xs font-medium text-gray-600 dark:text-gray-400">Progress</span>
-            <span class="text-xs font-semibold text-gray-900 dark:text-white">{{ current_week_plan.completion_rate|floatformat:0 }}%</span>
+            <span class="text-xs font-semibold text-gray-600 dark:text-gray-400">Progress</span>
+            <span class="text-xs font-bold text-gray-900 dark:text-white">{{ current_week_plan.completion_rate|floatformat:0 }}%</span>
           </div>
-          <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+          <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
             <div class="bg-primary h-2 rounded-full transition-all duration-300" style="width: {{ current_week_plan.completion_rate }}%"></div>
           </div>
         </div>
-        <div class="pt-4 border-t border-gray-200 dark:border-gray-700">
+
+        <div class="pt-4">
+          <div class="ctz-divider mb-4"></div>
           <div class="flex items-center justify-between mb-2">
-            <span class="text-xs font-medium text-gray-600 dark:text-gray-400">Points</span>
-            <span class="text-sm font-bold text-gray-900 dark:text-white">{{ current_week_plan.total_points }} / {{ current_week_plan.max_total_points }}</span>
+            <span class="text-xs font-semibold text-gray-600 dark:text-gray-400">Points</span>
+            <span class="text-sm font-extrabold text-gray-900 dark:text-white">{{ current_week_plan.total_points }} / {{ current_week_plan.max_total_points }}</span>
           </div>
           <div class="flex items-center justify-between">
-            <span class="text-xs font-medium text-gray-600 dark:text-gray-400">Status</span>
+            <span class="text-xs font-semibold text-gray-600 dark:text-gray-400">Status</span>
             {% if current_week_plan.is_completed %}
-              <span class="px-2 py-1 text-xs font-semibold text-green-800 dark:text-green-200 bg-green-100 dark:bg-green-900/30 rounded">Completed</span>
+              <span class="px-2 py-1 text-xs font-bold text-green-800 dark:text-green-200 bg-green-100 dark:bg-green-900/30 rounded-lg">Completed</span>
             {% elif current_week_plan.is_current_week %}
-              <span class="px-2 py-1 text-xs font-semibold text-orange-800 dark:text-orange-200 bg-orange-100 dark:bg-orange-900/30 rounded">Active</span>
+              <span class="px-2 py-1 text-xs font-bold text-orange-800 dark:text-orange-200 bg-orange-100 dark:bg-orange-900/30 rounded-lg">Active</span>
             {% else %}
-              <span class="px-2 py-1 text-xs font-semibold text-gray-800 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 rounded">Upcoming</span>
+              <span class="px-2 py-1 text-xs font-bold text-gray-800 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 rounded-lg">Upcoming</span>
             {% endif %}
           </div>
         </div>
+
         {% if current_week_plan.challenge_instance %}
           {% if current_week_plan.week_number %}
-            <a href="{% url 'challenges:challenge_detail_week' current_week_plan.challenge_instance.challenge.id current_week_plan.week_number %}" class="block w-full text-center px-4 py-2 bg-primary hover:bg-primary-dark text-white font-medium rounded-lg transition-colors">
+            <a href="{% url 'challenges:challenge_detail_week' current_week_plan.challenge_instance.challenge.id current_week_plan.week_number %}" class="block w-full text-center px-4 py-2.5 bg-primary hover:bg-primary-dark text-white font-semibold rounded-xl transition-colors shadow-sm">
               View Plan
             </a>
           {% else %}
-            <a href="{% url 'challenges:challenge_detail' current_week_plan.challenge_instance.challenge.id %}" class="block w-full text-center px-4 py-2 bg-primary hover:bg-primary-dark text-white font-medium rounded-lg transition-colors">
+            <a href="{% url 'challenges:challenge_detail' current_week_plan.challenge_instance.challenge.id %}" class="block w-full text-center px-4 py-2.5 bg-primary hover:bg-primary-dark text-white font-semibold rounded-xl transition-colors shadow-sm">
               View Plan
             </a>
           {% endif %}
         {% else %}
-          <a href="{% url 'tracker:plan_detail' current_week_plan.id %}" class="block w-full text-center px-4 py-2 bg-primary hover:bg-primary-dark text-white font-medium rounded-lg transition-colors">
+          <a href="{% url 'tracker:plan_detail' current_week_plan.id %}" class="block w-full text-center px-4 py-2.5 bg-primary hover:bg-primary-dark text-white font-semibold rounded-xl transition-colors shadow-sm">
             View Plan
           </a>
         {% endif %}
       </div>
     {% else %}
       <div class="text-center py-8">
-        <div class="text-4xl mb-3">📋</div>
-        <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">No plan for this week</p>
+        <div class="text-4xl mb-3" style="animation: ctzPulse 2.2s ease-in-out infinite;">📋</div>
+        <p class="text-sm text-gray-700 dark:text-gray-300 mb-4 font-semibold">No plan for this week</p>
         <div class="flex flex-col gap-2">
-          <a href="{% url 'challenges:challenges_list' %}" class="px-4 py-2 bg-primary hover:bg-primary-dark text-white font-medium rounded-lg transition-colors text-sm">
+          <a href="{% url 'challenges:challenges_list' %}" class="px-4 py-2.5 bg-primary hover:bg-primary-dark text-white font-semibold rounded-xl transition-colors text-sm shadow-sm">
             Browse Challenges
           </a>
-          <a href="{% url 'tracker:generate' %}" class="px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 font-medium rounded-lg transition-colors text-sm">
+          <a href="{% url 'tracker:generate' %}" class="px-4 py-2.5 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-semibold rounded-xl transition-colors text-sm">
             Generate Week
           </a>
         </div>
@@ -128,16 +215,16 @@
 
   <!-- Column 1 (second row): Total Workouts -->
   {% if total_workouts_count > 0 %}
-  <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 sm:p-6 shadow-sm order-4 lg:order-none">
-    <div class="flex items-center justify-between">
-      <div>
-        <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Total Workouts</p>
-        <p class="text-2xl font-bold text-gray-900 dark:text-white mt-2">{{ total_workouts_count }}</p>
-        <p class="text-xs text-gray-500 dark:text-gray-500 mt-1">All-time workouts</p>
+  <div class="ctz-surface p-4 sm:p-6 order-4 lg:order-none">
+    <div class="flex items-start justify-between gap-4">
+      <div class="min-w-0">
+        <p class="text-sm font-semibold text-gray-700 dark:text-gray-300">Total Workouts</p>
+        <p class="text-2xl font-extrabold text-gray-900 dark:text-white mt-2 tracking-tight">{{ total_workouts_count }}</p>
+        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">All-time workouts</p>
       </div>
-      <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-cyan-100 dark:bg-cyan-900/30 flex items-center justify-center">
+      <div class="ctz-kpi-icon w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-cyan-100 dark:bg-cyan-900/30 flex items-center justify-center flex-shrink-0 shadow-sm">
         <svg class="w-6 h-6 text-cyan-600 dark:text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01M9 16h.01"></path>
         </svg>
       </div>
     </div>
@@ -145,31 +232,40 @@
   {% endif %}
 
   <!-- Column 2 (second row): This Month -->
-  <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 sm:p-6 shadow-sm order-5 lg:order-none">
-    <div class="flex items-center justify-between">
-      <div>
-        <p class="text-sm font-medium text-gray-600 dark:text-gray-400">This Month</p>
-        <p class="text-2xl font-bold text-gray-900 dark:text-white mt-2">{{ this_month_count }} <span class="text-base font-normal text-gray-500">workouts</span></p>
+  <div class="ctz-surface p-4 sm:p-6 order-5 lg:order-none">
+    <div class="flex items-start justify-between gap-4">
+      <div class="min-w-0">
+        <p class="text-sm font-semibold text-gray-700 dark:text-gray-300">This Month</p>
+        <p class="text-2xl font-extrabold text-gray-900 dark:text-white mt-2 tracking-tight">
+          {{ this_month_count }} <span class="text-base font-normal text-gray-500 dark:text-gray-400">workouts</span>
+        </p>
+
         <div class="flex items-center gap-2 mt-1">
           {% if previous_month_count > 0 %}
             {% if this_month_diff > 0 %}
-              <span class="text-xs text-green-600 dark:text-green-400 font-semibold">↑ +{{ this_month_diff }}</span>
-              <span class="text-xs text-gray-500">vs last month</span>
+              <span class="inline-flex items-center gap-1 text-xs font-bold text-green-700 dark:text-green-300 bg-green-100 dark:bg-green-900/30 px-2 py-1 rounded-lg">
+                <span aria-hidden="true">▲</span> +{{ this_month_diff }}
+              </span>
+              <span class="text-xs text-gray-500 dark:text-gray-400">vs last month</span>
             {% elif this_month_diff < 0 %}
-              <span class="text-xs text-red-600 dark:text-red-400 font-semibold">↓ {{ this_month_diff }}</span>
-              <span class="text-xs text-gray-500">vs last month</span>
+              <span class="inline-flex items-center gap-1 text-xs font-bold text-red-700 dark:text-red-300 bg-red-100 dark:bg-red-900/30 px-2 py-1 rounded-lg">
+                <span aria-hidden="true">▼</span> {{ this_month_diff }}
+              </span>
+              <span class="text-xs text-gray-500 dark:text-gray-400">vs last month</span>
             {% else %}
-              <span class="text-xs text-gray-500">Same as last month</span>
+              <span class="text-xs text-gray-500 dark:text-gray-400">Same as last month</span>
             {% endif %}
           {% else %}
-            <span class="text-xs text-gray-500">No previous data</span>
+            <span class="text-xs text-gray-500 dark:text-gray-400">No previous data</span>
           {% endif %}
         </div>
+
         {% if this_month_output > 0 %}
-          <p class="text-xs text-gray-500 dark:text-gray-500 mt-1">{{ this_month_output|floatformat:0 }} kJ output</p>
+          <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">{{ this_month_output|floatformat:0 }} kJ output</p>
         {% endif %}
       </div>
-      <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
+
+      <div class="ctz-kpi-icon w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center flex-shrink-0 shadow-sm">
         <svg class="w-6 h-6 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
         </svg>
@@ -180,14 +276,18 @@
 
 <!-- Discipline KPI Cards -->
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-6 mb-6">
+
   <!-- Cycling KPI -->
-  <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 sm:p-6 shadow-sm">
+  <div class="ctz-surface p-4 sm:p-6">
     <div class="flex items-start justify-between gap-4 mb-4">
-      <div>
-        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Cycling</h3>
-        <p class="text-sm text-gray-600 dark:text-gray-400">{{ period_label }}</p>
+      <div class="min-w-0">
+        <div class="flex items-center gap-2">
+          <h3 class="text-lg font-bold text-gray-900 dark:text-white">Cycling</h3>
+          <span class="text-xs font-semibold text-gray-500 dark:text-gray-400">{{ period_label }}</span>
+        </div>
+        <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">Your bike stats, minus the excuses.</p>
       </div>
-      <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center flex-shrink-0">
+      <div class="ctz-kpi-icon w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center flex-shrink-0 shadow-sm">
         <svg class="w-6 h-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 16a4 4 0 108 0 4 4 0 00-8 0zm8 0h2l3-3m-3 3a4 4 0 108 0 4 4 0 00-8 0zM9 12l2-4h4l2 4m-6 0h6"></path>
         </svg>
@@ -195,37 +295,37 @@
     </div>
 
     <div class="grid grid-cols-2 gap-3">
-      <div>
+      <div class="rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 p-3">
         <div class="text-xs text-gray-600 dark:text-gray-400">Workouts</div>
-        <div class="text-lg font-bold text-gray-900 dark:text-white">{{ cycling_kpis.count|default:0 }}</div>
+        <div class="text-lg font-extrabold text-gray-900 dark:text-white">{{ cycling_kpis.count|default:0 }}</div>
       </div>
-      <div>
+      <div class="rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 p-3">
         <div class="text-xs text-gray-600 dark:text-gray-400">Distance</div>
-        <div class="text-lg font-bold text-gray-900 dark:text-white">
+        <div class="text-lg font-extrabold text-gray-900 dark:text-white">
           {% if cycling_kpis.distance is not None %}{{ cycling_kpis.distance|floatformat:2 }} mi{% else %}—{% endif %}
         </div>
       </div>
-      <div>
+      <div class="rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 p-3">
         <div class="text-xs text-gray-600 dark:text-gray-400">Total Output</div>
-        <div class="text-lg font-bold text-gray-900 dark:text-white">
+        <div class="text-lg font-extrabold text-gray-900 dark:text-white">
           {% if cycling_kpis.total_output is not None %}{{ cycling_kpis.total_output|floatformat:0 }} kJ{% else %}—{% endif %}
         </div>
       </div>
-      <div>
+      <div class="rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 p-3">
         <div class="text-xs text-gray-600 dark:text-gray-400">Avg Output</div>
-        <div class="text-lg font-bold text-gray-900 dark:text-white">
+        <div class="text-lg font-extrabold text-gray-900 dark:text-white">
           {% if cycling_kpis.avg_output is not None %}{{ cycling_kpis.avg_output|floatformat:0 }} W{% else %}—{% endif %}
         </div>
       </div>
-      <div>
+      <div class="rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 p-3">
         <div class="text-xs text-gray-600 dark:text-gray-400">TSS</div>
-        <div class="text-lg font-bold text-gray-900 dark:text-white">
+        <div class="text-lg font-extrabold text-gray-900 dark:text-white">
           {% if cycling_kpis.tss is not None %}{{ cycling_kpis.tss|floatformat:0 }}{% else %}—{% endif %}
         </div>
       </div>
-      <div>
+      <div class="rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 p-3">
         <div class="text-xs text-gray-600 dark:text-gray-400">Avg Cadence</div>
-        <div class="text-lg font-bold text-gray-900 dark:text-white">
+        <div class="text-lg font-extrabold text-gray-900 dark:text-white">
           {% if cycling_kpis.avg_cadence is not None %}{{ cycling_kpis.avg_cadence|floatformat:0 }} rpm{% else %}—{% endif %}
         </div>
       </div>
@@ -233,13 +333,16 @@
   </div>
 
   <!-- Running KPI -->
-  <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 sm:p-6 shadow-sm">
+  <div class="ctz-surface p-4 sm:p-6">
     <div class="flex items-start justify-between gap-4 mb-4">
-      <div>
-        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Running</h3>
-        <p class="text-sm text-gray-600 dark:text-gray-400">{{ period_label }}</p>
+      <div class="min-w-0">
+        <div class="flex items-center gap-2">
+          <h3 class="text-lg font-bold text-gray-900 dark:text-white">Running</h3>
+          <span class="text-xs font-semibold text-gray-500 dark:text-gray-400">{{ period_label }}</span>
+        </div>
+        <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">Tread / road stats. No judgement. (Ok, tiny bit.)</p>
       </div>
-      <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center flex-shrink-0">
+      <div class="ctz-kpi-icon w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-green-100 dark:bg-green-900/30 flex items-center justify-center flex-shrink-0 shadow-sm">
         <svg class="w-6 h-6 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5a2 2 0 11-4 0 2 2 0 014 0zM7 21l2-6 3-2 2 2 3 8m-8-8l-2 2m5-7l-2 4"></path>
         </svg>
@@ -247,37 +350,37 @@
     </div>
 
     <div class="grid grid-cols-2 gap-3">
-      <div>
+      <div class="rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 p-3">
         <div class="text-xs text-gray-600 dark:text-gray-400">Workouts</div>
-        <div class="text-lg font-bold text-gray-900 dark:text-white">{{ running_kpis.count|default:0 }}</div>
+        <div class="text-lg font-extrabold text-gray-900 dark:text-white">{{ running_kpis.count|default:0 }}</div>
       </div>
-      <div>
+      <div class="rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 p-3">
         <div class="text-xs text-gray-600 dark:text-gray-400">Distance</div>
-        <div class="text-lg font-bold text-gray-900 dark:text-white">
+        <div class="text-lg font-extrabold text-gray-900 dark:text-white">
           {% if running_kpis.distance is not None %}{{ running_kpis.distance|floatformat:2 }} mi{% else %}—{% endif %}
         </div>
       </div>
-      <div>
+      <div class="rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 p-3">
         <div class="text-xs text-gray-600 dark:text-gray-400">Avg Pace</div>
-        <div class="text-lg font-bold text-gray-900 dark:text-white">
+        <div class="text-lg font-extrabold text-gray-900 dark:text-white">
           {% if running_kpis.avg_pace_str %}{{ running_kpis.avg_pace_str }}{% else %}—{% endif %}
         </div>
       </div>
-      <div>
+      <div class="rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 p-3">
         <div class="text-xs text-gray-600 dark:text-gray-400">Avg Speed</div>
-        <div class="text-lg font-bold text-gray-900 dark:text-white">
+        <div class="text-lg font-extrabold text-gray-900 dark:text-white">
           {% if running_kpis.avg_speed is not None %}{{ running_kpis.avg_speed|floatformat:1 }} mph{% else %}—{% endif %}
         </div>
       </div>
-      <div>
+      <div class="rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 p-3">
         <div class="text-xs text-gray-600 dark:text-gray-400">Avg HR</div>
-        <div class="text-lg font-bold text-gray-900 dark:text-white">
+        <div class="text-lg font-extrabold text-gray-900 dark:text-white">
           {% if running_kpis.avg_heart_rate is not None %}{{ running_kpis.avg_heart_rate|floatformat:0 }} bpm{% else %}—{% endif %}
         </div>
       </div>
-      <div>
+      <div class="rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 p-3">
         <div class="text-xs text-gray-600 dark:text-gray-400">Calories</div>
-        <div class="text-lg font-bold text-gray-900 dark:text-white">
+        <div class="text-lg font-extrabold text-gray-900 dark:text-white">
           {% if running_kpis.calories is not None %}{{ running_kpis.calories|floatformat:0 }}{% else %}—{% endif %}
         </div>
       </div>
@@ -285,13 +388,16 @@
   </div>
 
   <!-- Walking KPI -->
-  <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 sm:p-6 shadow-sm">
+  <div class="ctz-surface p-4 sm:p-6">
     <div class="flex items-start justify-between gap-4 mb-4">
-      <div>
-        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Walking</h3>
-        <p class="text-sm text-gray-600 dark:text-gray-400">{{ period_label }}</p>
+      <div class="min-w-0">
+        <div class="flex items-center gap-2">
+          <h3 class="text-lg font-bold text-gray-900 dark:text-white">Walking</h3>
+          <span class="text-xs font-semibold text-gray-500 dark:text-gray-400">{{ period_label }}</span>
+        </div>
+        <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">The “I was active, technically” category 😄</p>
       </div>
-      <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center flex-shrink-0">
+      <div class="ctz-kpi-icon w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center flex-shrink-0 shadow-sm">
         <svg class="w-6 h-6 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3a2 2 0 110 4 2 2 0 010-4zM10 21l1-6 2-2 2 2 2 6m-6-11l-2 2m7 0l-2-3"></path>
         </svg>
@@ -299,37 +405,37 @@
     </div>
 
     <div class="grid grid-cols-2 gap-3">
-      <div>
+      <div class="rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 p-3">
         <div class="text-xs text-gray-600 dark:text-gray-400">Workouts</div>
-        <div class="text-lg font-bold text-gray-900 dark:text-white">{{ walking_kpis.count|default:0 }}</div>
+        <div class="text-lg font-extrabold text-gray-900 dark:text-white">{{ walking_kpis.count|default:0 }}</div>
       </div>
-      <div>
+      <div class="rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 p-3">
         <div class="text-xs text-gray-600 dark:text-gray-400">Distance</div>
-        <div class="text-lg font-bold text-gray-900 dark:text-white">
+        <div class="text-lg font-extrabold text-gray-900 dark:text-white">
           {% if walking_kpis.distance is not None %}{{ walking_kpis.distance|floatformat:2 }} mi{% else %}—{% endif %}
         </div>
       </div>
-      <div>
+      <div class="rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 p-3">
         <div class="text-xs text-gray-600 dark:text-gray-400">Avg Pace</div>
-        <div class="text-lg font-bold text-gray-900 dark:text-white">
+        <div class="text-lg font-extrabold text-gray-900 dark:text-white">
           {% if walking_kpis.avg_pace_str %}{{ walking_kpis.avg_pace_str }}{% else %}—{% endif %}
         </div>
       </div>
-      <div>
+      <div class="rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 p-3">
         <div class="text-xs text-gray-600 dark:text-gray-400">Avg Speed</div>
-        <div class="text-lg font-bold text-gray-900 dark:text-white">
+        <div class="text-lg font-extrabold text-gray-900 dark:text-white">
           {% if walking_kpis.avg_speed is not None %}{{ walking_kpis.avg_speed|floatformat:1 }} mph{% else %}—{% endif %}
         </div>
       </div>
-      <div>
+      <div class="rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 p-3">
         <div class="text-xs text-gray-600 dark:text-gray-400">Avg HR</div>
-        <div class="text-lg font-bold text-gray-900 dark:text-white">
+        <div class="text-lg font-extrabold text-gray-900 dark:text-white">
           {% if walking_kpis.avg_heart_rate is not None %}{{ walking_kpis.avg_heart_rate|floatformat:0 }} bpm{% else %}—{% endif %}
         </div>
       </div>
-      <div>
+      <div class="rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 p-3">
         <div class="text-xs text-gray-600 dark:text-gray-400">Calories</div>
-        <div class="text-lg font-bold text-gray-900 dark:text-white">
+        <div class="text-lg font-extrabold text-gray-900 dark:text-white">
           {% if walking_kpis.calories is not None %}{{ walking_kpis.calories|floatformat:0 }}{% else %}—{% endif %}
         </div>
       </div>

@@ -4,140 +4,161 @@
 {% block page_title %}{{ workout.title }}{% endblock %}
 
 {% block content %}
-<!-- Back Button -->
-<a href="{% url 'workouts:history' %}" class="inline-flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white mb-6 transition-colors">
-  <span>←</span> Back to Workout History
-</a>
 
-<!-- Workout Header -->
-<div class="mb-6">
-  <div class="flex flex-col sm:flex-row justify-between items-start gap-4 mb-4">
-    <div class="flex-1">
-      <div class="flex items-center gap-3 mb-3">
-        <span class="px-3 py-1 text-sm font-semibold text-gray-900 dark:text-white bg-primary/20 dark:bg-primary/30 rounded-lg">
-          {{ workout.duration_minutes }}min
-        </span>
-        <span class="px-3 py-1 text-sm font-medium text-white bg-gradient-to-r from-orange-500 to-yellow-500 rounded-lg">
-          Power Zone
-        </span>
-        {% if workout.ride_detail and workout.ride_detail.workout_type %}
-        <span class="px-3 py-1 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg">
-          {{ workout.ride_detail.workout_type.name }}
-        </span>
-        {% endif %}
-      </div>
-      <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">{{ workout.title }}</h1>
-      {% if workout.instructor %}
-        <p class="text-gray-600 dark:text-gray-400">{{ workout.instructor.name }}</p>
-      {% endif %}
-    </div>
-    <div class="flex flex-wrap gap-2">
-      {% if workout.peloton_url %}
-        <a href="{{ workout.peloton_url }}" target="_blank" rel="noopener noreferrer" class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors">
-          View Workout ↗
-        </a>
-      {% endif %}
-      {% if workout.ride_detail %}
-        {% if workout.ride_detail.peloton_class_url %}
-          <a href="{{ workout.ride_detail.peloton_class_url }}" target="_blank" rel="noopener noreferrer" class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors">
-            View Class ↗
+<!-- Header card -->
+<div class="mb-6 rounded-2xl border border-gray-200/70 dark:border-gray-700/80 bg-white/80 dark:bg-gray-800/80 backdrop-blur shadow-sm overflow-hidden">
+  <div class="p-4 sm:p-6">
+    <!-- Back + actions -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+      <a href="{% url 'workouts:history' %}"
+         class="inline-flex items-center gap-2 text-sm font-semibold text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white">
+        <span aria-hidden="true">←</span>
+        Back to history
+      </a>
+
+      <div class="flex flex-wrap gap-2">
+        {% if workout.peloton_url %}
+          <a href="{{ workout.peloton_url }}" target="_blank" rel="noopener noreferrer"
+             class="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white bg-primary hover:bg-primary-dark transition-colors">
+            Workout
+            <span aria-hidden="true">↗</span>
           </a>
         {% endif %}
-        <a href="{%url 'classes:detail' workout.ride_detail.pk %}" class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors">
-          View in Library
-        </a>
-      {% endif %}
-    </div>
-  </div>
 
-  <!-- Dates -->
-  <div class="flex flex-wrap gap-4 text-sm text-gray-600 dark:text-gray-400">
-    <div>
-      <strong class="font-semibold">Recorded:</strong> {{ workout.recorded_date|date:"F d, Y" }}
-    </div>
-    <div>
-      <strong class="font-semibold">Completed:</strong> {{ workout.completed_date|date:"F d, Y" }}
-    </div>
-  </div>
-</div>
+        {% if workout.ride_detail and workout.ride_detail.peloton_class_url %}
+          <a href="{{ workout.ride_detail.peloton_class_url }}" target="_blank" rel="noopener noreferrer"
+             class="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-gray-800 dark:text-gray-200 bg-gray-100 dark:bg-gray-700/70 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors border border-gray-200 dark:border-gray-700">
+            Class
+            <span aria-hidden="true">↗</span>
+          </a>
+        {% endif %}
 
-{% if workout_summary %}
-<div id="workoutSummaryCard" class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 sm:p-6 shadow-sm mb-6">
-  <div id="shareHeader" class="mb-4">
-    <div class="flex items-start justify-between gap-4">
-      <div>
-        <h2 class="text-lg font-semibold text-gray-900 dark:text-white leading-tight">{{ workout.title }}</h2>
-        <div class="text-sm text-gray-600 dark:text-gray-400 mt-1">
-          {% if workout.instructor %}Instructor: <span class="font-medium text-gray-700 dark:text-gray-300">{{ workout.instructor.name }}</span>{% endif %}
-          {% if user_profile and user_profile.peloton_leaderboard_name %}
-            <span class="mx-2">•</span>
-            Name: <span class="font-medium text-gray-700 dark:text-gray-300">{{ user_profile.peloton_leaderboard_name }}</span>
+        {% if workout.ride_detail %}
+          <a href="{% url 'classes:detail' workout.ride_detail.pk %}"
+             class="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-gray-800 dark:text-gray-200 bg-gray-100 dark:bg-gray-700/70 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors border border-gray-200 dark:border-gray-700">
+            Library
+          </a>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Title + badges -->
+    <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+      <div class="min-w-0">
+        <div class="flex flex-wrap items-center gap-2 mb-3">
+          <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-gray-900 text-white dark:bg-white dark:text-gray-900">
+            {{ workout.duration_minutes }} min
+          </span>
+
+          {% if workout.ride_detail and workout.ride_detail.workout_type %}
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 text-gray-700 dark:text-gray-300">
+              {{ workout.ride_detail.workout_type.name }}
+            </span>
+          {% endif %}
+
+          {# Only show Power Zone badge if this actually is PZ (adjust if you have a boolean) #}
+          {% if workout.title|lower|slice:":11" == "power zone " %}
+            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border border-yellow-200 dark:border-yellow-900/40 bg-yellow-50 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-300">
+              Power Zone
+            </span>
           {% endif %}
         </div>
-      </div>
-      <div class="text-xs text-gray-500 dark:text-gray-500 text-right whitespace-nowrap">
-        {% if workout.completed_date %}{{ workout.completed_date|date:"d/m/Y" }}{% endif %}
+
+        <h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900 dark:text-white">
+          {{ workout.title }}
+        </h1>
+
+        <div class="mt-2 text-sm text-gray-600 dark:text-gray-400">
+          {% if workout.instructor %}
+            <span class="font-semibold text-gray-900 dark:text-white">{{ workout.instructor.name }}</span>
+          {% else %}
+            <span>No instructor</span>
+          {% endif %}
+          <span class="mx-2 text-gray-400">•</span>
+          Recorded <span class="font-medium text-gray-800 dark:text-gray-200">{{ workout.recorded_date|date:"F d, Y" }}</span>
+          <span class="mx-2 text-gray-400">•</span>
+          Completed <span class="font-medium text-gray-800 dark:text-gray-200">{{ workout.completed_date|date:"F d, Y" }}</span>
+        </div>
       </div>
     </div>
   </div>
-  <div id="workoutSummaryMetrics" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-    {% if workout_summary.avg_output_w %}
-      <div>
-        <div class="text-xl font-bold text-gray-900 dark:text-white">{{ workout_summary.avg_output_w|floatformat:0 }} W</div>
-        <div class="text-xs text-gray-600 dark:text-gray-400">Avg Output</div>
-      </div>
-    {% endif %}
-    {% if workout_summary.total_output_kj %}
-      <div>
-        <div class="text-xl font-bold text-gray-900 dark:text-white">{{ workout_summary.total_output_kj|floatformat:0 }} kJ</div>
-        <div class="text-xs text-gray-600 dark:text-gray-400">Total Output</div>
-      </div>
-    {% endif %}
-    {% if workout_summary.max_output_w %}
-      <div>
-        <div class="text-xl font-bold text-gray-900 dark:text-white">{{ workout_summary.max_output_w|floatformat:0 }} W</div>
-        <div class="text-xs text-gray-600 dark:text-gray-400">Max Output</div>
-      </div>
-    {% endif %}
-    {% if workout_summary.distance_mi %}
-      <div>
-        <div class="text-xl font-bold text-gray-900 dark:text-white">{{ workout_summary.distance_mi|floatformat:2 }}</div>
-        <div class="text-xs text-gray-600 dark:text-gray-400">Total Distance (mi)</div>
-      </div>
-    {% endif %}
-    {% if workout.details and workout.details.avg_cadence %}
-      <div>
-        <div class="text-xl font-bold text-gray-900 dark:text-white">{{ workout.details.avg_cadence }}</div>
-        <div class="text-xs text-gray-600 dark:text-gray-400">Avg Cadence (rpm)</div>
-      </div>
-    {% endif %}
-    {% if workout.details and workout.details.avg_resistance %}
-      <div>
-        <div class="text-xl font-bold text-gray-900 dark:text-white">{{ workout.details.avg_resistance|floatformat:0 }}</div>
-        <div class="text-xs text-gray-600 dark:text-gray-400">Avg Resistance</div>
-      </div>
-    {% endif %}
-    {% if workout_summary.total_calories %}
-      <div>
-        <div class="text-xl font-bold text-gray-900 dark:text-white">{{ workout_summary.total_calories }}</div>
-        <div class="text-xs text-gray-600 dark:text-gray-400">Calories</div>
-      </div>
-    {% endif %}
-    {% if workout_summary.tss %}
-      <div>
-        <div class="text-xl font-bold text-gray-900 dark:text-white">{{ workout_summary.tss|floatformat:0 }}</div>
-        <div class="text-xs text-gray-600 dark:text-gray-400">TSS</div>
-      </div>
-    {% endif %}
-    {% if if_value %}
-      <div>
-        <div class="text-xl font-bold text-gray-900 dark:text-white">{{ if_value }}</div>
-        <div class="text-xs text-gray-600 dark:text-gray-400">IF</div>
-      </div>
-    {% endif %}
+
+  {% if workout_summary %}
+
+  <!-- KPI grid -->
+  <div class="p-4 sm:p-6">
+    <div id="workoutSummaryMetrics" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+
+      {% if workout_summary.avg_output_w %}
+        <div class="rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-900/20 p-3">
+          <div class="text-lg font-bold text-gray-900 dark:text-white tabular-nums">{{ workout_summary.avg_output_w|floatformat:0 }} W</div>
+          <div class="text-xs text-gray-600 dark:text-gray-400 mt-1">Avg Output</div>
+        </div>
+      {% endif %}
+
+      {% if workout_summary.total_output_kj %}
+        <div class="rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-900/20 p-3">
+          <div class="text-lg font-bold text-gray-900 dark:text-white tabular-nums">{{ workout_summary.total_output_kj|floatformat:0 }} kJ</div>
+          <div class="text-xs text-gray-600 dark:text-gray-400 mt-1">Total Output</div>
+        </div>
+      {% endif %}
+
+      {% if workout_summary.max_output_w %}
+        <div class="rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-900/20 p-3">
+          <div class="text-lg font-bold text-gray-900 dark:text-white tabular-nums">{{ workout_summary.max_output_w|floatformat:0 }} W</div>
+          <div class="text-xs text-gray-600 dark:text-gray-400 mt-1">Max Output</div>
+        </div>
+      {% endif %}
+
+      {% if workout_summary.distance_mi %}
+        <div class="rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-900/20 p-3">
+          <div class="text-lg font-bold text-gray-900 dark:text-white tabular-nums">{{ workout_summary.distance_mi|floatformat:2 }}</div>
+          <div class="text-xs text-gray-600 dark:text-gray-400 mt-1">Distance (mi)</div>
+        </div>
+      {% endif %}
+
+      {% if workout.details and workout.details.avg_cadence %}
+        <div class="rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-900/20 p-3">
+          <div class="text-lg font-bold text-gray-900 dark:text-white tabular-nums">{{ workout.details.avg_cadence }}</div>
+          <div class="text-xs text-gray-600 dark:text-gray-400 mt-1">Avg Cadence (rpm)</div>
+        </div>
+      {% endif %}
+
+      {% if workout.details and workout.details.avg_resistance %}
+        <div class="rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-900/20 p-3">
+          <div class="text-lg font-bold text-gray-900 dark:text-white tabular-nums">{{ workout.details.avg_resistance|floatformat:0 }}</div>
+          <div class="text-xs text-gray-600 dark:text-gray-400 mt-1">Avg Resistance</div>
+        </div>
+      {% endif %}
+
+      {% if workout_summary.total_calories %}
+        <div class="rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-900/20 p-3">
+          <div class="text-lg font-bold text-gray-900 dark:text-white tabular-nums">{{ workout_summary.total_calories }}</div>
+          <div class="text-xs text-gray-600 dark:text-gray-400 mt-1">Calories</div>
+        </div>
+      {% endif %}
+
+      {% if workout_summary.tss %}
+        <div class="rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-900/20 p-3">
+          <div class="text-lg font-bold text-gray-900 dark:text-white tabular-nums">{{ workout_summary.tss|floatformat:0 }}</div>
+          <div class="text-xs text-gray-600 dark:text-gray-400 mt-1">TSS</div>
+        </div>
+      {% endif %}
+
+      {% if if_value %}
+        <div class="rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-900/20 p-3">
+          <div class="text-lg font-bold text-gray-900 dark:text-white tabular-nums">{{ if_value }}</div>
+          <div class="text-xs text-gray-600 dark:text-gray-400 mt-1">IF</div>
+        </div>
+      {% endif %}
+
+    </div>
   </div>
 </div>
 {% endif %}
+
+
+
 
 <!-- Power Zone Timeline Chart -->
 {% if performance_data or target_metrics %}
