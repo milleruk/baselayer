@@ -1,0 +1,29 @@
+{% extends "base_root.html" %}
+
+{% block body %}
+  <div class="flex min-h-screen bg-gray-50 dark:bg-gray-900">
+
+    <!-- Mobile overlay -->
+    <div x-show="sidebarOpen" x-cloak @click="sidebarOpen=false"
+         class="fixed inset-0 z-40 bg-black/50 backdrop-blur-[1px] lg:hidden"></div>
+
+    {% include "partials/_sidebar.html" %}
+
+    <div class="flex-1 min-w-0 flex flex-col">
+      {% include "partials/_topbar.html" %}
+
+      <main class="flex-1 min-w-0 ctz-scroll">
+        {% include "base/_messages.html" with container="px-4 sm:px-6 pt-6" %}
+        <div class="px-4 sm:px-6 py-6">
+          {% block content %}{% endblock %}
+        </div>
+        <div class="px-4 sm:px-6 pb-8">
+          {% include "partials/footer.html" %}
+        </div>
+      </main>
+
+      {# ✅ Page-specific scripts live here (always outside HTMX swaps) #}
+      {% block extra_body %}{% endblock %}
+    </div>
+  </div>
+{% endblock %}

@@ -1,0 +1,60 @@
+{% load static %}
+<!doctype html>
+<html
+  lang="en"
+  class="overflow-x-hidden"
+  x-data="layoutRoot()"
+  x-init="init()"
+>
+<head>
+
+  {% include "base/_head.html" %}
+  <title>Chase The Zones - {% block title %}Fitness & Health is a Mentality{% endblock %}</title>
+  {% block extra_head %}{% endblock %}
+</head>
+
+<body class="font-outfit bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 overflow-x-hidden">
+
+  {% include "base/_dev_banner.html" %}
+    {% include "base/_global_loader.html" %}
+
+  {% block body %}{% endblock %}
+
+    {% include "base/_toasts.html" %}
+    {% include "base/_video_modal.html" %}
+
+    {# ================= GLOBAL CORE SCRIPTS ================= #}
+    {% include "base/_scripts_core.html" %}
+
+    {# ======================================================= #}
+    {# OPTIONAL PAGE SCRIPTS                                  #}
+    {#                                                          #}
+    {# On pages that need extras, override `extra_scripts`:    #}
+    {#                                                          #}
+    {#   HTMX:                                                 #}
+    {#     {% block extra_scripts %}                           #}
+    {#       {% include "base/_scripts_htmx.html" %}           #}
+    {#     {% endblock %}                                      #}
+    {#                                                          #}
+    {#   Charts (Chart.js):                                    #}
+    {#     {% block extra_scripts %}                           #}
+    {#       {% include "base/_scripts_charts.html" %}         #}
+    {#     {% endblock %}                                      #}
+    {#                                                          #}
+    {#   Video modal JS:                                       #}
+    {#     {% block extra_scripts %}                           #}
+    {#       {% include "base/_scripts_video.html" %}          #}
+    {#     {% endblock %}                                      #}
+    {#                                                          #}
+    {#   Multiple extras:                                      #}
+    {#     {% block extra_scripts %}                           #}
+    {#       {% include "base/_scripts_htmx.html" %}           #}
+    {#       {% include "base/_scripts_charts.html" %}         #}
+    {#     {% endblock %}                                      #}
+    {# ======================================================= #}
+
+    {% block extra_scripts %}{% endblock %}
+
+    {% block extra_body %}{% endblock %}
+</body>
+</html>

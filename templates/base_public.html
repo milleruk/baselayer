@@ -1,0 +1,12 @@
+{% extends "base_root.html" %}
+
+{% block body %}
+  {% include "partials/_public_topnav.html" %}
+
+  <main>
+    {% include "base/_messages.html" with container="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6" %}
+    {% block content %}{% endblock %}
+  </main>
+
+  {% include "partials/footer.html" %}
+{% endblock %}

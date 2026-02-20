@@ -228,3 +228,99 @@
 .recap-grid > .col-span-full {
   grid-column: 1 / -1;
 }
+
+
+
+/* =============================================================================
+   CTZ Dashboard polish
+   - Used by: templates/core/dashboard.html (via core/partials/dashboard_*.html)
+   - If you split later: move into static/css/dashboard.css and link in extra_head
+============================================================================= */
+
+@keyframes ctZFloat { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-2px)} }
+@keyframes ctZShimmer { 0%{transform:translateX(-120%);opacity:0} 20%{opacity:.35} 60%{opacity:.15} 100%{transform:translateX(120%);opacity:0} }
+
+.ctz-card{
+  border-radius:1rem;
+  border:1px solid rgb(229 231 235);
+  background:rgb(255 255 255);
+  box-shadow:0 1px 2px rgba(0,0,0,.05);
+}
+.dark .ctz-card{
+  border-color:rgb(55 65 81);
+  background:rgb(31 41 55);
+  box-shadow:0 1px 2px rgba(0,0,0,.35);
+}
+
+.ctz-glow{position:relative;overflow:hidden}
+.ctz-glow::after{
+  content:"";
+  position:absolute;
+  inset:-40%;
+  background:
+    radial-gradient(circle at 30% 30%, rgba(59,130,246,.18), transparent 55%),
+    radial-gradient(circle at 80% 20%, rgba(236,72,153,.10), transparent 55%),
+    radial-gradient(circle at 60% 80%, rgba(34,197,94,.10), transparent 55%);
+  pointer-events:none;
+}
+.ctz-shimmer::before{
+  content:"";
+  position:absolute;
+  top:-40%;
+  bottom:-40%;
+  width:40%;
+  left:0;
+  background:linear-gradient(90deg, transparent, rgba(255,255,255,.18), transparent);
+  transform:translateX(-120%);
+  animation:ctZShimmer 4.5s ease-in-out infinite;
+  pointer-events:none;
+}
+.dark .ctz-shimmer::before{
+  background:linear-gradient(90deg, transparent, rgba(255,255,255,.10), transparent);
+}
+
+.ctz-chip{
+  display:inline-flex;
+  align-items:center;
+  gap:.5rem;
+  padding:.25rem .6rem;
+  border-radius:999px;
+  border:1px solid rgb(229 231 235);
+  background:rgb(249 250 251);
+  font-size:.75rem;
+  font-weight:600;
+  color:rgb(55 65 81);
+}
+.dark .ctz-chip{
+  border-color:rgb(55 65 81);
+  background:rgba(255,255,255,.04);
+  color:rgba(255,255,255,.85);
+}
+
+.ctz-btn-press{transition:transform .15s ease, box-shadow .15s ease}
+.ctz-btn-press:hover{transform:translateY(-1px)}
+.ctz-btn-press:active{transform:translateY(0)}
+
+.ctz-divider{
+  height:1px;
+  background:linear-gradient(90deg, transparent, rgba(0,0,0,.08), transparent);
+}
+.dark .ctz-divider{
+  background:linear-gradient(90deg, transparent, rgba(255,255,255,.10), transparent);
+}
+
+.ctz-chart-wrap{
+  border-radius:1rem;
+  border:1px solid rgb(229 231 235);
+  background:rgba(255,255,255,.65);
+  backdrop-filter:blur(6px);
+}
+.dark .ctz-chart-wrap{
+  border-color:rgb(55 65 81);
+  background:rgba(17,24,39,.35);
+}
+
+/* HTMX loading flourish */
+.ctz-loading{opacity:0;transform:translateY(-2px);transition:opacity .2s ease, transform .2s ease}
+.htmx-request .ctz-loading{opacity:1;transform:translateY(0)}
+.ctz-float-dot{animation:ctZFloat 1.6s ease-in-out infinite}

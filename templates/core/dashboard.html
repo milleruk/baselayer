@@ -1,0 +1,21 @@
+{# templates/core/dashboard.html #}
+
+{% extends "base_app.html" %}
+{% load static %}
+{% block title %}Dashboard{% endblock %}
+
+{% block extra_head %}
+  <link rel="stylesheet" href="{% static 'css/recap.css' %}">
+{% endblock %}
+
+{% block content %}
+  <div id="dashboard-shell">
+    {% include "core/partials/dashboard_shell.html" %}
+  </div>
+{% endblock %}
+
+{% block extra_scripts %}
+  {% include "base/_scripts_htmx.html" %}
+  {% include "base/_scripts_charts.html" %}
+  <script defer src="{% static 'js/dashboard.js' %}"></script>
+{% endblock %}

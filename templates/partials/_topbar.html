@@ -1,0 +1,43 @@
+<header class="sticky top-0 z-30 bg-white/75 dark:bg-gray-950/45 backdrop-blur-xl border-b border-gray-200/70 dark:border-gray-800/70">
+  <div class="h-16 px-4 sm:px-6 flex items-center justify-between">
+    <div class="flex items-center gap-2 min-w-0">
+                <button
+                @click="toggleSidebar()"
+                class="lg:hidden p-2 rounded-xl text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/10 transition"
+                aria-label="Open sidebar"
+                >
+      <div class="min-w-0">
+        <h1 class="text-lg font-semibold text-gray-900 dark:text-white truncate">
+          {% block page_title %}Dashboard{% endblock %}
+        </h1>
+        <p class="text-xs text-gray-500 dark:text-gray-400 truncate">
+          {% block page_subtitle %}{% endblock %}
+        </p>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-2">
+      <button class="relative p-2 rounded-xl text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/10 transition"
+              aria-label="Notifications">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1"></path>
+        </svg>
+        <span class="absolute top-2 right-2 block h-2 w-2 rounded-full bg-red-500"></span>
+      </button>
+
+      <button @click="toggleDark()"
+              class="p-2 rounded-xl text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/10 transition"
+              title="Toggle dark mode">
+        <svg x-show="!darkMode" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
+        </svg>
+        <svg x-show="darkMode" x-cloak class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
+        </svg>
+      </button>
+    </div>
+  </div>
+</header>

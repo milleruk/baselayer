@@ -1,0 +1,237 @@
+{% load static %}
+
+<nav class="bg-white/85 dark:bg-gray-950/60 backdrop-blur-xl border-b border-gray-200/70 dark:border-gray-800/70 md:sticky top-0 z-50">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex justify-between items-center h-16">
+      <!-- Left: Brand + Desktop nav -->
+      <div class="flex items-center min-w-0">
+        <a href="{% url 'core:dashboard' %}" class="flex items-center group transition-opacity hover:opacity-90">
+          <img src="{% static 'img/logo.png' %}" alt="Chase The Zones" class="h-10 w-auto transition-transform group-hover:scale-[1.03]">
+        </a>
+
+        <!-- Desktop nav -->
+        <div class="hidden md:flex ml-10 space-x-1">
+          {% if user.is_authenticated %}
+            <!-- Authenticated nav -->
+            <a href="{% url 'core:landing' %}"
+               class="px-4 py-2 text-sm font-medium rounded-xl transition
+               {% if request.resolver_match.url_name == 'landing' %}text-primary bg-primary/10 dark:bg-primary/20 font-semibold{% else %}
+                 text-gray-700 dark:text-gray-300 hover:text-primary hover:bg-gray-100 dark:hover:bg-white/10
+               {% endif %}">
+              Home
+            </a>
+
+            <a href="{% url 'plans:exercise_list' %}"
+               class="px-4 py-2 text-sm font-medium rounded-xl transition text-gray-700 dark:text-gray-300 hover:text-primary hover:bg-gray-100 dark:hover:bg-white/10">
+              Exercises
+            </a>
+
+            <a href="{% url 'tracker:weekly_plans' %}"
+               class="px-4 py-2 text-sm font-medium rounded-xl transition text-gray-700 dark:text-gray-300 hover:text-primary hover:bg-gray-100 dark:hover:bg-white/10">
+              My Plans
+            </a>
+
+            <a href="{% url 'workouts:history' %}"
+               class="px-4 py-2 text-sm font-medium rounded-xl transition text-gray-700 dark:text-gray-300 hover:text-primary hover:bg-gray-100 dark:hover:bg-white/10">
+              Workouts
+            </a>
+
+            <a href="{% url 'recommender:index' %}"
+               class="px-4 py-2 text-sm font-medium rounded-xl transition text-gray-700 dark:text-gray-300 hover:text-primary hover:bg-gray-100 dark:hover:bg-white/10">
+              Recommender
+            </a>
+
+            <a href="{% url 'annual_challenge:index' %}"
+               class="px-4 py-2 text-sm font-medium rounded-xl transition text-gray-700 dark:text-gray-300 hover:text-primary hover:bg-gray-100 dark:hover:bg-white/10">
+              Annual Challenge
+            </a>
+          {% else %}
+            <!-- Public nav -->
+            <a href="{% url 'core:landing' %}"
+               class="px-4 py-2 text-sm font-medium rounded-xl transition
+               {% if request.resolver_match.url_name == 'landing' %}text-primary bg-primary/10 dark:bg-primary/20 font-semibold{% else %}
+                 text-gray-700 dark:text-gray-300 hover:text-primary hover:bg-gray-100 dark:hover:bg-white/10
+               {% endif %}">
+              Home
+            </a>
+
+            <a href="{% url 'core:how_it_works' %}"
+               class="px-4 py-2 text-sm font-medium rounded-xl transition
+               {% if request.resolver_match.url_name == 'how_it_works' %}text-primary bg-primary/10 dark:bg-primary/20 font-semibold{% else %}
+                 text-gray-700 dark:text-gray-300 hover:text-primary hover:bg-gray-100 dark:hover:bg-white/10
+               {% endif %}">
+              How It Works
+            </a>
+
+            <a href="{% url 'core:features' %}"
+               class="px-4 py-2 text-sm font-medium rounded-xl transition
+               {% if request.resolver_match.url_name == 'features' %}text-primary bg-primary/10 dark:bg-primary/20 font-semibold{% else %}
+                 text-gray-700 dark:text-gray-300 hover:text-primary hover:bg-gray-100 dark:hover:bg-white/10
+               {% endif %}">
+              Features
+            </a>
+
+            <a href="{% url 'core:about' %}"
+               class="px-4 py-2 text-sm font-medium rounded-xl transition
+               {% if request.resolver_match.url_name == 'about' %}text-primary bg-primary/10 dark:bg-primary/20 font-semibold{% else %}
+                 text-gray-700 dark:text-gray-300 hover:text-primary hover:bg-gray-100 dark:hover:bg-white/10
+               {% endif %}">
+              About
+            </a>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Right: actions -->
+      <div class="flex items-center space-x-2">
+
+        <!-- Mobile menu toggle -->
+        <button @click="sidebarOpen = !sidebarOpen"
+                class="md:hidden p-2 rounded-xl text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/10 transition"
+                aria-label="Toggle menu">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+          </svg>
+        </button>
+
+        <!-- Dark mode -->
+        <button @click="toggleDark()"
+                class="p-2 rounded-xl text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/10 transition"
+                title="Toggle dark mode">
+          <svg x-show="!darkMode" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
+          </svg>
+          <svg x-show="darkMode" x-cloak class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
+          </svg>
+        </button>
+
+        {% if user.is_authenticated %}
+          <!-- Authenticated: user menu -->
+          <div x-data="{ open: false }" class="relative">
+            <button @click="open=!open"
+                    class="flex items-center space-x-2 p-1.5 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 transition"
+                    aria-label="User menu">
+              <div class="w-9 h-9 rounded-full bg-primary text-white grid place-items-center font-semibold text-sm shadow-sm">
+                {% if user.profile.full_name %}
+                  {% with name=user.profile.full_name %}
+                    {{ name|first|upper }}{% if " " in name %}{{ name|slice:"-1:"|first|upper }}{% endif %}
+                  {% endwith %}
+                {% else %}
+                  {{ user.email|slice:":2"|upper }}
+                {% endif %}
+              </div>
+              <svg class="w-4 h-4 text-gray-500 dark:text-gray-400 hidden md:block transition-transform"
+                   :class="open ? 'rotate-180' : ''"
+                   fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+              </svg>
+            </button>
+
+            <div x-show="open" @click.away="open=false" x-cloak
+                 class="absolute right-0 mt-2 w-52 bg-white dark:bg-gray-900 rounded-2xl shadow-xl border border-gray-200/70 dark:border-gray-800/70 overflow-hidden z-50">
+              <a href="{% url 'profile' %}"
+                 class="flex items-center px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10">
+                <svg class="w-4 h-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                </svg>
+                Profile
+              </a>
+
+              <a href="{% url 'core:dashboard' %}"
+                 class="flex items-center px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10">
+                <svg class="w-4 h-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3"></path>
+                </svg>
+                Dashboard
+              </a>
+
+              <div class="border-t border-gray-200/70 dark:border-gray-800/70"></div>
+
+              <form method="post" action="{% url 'account_logout' %}" class="m-0">
+                {% csrf_token %}
+                <button type="submit"
+                        class="w-full flex items-center px-4 py-2.5 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-white/10">
+                  <svg class="w-4 h-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+                  </svg>
+                  Log out
+                </button>
+              </form>
+            </div>
+          </div>
+        {% else %}
+          <!-- Public: auth CTAs -->
+          <a href="{% url 'login' %}"
+             class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-primary rounded-xl transition hover:bg-gray-100 dark:hover:bg-white/10">
+            Login
+          </a>
+          <a href="{% url 'register' %}"
+             class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-xl transition shadow-sm hover:shadow-md">
+            Register
+          </a>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Mobile menu -->
+    <div x-show="sidebarOpen" @click.away="sidebarOpen=false" x-cloak
+         class="md:hidden border-t border-gray-200/70 dark:border-gray-800/70 py-3 bg-gray-50/60 dark:bg-gray-950/40 backdrop-blur">
+      <div class="space-y-1 px-2">
+        {% if user.is_authenticated %}
+          <a href="{% url 'core:landing' %}" class="block px-4 py-2.5 text-sm font-medium rounded-xl transition
+            {% if request.resolver_match.url_name == 'landing' %}text-primary bg-primary/10 dark:bg-primary/20 font-semibold{% else %}
+              text-gray-700 dark:text-gray-300 hover:text-primary hover:bg-gray-100 dark:hover:bg-white/10
+            {% endif %}">Home</a>
+
+          <a href="{% url 'plans:exercise_list' %}" class="block px-4 py-2.5 text-sm font-medium rounded-xl transition text-gray-700 dark:text-gray-300 hover:text-primary hover:bg-gray-100 dark:hover:bg-white/10">Exercises</a>
+          <a href="{% url 'tracker:weekly_plans' %}" class="block px-4 py-2.5 text-sm font-medium rounded-xl transition text-gray-700 dark:text-gray-300 hover:text-primary hover:bg-gray-100 dark:hover:bg-white/10">My Plans</a>
+          <a href="{% url 'workouts:history' %}" class="block px-4 py-2.5 text-sm font-medium rounded-xl transition text-gray-700 dark:text-gray-300 hover:text-primary hover:bg-gray-100 dark:hover:bg-white/10">Workouts</a>
+          <a href="{% url 'recommender:index' %}" class="block px-4 py-2.5 text-sm font-medium rounded-xl transition text-gray-700 dark:text-gray-300 hover:text-primary hover:bg-gray-100 dark:hover:bg-white/10">Recommender</a>
+          <a href="{% url 'annual_challenge:index' %}" class="block px-4 py-2.5 text-sm font-medium rounded-xl transition text-gray-700 dark:text-gray-300 hover:text-primary hover:bg-gray-100 dark:hover:bg-white/10">Annual Challenge</a>
+          <a href="{% url 'core:dashboard' %}" class="block px-4 py-2.5 text-sm font-medium rounded-xl transition text-gray-700 dark:text-gray-300 hover:text-primary hover:bg-gray-100 dark:hover:bg-white/10">Dashboard</a>
+
+          <div class="border-t border-gray-200/70 dark:border-gray-800/70 my-2"></div>
+
+          <a href="{% url 'profile' %}" class="block px-4 py-2.5 text-sm font-medium rounded-xl transition text-gray-700 dark:text-gray-300 hover:text-primary hover:bg-gray-100 dark:hover:bg-white/10">Profile</a>
+
+          <form method="post" action="{% url 'account_logout' %}" class="m-0">
+            {% csrf_token %}
+            <button type="submit"
+                    class="w-full text-left px-4 py-2.5 text-sm font-medium rounded-xl transition text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-white/10">
+              Log out
+            </button>
+          </form>
+        {% else %}
+          <a href="{% url 'core:landing' %}" class="block px-4 py-2.5 text-sm font-medium rounded-xl transition
+            {% if request.resolver_match.url_name == 'landing' %}text-primary bg-primary/10 dark:bg-primary/20 font-semibold{% else %}
+              text-gray-700 dark:text-gray-300 hover:text-primary hover:bg-gray-100 dark:hover:bg-white/10
+            {% endif %}">Home</a>
+
+          <a href="{% url 'core:how_it_works' %}" class="block px-4 py-2.5 text-sm font-medium rounded-xl transition
+            {% if request.resolver_match.url_name == 'how_it_works' %}text-primary bg-primary/10 dark:bg-primary/20 font-semibold{% else %}
+              text-gray-700 dark:text-gray-300 hover:text-primary hover:bg-gray-100 dark:hover:bg-white/10
+            {% endif %}">How It Works</a>
+
+          <a href="{% url 'core:features' %}" class="block px-4 py-2.5 text-sm font-medium rounded-xl transition
+            {% if request.resolver_match.url_name == 'features' %}text-primary bg-primary/10 dark:bg-primary/20 font-semibold{% else %}
+              text-gray-700 dark:text-gray-300 hover:text-primary hover:bg-gray-100 dark:hover:bg-white/10
+            {% endif %}">Features</a>
+
+          <a href="{% url 'core:about' %}" class="block px-4 py-2.5 text-sm font-medium rounded-xl transition
+            {% if request.resolver_match.url_name == 'about' %}text-primary bg-primary/10 dark:bg-primary/20 font-semibold{% else %}
+              text-gray-700 dark:text-gray-300 hover:text-primary hover:bg-gray-100 dark:hover:bg-white/10
+            {% endif %}">About</a>
+
+          <div class="border-t border-gray-200/70 dark:border-gray-800/70 my-2"></div>
+
+          <a href="{% url 'login' %}" class="block px-4 py-2.5 text-sm font-medium rounded-xl transition text-gray-700 dark:text-gray-300 hover:text-primary hover:bg-gray-100 dark:hover:bg-white/10">Login</a>
+          <a href="{% url 'register' %}" class="block px-4 py-2.5 text-sm font-medium rounded-xl transition text-white bg-primary hover:bg-primary-dark shadow-sm">Register</a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</nav>

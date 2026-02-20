@@ -1,0 +1,18 @@
+{# Heavy metrics content, moved from metrics.html #}
+
+<div id="metrics-content" class="opacity-0 transition-opacity duration-300">
+  <!-- Skeleton loader for metrics (optional, can be removed if not needed) -->
+  <div id="metrics-skeleton" class="animate-pulse">
+    <div class="h-8 w-1/3 bg-gray-200 dark:bg-gray-700 rounded mb-4"></div>
+    <div class="h-4 w-1/2 bg-gray-200 dark:bg-gray-700 rounded mb-6"></div>
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+      <div class="h-40 bg-gray-200 dark:bg-gray-700 rounded-xl"></div>
+      <div class="h-40 bg-gray-200 dark:bg-gray-700 rounded-xl"></div>
+    </div>
+    <div class="h-64 bg-gray-200 dark:bg-gray-700 rounded-xl mb-8"></div>
+  </div>
+  <div id="metrics-real-content" style="display:none">
+    <!-- ...PASTE ALL METRICS PAGE CONTENT HERE (except loader/shell/htmx div)... -->
+    <!-- You will move the main metrics HTML and JS here. -->
+  </div>
+</div>

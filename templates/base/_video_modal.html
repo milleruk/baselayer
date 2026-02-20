@@ -1,0 +1,23 @@
+<!-- Video Modal -->
+<div class="video-modal hidden fixed inset-0 z-50 flex items-center justify-center" id="videoModal">
+  <div class="video-modal-overlay absolute inset-0 bg-black/70 backdrop-blur-sm" id="videoModalOverlay"></div>
+
+  <div class="video-modal-content relative bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-4xl mx-4 overflow-hidden z-10">
+    <button class="video-modal-close absolute top-3 right-3 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white text-2xl"
+            id="videoModalClose"
+            aria-label="Close">
+      &times;
+    </button>
+
+    <div class="video-modal-body aspect-video">
+      <iframe
+        id="videoModalFrame"
+        src=""
+        class="w-full h-full"
+        frameborder="0"
+        allowfullscreen
+        loading="lazy">
+      </iframe>
+    </div>
+  </div>
+</div>

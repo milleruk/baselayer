@@ -111,6 +111,22 @@
 </div>
 {% endif %}
 
+<!-- Running Trends Chart -->
+{% if running_workouts_by_week|length > 0 %}
+<div class="ctz-chart-card p-4 sm:p-6 mb-6">
+  <div class="ctz-chart-head mb-4">
+    <div class="min-w-0">
+      <h3 class="text-lg font-bold text-gray-900 dark:text-white">Running Trends</h3>
+      <p class="text-sm ctz-chart-sub">Weekly running distance and calories ({{ period_description }})</p>
+    </div>
+    <span class="ctz-pill"><span aria-hidden="true">🏃‍♂️</span> Running</span>
+  </div>
+  <div class="ctz-canvas-wrap h-72 sm:h-80">
+    <canvas id="runningTrendsChart"></canvas>
+  </div>
+</div>
+{% endif %}
+
 <!-- Store chart data for re-initialization -->
 <script id="chart-data" type="application/json">
 {

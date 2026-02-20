@@ -247,3 +247,32 @@ document.body.addEventListener('htmx:sendError', (event) => {
   // Show error notification on network errors
   Alpine.store('notifications').add('Network error. Please check your connection.', 'error', 5000);
 });
+
+function layoutRoot() {
+  return {
+    sidebarOpen: false,
+    sidebarCollapsed: Alpine.$persist(false).as('ctz_sidebar_collapsed'),
+    darkMode: Alpine.$persist(true).as('ctz_dark'),
+
+    init() {
+      document.documentElement.classList.toggle('dark', this.darkMode);
+
+      const mq = window.matchMedia('(min-width: 1024px)');
+      const onChange = () => { if (mq.matches) this.sidebarOpen = false; };
+      mq.addEventListener?.('change', onChange);
+      onChange();
+
+      window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') this.sidebarOpen = false;
+      });
+    },
+
+    toggleDark() {
+      this.darkMode = !this.darkMode;
+      document.documentElement.classList.toggle('dark', this.darkMode);
+    },
+
+    toggleSidebar() { this.sidebarOpen = !this.sidebarOpen; },
+    toggleCollapse() { this.sidebarCollapsed = !this.sidebarCollapsed; },
+  };
+}

@@ -1,0 +1,27 @@
+{% load static %}
+<div id="global-loader" class="fixed inset-0 z-[9999] hidden">
+  <div class="absolute inset-0 bg-gray-900/70 backdrop-blur-sm"></div>
+
+  <div class="relative h-full w-full flex items-center justify-center">
+    <div class="text-center">
+      <div class="mb-6 animate-pulse">
+        <img src="{% static 'img/logo.png' %}" alt="Chase The Zones" class="h-16 w-auto mx-auto animate-bounce" style="animation-duration: 2s;">
+      </div>
+
+      <div class="relative w-14 h-14 mx-auto mb-4">
+        <div class="absolute inset-0 border-4 border-primary/25 rounded-full"></div>
+        <div class="absolute inset-0 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+      </div>
+
+      <p id="global-loader-message" class="text-white text-base font-semibold mb-1">Loading…</p>
+      <p class="text-gray-300 text-sm">&nbsp;</p>
+
+      <div class="flex justify-center gap-2 mt-4">
+        <div class="w-2 h-2 bg-primary rounded-full animate-bounce" style="animation-delay: 0s;"></div>
+        <div class="w-2 h-2 bg-primary rounded-full animate-bounce" style="animation-delay: 0.2s;"></div>
+        <div class="w-2 h-2 bg-primary rounded-full animate-bounce" style="animation-delay: 0.4s;"></div>
+      </div>
+      <script src="{% static 'js/global_loader_messages.js' %}"></script>
+    </div>
+  </div>
+</div>

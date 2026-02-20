@@ -1,0 +1,63 @@
+{% load static %}
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0" />
+<meta http-equiv="X-UA-Compatible" content="ie=edge" />
+
+<!-- Favicon -->
+<link rel="icon" type="image/png" href="{% static 'img/fav.png' %}" />
+
+<!-- PWA Manifest -->
+<link rel="manifest" href="{% static 'site.webmanifest' %}" />
+
+<!-- Theme Color -->
+<meta name="theme-color" content="#465fff" />
+<meta name="msapplication-TileColor" content="#465fff" />
+
+<!-- iOS App Icons -->
+<link rel="apple-touch-icon" sizes="20x20" href="{% static 'img/icons/ios/AppIcon-20@2x.png' %}" />
+<link rel="apple-touch-icon" sizes="20x20" href="{% static 'img/icons/ios/AppIcon-20@3x.png' %}" />
+<link rel="apple-touch-icon" sizes="29x29" href="{% static 'img/icons/ios/AppIcon-29@2x.png' %}" />
+<link rel="apple-touch-icon" sizes="29x29" href="{% static 'img/icons/ios/AppIcon-29@3x.png' %}" />
+<link rel="apple-touch-icon" sizes="40x40" href="{% static 'img/icons/ios/AppIcon-40@2x.png' %}" />
+<link rel="apple-touch-icon" sizes="40x40" href="{% static 'img/icons/ios/AppIcon-40@3x.png' %}" />
+<link rel="apple-touch-icon" sizes="60x60" href="{% static 'img/icons/ios/AppIcon-60@2x.png' %}" />
+<link rel="apple-touch-icon" sizes="60x60" href="{% static 'img/icons/ios/AppIcon-60@3x.png' %}" />
+<link rel="apple-touch-icon" sizes="1024x1024" href="{% static 'img/icons/ios/AppIcon-1024.png' %}" />
+
+<!-- iOS Meta Tags -->
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Chase The Zones" />
+
+<!-- PWA Icons -->
+<link rel="icon" type="image/png" sizes="192x192" href="{% static 'img/icons/pwa/pwa-192.png' %}" />
+<link rel="icon" type="image/png" sizes="256x256" href="{% static 'img/icons/pwa/pwa-256.png' %}" />
+<link rel="icon" type="image/png" sizes="384x384" href="{% static 'img/icons/pwa/pwa-384.png' %}" />
+<link rel="icon" type="image/png" sizes="512x512" href="{% static 'img/icons/pwa/pwa-512.png' %}" />
+
+<!-- Android Icons -->
+<link rel="icon" type="image/png" sizes="48x48" href="{% static 'img/icons/android/mipmap-mdpi.png' %}" />
+<link rel="icon" type="image/png" sizes="72x72" href="{% static 'img/icons/android/mipmap-hdpi.png' %}" />
+<link rel="icon" type="image/png" sizes="96x96" href="{% static 'img/icons/android/mipmap-xhdpi.png' %}" />
+<link rel="icon" type="image/png" sizes="144x144" href="{% static 'img/icons/android/mipmap-xxhdpi.png' %}" />
+<link rel="icon" type="image/png" sizes="192x192" href="{% static 'img/icons/android/mipmap-xxxhdpi.png' %}" />
+
+<!-- Apply dark mode immediately to prevent flash -->
+<script src="{% static 'js/dark-mode-init.js' %}"></script>
+
+<!-- Tailwind -->
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="{% static 'js/tailwind-config.js' %}"></script>
+
+<!-- TailAdmin Theme CSS -->
+<link rel="stylesheet" href="{% static 'css/tailadmin.css' %}" />
+
+<!-- Base CSS -->
+<link rel="stylesheet" href="{% static 'css/base.css' %}" />
+
+<style>
+  [x-cloak]{ display:none !important; }
+  .ctz-scroll::-webkit-scrollbar{ width:10px; height:10px; }
+  .ctz-scroll::-webkit-scrollbar-thumb{ background: rgba(148,163,184,.45); border-radius: 999px; border: 3px solid transparent; background-clip: content-box; }
+  .dark .ctz-scroll::-webkit-scrollbar-thumb{ background: rgba(148,163,184,.28); border: 3px solid transparent; background-clip: content-box; }
+</style>

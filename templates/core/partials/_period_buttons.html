@@ -1,0 +1,45 @@
+{# templates/core/partials/_period_buttons.html #}
+
+<button
+  hx-get="{% url 'core:dashboard' %}?period=7d{{ hm }}"
+  hx-target="#dashboard-shell"
+  hx-swap="outerHTML"
+  hx-indicator="#refresh-indicator"
+  hx-push-url="true"
+  class="period-filter ctz-btn-press px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-colors
+    {% if selected_period == '7d' %}bg-primary text-white shadow{% else %}text-gray-700 dark:text-gray-300 hover:bg-gray-100/80 dark:hover:bg-gray-700/60{% endif %}"
+  data-period="7d"
+>Last 7 Days</button>
+
+<button
+  hx-get="{% url 'core:dashboard' %}?period=30d{{ hm }}"
+  hx-target="#dashboard-shell"
+  hx-swap="outerHTML"
+  hx-indicator="#refresh-indicator"
+  hx-push-url="true"
+  class="period-filter ctz-btn-press px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-colors
+    {% if selected_period == '30d' %}bg-primary text-white shadow{% else %}text-gray-700 dark:text-gray-300 hover:bg-gray-100/80 dark:hover:bg-gray-700/60{% endif %}"
+  data-period="30d"
+>Last 30 Days</button>
+
+<button
+  hx-get="{% url 'core:dashboard' %}?period=90d{{ hm }}"
+  hx-target="#dashboard-shell"
+  hx-swap="outerHTML"
+  hx-indicator="#refresh-indicator"
+  hx-push-url="true"
+  class="period-filter ctz-btn-press px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-colors
+    {% if selected_period == '90d' %}bg-primary text-white shadow{% else %}text-gray-700 dark:text-gray-300 hover:bg-gray-100/80 dark:hover:bg-gray-700/60{% endif %}"
+  data-period="90d"
+>Last 90 Days</button>
+
+<button
+  hx-get="{% url 'core:dashboard' %}?period=all{{ hm }}"
+  hx-target="#dashboard-shell"
+  hx-swap="outerHTML"
+  hx-indicator="#refresh-indicator"
+  hx-push-url="true"
+  class="period-filter ctz-btn-press px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-colors
+    {% if selected_period == 'all' %}bg-primary text-white shadow{% else %}text-gray-700 dark:text-gray-300 hover:bg-gray-100/80 dark:hover:bg-gray-700/60{% endif %}"
+  data-period="all"
+>All Time</button>

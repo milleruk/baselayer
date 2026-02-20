@@ -1,133 +1,170 @@
+/* =========================================================
+   BASE.CSS — global helpers
+   - Layout safety (no sideways scroll)
+   - Sidebar transitions
+   - Form/dropdown readability (dark mode)
+   - Video modal
+   - HTMX loading/indicator helpers
+   - CTZ UI helper classes (cards/chips/shimmer)
+   ========================================================= */
+
+
+/* =========================
+   1) Layout safety
+   ========================= */
+
 /* Prevent horizontal overflow */
 html, body {
   overflow-x: hidden;
   max-width: 100%;
 }
 
-/* Ensure all containers respect viewport width */
+/* Ensure all elements respect viewport sizing */
 * {
   box-sizing: border-box;
 }
 
 /* Improve horizontal scroll affordance for mobile filter bars */
 @media (max-width: 640px) {
-  .scrollbar-thin {
-    scrollbar-width: thin;
-  }
+  .scrollbar-thin { scrollbar-width: thin; }
 }
 
-/* Sidebar animation */
+
+/* =========================
+   2) Sidebar animation helpers
+   ========================= */
+
 .sidebar-transition {
   transition: transform 0.3s ease-in-out;
 }
 
-/* Dropdown contrast fix */
-select option {
-  background-color: white;
-  color: #111827;
-}
-.dark select option {
-  background-color: #374151;
-  color: #f9fafb;
+
+/* =========================
+   3) Form dropdown readability
+   Notes:
+   - `select { color: ... }` controls the closed select.
+   - `select option { ... }` controls the open dropdown list items.
+   - Options need explicit colours in dark mode to avoid unreadable defaults.
+   ========================= */
+
+select {
+  color: #111827; /* gray-900 */
 }
 
-/* Video modal styles */
+.dark select {
+  color: #f9fafb; /* gray-50 */
+}
+
+/* Options (open dropdown list) */
+select option {
+  background-color: white !important;
+  color: #111827 !important;
+  padding: 0.5rem;
+}
+
+.dark select option {
+  background-color: #374151 !important; /* gray-700 */
+  color: #f9fafb !important;
+}
+
+
+/* =========================
+   4) Video modal (global)
+   Used by base/_video_modal.html + video-modal.js
+   ========================= */
+
 .video-modal {
   display: none;
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
+  inset: 0;
   z-index: 9999;
   align-items: center;
   justify-content: center;
 }
-.video-modal.active {
-  display: flex;
-}
+
+.video-modal.active { display: flex; }
+
 .video-modal-overlay {
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
+  inset: 0;
   background: rgba(0, 0, 0, 0.9);
   backdrop-filter: blur(4px);
 }
+
 .video-modal-content {
   position: relative;
   width: 90%;
   max-width: 900px;
   z-index: 10000;
 }
+
 .video-modal-body {
   position: relative;
-  padding-bottom: 56.25%;
+  padding-bottom: 56.25%; /* 16:9 */
   height: 0;
   overflow: hidden;
 }
+
 .video-modal-body iframe {
   position: absolute;
-  top: 0;
-  left: 0;
+  inset: 0;
   width: 100%;
   height: 100%;
 }
+
 .video-modal-close {
   position: absolute;
   top: -40px;
   right: 0;
+  width: 40px;
+  height: 40px;
+
   background: rgba(255, 255, 255, 0.1);
   border: none;
   color: white;
+
   font-size: 2rem;
-  width: 40px;
-  height: 40px;
   cursor: pointer;
   border-radius: 4px;
+
   z-index: 10001;
 }
+
 .video-modal-close:hover {
   background: rgba(255, 255, 255, 0.2);
 }
 
-/* Dropdown contrast fix - ensure options are readable */
-select {
-  color: #111827;
-}
-.dark select {
-  color: #f9fafb;
-}
-select option {
-  background-color: white !important;
-  color: #111827 !important;
-  padding: 0.5rem;
-}
-.dark select option {
-  background-color: #374151 !important;
-  color: #f9fafb !important;
-}
 
-/* HTMX Loading States */
+/* =========================
+   5) HTMX helpers
+   - .htmx-loading: apply manually to areas you want “disabled + spinner”
+   - .htmx-indicator: HTMX built-in indicator target class
+   - .htmx-swapping / .htmx-settling: HTMX transition hooks
+   ========================= */
+
+/* Optional: add class="htmx-loading" to a container during swaps */
 .htmx-loading {
   opacity: 0.6;
   pointer-events: none;
   position: relative;
 }
 
+/* Centered spinner overlay for .htmx-loading containers */
 .htmx-loading::after {
   content: '';
   position: absolute;
   top: 50%;
   left: 50%;
-  transform: translate(-50%, -50%);
+
   width: 24px;
   height: 24px;
+
+  transform: translate(-50%, -50%);
   border: 3px solid rgba(59, 130, 246, 0.3);
   border-top-color: rgb(59, 130, 246);
   border-radius: 50%;
   animation: htmx-spin 0.8s linear infinite;
+
   z-index: 1000;
 }
 
@@ -135,7 +172,7 @@ select option {
   to { transform: translate(-50%, -50%) rotate(360deg); }
 }
 
-/* HTMX Indicator */
+/* HTMX indicator behaviour */
 .htmx-indicator {
   opacity: 0;
   transition: opacity 200ms ease-in;
@@ -146,7 +183,7 @@ select option {
   opacity: 1;
 }
 
-/* HTMX Swapping */
+/* HTMX swap transitions */
 .htmx-swapping {
   opacity: 0;
   transition: opacity 100ms ease-out;
@@ -155,4 +192,115 @@ select option {
 .htmx-settling {
   opacity: 1;
   transition: opacity 100ms ease-in;
+}
+
+
+/* =========================
+   6) CTZ UI helpers (global)
+   Used by dashboard period bar + cards (and anywhere else you reuse them)
+   ========================= */
+
+@keyframes ctzShimmer {
+  0%   { transform: translateX(-120%); opacity: 0; }
+  20%  { opacity: .35; }
+  60%  { opacity: .15; }
+  100% { transform: translateX(120%); opacity: 0; }
+}
+
+/* CTZ card surface */
+.ctz-card{
+  border-radius: 1rem;
+  border: 1px solid rgb(229 231 235);
+  background: rgb(255 255 255);
+  box-shadow: 0 1px 2px rgba(0,0,0,.05);
+}
+
+.dark .ctz-card{
+  border-color: rgb(55 65 81);
+  background: rgb(31 41 55);
+  box-shadow: 0 1px 2px rgba(0,0,0,.35);
+}
+
+/* Decorative glow layer */
+.ctz-glow{
+  position: relative;
+  overflow: hidden;
+}
+
+.ctz-glow::after{
+  content:"";
+  position:absolute;
+  inset:-40%;
+  background:
+    radial-gradient(circle at 30% 30%, rgba(59,130,246,.18), transparent 55%),
+    radial-gradient(circle at 80% 20%, rgba(236,72,153,.10), transparent 55%),
+    radial-gradient(circle at 60% 80%, rgba(34,197,94,.10), transparent 55%);
+  pointer-events:none;
+}
+
+/* Animated shimmer sweep */
+.ctz-shimmer{ position: relative; }
+
+.ctz-shimmer::before{
+  content:"";
+  position:absolute;
+  top:-40%;
+  bottom:-40%;
+  width:40%;
+  left:0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.18), transparent);
+  transform: translateX(-120%);
+  animation: ctzShimmer 4.5s ease-in-out infinite;
+  pointer-events:none;
+}
+
+.dark .ctz-shimmer::before{
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.10), transparent);
+}
+
+/* Small pill chip */
+.ctz-chip{
+  display:inline-flex;
+  align-items:center;
+  gap:.5rem;
+  padding:.25rem .6rem;
+  border-radius: 999px;
+  border: 1px solid rgb(229 231 235);
+  background: rgb(249 250 251);
+  font-size: .75rem;
+  font-weight: 600;
+  color: rgb(55 65 81);
+}
+
+.dark .ctz-chip{
+  border-color: rgb(55 65 81);
+  background: rgba(255,255,255,.04);
+  color: rgba(255,255,255,.85);
+}
+
+/* “Pressable” button micro-interaction */
+.ctz-btn-press{
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+.ctz-btn-press:hover{ transform: translateY(-1px); }
+.ctz-btn-press:active{ transform: translateY(0); }
+
+/* Loading hint that fades in during HTMX requests */
+.ctz-loading{
+  opacity: 0;
+  transform: translateY(-2px);
+  transition: opacity .2s ease, transform .2s ease;
+}
+.htmx-request .ctz-loading{
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Floating dot animation used in the “Updating stats…” hint */
+@keyframes ctzFloat {
+  0%,100% { transform: translateY(0); }
+  50%     { transform: translateY(-2px); }
+}
+.ctz-float-dot{
+  animation: ctzFloat 1.6s ease-in-out infinite;
 }

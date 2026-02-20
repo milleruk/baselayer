@@ -1,0 +1,35 @@
+<div class="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white/80 dark:bg-gray-800/70 backdrop-blur p-4 sm:p-6 shadow-sm">
+  <div class="animate-pulse space-y-5">
+    <div class="h-6 w-48 rounded bg-gray-200 dark:bg-gray-700"></div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+      {% for _ in "1234" %}
+        <div class="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white/60 dark:bg-gray-900/20 p-4">
+          <div class="h-3 w-24 rounded bg-gray-200 dark:bg-gray-700 mb-3"></div>
+          <div class="h-7 w-32 rounded bg-gray-200 dark:bg-gray-700"></div>
+          <div class="h-3 w-20 rounded bg-gray-200 dark:bg-gray-700 mt-3"></div>
+        </div>
+      {% endfor %}
+    </div>
+
+    <div class="grid grid-cols-1 xl:grid-cols-3 gap-4">
+      <div class="xl:col-span-2 rounded-2xl border border-gray-200 dark:border-gray-700 p-4">
+        <div class="h-4 w-40 rounded bg-gray-200 dark:bg-gray-700 mb-4"></div>
+        <div class="h-56 rounded bg-gray-200 dark:bg-gray-700"></div>
+      </div>
+      <div class="rounded-2xl border border-gray-200 dark:border-gray-700 p-4">
+        <div class="h-4 w-40 rounded bg-gray-200 dark:bg-gray-700 mb-4"></div>
+        <div class="h-56 rounded bg-gray-200 dark:bg-gray-700"></div>
+      </div>
+    </div>
+
+    <div class="rounded-2xl border border-gray-200 dark:border-gray-700 p-4">
+      <div class="h-4 w-44 rounded bg-gray-200 dark:bg-gray-700 mb-4"></div>
+      <div class="space-y-3">
+        {% for _ in "123" %}
+          <div class="h-10 rounded bg-gray-200 dark:bg-gray-700"></div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>

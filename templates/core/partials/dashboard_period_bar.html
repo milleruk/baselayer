@@ -1,0 +1,60 @@
+{# templates/core/partials/dashboard_period_bar.html #}
+
+<div class="ctz-card ctz-glow ctz-shimmer relative p-4 sm:p-5 mb-6">
+  <div class="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+
+    <div class="flex flex-col sm:flex-row sm:items-center gap-2">
+      <div class="flex items-center gap-2">
+        <span class="ctz-chip">
+          <span aria-hidden="true">⏱️</span>
+          Time Period
+        </span>
+        <span class="text-xs text-gray-500 dark:text-gray-400 hidden sm:inline">
+          Pick a window and we’ll do the math.
+        </span>
+      </div>
+
+      <div class="-mx-2 sm:mx-0 overflow-x-auto">
+        <div class="inline-flex rounded-xl border border-gray-200 dark:border-gray-700 bg-white/80 dark:bg-gray-800/70 p-1 whitespace-nowrap shadow-sm">
+
+          {# Helper: preserve hide_manual in all requests #}
+          {% if hide_manual %}
+            {% with hm="&hide_manual=1" %}
+              {% include "core/partials/_period_buttons.html" with hm=hm %}
+            {% endwith %}
+          {% else %}
+            {% with hm="" %}
+              {% include "core/partials/_period_buttons.html" with hm=hm %}
+            {% endwith %}
+          {% endif %}
+
+        </div>
+      </div>
+    </div>
+
+    <div class="flex flex-col sm:flex-row sm:items-center gap-3">
+      <div class="ctz-loading hidden lg:flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+        <span class="inline-block w-2 h-2 rounded-full bg-primary ctz-float-dot"></span>
+        Updating stats…
+      </div>
+
+      <button
+        hx-get="{% url 'core:dashboard' %}?period={{ selected_period }}{% if hide_manual %}&hide_manual=1{% endif %}"
+        hx-target="#dashboard-shell"
+        hx-swap="outerHTML"
+        hx-indicator="#refresh-indicator"
+        hx-push-url="true"
+        class="ctz-btn-press inline-flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-white/90 dark:bg-gray-800/70 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700/60 transition-colors w-full sm:w-auto shadow-sm"
+        title="Refresh dashboard"
+      >
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+        </svg>
+        <span class="hidden sm:inline font-semibold">Refresh</span>
+        <svg id="refresh-indicator" class="htmx-indicator w-5 h-5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+        </svg>
+      </button>
+    </div>
+  </div>
+</div>

@@ -1,35 +1,35 @@
-{% extends "base.html" %}
+{% extends "base_app.html" %}
 {% load static %}
 {% load medal_tags dict_filters %}
 {% block title %}Performance Metrics{% endblock %}
 {% block page_title %}Performance Metrics{% endblock %}
 
+{% block extra_scripts %}
+  {% include "base/_scripts_charts.html" %}
+{% endblock %}
+
 {% block content %}
-<!-- Loading Overlay -->
-<div id="metrics-loading-overlay" class="fixed inset-0 bg-gray-900 dark:bg-gray-900 bg-opacity-90 dark:bg-opacity-90 z-50 flex items-center justify-center transition-opacity duration-300">
-  <div class="text-center">
-    <!-- Logo Animation -->
-    <div class="mb-8 animate-pulse">
-      <img src="{% static 'img/logo.png' %}" alt="Chase The Zones" class="h-20 w-auto mx-auto mb-4 animate-bounce" style="animation-duration: 2s;">
-    </div>
-    <!-- Spinner -->
-    <div class="relative w-16 h-16 mx-auto mb-4">
-      <div class="absolute inset-0 border-4 border-primary border-opacity-25 rounded-full"></div>
-      <div class="absolute inset-0 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-    </div>
-    <!-- Loading Text -->
-    <p class="text-white text-lg font-semibold mb-2">Loading Metrics</p>
-    <p class="text-gray-400 text-sm">Calculating your performance data...</p>
-    <!-- Progress Dots -->
-    <div class="flex justify-center gap-2 mt-4">
-      <div class="w-2 h-2 bg-primary rounded-full animate-bounce" style="animation-delay: 0s;"></div>
-      <div class="w-2 h-2 bg-primary rounded-full animate-bounce" style="animation-delay: 0.2s;"></div>
-      <div class="w-2 h-2 bg-primary rounded-full animate-bounce" style="animation-delay: 0.4s;"></div>
-    </div>
-  </div>
-</div>
+<script>
+// Make global loader visible immediately (before DOMContentLoaded)
+var loader = document.getElementById('global-loader');
+if (loader) {
+  loader.classList.remove('hidden');
+  if (window.setRandomLoaderMessage) window.setRandomLoaderMessage();
+}
+</script>
 
 <div id="metrics-content" class="opacity-0 transition-opacity duration-300">
+  <!-- Skeleton loader for metrics -->
+  <div id="metrics-skeleton" class="animate-pulse">
+    <div class="h-8 w-1/3 bg-gray-200 dark:bg-gray-700 rounded mb-4"></div>
+    <div class="h-4 w-1/2 bg-gray-200 dark:bg-gray-700 rounded mb-6"></div>
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+      <div class="h-40 bg-gray-200 dark:bg-gray-700 rounded-xl"></div>
+      <div class="h-40 bg-gray-200 dark:bg-gray-700 rounded-xl"></div>
+    </div>
+    <div class="h-64 bg-gray-200 dark:bg-gray-700 rounded-xl mb-8"></div>
+  </div>
+  <div id="metrics-real-content" style="display:none">
 <div class="mb-6">
   <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">Performance Metrics</h1>
   <p class="text-gray-600 dark:text-gray-400">Track your progress and celebrate your achievements</p>
@@ -177,102 +177,24 @@
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {% for challenge_instance in fully_completed_challenges %}
           <div class="text-center p-6 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50 shadow-md hover:shadow-lg transition-shadow">
-            {% if challenge_instance.challenge.image %}
-              <div class="w-24 h-24 mx-auto mb-4 rounded-xl bg-cover bg-center shadow-lg" style="background-image: url('{{ challenge_instance.challenge.image.url }}');"></div>
-            {% else %}
-              <div class="w-24 h-24 mx-auto mb-4 rounded-xl bg-gray-200 dark:bg-gray-600 flex items-center justify-center">
-                <span class="text-4xl">🏆</span>
-              </div>
-            {% endif %}
-            <div class="font-bold text-gray-900 dark:text-white mb-2 text-lg">{{ challenge_instance.challenge.name }}</div>
-            <div class="text-sm text-gray-600 dark:text-gray-400 bg-white dark:bg-gray-800 rounded-lg px-3 py-1 inline-block">
-              Earned {% if challenge_instance.completed_at %}{{ challenge_instance.completed_at|date:"d/m/Y" }}{% else %}{{ challenge_instance.started_at|date:"d/m/Y" }}{% endif %}
-            </div>
-          </div>
-        {% endfor %}
-      </div>
-    {% else %}
-      <div class="text-center py-12 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
-        <p class="text-gray-600 dark:text-gray-400 font-medium">No achievements yet. Complete challenges to earn badges!</p>
-      </div>
-    {% endif %}
-  </div>
-  
-  <div id="milestones-tab" class="metrics-tab-content hidden">
-    <!-- Milestones content - keeping structure but updating styles -->
-    <div class="space-y-6">
-      {% for milestone_category in peloton_milestones %}
-        <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-          <div class="flex items-center gap-3 mb-4">
-            <div class="text-2xl">{{ milestone_category.icon }}</div>
-            <div>
-              <div class="font-semibold text-gray-900 dark:text-white">{{ milestone_category.name }}</div>
-              <div class="text-sm text-gray-600 dark:text-gray-400">
-                ({{ milestone_category.count }} workouts)
-              </div>
-            </div>
-          </div>
-          <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
-            {% for threshold in milestone_category.thresholds %}
-              {% if threshold in milestone_category.achieved %}
-                <div class="text-center p-3 bg-green-50 dark:bg-green-900/30 rounded-lg border-2 border-green-500 dark:border-green-600">
-                  <div class="w-12 h-12 mx-auto mb-2 rounded-full bg-green-500 dark:bg-green-600 flex items-center justify-center text-xs font-bold text-white">
-                    {{ threshold }}+
-                  </div>
-                  <div class="text-xs text-green-700 dark:text-green-300 mb-1 font-semibold">✓ Completed</div>
-                  <div class="text-xs text-gray-700 dark:text-gray-300">{{ threshold }}+ {{ milestone_category.name }} workouts</div>
-                </div>
-              {% else %}
-                {% if milestone_category.next_milestone == threshold and milestone_category.progress_percentage > 0 %}
-                  <div class="text-center p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg relative overflow-hidden">
-                    <!-- Progress background -->
-                    <div class="absolute inset-0 bg-green-100 dark:bg-green-900/20" style="width: {{ milestone_category.progress_percentage }}%;"></div>
-                    <div class="relative z-10">
-                      <div class="w-12 h-12 mx-auto mb-2 rounded-full bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center text-xs font-bold text-yellow-800 dark:text-yellow-200">
-                        {{ threshold }}+
-                      </div>
-                      <div class="text-xs text-gray-600 dark:text-gray-400 mb-1">Not Completed</div>
-                      <div class="text-xs text-gray-700 dark:text-gray-300 mb-1">{{ threshold }}+ {{ milestone_category.name }} workouts</div>
-                      <div class="text-xs text-green-600 dark:text-green-400 font-semibold">{{ milestone_category.progress_percentage }}%</div>
-                    </div>
-                  </div>
-                {% else %}
-                  <div class="text-center p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-                    <div class="w-12 h-12 mx-auto mb-2 rounded-full bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center text-xs font-bold text-yellow-800 dark:text-yellow-200">
-                      {{ threshold }}+
-                    </div>
-                    <div class="text-xs text-gray-600 dark:text-gray-400 mb-1">Not Completed</div>
-                    <div class="text-xs text-gray-700 dark:text-gray-300">{{ threshold }}+ {{ milestone_category.name }} workouts</div>
-                  </div>
-                {% endif %}
-              {% endif %}
-            {% endfor %}
-          </div>
-        </div>
-      {% endfor %}
-    </div>
-  </div>
-</div>
+            {% block content %}
+            <script>
+            // Show global loader immediately
+            var loader = document.getElementById('global-loader');
+            if (loader) {
+              loader.classList.remove('hidden');
+              if (window.setRandomLoaderMessage) window.setRandomLoaderMessage();
+            }
+            </script>
 
-<!-- Power to Weight and Average Heartbeat -->
-<div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-  <!-- Power to Weight -->
-  <div class="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-lg">
-    <div class="flex justify-between items-center mb-4">
-      <h3 class="text-lg font-bold text-gray-900 dark:text-white">Power to Weight</h3>
-    </div>
-    <div class="flex gap-2 mb-4">
-      <button class="px-4 py-2 text-xs font-medium text-white bg-primary rounded-lg pw-activity-btn active" data-activity="cycling">Cycling</button>
-      <button class="px-4 py-2 text-xs font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors pw-activity-btn" data-activity="tread">Tread</button>
-    </div>
-    
-    <!-- Current Values -->
-    {% if current_cycling_pw %}
-      <div id="pw-cycling-current" class="mb-4">
-        <div class="text-sm text-gray-600 dark:text-gray-400 mb-2 font-medium">Current cycling:</div>
-        <div class="px-4 py-3 text-white bg-primary rounded-lg font-bold text-lg inline-block">
-          {{ current_cycling_pw }} W/kg
-        </div>
+            <div id="metrics-async-content"
+                 hx-get="{% url 'plans:metrics_content' %}"
+                 hx-trigger="load"
+                 hx-target="#metrics-async-content"
+                 hx-swap="innerHTML">
+              <!-- Optionally, a skeleton or spinner can go here for instant feedback -->
+            </div>
+            {% endblock %}
       </div>
     {% endif %}
     <div id="pw-tread-current" class="mb-4" style="display: none;">
@@ -1205,9 +1127,7 @@ document.addEventListener('DOMContentLoaded', function() {
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
-          legend: {
-            display: false
-          },
+          legend: { display: false },
           tooltip: {
             backgroundColor: isDark ? 'rgba(31, 41, 55, 0.95)' : 'rgba(255, 255, 255, 0.95)',
             titleColor: textColor,
@@ -1220,13 +1140,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 const value = context.parsed || 0;
                 const total = context.dataset.data.reduce((a, b) => a + b, 0);
                 const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
-                // Get the correct zone key based on whether it's cycling or running
                 let zoneKey;
                 if (typeof zoneData.zones[1] !== 'undefined') {
-                  // Cycling zones (numbered 1-7)
                   zoneKey = context.dataIndex + 1;
                 } else {
-                  // Running zones (named)
                   zoneKey = ['recovery', 'easy', 'moderate', 'challenging', 'hard', 'very_hard', 'max'][context.dataIndex];
                 }
                 const timeFormatted = zoneData.zones[zoneKey].time_formatted;
@@ -1238,8 +1155,7 @@ document.addEventListener('DOMContentLoaded', function() {
         cutout: '60%'
       }
     });
-    
-    return chart;
+    // No code after this return
   }
   
   // Track chart creation - wrap createZoneChart to count charts
@@ -1293,33 +1209,25 @@ document.addEventListener('DOMContentLoaded', function() {
   createZoneChart('runningZonesAllChart', runningZonesAllData, RUNNING_ZONE_COLORS, 'running-all-legend');
   {% endif %}
   
-  // Hide loading overlay once all charts are initialized
-  function hideLoadingOverlay() {
-    const overlay = document.getElementById('metrics-loading-overlay');
-    const content = document.getElementById('metrics-content');
-    
-    if (overlay && content) {
-      // Fade out overlay and fade in content
-      overlay.style.opacity = '0';
-      content.style.opacity = '1';
-      
-      // Remove overlay from DOM after animation
-      setTimeout(() => {
-        if (overlay) {
-          overlay.style.display = 'none';
-        }
-      }, 300);
-    }
+  // Hide global loader and skeleton, show real content after charts are initialized
+  function showMetricsContent() {
+    var loader = document.getElementById('global-loader');
+    var skeleton = document.getElementById('metrics-skeleton');
+    var realContent = document.getElementById('metrics-real-content');
+    var content = document.getElementById('metrics-content');
+    if (loader) loader.classList.add('hidden');
+    if (skeleton) skeleton.style.display = 'none';
+    if (realContent) realContent.style.display = '';
+    if (content) content.style.opacity = '1';
   }
-  
-  // Fallback: Hide overlay after reasonable delay if still visible
-  // This ensures the overlay doesn't stay forever if something goes wrong
+
+  // Call after all charts are ready
+  showMetricsContent();
+
+  // Fallback: Hide loader and skeleton after 3s if something goes wrong
   setTimeout(() => {
-    const overlay = document.getElementById('metrics-loading-overlay');
-    if (overlay && overlay.style.display !== 'none' && overlay.style.opacity !== '0') {
-      hideLoadingOverlay();
-    }
-  }, 3000); // Maximum 3 seconds wait time
+    showMetricsContent();
+  }, 3000);
 });
 </script>
 {% endblock %}

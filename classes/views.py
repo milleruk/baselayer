@@ -952,7 +952,12 @@ def class_detail(request, pk):
                     bands_list = []
                     # Use get_bands() for database PaceLevel objects, or bands attribute for DefaultPaceLevel
                     bands_data = user_pace_level_obj.get_bands() if hasattr(user_pace_level_obj, 'get_bands') else user_pace_level_obj.bands
-                    for band in bands_data:
+                    # If bands_data is DefaultBands, use .all() to get iterable
+                    if hasattr(bands_data, 'all'):
+                        bands_iter = bands_data.all()
+                    else:
+                        bands_iter = bands_data
+                    for band in bands_iter:
                         # Handle both dict (from get_bands) and object (from DefaultPaceLevel)
                         if isinstance(band, dict):
                             bands_list.append({
