@@ -1,0 +1,68 @@
+<div class="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 shadow-lg">
+  <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-3">This Month</h2>
+
+  <div class="flex items-center gap-3 mb-4">
+    <span class="text-sm text-gray-600 dark:text-gray-400 font-medium">Discipline:</span>
+    <div class="flex gap-2">
+      <button class="px-3 py-1.5 text-xs font-medium text-white bg-primary rounded-lg month-discipline-btn active"
+              data-discipline="cycling">Cycling</button>
+      <button class="px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors month-discipline-btn"
+              data-discipline="running">Tread</button>
+    </div>
+  </div>
+
+  <div class="border-t border-gray-200 dark:border-gray-700 pt-3 space-y-3">
+
+    <!-- Distance -->
+    <div class="flex items-center justify-between">
+      <span class="text-sm font-semibold text-gray-700 dark:text-gray-300">Distance</span>
+      <div class="flex items-center gap-6">
+        <div class="text-right">
+          <div class="text-xs text-gray-500 dark:text-gray-400">Monthly</div>
+          <div class="text-sm font-semibold text-gray-900 dark:text-white month-distance cycling-data">{{ cycling_monthly_distance|floatformat:1 }}</div>
+          <div class="text-sm font-semibold text-gray-900 dark:text-white month-distance running-data hidden">{{ running_monthly_distance|floatformat:1 }}</div>
+        </div>
+        <div class="text-right">
+          <div class="text-xs text-gray-500 dark:text-gray-400">Yearly</div>
+          <div class="text-sm font-semibold text-gray-700 dark:text-gray-300 year-distance cycling-data">{{ cycling_yearly_distance|floatformat:1 }}</div>
+          <div class="text-sm font-semibold text-gray-700 dark:text-gray-300 year-distance running-data hidden">{{ running_yearly_distance|floatformat:1 }}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Output -->
+    <div class="flex items-center justify-between">
+      <span class="text-sm font-semibold text-gray-700 dark:text-gray-300">Output</span>
+      <div class="flex items-center gap-6">
+        <div class="text-right">
+          <div class="text-xs text-gray-500 dark:text-gray-400">Monthly</div>
+          <div class="text-sm font-semibold text-gray-900 dark:text-white month-output cycling-data">{{ cycling_monthly_output|floatformat:0 }}</div>
+          <div class="text-sm font-semibold text-gray-900 dark:text-white month-output running-data hidden">{{ running_monthly_output|floatformat:0 }}</div>
+        </div>
+        <div class="text-right">
+          <div class="text-xs text-gray-500 dark:text-gray-400">Yearly</div>
+          <div class="text-sm font-semibold text-gray-700 dark:text-gray-300 year-output cycling-data">{{ cycling_yearly_output|floatformat:0 }}</div>
+          <div class="text-sm font-semibold text-gray-700 dark:text-gray-300 year-output running-data hidden">{{ running_yearly_output|floatformat:0 }}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TSS -->
+    <div class="flex items-center justify-between">
+      <span class="text-sm font-semibold text-gray-700 dark:text-gray-300">TSS</span>
+      <div class="flex items-center gap-6">
+        <div class="text-right">
+          <div class="text-xs text-gray-500 dark:text-gray-400">Monthly</div>
+          <div class="text-sm font-semibold text-gray-900 dark:text-white month-tss cycling-data">{{ cycling_monthly_tss|floatformat:0 }}</div>
+          <div class="text-sm font-semibold text-gray-900 dark:text-white month-tss running-data hidden">{{ running_monthly_tss|floatformat:0 }}</div>
+        </div>
+        <div class="text-right">
+          <div class="text-xs text-gray-500 dark:text-gray-400">Yearly</div>
+          <div class="text-sm font-semibold text-gray-700 dark:text-gray-300 year-tss cycling-data">{{ cycling_yearly_tss|floatformat:0 }}</div>
+          <div class="text-sm font-semibold text-gray-700 dark:text-gray-300 year-tss running-data hidden">{{ running_yearly_tss|floatformat:0 }}</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>

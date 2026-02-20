@@ -1,0 +1,99 @@
+{# templates/metrics/performance_metrics.html #}
+{% extends "base_app.html" %}
+{% load static %}
+{% block title %}Performance Metrics{% endblock %}
+{% block page_title %}Performance Metrics{% endblock %}
+
+{% block extra_scripts %}
+  {% include "base/_scripts_charts.html" %}
+  <script type="module" defer src="{% static 'metrics/performance_metrics.js' %}"></script>
+{% endblock %}
+
+{% block content %}
+
+<script>
+  // keep this tiny if you want “instant loader”
+  (function () {
+    var loader = document.getElementById('global-loader');
+    if (loader) {
+      loader.classList.remove('hidden');
+      if (window.setRandomLoaderMessage) window.setRandomLoaderMessage();
+    }
+  })();
+</script>
+
+<div id="metrics-content" class="opacity-0 transition-opacity duration-300">
+  {% include "metrics/_skeleton.html" %}
+
+  <div id="metrics-real-content" class="hidden">
+    {% include "metrics/_header.html" %}
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+      {% include "metrics/_personal_records.html" %}
+      {% include "metrics/_this_month.html" %}
+    </div>
+
+    <div class="mb-8">
+  {% include "metrics/_power_curve.html" %}
+  </div>
+
+    {% include "metrics/_achievements_milestones.html" %}
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+      {% include "metrics/_power_to_weight.html" %}
+      {% include "metrics/_heart_rate.html" %}
+    </div>
+
+    {% include "metrics/_ftp_pace_cards.html" %}
+    {% include "metrics/_time_in_zones.html" %}
+  </div>
+</div>
+
+{# Single source of truth for JS data #}
+<script id="metrics-data" type="application/json">
+{
+  "personalRecords": {
+    "1": {{ personal_records_1m|safe }},
+    "2": {{ personal_records_2m|safe }},
+    "3": {{ personal_records_3m|safe }}
+  },
+  "heartRate": {
+    "0": {{ hr_this_month|safe }},
+    "1": {{ hr_1m|safe }},
+    "2": {{ hr_2m|safe }},
+    "3": {{ hr_3m|safe }}
+  },
+
+  "hasFtp": {{ ftp_entries|yesno:"true,false" }},
+  "ftp": {
+    "labels": [{% for e in ftp_entries %}"{{ e.recorded_date|date:'m/d/y' }}"{% if not forloop.last %},{% endif %}{% endfor %}],
+    "values": [{% for e in ftp_entries %}{{ e.ftp_value }}{% if not forloop.last %},{% endif %}{% endfor %}]
+  },
+
+  "hasRunningPace": {{ running_pace_entries|yesno:"true,false" }},
+  "runningPace": [
+    {% for e in running_pace_entries %}
+      {"dateStr":"{{ e.recorded_date|date:'m/d/y' }}","dateSort":"{{ e.recorded_date|date:'Y-m-d' }}","level":{{ e.level }}}{% if not forloop.last %},{% endif %}
+    {% endfor %}
+  ],
+
+  "hasWalkingPace": {{ walking_pace_entries|yesno:"true,false" }},
+  "walkingPace": [
+    {% for e in walking_pace_entries %}
+      {"dateStr":"{{ e.recorded_date|date:'m/d/y' }}","dateSort":"{{ e.recorded_date|date:'Y-m-d' }}","level":{{ e.level }}}{% if not forloop.last %},{% endif %}
+    {% endfor %}
+  ],
+
+  "zones": {
+    "cycling": {
+      "month": {{ cycling_zones_month|default:"null"|safe }},
+      "year": {{ cycling_zones_year|default:"null"|safe }}
+    },
+    "running": {
+      "month": {{ running_zones_month|default:"null"|safe }},
+      "year": {{ running_zones_year|default:"null"|safe }}
+    }
+  }
+}
+</script>
+
+{% endblock %}

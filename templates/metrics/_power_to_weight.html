@@ -1,0 +1,93 @@
+<div class="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-lg">
+  <div class="flex justify-between items-center mb-4">
+    <h3 class="text-lg font-bold text-gray-900 dark:text-white">Power to Weight</h3>
+  </div>
+
+  <div class="flex gap-2 mb-4">
+    <button class="px-4 py-2 text-xs font-medium text-white bg-primary rounded-lg pw-activity-btn active" data-activity="cycling">Cycling</button>
+    <button class="px-4 py-2 text-xs font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors pw-activity-btn" data-activity="tread">Tread</button>
+  </div>
+
+  {% if current_cycling_pw %}
+    <div id="pw-cycling-current" class="mb-4">
+      <div class="text-sm text-gray-600 dark:text-gray-400 mb-2 font-medium">Current cycling:</div>
+      <div class="px-4 py-3 text-white bg-primary rounded-lg font-bold text-lg inline-block">
+        {{ current_cycling_pw }} W/kg
+      </div>
+    </div>
+  {% endif %}
+
+  <div id="pw-tread-current" class="mb-4" style="display: none;">
+    {% if current_tread_pw %}
+      <div class="text-sm text-gray-600 dark:text-gray-400 mb-2 font-medium">Current tread:</div>
+      <div class="px-4 py-3 text-white bg-primary rounded-lg font-bold text-lg inline-block">
+        {{ current_tread_pw }} W/kg
+      </div>
+    {% else %}
+      <div class="text-center py-4 text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+        <div class="text-sm">No tread FTP data available. Add tread FTP entries to see power-to-weight ratio.</div>
+      </div>
+    {% endif %}
+  </div>
+
+  <div class="text-xs text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-2">History</div>
+
+  <div id="pw-cycling-history" class="overflow-x-auto">
+    {% if pw_history_cycling %}
+      <table class="min-w-full text-xs">
+        <thead>
+          <tr class="border-b border-gray-200 dark:border-gray-700">
+            <th class="text-left py-2 px-2 text-gray-600 dark:text-gray-400 font-semibold">Date</th>
+            <th class="text-left py-2 px-2 text-gray-600 dark:text-gray-400 font-semibold">FTP</th>
+            <th class="text-left py-2 px-2 text-gray-600 dark:text-gray-400 font-semibold">Weight</th>
+            <th class="text-left py-2 px-2 text-gray-600 dark:text-gray-400 font-semibold">P/W</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for entry in pw_history_cycling %}
+            <tr class="border-b border-gray-200 dark:border-gray-700">
+              <td class="py-2 px-2 text-gray-900 dark:text-white">{{ entry.date }}</td>
+              <td class="py-2 px-2 text-gray-900 dark:text-white">{% if entry.ftp %}{{ entry.ftp }} W{% else %}—{% endif %}</td>
+              <td class="py-2 px-2 text-gray-900 dark:text-white">{% if entry.weight %}{{ entry.weight|floatformat:1 }} lbs{% else %}—{% endif %}</td>
+              <td class="py-2 px-2 text-gray-900 dark:text-white">{% if entry.pw_ratio %}{{ entry.pw_ratio }} W/kg{% else %}—{% endif %}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <div class="text-xs text-gray-600 dark:text-gray-400">
+        Historical data will appear here once you add FTP and weight entries.
+      </div>
+    {% endif %}
+  </div>
+
+  <div id="pw-tread-history" class="overflow-x-auto" style="display: none;">
+    {% if pw_history_tread %}
+      <table class="min-w-full text-xs">
+        <thead>
+          <tr class="border-b border-gray-200 dark:border-gray-700">
+            <th class="text-left py-2 px-2 text-gray-600 dark:text-gray-400 font-semibold">Date</th>
+            <th class="text-left py-2 px-2 text-gray-600 dark:text-gray-400 font-semibold">FTP</th>
+            <th class="text-left py-2 px-2 text-gray-600 dark:text-gray-400 font-semibold">Weight</th>
+            <th class="text-left py-2 px-2 text-gray-600 dark:text-gray-400 font-semibold">P/W</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for entry in pw_history_tread %}
+            <tr class="border-b border-gray-200 dark:border-gray-700">
+              <td class="py-2 px-2 text-gray-900 dark:text-white">{{ entry.date }}</td>
+              <td class="py-2 px-2 text-gray-900 dark:text-white">{% if entry.ftp %}{{ entry.ftp }} W{% else %}—{% endif %}</td>
+              <td class="py-2 px-2 text-gray-900 dark:text-white">{% if entry.weight %}{{ entry.weight|floatformat:1 }} lbs{% else %}—{% endif %}</td>
+              <td class="py-2 px-2 text-gray-900 dark:text-white">{% if entry.pw_ratio %}{{ entry.pw_ratio }} W/kg{% else %}—{% endif %}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <div class="text-center py-8 text-gray-600 dark:text-gray-400">
+        <div class="text-4xl mb-2">📊</div>
+        <div class="text-sm">No data to show. Add tread FTP entries to see power-to-weight history.</div>
+      </div>
+    {% endif %}
+  </div>
+</div>

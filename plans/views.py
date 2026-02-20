@@ -1,18 +1,30 @@
+# Standard library
+import json
+from collections import defaultdict
+from datetime import date, datetime, timedelta
+
+# Django
 from django.contrib.auth.decorators import login_required
+from django.db.models import Avg, Q, Sum
+from django.db.models.functions import Coalesce
 from django.shortcuts import render
+from django.template.response import TemplateResponse
 from django.utils import timezone
 from django.utils.safestring import mark_safe
-from datetime import date, timedelta, datetime
-from collections import defaultdict
-import json
-from .models import Exercise
-from tracker.models import WeeklyPlan
+
+# Local apps
+from accounts.pace_converter import DEFAULT_RUNNING_PACE_LEVELS
+from accounts.rowing_pace_levels_data import DEFAULT_ROWING_PACE_LEVELS
+from accounts.walking_pace_levels_data import DEFAULT_WALKING_PACE_LEVELS
 from challenges.models import ChallengeInstance
 from core.services import DateRangeService, ZoneCalculatorService
-from .services import get_dashboard_period, get_dashboard_challenge_context
-from accounts.pace_converter import DEFAULT_RUNNING_PACE_LEVELS
-from accounts.walking_pace_levels_data import DEFAULT_WALKING_PACE_LEVELS
-from accounts.rowing_pace_levels_data import DEFAULT_ROWING_PACE_LEVELS
+from tracker.models import WeeklyPlan
+
+from .models import Exercise
+from .services import (
+    get_dashboard_challenge_context,
+    get_dashboard_period,
+)
 
 @login_required
 def exercise_list(request):
@@ -140,809 +152,627 @@ def calculate_running_zones(workouts, period=None):
 
 @login_required
 def metrics(request):
-    from collections import defaultdict
     from accounts.models import WeightEntry, FTPEntry, PaceEntry
-    
-    # Get all challenge instances for this user
-    all_challenge_instances = ChallengeInstance.objects.filter(
-        user=request.user
-    ).select_related('challenge').prefetch_related('weekly_plans').order_by('-started_at')
-    
-    # Group by challenge and count attempts
+    from workouts.models import Workout, WorkoutPerformanceData, WorkoutDetails
+    # Assuming these are already in your project
+    # from plans.models import WeeklyPlan, ChallengeInstance
+
+    user = request.user
+    today = timezone.now().date()
+    month_start = today.replace(day=1)
+    cutoff_12m = today - timedelta(days=365)
+
+    # ----------------------------
+    # Challenges (avoid N+1 on weekly_plans.exists())
+    # ----------------------------
+    all_challenge_instances = (
+        ChallengeInstance.objects
+        .filter(user=user)
+        .select_related("challenge")
+        .prefetch_related("weekly_plans")
+        .order_by("-started_at")
+    )
+
     challenge_groups = defaultdict(list)
-    
     for ci in all_challenge_instances:
-        challenge_groups[ci.challenge.id].append(ci)
-    
-    # Separate into fully completed and partially completed, showing only latest attempt per challenge
+        challenge_groups[ci.challenge_id].append(ci)
+
     fully_completed_challenges = []
     partially_completed_challenges = []
-    
-    for challenge_id, instances in challenge_groups.items():
-        # Sort by started_at descending to get the latest attempt
-        latest_instance = max(instances, key=lambda x: x.started_at)
-        attempt_count = len(instances)
-        
-        # Add attempt count to the instance
-        latest_instance.attempt_count = attempt_count
-        
-        if latest_instance.all_weeks_completed:
-            fully_completed_challenges.append(latest_instance)
-        elif latest_instance.weekly_plans.exists() and latest_instance.completion_rate > 0:
-            # Has some progress but not all weeks completed
-            partially_completed_challenges.append(latest_instance)
-    
-    # Get weight entries for power-to-weight calculations
-    weight_entries = WeightEntry.objects.filter(user=request.user).order_by('-recorded_date', '-created_at')
-    current_weight = weight_entries.first() if weight_entries.exists() else None
-    
-    # Get all plans for stats
-    all_plans = WeeklyPlan.objects.filter(user=request.user)
-    total_points = sum(plan.total_points for plan in all_plans)
-    
-    # Get FTP entries for progression chart (all entries, ordered by date)
-    ftp_entries = FTPEntry.objects.filter(user=request.user).order_by('recorded_date')
-    
-    # Get Pace entries for progression chart (all entries, ordered by date)
-    # Separate by activity type for the chart
-    running_pace_entries = PaceEntry.objects.filter(user=request.user, activity_type='running').order_by('recorded_date')
-    walking_pace_entries = PaceEntry.objects.filter(user=request.user, activity_type='walking').order_by('recorded_date')
-    
-    # Calculate Power-to-Weight ratios
-    # Get current FTP
-    current_ftp = ftp_entries.filter(is_active=True).order_by('-recorded_date').first()
-    if not current_ftp:
-        current_ftp = ftp_entries.order_by('-recorded_date').first()
-    
-    # Calculate current power-to-weight ratios
+
+    for _, instances in challenge_groups.items():
+        latest = max(instances, key=lambda x: x.started_at)
+        latest.attempt_count = len(instances)
+
+        if latest.all_weeks_completed:
+            fully_completed_challenges.append(latest)
+        else:
+            # use prefetched cache (no .exists())
+            has_weekly_plans = bool(list(latest.weekly_plans.all()))
+            if has_weekly_plans and latest.completion_rate > 0:
+                partially_completed_challenges.append(latest)
+
+    # ----------------------------
+    # Weight / FTP / Pace
+    # ----------------------------
+    weight_entries = (
+        WeightEntry.objects
+        .filter(user=user)
+        .only("recorded_date", "created_at", "weight")
+        .order_by("-recorded_date", "-created_at")
+    )
+    current_weight = weight_entries.first()
+
+    ftp_entries = (
+        FTPEntry.objects
+        .filter(user=user)
+        .only("recorded_date", "ftp_value", "is_active")
+        .order_by("recorded_date")
+    )
+
+    running_pace_entries = (
+        PaceEntry.objects
+        .filter(user=user, activity_type="running")
+        .only("recorded_date", "level")
+        .order_by("recorded_date")
+    )
+    walking_pace_entries = (
+        PaceEntry.objects
+        .filter(user=user, activity_type="walking")
+        .only("recorded_date", "level")
+        .order_by("recorded_date")
+    )
+
+    current_ftp = (
+        ftp_entries.filter(is_active=True).order_by("-recorded_date").first()
+        or ftp_entries.order_by("-recorded_date").first()
+    )
+
     current_cycling_pw = None
     current_tread_pw = None
-    
     if current_weight and current_ftp:
-        # Convert weight from lbs to kg (1 lb = 0.453592 kg)
         weight_kg = float(current_weight.weight) * 0.453592
         if weight_kg > 0:
             current_cycling_pw = round(float(current_ftp.ftp_value) / weight_kg, 2)
-            # Tread P/W will be None until we have tread-specific FTP data
-            current_tread_pw = None
-    
-    # Build historical power-to-weight data
-    # Combine FTP and weight entries by date (month/year)
-    pw_history = []
-    
-    # Create a dictionary of weight by month/year (keep most recent entry per month)
+
+    # ----------------------------
+    # P/W history (no extra DB calls)
+    # ----------------------------
     weight_by_month = {}
-    for weight_entry in weight_entries.order_by('recorded_date'):
-        # Use first day of month as key for grouping
-        month_start = weight_entry.recorded_date.replace(day=1)
-        month_key = month_start.strftime('%b %Y')
-        # Keep the most recent weight for each month
-        if month_key not in weight_by_month:
-            weight_by_month[month_key] = {
-                'weight': weight_entry.weight,
-                'date': month_start
-            }
-        else:
-            # Update if this entry is more recent
-            if weight_entry.recorded_date > weight_by_month[month_key]['date']:
-                weight_by_month[month_key] = {
-                    'weight': weight_entry.weight,
-                    'date': month_start
-                }
-    
-    # Create a dictionary of FTP by month/year (keep most recent entry per month)
+    for w in weight_entries.order_by("recorded_date").only("recorded_date", "weight"):
+        key_date = w.recorded_date.replace(day=1)
+        k = key_date.strftime("%b %Y")
+        prev = weight_by_month.get(k)
+        if not prev or w.recorded_date > prev["source_date"]:
+            weight_by_month[k] = {"weight": w.weight, "sort_date": key_date, "source_date": w.recorded_date}
+
     ftp_by_month = {}
-    for ftp_entry in ftp_entries.order_by('recorded_date'):
-        # Use first day of month as key for grouping
-        month_start = ftp_entry.recorded_date.replace(day=1)
-        month_key = month_start.strftime('%b %Y')
-        # Keep the most recent FTP for each month
-        if month_key not in ftp_by_month:
-            ftp_by_month[month_key] = {
-                'ftp': ftp_entry.ftp_value,
-                'date': month_start
-            }
-        else:
-            # Update if this entry is more recent
-            if ftp_entry.recorded_date > ftp_by_month[month_key]['date']:
-                ftp_by_month[month_key] = {
-                    'ftp': ftp_entry.ftp_value,
-                    'date': month_start
-                }
-    
-    # Combine all unique months
-    all_months = set(list(weight_by_month.keys()) + list(ftp_by_month.keys()))
-    
-    # Build history entries for cycling
+    for f in ftp_entries.order_by("recorded_date").only("recorded_date", "ftp_value"):
+        key_date = f.recorded_date.replace(day=1)
+        k = key_date.strftime("%b %Y")
+        prev = ftp_by_month.get(k)
+        if not prev or f.recorded_date > prev["source_date"]:
+            ftp_by_month[k] = {"ftp": f.ftp_value, "sort_date": key_date, "source_date": f.recorded_date}
+
+    all_months = set(weight_by_month.keys()) | set(ftp_by_month.keys())
     cycling_history_entries = []
-    
-    for month_key in all_months:
-        weight_data = weight_by_month.get(month_key, {})
-        ftp_data = ftp_by_month.get(month_key, {})
-        
-        weight = weight_data.get('weight') if weight_data else None
-        ftp = ftp_data.get('ftp') if ftp_data else None
-        
-        # Use the date from either weight or ftp entry for sorting
-        sort_date = weight_data.get('date') if weight_data else ftp_data.get('date')
-        
-        # Cycling P/W calculation
-        cycling_pw_ratio = None
+    for mk in all_months:
+        w = weight_by_month.get(mk)
+        f = ftp_by_month.get(mk)
+        weight = w["weight"] if w else None
+        ftp = f["ftp"] if f else None
+        sort_date = (w or f)["sort_date"] if (w or f) else None
+
+        pw_ratio = None
         if weight and ftp:
-            weight_kg = float(weight) * 0.453592
-            if weight_kg > 0:
-                cycling_pw_ratio = round(float(ftp) / weight_kg, 2)
-        
+            wkg = float(weight) * 0.453592
+            if wkg > 0:
+                pw_ratio = round(float(ftp) / wkg, 2)
+
         cycling_history_entries.append({
-            'date': month_key,
-            'ftp': ftp,
-            'weight': weight,
-            'pw_ratio': cycling_pw_ratio,
-            'sort_date': sort_date
+            "date": mk,
+            "ftp": ftp,
+            "weight": weight,
+            "pw_ratio": pw_ratio,
+            "sort_date": sort_date
         })
-    
-    # Sort by date descending (most recent first)
-    pw_history_cycling = sorted(cycling_history_entries, key=lambda x: x['sort_date'] if x['sort_date'] else datetime(1900, 1, 1), reverse=True)
-    
-    # Tread history - empty until we have tread-specific FTP data
-    # For now, we don't have tread FTP entries, so tread history will be empty
+
+    pw_history_cycling = sorted(
+        cycling_history_entries,
+        key=lambda x: x["sort_date"] or datetime(1900, 1, 1).date(),
+        reverse=True
+    )
     pw_history_tread = []
-    
-    # Get Peloton workout data for Personal Records and monthly stats
-    from workouts.models import Workout, WorkoutDetails, WorkoutPerformanceData
-    from django.db.models import Max, Sum, Avg, Q
-    from django.core.exceptions import ObjectDoesNotExist
-    
-    all_workouts = Workout.objects.filter(user=request.user).select_related('ride_detail', 'details', 'ride_detail__workout_type')
-    
-    # Helper function to safely get workout details
-    def safe_get_details_value(workout, field_name, default=0):
-        """Safely get a value from workout.details, returning default if details don't exist"""
-        try:
-            details = workout.details
-            if details:
-                value = getattr(details, field_name, None)
-                return value if value is not None else default
-        except (WorkoutDetails.DoesNotExist, AttributeError, ObjectDoesNotExist):
-            pass
-        return default
-    
-    # Calculate Personal Records (1 min, 3 min, 5 min, 10 min, 20 min power)
-    # These are calculated from time-series performance data
-    def calculate_power_records(workouts, months=3):
-        """Calculate max power for different time intervals"""
-        cutoff_date = timezone.now().date() - timedelta(days=30 * months)
-        cycling_workouts = workouts.filter(
-            completed_date__gte=cutoff_date,
-            ride_detail__fitness_discipline__in=['cycling', 'ride']
-        ).prefetch_related('performance_data')
-        
-        records = {
-            '1min': 0,
-            '3min': 0,
-            '5min': 0,
-            '10min': 0,
-            '20min': 0,
-        }
-        
-        for workout in cycling_workouts:
-            try:
-                if not hasattr(workout, 'details') or not workout.details or not workout.details.total_output:
-                    continue
-            except (WorkoutDetails.DoesNotExist, AttributeError, ObjectDoesNotExist):
-                continue
-            
-            # Get time-series performance data
-            perf_data = list(workout.performance_data.filter(output__isnull=False).order_by('timestamp'))
-            if not perf_data:
-                continue
-            
-            # Convert to list of (timestamp, output) tuples
-            data_points = [(p.timestamp, p.output) for p in perf_data if p.output]
-            
-            if not data_points:
-                continue
-            
-            # Calculate rolling averages for different intervals
-            intervals = [60, 180, 300, 600, 1200]  # 1min, 3min, 5min, 10min, 20min in seconds
-            interval_keys = ['1min', '3min', '5min', '10min', '20min']
-            
-            for idx, interval_seconds in enumerate(intervals):
-                max_avg = 0
-                # Calculate rolling average for this interval
-                # Assuming 5-second intervals, we need interval_seconds // 5 data points
-                window_size = interval_seconds // 5
-                for i in range(len(data_points) - window_size + 1):
-                    window = data_points[i:i + window_size]
-                    if len(window) == window_size:
-                        avg_output = sum(p[1] for p in window) / len(window)
-                        max_avg = max(max_avg, avg_output)
-                
-                if max_avg > records[interval_keys[idx]]:
-                    records[interval_keys[idx]] = int(max_avg)
-        
-        return records
-    
-    # Calculate Personal Records for 1, 2, 3 months
-    personal_records_1m = calculate_power_records(all_workouts, months=1)
-    personal_records_2m = calculate_power_records(all_workouts, months=2)
-    personal_records_3m = calculate_power_records(all_workouts, months=3)
-    
-    # Calculate monthly stats (this month)
-    today = timezone.now().date()
-    month_start = today.replace(day=1)
-    this_month_workouts = all_workouts.filter(completed_date__gte=month_start)
-    
-    # This month stats by discipline
-    this_month_cycling = this_month_workouts.filter(ride_detail__fitness_discipline__in=['cycling', 'ride'])
-    this_month_running = this_month_workouts.filter(ride_detail__fitness_discipline__in=['running', 'run', 'walking'])
-    
-    # Cycling stats
-    cycling_monthly_distance = sum(
-        safe_get_details_value(w, 'distance') for w in this_month_cycling
-    ) or 0
-    cycling_monthly_output = sum(
-        safe_get_details_value(w, 'total_output') for w in this_month_cycling
-    ) or 0
-    cycling_monthly_tss = sum(
-        safe_get_details_value(w, 'tss') for w in this_month_cycling
-    ) or 0
-    
-    # Running stats
-    running_monthly_distance = sum(
-        safe_get_details_value(w, 'distance') for w in this_month_running
-    ) or 0
-    running_monthly_output = sum(
-        safe_get_details_value(w, 'total_output') for w in this_month_running
-    ) or 0
-    running_monthly_tss = sum(
-        safe_get_details_value(w, 'tss') for w in this_month_running
-    ) or 0
-    
-    # Yearly stats (all time)
-    cycling_yearly_workouts = all_workouts.filter(ride_detail__fitness_discipline__in=['cycling', 'ride'])
-    cycling_yearly_distance = sum(
-        safe_get_details_value(w, 'distance') for w in cycling_yearly_workouts
-    ) or 0
-    cycling_yearly_output = sum(
-        safe_get_details_value(w, 'total_output') for w in cycling_yearly_workouts
-    ) or 0
-    cycling_yearly_tss = sum(
-        safe_get_details_value(w, 'tss') for w in cycling_yearly_workouts
-    ) or 0
-    
-    running_yearly_workouts = all_workouts.filter(ride_detail__fitness_discipline__in=['running', 'run', 'walking'])
-    running_yearly_distance = sum(
-        safe_get_details_value(w, 'distance') for w in running_yearly_workouts
-    ) or 0
-    running_yearly_output = sum(
-        safe_get_details_value(w, 'total_output') for w in running_yearly_workouts
-    ) or 0
-    running_yearly_tss = sum(
-        safe_get_details_value(w, 'tss') for w in running_yearly_workouts
-    ) or 0
-    
-    # Calculate average heart rate by workout type and overall
-    def calculate_heart_rate_by_type(workouts, months=None):
-        """Calculate average heart rate by workout type"""
-        if months:
-            cutoff_date = timezone.now().date() - timedelta(days=30 * months)
-            workouts = workouts.filter(completed_date__gte=cutoff_date)
-        
-        # Get workouts with heart rate data
-        heart_rate_workouts = workouts.filter(details__avg_heart_rate__isnull=False).select_related('ride_detail', 'ride_detail__workout_type', 'details')
-        
-        # Group by workout type
-        hr_by_type = {}
-        total_hr_sum = 0
-        total_hr_count = 0
-        
-        for workout in heart_rate_workouts:
-            try:
-                hr = safe_get_details_value(workout, 'avg_heart_rate')
-                if hr > 0:
-                    # Determine workout type category
-                    if workout.ride_detail:
-                        fitness_discipline = workout.ride_detail.fitness_discipline or ''
-                        workout_type_name = workout.ride_detail.workout_type.name if workout.ride_detail.workout_type else ''
-                        
-                        # Map to display categories
-                        if fitness_discipline.lower() in ['cycling', 'ride'] or 'cycling' in workout_type_name.lower():
-                            category = 'Cycling'
-                        elif fitness_discipline.lower() in ['running', 'run', 'walking'] or 'running' in workout_type_name.lower() or 'tread' in workout_type_name.lower():
-                            category = 'Tread'
-                        else:
-                            # Skip other types for now (can add more later)
-                            continue
-                    else:
-                        continue
-                    
-                    if category not in hr_by_type:
-                        hr_by_type[category] = {'sum': 0, 'count': 0}
-                    
-                    hr_by_type[category]['sum'] += hr
-                    hr_by_type[category]['count'] += 1
-                    total_hr_sum += hr
-                    total_hr_count += 1
-            except (WorkoutDetails.DoesNotExist, AttributeError, ObjectDoesNotExist):
-                continue
-        
-        # Calculate averages
-        result = {}
-        for category, data in hr_by_type.items():
-            result[category] = int(data['sum'] / data['count']) if data['count'] > 0 else 0
-        
-        # Overall average
-        result['overall'] = int(total_hr_sum / total_hr_count) if total_hr_count > 0 else 0
-        
-        return result
-    
-    # Calculate heart rate for different time periods
-    hr_this_month = calculate_heart_rate_by_type(all_workouts, months=None)  # This month
-    hr_1m = calculate_heart_rate_by_type(all_workouts, months=1)
-    hr_2m = calculate_heart_rate_by_type(all_workouts, months=2)
-    hr_3m = calculate_heart_rate_by_type(all_workouts, months=3)
-    
-    # Legacy support - overall average
-    avg_heart_rate = hr_this_month.get('overall')
-    
-    # Calculate Time in Zones for Cycling (Power Zones 1-7)
-    def calculate_cycling_zones(workouts, period=None):
-        """Calculate time spent in each power zone (1-7) for cycling workouts - optimized version"""
-        # Filter workouts by period
-        if period == 'month':
-            month_start = today.replace(day=1)
-            workouts = workouts.filter(completed_date__gte=month_start)
-        elif period == 'year':
-            year_start = today.replace(month=1, day=1)
-            workouts = workouts.filter(completed_date__gte=year_start)
-        # period == 'all' or None means all time
-        
-        # Filter to cycling workouts only - try multiple ways to detect cycling
-        cycling_workout_ids = workouts.filter(
-            Q(ride_detail__fitness_discipline__in=['cycling', 'ride']) |
-            Q(ride_detail__workout_type__slug__in=['cycling', 'ride']) |
-            Q(ride_detail__workout_type__name__icontains='cycle') |
-            Q(ride_detail__workout_type__name__icontains='bike')
-        ).values_list('id', flat=True)
-        
-        if not cycling_workout_ids:
-            # Return empty zones if no workouts
-            zone_times = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0}
-        else:
-            # Initialize zone times (in seconds)
-            zone_times = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0}
-            
-            # Get user's FTP for calculating zones if power_zone is not set
-            user_ftp = None
-            if current_ftp:
-                user_ftp = float(current_ftp.ftp_value)
-            
-            # Get performance data in bulk - only fetch what we need
-            from workouts.models import WorkoutPerformanceData
-            perf_data_qs = WorkoutPerformanceData.objects.filter(
-                workout_id__in=cycling_workout_ids
-            ).select_related('workout', 'workout__ride_detail').order_by('workout_id', 'timestamp').only(
-                'workout_id', 'timestamp', 'power_zone', 'output', 'workout__ride_detail__duration_seconds'
-            )
-            
-            # Group by workout for efficient processing
-            perf_by_workout = defaultdict(list)
-            for perf in perf_data_qs:
-                perf_by_workout[perf.workout_id].append(perf)
-            
-            # Process workouts in batches
-            for workout_id, perf_list in perf_by_workout.items():
-                if not perf_list:
-                    continue
-                
-                # Sort by timestamp
-                perf_list.sort(key=lambda x: x.timestamp)
-                
-                # Calculate time interval (assume consistent intervals)
-                if len(perf_list) > 1:
-                    time_interval = perf_list[1].timestamp - perf_list[0].timestamp
-                else:
-                    # Single data point - use workout duration if available
-                    duration = perf_list[0].workout.ride_detail.duration_seconds if perf_list[0].workout.ride_detail else None
-                    time_interval = duration if duration else 5
-                
-                # Process data points - sample every Nth point if too many to speed up
-                sample_rate = 1
-                if len(perf_list) > 1000:  # If more than 1000 points, sample every 2nd
-                    sample_rate = 2
-                elif len(perf_list) > 2000:  # If more than 2000 points, sample every 3rd
-                    sample_rate = 3
-                
-                for i in range(0, len(perf_list), sample_rate):
-                    perf = perf_list[i]
-                    zone = None
-                    
-                    # First try to use power_zone field if available
-                    if perf.power_zone and perf.power_zone in zone_times:
-                        zone = perf.power_zone
-                    # Otherwise, calculate zone from output and FTP
-                    elif perf.output and user_ftp:
-                        percentage = perf.output / user_ftp
-                        if percentage < 0.55:
-                            zone = 1
-                        elif percentage < 0.75:
-                            zone = 2
-                        elif percentage < 0.90:
-                            zone = 3
-                        elif percentage < 1.05:
-                            zone = 4
-                        elif percentage < 1.20:
-                            zone = 5
-                        elif percentage < 1.50:
-                            zone = 6
-                        else:
-                            zone = 7
-                    
-                    if zone and zone in zone_times:
-                        # Calculate time for this data point
-                        if i + sample_rate < len(perf_list):
-                            # Time until next sampled point
-                            time_spent = (perf_list[i + sample_rate].timestamp - perf.timestamp) * sample_rate
-                        else:
-                            # Last data point - use average interval
-                            time_spent = time_interval * sample_rate
-                        
-                        # Ensure time is positive and reasonable
-                        if time_spent > 0 and time_spent < 300:  # Max 5 minutes per interval
-                            zone_times[zone] += time_spent
-        
-        # Convert to formatted time strings and return
-        def format_time(seconds):
-            """Format seconds as HH:MM:SS or Dd HH:MM:SS"""
-            days = int(seconds // 86400)
-            hours = int((seconds % 86400) // 3600)
-            minutes = int((seconds % 3600) // 60)
-            secs = int(seconds % 60)
-            
-            if days > 0:
-                return f"{days}d {hours:02d}:{minutes:02d}:{secs:02d}"
-            else:
-                return f"{hours:02d}:{minutes:02d}:{secs:02d}"
-        
-        total_seconds = sum(zone_times.values())
-        
+
+    # ----------------------------
+    # Workouts base queryset (use DB aggregates for stats)
+    # ----------------------------
+    all_workouts = (
+        Workout.objects
+        .filter(user=user)
+        .select_related("ride_detail", "ride_detail__workout_type", "details")
+        .only(
+            "id", "completed_date",
+            "ride_detail__fitness_discipline",
+            "ride_detail__workout_type__name", "ride_detail__workout_type__slug",
+            "ride_detail__duration_seconds",
+            "details__distance", "details__total_output", "details__tss", "details__avg_heart_rate",
+        )
+    )
+
+    def agg_stats(qs):
+        a = qs.aggregate(
+            distance=Coalesce(Sum("details__distance"), 0.0),
+            output=Coalesce(Sum("details__total_output"), 0.0),
+            tss=Coalesce(Sum("details__tss"), 0.0),
+        )
+        return a["distance"], a["output"], a["tss"]
+
+    this_month = all_workouts.filter(completed_date__gte=month_start)
+
+    cycling_monthly_distance, cycling_monthly_output, cycling_monthly_tss = agg_stats(
+        this_month.filter(ride_detail__fitness_discipline__in=["cycling", "ride"])
+    )
+    running_monthly_distance, running_monthly_output, running_monthly_tss = agg_stats(
+        this_month.filter(ride_detail__fitness_discipline__in=["running", "run", "walking"])
+    )
+
+    # Your template labels say "Yearly" but you were calculating "all time".
+    # Keeping behavior (all-time totals) but via DB aggregates:
+    cycling_yearly_distance, cycling_yearly_output, cycling_yearly_tss = agg_stats(
+        all_workouts.filter(ride_detail__fitness_discipline__in=["cycling", "ride"])
+    )
+    running_yearly_distance, running_yearly_output, running_yearly_tss = agg_stats(
+        all_workouts.filter(ride_detail__fitness_discipline__in=["running", "run", "walking"])
+    )
+
+    # ----------------------------
+    # Heart rate (DB avg, no python scan)
+    # ----------------------------
+    def hr_block(qs):
+        cycling = qs.filter(
+            details__avg_heart_rate__isnull=False,
+            ride_detail__fitness_discipline__in=["cycling", "ride"],
+        ).aggregate(v=Avg("details__avg_heart_rate"))["v"] or 0
+
+        tread = qs.filter(
+            details__avg_heart_rate__isnull=False,
+            ride_detail__fitness_discipline__in=["running", "run", "walking"],
+        ).aggregate(v=Avg("details__avg_heart_rate"))["v"] or 0
+
+        overall = qs.filter(
+            details__avg_heart_rate__isnull=False
+        ).aggregate(v=Avg("details__avg_heart_rate"))["v"] or 0
+
         return {
-            'zones': {
-                1: {'name': 'Recovery', 'time_seconds': zone_times[1], 'time_formatted': format_time(zone_times[1])},
-                2: {'name': 'Endurance', 'time_seconds': zone_times[2], 'time_formatted': format_time(zone_times[2])},
-                3: {'name': 'Tempo', 'time_seconds': zone_times[3], 'time_formatted': format_time(zone_times[3])},
-                4: {'name': 'Threshold', 'time_seconds': zone_times[4], 'time_formatted': format_time(zone_times[4])},
-                5: {'name': 'VO2 Max', 'time_seconds': zone_times[5], 'time_formatted': format_time(zone_times[5])},
-                6: {'name': 'Anaerobic', 'time_seconds': zone_times[6], 'time_formatted': format_time(zone_times[6])},
-                7: {'name': 'Neuromuscular', 'time_seconds': zone_times[7], 'time_formatted': format_time(zone_times[7])},
-            },
-            'total_seconds': total_seconds,
-            'total_formatted': format_time(total_seconds)
+            "Cycling": int(cycling) if cycling else 0,
+            "Tread": int(tread) if tread else 0,
+            "overall": int(overall) if overall else 0,
         }
-    
-    # Calculate Time in Zones for Running (Intensity Zones)
-    def calculate_running_zones(workouts, period=None):
-        """Calculate time spent in each intensity zone for running workouts - optimized version"""
-        # Filter workouts by period
-        if period == 'month':
-            month_start = today.replace(day=1)
-            workouts = workouts.filter(completed_date__gte=month_start)
-        elif period == 'year':
-            year_start = today.replace(month=1, day=1)
-            workouts = workouts.filter(completed_date__gte=year_start)
-        # period == 'all' or None means all time
-        
-        # Filter to running workouts only - try multiple ways to detect running
-        running_workout_ids = workouts.filter(
-            Q(ride_detail__fitness_discipline__in=['running', 'run', 'walking']) |
-            Q(ride_detail__fitness_discipline__isnull=True, ride_detail__workout_type__slug__in=['running', 'run', 'walking']) |
-            Q(ride_detail__workout_type__slug__in=['running', 'run', 'walking']) |
-            Q(ride_detail__workout_type__name__icontains='run') |
-            Q(ride_detail__workout_type__name__icontains='walk') |
-            Q(ride_detail__workout_type__name__icontains='tread')
-        ).values_list('id', flat=True).distinct()
-        
-        # Initialize zone times (in seconds)
-        zone_times = {
-            'recovery': 0,
-            'easy': 0,
-            'moderate': 0,
-            'challenging': 0,
-            'hard': 0,
-            'very_hard': 0,
-            'max': 0
-        }
-        
-        if not running_workout_ids:
-            # Return empty zones if no workouts
-            pass
+
+    hr_this_month = hr_block(this_month)
+    hr_1m = hr_block(all_workouts.filter(completed_date__gte=today - timedelta(days=30)))
+    hr_2m = hr_block(all_workouts.filter(completed_date__gte=today - timedelta(days=60)))
+    hr_3m = hr_block(all_workouts.filter(completed_date__gte=today - timedelta(days=90)))
+    avg_heart_rate = hr_this_month.get("overall")
+
+    # ----------------------------
+    # Personal Records (SEGMENTED: 0–30, 31–60, 61–90 days)
+    # ----------------------------
+    def empty_pr():
+        return {"1min": 0, "3min": 0, "5min": 0, "10min": 0, "20min": 0}
+
+    def compute_workout_power_peaks(outputs_5s):
+        """
+        outputs_5s: list of instantaneous outputs at ~5s resolution.
+        Uses prefix sums for fast rolling averages.
+        """
+        peaks = empty_pr()
+        if not outputs_5s:
+            return peaks
+
+        ps = [0.0]
+        for v in outputs_5s:
+            ps.append(ps[-1] + float(v))
+
+        def max_avg(window_points):
+            if window_points <= 0 or window_points > len(outputs_5s):
+                return 0
+            best = 0.0
+            for i in range(0, len(outputs_5s) - window_points + 1):
+                s = ps[i + window_points] - ps[i]
+                best = max(best, s / window_points)
+            return int(best)
+
+        peaks["1min"] = max_avg(60 // 5)
+        peaks["3min"] = max_avg(180 // 5)
+        peaks["5min"] = max_avg(300 // 5)
+        peaks["10min"] = max_avg(600 // 5)
+        peaks["20min"] = max_avg(1200 // 5)
+        return peaks
+
+    pr_workouts = (
+        all_workouts
+        .filter(
+            completed_date__gte=today - timedelta(days=90),
+            ride_detail__fitness_discipline__in=["cycling", "ride"],
+            details__total_output__isnull=False,
+        )
+        .values("id", "completed_date")
+    )
+    pr_workout_ids = [w["id"] for w in pr_workouts]
+    completed_by_workout = {w["id"]: w["completed_date"] for w in pr_workouts}
+
+    perf_rows = (
+        WorkoutPerformanceData.objects
+        .filter(workout_id__in=pr_workout_ids, output__isnull=False)
+        .order_by("workout_id", "timestamp")
+        .values_list("workout_id", "output")
+    )
+
+    outputs_by_workout = defaultdict(list)
+    for wid, out in perf_rows:
+        if out is not None:
+            outputs_by_workout[wid].append(float(out))
+
+    peaks_by_workout = {}
+    for wid, outs in outputs_by_workout.items():
+        peaks_by_workout[wid] = compute_workout_power_peaks(outs)
+
+    pr_seg_1 = empty_pr()  # 0–30
+    pr_seg_2 = empty_pr()  # 31–60
+    pr_seg_3 = empty_pr()  # 61–90
+
+    for wid, peaks in peaks_by_workout.items():
+        d = completed_by_workout.get(wid)
+        if not d:
+            continue
+
+        age_days = (today - d).days
+        if 0 <= age_days <= 30:
+            bucket = pr_seg_1
+        elif 31 <= age_days <= 60:
+            bucket = pr_seg_2
+        elif 61 <= age_days <= 90:
+            bucket = pr_seg_3
         else:
-            # Get performance data in bulk - only fetch what we need
-            from workouts.models import WorkoutPerformanceData
-            perf_data_qs = WorkoutPerformanceData.objects.filter(
-                workout_id__in=running_workout_ids
-            ).select_related('workout', 'workout__ride_detail').order_by('workout_id', 'timestamp').only(
-                'workout_id', 'timestamp', 'intensity_zone', 'speed', 'heart_rate', 'workout__ride_detail__duration_seconds'
-            )
-            
-            # Group by workout for efficient processing
-            perf_by_workout = defaultdict(list)
-            workouts_without_data = set(running_workout_ids)
-            
-            for perf in perf_data_qs:
-                perf_by_workout[perf.workout_id].append(perf)
-                workouts_without_data.discard(perf.workout_id)
-            
-            # Handle workouts without performance data
-            if workouts_without_data:
-                from workouts.models import Workout
-                workouts_no_data = Workout.objects.filter(
-                    id__in=workouts_without_data
-                ).select_related('ride_detail').only('id', 'ride_detail__duration_seconds')
-                
-                for workout in workouts_no_data:
-                    if workout.ride_detail and workout.ride_detail.duration_seconds:
-                        duration = workout.ride_detail.duration_seconds
-                        # Rough estimate: most running is in easy/moderate zones
-                        zone_times['easy'] += duration * 0.3
-                        zone_times['moderate'] += duration * 0.4
-                        zone_times['challenging'] += duration * 0.2
-                        zone_times['hard'] += duration * 0.1
-            
-            # Process workouts with performance data
-            for workout_id, perf_list in perf_by_workout.items():
-                if not perf_list:
-                    continue
-                
-                # Sort by timestamp
-                perf_list.sort(key=lambda x: x.timestamp)
-                
-                # Calculate time interval
-                if len(perf_list) > 1:
-                    time_interval = perf_list[1].timestamp - perf_list[0].timestamp
-                else:
-                    duration = perf_list[0].workout.ride_detail.duration_seconds if perf_list[0].workout.ride_detail else None
-                    time_interval = duration if duration else 5
-                
-                # Process data points - sample every Nth point if too many to speed up
-                sample_rate = 1
-                if len(perf_list) > 1000:  # If more than 1000 points, sample every 2nd
-                    sample_rate = 2
-                elif len(perf_list) > 2000:  # If more than 2000 points, sample every 3rd
-                    sample_rate = 3
-                
-                for i in range(0, len(perf_list), sample_rate):
-                    perf = perf_list[i]
-                    zone = None
-                    
-                    # First try to use intensity_zone field if available
-                    if perf.intensity_zone and perf.intensity_zone in zone_times:
-                        zone = perf.intensity_zone
-                    # Fallback: try to calculate zone from speed or heart rate if available
-                    elif perf.speed:
-                        avg_speed = perf.speed
-                        if avg_speed < 4.0:
-                            zone = 'recovery'
-                        elif avg_speed < 5.5:
-                            zone = 'easy'
-                        elif avg_speed < 7.0:
-                            zone = 'moderate'
-                        elif avg_speed < 8.5:
-                            zone = 'challenging'
-                        elif avg_speed < 10.0:
-                            zone = 'hard'
-                        elif avg_speed < 12.0:
-                            zone = 'very_hard'
-                        else:
-                            zone = 'max'
-                    elif perf.heart_rate:
-                        hr = perf.heart_rate
-                        if hr < 120:
-                            zone = 'recovery'
-                        elif hr < 140:
-                            zone = 'easy'
-                        elif hr < 160:
-                            zone = 'moderate'
-                        elif hr < 175:
-                            zone = 'challenging'
-                        elif hr < 185:
-                            zone = 'hard'
-                        elif hr < 195:
-                            zone = 'very_hard'
-                        else:
-                            zone = 'max'
-                    
-                    if zone and zone in zone_times:
-                        # Calculate time for this data point
-                        if i + sample_rate < len(perf_list):
-                            time_spent = (perf_list[i + sample_rate].timestamp - perf.timestamp) * sample_rate
-                        else:
-                            time_spent = time_interval * sample_rate
-                        
-                        # Ensure time is positive and reasonable
-                        if time_spent > 0 and time_spent < 300:  # Max 5 minutes per interval
-                            zone_times[zone] += time_spent
-        
-        # Convert to formatted time strings and return
-        def format_time(seconds):
-            """Format seconds as HH:MM:SS or Dd HH:MM:SS"""
-            days = int(seconds // 86400)
-            hours = int((seconds % 86400) // 3600)
-            minutes = int((seconds % 3600) // 60)
-            secs = int(seconds % 60)
-            
-            if days > 0:
-                return f"{days}d {hours:02d}:{minutes:02d}:{secs:02d}"
-            else:
-                return f"{hours:02d}:{minutes:02d}:{secs:02d}"
-        
-        total_seconds = sum(zone_times.values())
-        
-        return {
-            'zones': {
-                'recovery': {'name': 'Recovery', 'time_seconds': zone_times['recovery'], 'time_formatted': format_time(zone_times['recovery'])},
-                'easy': {'name': 'Easy', 'time_seconds': zone_times['easy'], 'time_formatted': format_time(zone_times['easy'])},
-                'moderate': {'name': 'Moderate', 'time_seconds': zone_times['moderate'], 'time_formatted': format_time(zone_times['moderate'])},
-                'challenging': {'name': 'Challenging', 'time_seconds': zone_times['challenging'], 'time_formatted': format_time(zone_times['challenging'])},
-                'hard': {'name': 'Hard', 'time_seconds': zone_times['hard'], 'time_formatted': format_time(zone_times['hard'])},
-                'very_hard': {'name': 'Very Hard', 'time_seconds': zone_times['very_hard'], 'time_formatted': format_time(zone_times['very_hard'])},
-                'max': {'name': 'Max', 'time_seconds': zone_times['max'], 'time_formatted': format_time(zone_times['max'])},
-            },
-            'total_seconds': total_seconds,
-            'total_formatted': format_time(total_seconds)
-        }
-    
-    # Calculate zone data for different periods
-    cycling_zones_month = calculate_cycling_zones(all_workouts, period='month')
-    cycling_zones_year = calculate_cycling_zones(all_workouts, period='year')
-    cycling_zones_all = calculate_cycling_zones(all_workouts, period='all')
-    
-    running_zones_month = calculate_running_zones(all_workouts, period='month')
-    running_zones_year = calculate_running_zones(all_workouts, period='year')
-    running_zones_all = calculate_running_zones(all_workouts, period='all')
-    
-    current_month = timezone.now().month
-    current_year = timezone.now().year
-    
-    context = {
-        'fully_completed_challenges': fully_completed_challenges,
-        'partially_completed_challenges': partially_completed_challenges,
-        'current_weight': current_weight,
-        'weight_entries': weight_entries,
-        'total_points': total_points,
-        'current_month': current_month,
-        'current_year': current_year,
-        'ftp_entries': ftp_entries,
-        'running_pace_entries': running_pace_entries,
-        'walking_pace_entries': walking_pace_entries,
-        'current_ftp': current_ftp,
-        'current_cycling_pw': current_cycling_pw,
-        'current_tread_pw': current_tread_pw,
-        'pw_history_cycling': pw_history_cycling,
-        'pw_history_tread': pw_history_tread,
-        # Personal Records
-        'personal_records_1m': personal_records_1m,
-        'personal_records_2m': personal_records_2m,
-        'personal_records_3m': personal_records_3m,
-        # Monthly stats
-        'cycling_monthly_distance': cycling_monthly_distance,
-        'cycling_monthly_output': cycling_monthly_output,
-        'cycling_monthly_tss': cycling_monthly_tss,
-        'cycling_yearly_distance': cycling_yearly_distance,
-        'cycling_yearly_output': cycling_yearly_output,
-        'cycling_yearly_tss': cycling_yearly_tss,
-        'running_monthly_distance': running_monthly_distance,
-        'running_monthly_output': running_monthly_output,
-        'running_monthly_tss': running_monthly_tss,
-        'running_yearly_distance': running_yearly_distance,
-        'running_yearly_output': running_yearly_output,
-        'running_yearly_tss': running_yearly_tss,
-        # Heart rate
-        'avg_heart_rate': avg_heart_rate,
-        'hr_this_month': hr_this_month,
-        'hr_1m': hr_1m,
-        'hr_2m': hr_2m,
-        'hr_3m': hr_3m,
-        # Time in Zones
-        'cycling_zones_month': cycling_zones_month,
-        'cycling_zones_year': cycling_zones_year,
-        'cycling_zones_all': cycling_zones_all,
-        'running_zones_month': running_zones_month,
-        'running_zones_year': running_zones_year,
-        'running_zones_all': running_zones_all,
+            continue
+
+        for k in bucket.keys():
+            bucket[k] = max(bucket[k], peaks.get(k, 0) or 0)
+
+    personal_records_1m = pr_seg_1
+    personal_records_2m = pr_seg_2
+    personal_records_3m = pr_seg_3
+
+    # ----------------------------
+    # Time in Zones (ONLY current month + past 12 months)
+    # No "all time" -> less perf data scanned
+    # ----------------------------
+    def format_time(seconds):
+        seconds = float(seconds or 0)
+        days = int(seconds // 86400)
+        hours = int((seconds % 86400) // 3600)
+        minutes = int((seconds % 3600) // 60)
+        secs = int(seconds % 60)
+        return f"{days}d {hours:02d}:{minutes:02d}:{secs:02d}" if days > 0 else f"{hours:02d}:{minutes:02d}:{secs:02d}"
+
+    def cycling_zones_month_and_12m():
+        # buckets for two periods
+        month = {i: 0 for i in range(1, 8)}
+        yr12 = {i: 0 for i in range(1, 8)}
+
+        cycling_ids = list(
+            all_workouts.filter(
+                Q(ride_detail__fitness_discipline__in=["cycling", "ride"]) |
+                Q(ride_detail__workout_type__slug__in=["cycling", "ride"]) |
+                Q(ride_detail__workout_type__name__icontains="cycle") |
+                Q(ride_detail__workout_type__name__icontains="bike"),
+                completed_date__gte=cutoff_12m,
+            ).values_list("id", flat=True)
+        )
+
+        ftp_val = float(current_ftp.ftp_value) if current_ftp else None
+        if not cycling_ids:
+            return month, yr12
+
+        perf_qs = (
+            WorkoutPerformanceData.objects
+            .filter(workout_id__in=cycling_ids)
+            .select_related("workout")
+            .only("workout_id", "timestamp", "power_zone", "output", "workout__completed_date")
+            .order_by("workout_id", "timestamp")
+        )
+
+        last = {}
+        for p in perf_qs:
+            wid = p.workout_id
+            completed = p.workout.completed_date
+
+            zone = None
+            if p.power_zone and 1 <= p.power_zone <= 7:
+                zone = p.power_zone
+            elif p.output is not None and ftp_val:
+                pct = float(p.output) / ftp_val
+                if pct < 0.55: zone = 1
+                elif pct < 0.75: zone = 2
+                elif pct < 0.90: zone = 3
+                elif pct < 1.05: zone = 4
+                elif pct < 1.20: zone = 5
+                elif pct < 1.50: zone = 6
+                else: zone = 7
+
+            if not zone:
+                continue
+
+            prev = last.get(wid)
+            if prev:
+                prev_ts, prev_zone, prev_completed = prev
+                dt = p.timestamp - prev_ts
+                if 0 < dt < 300:
+                    # past 12 months (we already filtered workouts >= cutoff_12m)
+                    yr12[prev_zone] += dt
+                    if prev_completed and prev_completed >= month_start:
+                        month[prev_zone] += dt
+
+            last[wid] = (p.timestamp, zone, completed)
+
+        return month, yr12
+
+    def running_zones_month_and_12m():
+        keys = ["recovery", "easy", "moderate", "challenging", "hard", "very_hard", "max"]
+        month = {k: 0 for k in keys}
+        yr12 = {k: 0 for k in keys}
+
+        running_ids = list(
+            all_workouts.filter(
+                Q(ride_detail__fitness_discipline__in=["running", "run", "walking"]) |
+                Q(ride_detail__workout_type__slug__in=["running", "run", "walking"]) |
+                Q(ride_detail__workout_type__name__icontains="run") |
+                Q(ride_detail__workout_type__name__icontains="walk") |
+                Q(ride_detail__workout_type__name__icontains="tread"),
+                completed_date__gte=cutoff_12m,
+            ).values_list("id", flat=True).distinct()
+)
+
+        if not running_ids:
+            return month, yr12
+
+        perf_qs = (
+            WorkoutPerformanceData.objects
+            .filter(workout_id__in=running_ids)
+            .select_related("workout")
+            .only("workout_id", "timestamp", "intensity_zone", "speed", "heart_rate", "workout__completed_date")
+            .order_by("workout_id", "timestamp")
+        )
+
+        last = {}
+        for p in perf_qs:
+            wid = p.workout_id
+            completed = p.workout.completed_date
+
+            zone = None
+            if p.intensity_zone in yr12:
+                zone = p.intensity_zone
+            elif p.speed is not None:
+                s = float(p.speed)
+                if s < 4.0: zone = "recovery"
+                elif s < 5.5: zone = "easy"
+                elif s < 7.0: zone = "moderate"
+                elif s < 8.5: zone = "challenging"
+                elif s < 10.0: zone = "hard"
+                elif s < 12.0: zone = "very_hard"
+                else: zone = "max"
+            elif p.heart_rate is not None:
+                hr = float(p.heart_rate)
+                if hr < 120: zone = "recovery"
+                elif hr < 140: zone = "easy"
+                elif hr < 160: zone = "moderate"
+                elif hr < 175: zone = "challenging"
+                elif hr < 185: zone = "hard"
+                elif hr < 195: zone = "very_hard"
+                else: zone = "max"
+
+            if not zone:
+                continue
+
+            prev = last.get(wid)
+            if prev:
+                prev_ts, prev_zone, prev_completed = prev
+                dt = p.timestamp - prev_ts
+                if 0 < dt < 300:
+                    yr12[prev_zone] += dt
+                    if prev_completed and prev_completed >= month_start:
+                        month[prev_zone] += dt
+
+            last[wid] = (p.timestamp, zone, completed)
+
+        return month, yr12
+
+    cycling_month_times, cycling_12m_times = cycling_zones_month_and_12m()
+    running_month_times, running_12m_times = running_zones_month_and_12m()
+
+    cycling_zones_month = {
+        "zones": {
+            1: {"name": "Recovery", "time_seconds": cycling_month_times[1], "time_formatted": format_time(cycling_month_times[1])},
+            2: {"name": "Endurance", "time_seconds": cycling_month_times[2], "time_formatted": format_time(cycling_month_times[2])},
+            3: {"name": "Tempo", "time_seconds": cycling_month_times[3], "time_formatted": format_time(cycling_month_times[3])},
+            4: {"name": "Threshold", "time_seconds": cycling_month_times[4], "time_formatted": format_time(cycling_month_times[4])},
+            5: {"name": "VO2 Max", "time_seconds": cycling_month_times[5], "time_formatted": format_time(cycling_month_times[5])},
+            6: {"name": "Anaerobic", "time_seconds": cycling_month_times[6], "time_formatted": format_time(cycling_month_times[6])},
+            7: {"name": "Neuromuscular", "time_seconds": cycling_month_times[7], "time_formatted": format_time(cycling_month_times[7])},
+        },
+        "total_seconds": sum(cycling_month_times.values()),
+        "total_formatted": format_time(sum(cycling_month_times.values())),
     }
-    
-    # Convert Personal Records to JSON for JavaScript
-    context['personal_records_1m'] = mark_safe(json.dumps(personal_records_1m))
-    context['personal_records_2m'] = mark_safe(json.dumps(personal_records_2m))
-    context['personal_records_3m'] = mark_safe(json.dumps(personal_records_3m))
-    
-    # Convert Heart Rate data to JSON for JavaScript
-    context['hr_this_month'] = mark_safe(json.dumps(hr_this_month))
-    context['hr_1m'] = mark_safe(json.dumps(hr_1m))
-    context['hr_2m'] = mark_safe(json.dumps(hr_2m))
-    context['hr_3m'] = mark_safe(json.dumps(hr_3m))
-    
-    # Convert Zone data to JSON for JavaScript
-    context['cycling_zones_month'] = mark_safe(json.dumps(cycling_zones_month))
-    context['cycling_zones_year'] = mark_safe(json.dumps(cycling_zones_year))
-    context['cycling_zones_all'] = mark_safe(json.dumps(cycling_zones_all))
-    context['running_zones_month'] = mark_safe(json.dumps(running_zones_month))
-    context['running_zones_year'] = mark_safe(json.dumps(running_zones_year))
-    context['running_zones_all'] = mark_safe(json.dumps(running_zones_all))
-    
-    # Calculate Peloton milestones
+
+    cycling_zones_year = {
+        "zones": {
+            1: {"name": "Recovery", "time_seconds": cycling_12m_times[1], "time_formatted": format_time(cycling_12m_times[1])},
+            2: {"name": "Endurance", "time_seconds": cycling_12m_times[2], "time_formatted": format_time(cycling_12m_times[2])},
+            3: {"name": "Tempo", "time_seconds": cycling_12m_times[3], "time_formatted": format_time(cycling_12m_times[3])},
+            4: {"name": "Threshold", "time_seconds": cycling_12m_times[4], "time_formatted": format_time(cycling_12m_times[4])},
+            5: {"name": "VO2 Max", "time_seconds": cycling_12m_times[5], "time_formatted": format_time(cycling_12m_times[5])},
+            6: {"name": "Anaerobic", "time_seconds": cycling_12m_times[6], "time_formatted": format_time(cycling_12m_times[6])},
+            7: {"name": "Neuromuscular", "time_seconds": cycling_12m_times[7], "time_formatted": format_time(cycling_12m_times[7])},
+        },
+        "total_seconds": sum(cycling_12m_times.values()),
+        "total_formatted": format_time(sum(cycling_12m_times.values())),
+    }
+
+    running_zone_names = {
+        "recovery": "Recovery",
+        "easy": "Easy",
+        "moderate": "Moderate",
+        "challenging": "Challenging",
+        "hard": "Hard",
+        "very_hard": "Very Hard",
+        "max": "Max",
+    }
+
+    running_zones_month = {
+        "zones": {
+            k: {"name": running_zone_names[k], "time_seconds": running_month_times[k], "time_formatted": format_time(running_month_times[k])}
+            for k in running_month_times.keys()
+        },
+        "total_seconds": sum(running_month_times.values()),
+        "total_formatted": format_time(sum(running_month_times.values())),
+    }
+
+    running_zones_year = {
+        "zones": {
+            k: {"name": running_zone_names[k], "time_seconds": running_12m_times[k], "time_formatted": format_time(running_12m_times[k])}
+            for k in running_12m_times.keys()
+        },
+        "total_seconds": sum(running_12m_times.values()),
+        "total_formatted": format_time(sum(running_12m_times.values())),
+    }
+
+    # NOTE: to fully remove "All Time" zones, also remove the 3rd card+canvas in the template
+    cycling_zones_all = None
+    running_zones_all = None
+
+    # ----------------------------
+    # Milestones (unchanged)
+    # ----------------------------
     peloton_milestones = []
-    if hasattr(request.user, 'profile') and request.user.profile.peloton_workout_counts:
-        workout_counts = request.user.profile.peloton_workout_counts
-        
-        # Map milestone categories to Peloton workout slugs
+    if hasattr(user, "profile") and user.profile.peloton_workout_counts:
+        workout_counts = user.profile.peloton_workout_counts
         categories = [
-            {'name': 'Yoga', 'slug': 'yoga', 'icon': '🧘'},
-            {'name': 'Bike', 'slug': 'cycling', 'icon': '🚴'},
-            {'name': 'Tread', 'slug': 'running', 'icon': '🏃'},
-            {'name': 'Stretching', 'slug': 'stretching', 'icon': '🤸'},
-            {'name': 'Strength', 'slug': 'strength', 'icon': '💪'},
+            {"name": "Yoga", "slug": "yoga", "icon": "🧘"},
+            {"name": "Bike", "slug": "cycling", "icon": "🚴"},
+            {"name": "Tread", "slug": "running", "icon": "🏃"},
+            {"name": "Stretching", "slug": "stretching", "icon": "🤸"},
+            {"name": "Strength", "slug": "strength", "icon": "💪"},
         ]
-        
-        # Milestone thresholds
-        milestone_thresholds = [10, 50, 100, 500, 1000]
-        
-        for category_info in categories:
-            count = workout_counts.get(category_info['slug'], 0)
+        thresholds = [10, 50, 100, 500, 1000]
+
+        for c in categories:
+            count = workout_counts.get(c["slug"], 0)
             achieved = []
             next_milestone = None
             progress_percentage = 0
-            
-            # Check which milestones are achieved and find next uncompleted milestone
-            for i, threshold in enumerate(milestone_thresholds):
-                if count >= threshold:
-                    achieved.append(threshold)
+
+            for i, t in enumerate(thresholds):
+                if count >= t:
+                    achieved.append(t)
                 else:
-                    # This is the next uncompleted milestone
-                    if next_milestone is None:
-                        next_milestone = threshold
-                        # Calculate progress: how far from previous milestone (or 0) to next milestone
-                        previous_threshold = milestone_thresholds[i - 1] if i > 0 else 0
-                        if next_milestone > previous_threshold:
-                            progress = (count - previous_threshold) / (next_milestone - previous_threshold)
-                            progress_percentage = min(100, max(0, int(progress * 100)))
+                    next_milestone = t
+                    prev_t = thresholds[i - 1] if i > 0 else 0
+                    if t > prev_t:
+                        progress_percentage = int(((count - prev_t) / (t - prev_t)) * 100)
+                        progress_percentage = max(0, min(100, progress_percentage))
                     break
-            
+
             peloton_milestones.append({
-                'name': category_info['name'],
-                'icon': category_info['icon'],
-                'count': count,
-                'achieved': achieved,
-                'thresholds': milestone_thresholds,
-                'next_milestone': next_milestone,
-                'progress_percentage': progress_percentage,
+                "name": c["name"],
+                "icon": c["icon"],
+                "count": count,
+                "achieved": achieved,
+                "thresholds": thresholds,
+                "next_milestone": next_milestone,
+                "progress_percentage": progress_percentage,
             })
     else:
-        # Default structure if no Peloton data
-        categories = [
-            {'name': 'Yoga', 'icon': '🧘'},
-            {'name': 'Bike', 'icon': '🚴'},
-            {'name': 'Tread', 'icon': '🏃'},
-            {'name': 'Stretching', 'icon': '🤸'},
-            {'name': 'Strength', 'icon': '💪'},
-        ]
-        for category_info in categories:
+        for c in [
+            {"name": "Yoga", "icon": "🧘"},
+            {"name": "Bike", "icon": "🚴"},
+            {"name": "Tread", "icon": "🏃"},
+            {"name": "Stretching", "icon": "🤸"},
+            {"name": "Strength", "icon": "💪"},
+        ]:
             peloton_milestones.append({
-                'name': category_info['name'],
-                'icon': category_info['icon'],
-                'count': 0,
-                'achieved': [],
-                'thresholds': [10, 50, 100, 500, 1000],
-                'next_milestone': 10,  # First milestone
-                'progress_percentage': 0,
+                "name": c["name"],
+                "icon": c["icon"],
+                "count": 0,
+                "achieved": [],
+                "thresholds": [10, 50, 100, 500, 1000],
+                "next_milestone": 10,
+                "progress_percentage": 0,
             })
-    
-    context['peloton_milestones'] = peloton_milestones
-    
-    return render(request, "plans/metrics.html", context)
 
+    # ----------------------------
+    # Context
+    # ----------------------------
+    context = {
+        "fully_completed_challenges": fully_completed_challenges,
+        "partially_completed_challenges": partially_completed_challenges,
+
+        "current_weight": current_weight,
+        "weight_entries": weight_entries,
+
+        "current_month": today.month,
+        "current_year": today.year,
+
+        "ftp_entries": ftp_entries,
+        "running_pace_entries": running_pace_entries,
+        "walking_pace_entries": walking_pace_entries,
+
+        "current_ftp": current_ftp,
+        "current_cycling_pw": current_cycling_pw,
+        "current_tread_pw": current_tread_pw,
+        "pw_history_cycling": pw_history_cycling,
+        "pw_history_tread": pw_history_tread,
+
+        # Personal Records (segmented)
+        "personal_records_1m": mark_safe(json.dumps(personal_records_1m)),
+        "personal_records_2m": mark_safe(json.dumps(personal_records_2m)),
+        "personal_records_3m": mark_safe(json.dumps(personal_records_3m)),
+
+        # Monthly stats
+        "cycling_monthly_distance": cycling_monthly_distance,
+        "cycling_monthly_output": cycling_monthly_output,
+        "cycling_monthly_tss": cycling_monthly_tss,
+        "cycling_yearly_distance": cycling_yearly_distance,
+        "cycling_yearly_output": cycling_yearly_output,
+        "cycling_yearly_tss": cycling_yearly_tss,
+
+        "running_monthly_distance": running_monthly_distance,
+        "running_monthly_output": running_monthly_output,
+        "running_monthly_tss": running_monthly_tss,
+        "running_yearly_distance": running_yearly_distance,
+        "running_yearly_output": running_yearly_output,
+        "running_yearly_tss": running_yearly_tss,
+
+        # Heart rate
+        "avg_heart_rate": avg_heart_rate,
+        "hr_this_month": mark_safe(json.dumps(hr_this_month)),
+        "hr_1m": mark_safe(json.dumps(hr_1m)),
+        "hr_2m": mark_safe(json.dumps(hr_2m)),
+        "hr_3m": mark_safe(json.dumps(hr_3m)),
+
+        # Zones (month + past 12 months only)
+        "cycling_zones_month": mark_safe(json.dumps(cycling_zones_month)),
+        "cycling_zones_year": mark_safe(json.dumps(cycling_zones_year)),
+        "cycling_zones_all": cycling_zones_all,  # None so template {% if %} blocks won't render JS
+        "running_zones_month": mark_safe(json.dumps(running_zones_month)),
+        "running_zones_year": mark_safe(json.dumps(running_zones_year)),
+        "running_zones_all": running_zones_all,  # None
+
+        "peloton_milestones": peloton_milestones,
+    }
+
+    return render(request, "metrics/performance_metrics.html", context)
 
 @login_required
 def recap(request):

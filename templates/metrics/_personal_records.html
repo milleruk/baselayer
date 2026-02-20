@@ -1,0 +1,61 @@
+<div class="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-lg">
+
+  <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+    <h2 class="text-2xl font-bold text-gray-900 dark:text-white">
+      Personal Records
+    </h2>
+
+    <div class="flex gap-2">
+      <button class="pr-period-btn px-4 py-2 text-sm font-medium bg-yellow-400 text-gray-900 rounded-lg" data-period="1">0–30d</button>
+      <button class="pr-period-btn px-4 py-2 text-sm font-medium bg-transparent text-gray-600 dark:text-gray-400 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors rounded-lg" data-period="2">31–60d</button>
+      <button class="pr-period-btn px-4 py-2 text-sm font-medium bg-transparent text-gray-600 dark:text-gray-400 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors rounded-lg" data-period="3">61–90d</button>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-5 gap-4">
+    <div class="text-center">
+      <div class="inline-block px-3 py-1 bg-purple-600 rounded-lg mb-2 shadow">
+        <div class="text-xs font-bold text-white uppercase tracking-wide">1 MIN</div>
+      </div>
+      <div class="text-3xl font-bold text-gray-900 dark:text-white pr-value" data-interval="1min">—</div>
+      <div class="text-sm text-gray-600 dark:text-gray-400 font-medium">W</div>
+    </div>
+
+    <div class="text-center">
+      <div class="inline-block px-3 py-1 bg-purple-600 rounded-lg mb-2 shadow">
+        <div class="text-xs font-bold text-white uppercase tracking-wide">3 MIN</div>
+      </div>
+      <div class="text-3xl font-bold text-gray-900 dark:text-white pr-value" data-interval="3min">—</div>
+      <div class="text-sm text-gray-600 dark:text-gray-400 font-medium">W</div>
+    </div>
+
+    <div class="text-center">
+      <div class="inline-block px-3 py-1 bg-purple-600 rounded-lg mb-2 shadow">
+        <div class="text-xs font-bold text-white uppercase tracking-wide">5 MIN</div>
+      </div>
+      <div class="text-3xl font-bold text-gray-900 dark:text-white pr-value" data-interval="5min">—</div>
+      <div class="text-sm text-gray-600 dark:text-gray-400 font-medium">W</div>
+    </div>
+
+    <div class="text-center">
+      <div class="inline-block px-3 py-1 bg-purple-600 rounded-lg mb-2 shadow">
+        <div class="text-xs font-bold text-white uppercase tracking-wide">10 MIN</div>
+      </div>
+      <div class="text-3xl font-bold text-gray-900 dark:text-white pr-value" data-interval="10min">—</div>
+      <div class="text-sm text-gray-600 dark:text-gray-400 font-medium">W</div>
+    </div>
+
+    <div class="text-center">
+      <div class="inline-block px-3 py-1 bg-purple-600 rounded-lg mb-2 shadow">
+        <div class="text-xs font-bold text-white uppercase tracking-wide">20 MIN</div>
+      </div>
+      <div class="text-3xl font-bold text-gray-900 dark:text-white pr-value" data-interval="20min">—</div>
+      <div class="text-sm text-gray-600 dark:text-gray-400 font-medium">W</div>
+    </div>
+  </div>
+
+  <div class="mt-6 p-4 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-600 dark:text-gray-400">
+    Best rolling-average power within each time window (segmented: 0–30, 31–60, 61–90 days).
+  </div>
+
+</div>

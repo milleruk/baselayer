@@ -1,0 +1,66 @@
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+
+  <!-- Cycling FTP -->
+  <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="text-lg font-bold text-gray-900 dark:text-white">Cycling FTP</h3>
+    </div>
+
+    {% if ftp_entries %}
+      <div class="relative w-full" style="height: 300px;">
+        <canvas id="ftpChart"></canvas>
+      </div>
+    {% else %}
+      <div class="text-center py-10 text-gray-600 dark:text-gray-400">
+        <div class="text-4xl mb-2">📊</div>
+        <p class="text-sm">
+          No FTP data yet. Add FTP entries in your
+          <a href="{% url 'profile' %}#tab-ftp-pace" class="text-primary hover:underline">profile settings</a>.
+        </p>
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- Running Pace -->
+  <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="text-lg font-bold text-gray-900 dark:text-white">Running Pace</h3>
+    </div>
+
+    {% if running_pace_entries %}
+      <div class="relative w-full" style="height: 300px;">
+        <canvas id="runningPaceChart"></canvas>
+      </div>
+    {% else %}
+      <div class="text-center py-10 text-gray-600 dark:text-gray-400">
+        <div class="text-4xl mb-2">🏃</div>
+        <p class="text-sm">
+          No running pace data yet. Add pace entries in your
+          <a href="{% url 'profile' %}#tab-ftp-pace" class="text-primary hover:underline">profile settings</a>.
+        </p>
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- Walking Pace -->
+  <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="text-lg font-bold text-gray-900 dark:text-white">Walking Pace</h3>
+    </div>
+
+    {% if walking_pace_entries %}
+      <div class="relative w-full" style="height: 300px;">
+        <canvas id="walkingPaceChart"></canvas>
+      </div>
+    {% else %}
+      <div class="text-center py-10 text-gray-600 dark:text-gray-400">
+        <div class="text-4xl mb-2">🚶</div>
+        <p class="text-sm">
+          No walking pace data yet. Add pace entries in your
+          <a href="{% url 'profile' %}#tab-ftp-pace" class="text-primary hover:underline">profile settings</a>.
+        </p>
+      </div>
+    {% endif %}
+  </div>
+
+</div>
